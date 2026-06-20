@@ -10,6 +10,7 @@
 #include "pqPresetToPixmap.h"
 #include "pqPropertiesPanel.h"
 #include "pqServer.h"
+#include "pqWidgetUtilities.h"
 
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMTransferFunctionPresets.h"
@@ -187,7 +188,6 @@ public:
             this->data(this->index(idx.row(), defaultColumn), Qt::DisplayRole) != -1)
           {
             font.setBold(true);
-            font.setUnderline(true);
           }
 
           if (!this->Presets->IsPresetBuiltin(idx.row()))
@@ -462,6 +462,7 @@ public:
     , ReflowModel(new pqPresetDialogReflowModel(2, self))
   {
     this->Ui.setupUi(self);
+    pqWidgetUtilities::formatChildTooltips(self);
     this->Ui.gridLayout->setVerticalSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
     this->Ui.gridLayout->setHorizontalSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
     this->Ui.verticalLayout->setSpacing(pqPropertiesPanel::suggestedVerticalSpacing());

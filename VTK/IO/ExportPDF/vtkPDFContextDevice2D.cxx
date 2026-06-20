@@ -925,7 +925,7 @@ void vtkPDFContextDevice2D::DrawMarkers(
     default:
       // default is here for consistency with old impl -- defaults to plus for
       // unrecognized shapes.
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
     case VTK_MARKER_PLUS:
       this->DrawPlusMarkers(highlight, points, n, colors, nc_comps);
       break;
@@ -1066,7 +1066,7 @@ void vtkPDFContextDevice2D::DrawColoredPolygon(
     {
       case 4:
         this->Brush->SetOpacity(colors[3]);
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case 3:
         this->Brush->SetColor(colors);
         break;
@@ -1375,7 +1375,7 @@ void vtkPDFContextDevice2D::DrawPolyData(
 {
   // Do nothing if the supported cell types do not exist in the dataset:
   vtkNew<vtkCellTypes> types;
-  polyData->GetCellTypes(types);
+  polyData->GetDistinctCellTypes(types);
   if (!types->IsType(VTK_LINE) && !types->IsType(VTK_POLY_LINE) && !types->IsType(VTK_TRIANGLE) &&
     !types->IsType(VTK_QUAD) && !types->IsType(VTK_POLYGON))
   {
@@ -1627,7 +1627,7 @@ void vtkPDFContextDevice2D::ApplyLineType(int type)
   {
     default:
       vtkErrorMacro("Unknown line type: " << type);
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
 
     case vtkPen::NO_PEN:
       HPDF_Page_SetDash(this->Impl->Page, noPen, noPenLen, 0);
@@ -1976,11 +1976,7 @@ int vtkPDFContextDevice2D::GetNumberOfArcIterations(
     maxRadius = rY;
   }
 
-  if (error > maxRadius)
-  {
-    // to make sure the argument of asin() is in a valid range.
-    error = maxRadius;
-  }
+  error = std::min(error, maxRadius); // error should not be greater than maxRadius.
 
   // Angle of a sector so that its chord is `error' pixels.
   // This is will be our maximum angle step.
@@ -2254,7 +2250,7 @@ void vtkPDFContextDevice2D::ApplyTransform()
 
   // Test if the new transform is identity, within tolerance:
   bool isIdentity = true;
-  const double tol = 1e-6;
+  constexpr double tol = 1e-6;
   for (size_t i = 0; i < 3 && isIdentity; ++i)
   {
     for (size_t j = 0; j < 3 && isIdentity; ++j)

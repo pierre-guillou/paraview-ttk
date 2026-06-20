@@ -26,12 +26,15 @@
 #include "vtkNew.h"
 #include "vtkPointData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringFormatter.h"
 #include "vtkTestUtilities.h"
 #include "vtkTesting.h"
 
 #include <string>
 
 #include <adios2.h>
+
+#include <iostream>
 
 namespace
 {
@@ -55,8 +58,6 @@ MPI_Comm MPIGetComm()
 
 void WriteBPFileNoSchema(const std::string& fileName)
 {
-  const std::string extent = "0 10 0 10 0 10";
-
   ADIOS_OPEN(fw, fileName);
   for (size_t t = 0; t < 2; ++t)
   {
@@ -613,7 +614,7 @@ bool TestPointDataTime(const std::string& baseDir)
       if (expected != read)
       {
         throw std::logic_error(
-          "Unexpected value read from file at time " + std::to_string(timestep));
+          "Unexpected value read from file at time " + vtk::to_string(timestep));
       }
     }
   };
@@ -682,7 +683,7 @@ int UnitTestIOADIOS2VTX(int argc, char* argv[])
   {
     vtkNew<vtkTesting> testing;
     const std::string rootDirectory(testing->GetTempDirectory());
-    return rootDirectory + "/dummy_" + std::to_string(id) + ".bp";
+    return rootDirectory + "/dummy_" + vtk::to_string(id) + ".bp";
   };
 
   auto lf_TestBadFile = [&](const std::string& fileName, const size_t id)
@@ -763,7 +764,7 @@ int UnitTestIOADIOS2VTX(int argc, char* argv[])
     if (!success)
     {
       throw std::logic_error(
-        "ERROR: ADIOS2 VTK Reader unit test " + std::to_string(testID) + "(" + name + ") failed\n");
+        "ERROR: ADIOS2 VTK Reader unit test " + vtk::to_string(testID) + "(" + name + ") failed\n");
     }
   };
 

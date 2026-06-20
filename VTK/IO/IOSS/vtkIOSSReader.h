@@ -159,6 +159,7 @@
  * vtkIOSSWriter, vtkExodusIIReader, vtkCGNSReader
  */
 
+#include "vtkDeprecation.h"  // for VTK_DEPRECATED_IN_9_6_0
 #include "vtkIOIOSSModule.h" // for export macros
 #include "vtkNew.h"          // for vtkNew
 #include "vtkReaderAlgorithm.h"
@@ -205,6 +206,15 @@ public:
 
   ///@{
   /**
+   * Get/Set the IOSS Catalyst Conduit channel name when reading from IOSS Catalyst Conduit.
+   * If not specified (default), the reader will use the default Catalyst Conduit channel name.
+   */
+  void SetCatalystConduitChannelName(const std::string& newString);
+  std::string GetCatalystConduitChannelName();
+  ///@}
+
+  ///@{
+  /**
    * When displacements are being applied, they are scaled by this amount. Set to 1 (default) for no
    * scaling.
    */
@@ -224,6 +234,20 @@ public:
    */
   void SetGroupNumericVectorFieldComponents(bool value);
   bool GetGroupNumericVectorFieldComponents();
+  vtkBooleanMacro(GroupNumericVectorFieldComponents, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Set whether the reader should recognize fields with suffixes such as X, Y, Z
+   * or x, y, z as vector components. By default, this property is on.
+   * Example: vel_x, vel_y, vel_z would be recognized as a 3-component vector field named vel.
+   *
+   * Default is true.
+   */
+  void SetGroupAlphabeticVectorFieldComponents(bool value);
+  bool GetGroupAlphabeticVectorFieldComponents();
+  vtkBooleanMacro(GroupAlphabeticVectorFieldComponents, bool);
   ///@}
 
   ///@{
@@ -327,6 +351,16 @@ public:
 
   ///@{
   /**
+   * When set to true (default), the reader will add a point-data array with
+   * ghost markings (if one is available).
+   */
+  vtkSetMacro(IncludeGhostNodes, bool);
+  vtkGetMacro(IncludeGhostNodes, bool);
+  vtkBooleanMacro(IncludeGhostNodes, bool);
+  ///@}
+
+  ///@{
+  /**
    * Node related data, including point coordinates, point field data etc. is
    * typically shared between all blocks and sets. By default, the reader will
    * remove unused points for each block or set. To avoid this, set this flag to
@@ -353,9 +387,14 @@ public:
   /**
    * When set to true (default), the reader will read global fields.
    */
-  vtkSetMacro(ReadGlobalFields, bool);
-  vtkGetMacro(ReadGlobalFields, bool);
-  vtkBooleanMacro(ReadGlobalFields, bool);
+  VTK_DEPRECATED_IN_9_6_0("Use vtkDataArraySelection* GetGlobalFieldSelection() instead")
+  virtual void SetReadGlobalFields(bool value);
+  VTK_DEPRECATED_IN_9_6_0("Use vtkDataArraySelection* GetGlobalFieldSelection() instead")
+  virtual bool GetReadGlobalFields();
+  VTK_DEPRECATED_IN_9_6_0("Use vtkDataArraySelection* GetGlobalFieldSelection() instead")
+  virtual void ReadGlobalFieldsOn();
+  VTK_DEPRECATED_IN_9_6_0("Use vtkDataArraySelection* GetGlobalFieldSelection() instead")
+  virtual void ReadGlobalFieldsOff();
   ///@}
 
   ///@{
@@ -417,17 +456,17 @@ public:
 
   enum EntityType
   {
-    NODEBLOCK,
-    EDGEBLOCK,
-    FACEBLOCK,
-    ELEMENTBLOCK,
-    STRUCTUREDBLOCK,
-    NODESET,
-    EDGESET,
-    FACESET,
-    ELEMENTSET,
-    SIDESET,
-    NUMBER_OF_ENTITY_TYPES,
+    NODEBLOCK = 0,
+    EDGEBLOCK = 1,
+    FACEBLOCK = 2,
+    ELEMENTBLOCK = 3,
+    STRUCTUREDBLOCK = 4,
+    NODESET = 5,
+    EDGESET = 6,
+    FACESET = 7,
+    ELEMENTSET = 8,
+    SIDESET = 9,
+    NUMBER_OF_ENTITY_TYPES = 10,
 
     BLOCK_START = NODEBLOCK,
     BLOCK_END = NODESET,
@@ -480,6 +519,7 @@ public:
     return this->GetFieldSelection(ELEMENTSET);
   }
   vtkDataArraySelection* GetSideSetFieldSelection() { return this->GetFieldSelection(SIDESET); }
+  vtkDataArraySelection* GetGlobalFieldSelection();
 
   void RemoveAllEntitySelections();
   void RemoveAllFieldSelections();
@@ -666,6 +706,7 @@ private:
   void operator=(const vtkIOSSReader&) = delete;
   vtkNew<vtkDataArraySelection> EntitySelection[NUMBER_OF_ENTITY_TYPES];
   vtkNew<vtkDataArraySelection> EntityFieldSelection[NUMBER_OF_ENTITY_TYPES];
+  vtkNew<vtkDataArraySelection> GlobalFieldSelection;
   std::map<std::string, vtkTypeInt64> EntityIdMap[NUMBER_OF_ENTITY_TYPES + 1];
   vtkNew<vtkStringArray> EntityIdMapStrings[NUMBER_OF_ENTITY_TYPES + 1];
 
@@ -679,11 +720,11 @@ private:
   bool RemoveUnusedPoints;
   bool ApplyDisplacements;
   bool ReadAllFilesToDetermineStructure;
-  bool ReadGlobalFields;
   bool ReadQAAndInformationRecords;
   char* DatabaseTypeOverride;
   int FileRange[2];
   int FileStride;
+  bool IncludeGhostNodes;
 };
 
 VTK_ABI_NAMESPACE_END

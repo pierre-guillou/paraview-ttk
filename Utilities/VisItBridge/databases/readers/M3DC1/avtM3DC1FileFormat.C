@@ -51,7 +51,7 @@
 // ****************************************************************************
 
 avtM3DC1FileFormat::avtM3DC1FileFormat(const char *filename,
-                                       DBOptionsAttributes *readOpts)
+                                       const DBOptionsAttributes *readOpts)
   : avtMTSDFileFormat(&filename, 1),
     processDataSelections(false), haveReadWholeData(true),
     m_filename(filename),

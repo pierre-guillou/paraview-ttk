@@ -11,6 +11,7 @@
 #include "pqVRUIConnection.h"
 #endif
 
+#include "pqWidgetUtilities.h"
 #include "vtkStringList.h"
 
 #include <QComboBox>
@@ -84,8 +85,9 @@ pqVRAvatarEvents::pqVRAvatarEvents(QWidget* parentObject, Qt::WindowFlags f)
   , Internals(new pqInternals())
 {
   this->Internals->setupUi(this);
+  pqWidgetUtilities::formatChildTooltips(this);
 
-  this->Internals->navigationSharingEnabled = false;
+  this->Internals->navigationSharingEnabled = true;
 
   connect(this->Internals->buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
   connect(this->Internals->buttonBox, SIGNAL(rejected()), this, SLOT(reject()));

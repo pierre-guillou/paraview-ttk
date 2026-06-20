@@ -35,6 +35,9 @@ set(classes
   vtkWebGPUShaderDatabase
   vtkWebGPUShaderProperty
   vtkWebGPUTexture
+  vtkWebGPURenderTextureCache
+  vtkWebGPURenderTextureDeviceResource
+  vtkWebGPUTextureDeviceResource
   vtkWebGPUTextureView)
 
 set(private_headers
@@ -100,7 +103,7 @@ set(webgpu_overrides
   # NI: TextActor
   # NI: TextActor3D
   # NI: TextMapper
-  # NI: Texture
+  Texture
 )
 
 unset(wgsl_shader_sources)
@@ -112,27 +115,20 @@ set(private_shader_files
   wgsl/ActorTransform.wgsl
   wgsl/CopyDepthTextureToBuffer.wgsl
   wgsl/FrustumCullingShader.wgsl
-  wgsl/LineFragmentShader.wgsl
-  wgsl/LineGlyphShader.wgsl
-  wgsl/LineMiterJoinVertexShader.wgsl
-  wgsl/LineRoundJoinVertexShader.wgsl
-  wgsl/LineShaderOpaque.wgsl
-  wgsl/LineShaderTranslucent.wgsl
   wgsl/OcclusionCullingCopyDepthTexture.wgsl
   wgsl/OcclusionCullingDepthMipmaps.wgsl
   wgsl/OcclusionCullingPropsCulling.wgsl
   wgsl/PointCloudMapperCopyDepthFromWindow.wgsl
   wgsl/PointCloudMapperCopyDepthToWindow.wgsl
   wgsl/PointCloudMapperShader.wgsl
-  wgsl/PointGlyphShader.wgsl
-  wgsl/PointShader.wgsl
-  wgsl/PolyData2D.wgsl
   wgsl/SceneLight.wgsl
   wgsl/SceneTransform.wgsl
-  wgsl/SurfaceMeshGlyphShader.wgsl
-  wgsl/SurfaceMeshShader.wgsl
   wgsl/Utilities.wgsl
-  wgsl/VTKCellToGraphicsPrimitive.wgsl)
+  wgsl/VTKCellToGraphicsPrimitive.wgsl
+  wgsl/vtkPolyData2DFSWGSL.wgsl
+  wgsl/vtkPolyData2DVSWGSL.wgsl
+  wgsl/vtkPolyDataVSWGSL.wgsl
+  wgsl/vtkPolyDataFSWGSL.wgsl)
 
 set(public_shader_files
   Testing/Cxx/TestShaders/TestComputePassShader.wgsl
@@ -202,14 +198,8 @@ endif ()
 set(has_vtkRenderWindow_override 0)
 set(vtk_webgpu_factory_override_classname "")
 if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-  # VTK_DEPRECATED_IN_9_4_0() Remove when vtkSDL2WebGPURenderWindow is removed.
-  if (VTK_USE_SDL2)
-    set(vtk_webgpu_factory_override_classname "vtkSDL2WebGPURenderWindow")
-    set(has_vtkRenderWindow_override 1)
-  else ()
-    set(vtk_webgpu_factory_override_classname "vtkWebAssemblyWebGPURenderWindow")
-    set(has_vtkRenderWindow_override 1)
-  endif ()
+  set(vtk_webgpu_factory_override_classname "vtkWebAssemblyWebGPURenderWindow")
+  set(has_vtkRenderWindow_override 1)
 elseif (VTK_USE_X)
   # Add some custom overrides
   if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
@@ -246,7 +236,7 @@ vtk_object_factory_configure(
   SOURCE_FILE vtk_object_factory_source
   HEADER_FILE vtk_object_factory_header
   EXPORT_MACRO "VTKRENDERINGWEBGPU_EXPORT"
-  EXTRA_INCLUDES "<vtkCollection.h>" "<vtkObjectFactoryCollection.h>" "<vtkLogger.h>" "<cstdlib>"
+  EXTRA_INCLUDES "<vtkCollection.h>" "<vtkCallbackCommand.h>" "<vtkNew.h>" "<vtkObjectFactoryCollection.h>" "<iostream>" "<cstdlib>"
   INITIAL_CODE_FILE "${CMAKE_CURRENT_BINARY_DIR}/vtkWebGPUObjectFactoryInit.cxx")
 
 vtk_module_add_module(VTK::RenderingWebGPU
@@ -261,17 +251,12 @@ vtk_module_compile_features(VTK::RenderingWebGPU
     cxx_std_17)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-  vtk_module_find_package(PACKAGE emdawnwebgpu)
-  vtk_module_link(VTK::RenderingWebGPU PUBLIC emdawnwebgpu)
-  # VTK_DEPRECATED_IN_9_4_0() Remove when vtkSDL2WebGPURenderWindow is removed.
-  if (VTK_USE_SDL2)
-    vtk_module_compile_options(VTK::RenderingWebGPU
-      PUBLIC
-        "-sUSE_SDL=2")
-    vtk_module_link_options(VTK::RenderingWebGPU
-      PUBLIC
-        "-sUSE_SDL=2")
-  endif ()
+  vtk_module_compile_options(VTK::RenderingWebGPU
+    PUBLIC
+      "--use-port=emdawnwebgpu")
+  vtk_module_link_options(VTK::RenderingWebGPU
+    PUBLIC
+      "--use-port=emdawnwebgpu")
 else ()
   if (VTK_USE_X)
     vtk_module_find_package(PACKAGE X11)
@@ -290,6 +275,7 @@ else ()
   elseif (VTK_USE_WIN32_OPENGL) # FIXME: We need a VTK_USE_WIN32_WINDOW flag here
     # TODO
   endif ()
+  find_package(Threads REQUIRED)
   vtk_module_find_package(PACKAGE Dawn)
   vtk_module_link(VTK::RenderingWebGPU
     PUBLIC

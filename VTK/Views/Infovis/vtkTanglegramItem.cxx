@@ -69,12 +69,24 @@ void vtkTanglegramItem::SetTree1(vtkTree* tree)
 }
 
 //------------------------------------------------------------------------------
+vtkTree* vtkTanglegramItem::GetTree1()
+{
+  return this->Dendrogram1->GetTree();
+}
+
+//------------------------------------------------------------------------------
 void vtkTanglegramItem::SetTree2(vtkTree* tree)
 {
   this->Dendrogram2->SetTree(tree);
   this->Dendrogram2->SetOrientation((this->Orientation + 2) % 4);
   this->PositionSet = false;
   this->TreeReordered = false;
+}
+
+//------------------------------------------------------------------------------
+vtkTree* vtkTanglegramItem::GetTree2()
+{
+  return this->Dendrogram2->GetTree();
 }
 
 //------------------------------------------------------------------------------
@@ -654,14 +666,8 @@ void vtkTanglegramItem::GenerateLookupTable()
       {
         continue;
       }
-      if (d > max)
-      {
-        max = d;
-      }
-      if (d < min)
-      {
-        min = d;
-      }
+      max = std::max(d, max);
+      min = std::min(d, min);
     }
   }
 

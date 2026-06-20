@@ -29,14 +29,18 @@
 VTK_ABI_NAMESPACE_BEGIN
 template <class ValueTypeT>
 class VTKCOMMONCORE_EXPORT vtkSOADataArrayTemplate
-  : public vtkGenericDataArray<vtkSOADataArrayTemplate<ValueTypeT>, ValueTypeT>
+  : public vtkGenericDataArray<vtkSOADataArrayTemplate<ValueTypeT>, ValueTypeT,
+      vtkArrayTypes::VTK_SOA_DATA_ARRAY>
 {
-  typedef vtkGenericDataArray<vtkSOADataArrayTemplate<ValueTypeT>, ValueTypeT> GenericDataArrayType;
+  using GenericDataArrayType = vtkGenericDataArray<vtkSOADataArrayTemplate<ValueTypeT>, ValueTypeT,
+    vtkArrayTypes::VTK_SOA_DATA_ARRAY>;
 
 public:
-  typedef vtkSOADataArrayTemplate<ValueTypeT> SelfType;
+  using SelfType = vtkSOADataArrayTemplate<ValueTypeT>;
   vtkTemplateTypeMacro(SelfType, GenericDataArrayType);
-  typedef typename Superclass::ValueType ValueType;
+  using typename Superclass::ArrayTypeTag;
+  using typename Superclass::DataTypeTag;
+  using typename Superclass::ValueType;
 
   enum DeleteMethod
   {
@@ -53,6 +57,7 @@ public:
    * Get the value at @a valueIdx. @a valueIdx assumes AOS ordering.
    */
   ValueType GetValue(vtkIdType valueIdx) const
+    VTK_EXPECTS(0 <= valueIdx && valueIdx < GetNumberOfValues())
   {
     vtkIdType tupleIdx;
     int comp;
@@ -66,6 +71,7 @@ public:
    * Set the value at @a valueIdx to @a value. @a valueIdx assumes AOS ordering.
    */
   void SetValue(vtkIdType valueIdx, ValueType value)
+    VTK_EXPECTS(0 <= valueIdx && valueIdx < GetNumberOfValues())
   {
     vtkIdType tupleIdx;
     int comp;
@@ -78,26 +84,13 @@ public:
    * Copy the tuple at @a tupleIdx into @a tuple.
    */
   void GetTypedTuple(vtkIdType tupleIdx, ValueType* tuple) const
-  {
-    if (this->StorageType == StorageTypeEnum::SOA)
-    {
-      for (size_t cc = 0; cc < this->Data.size(); cc++)
-      {
-        tuple[cc] = this->Data[cc]->GetBuffer()[tupleIdx];
-      }
-    }
-    else
-    {
-      ValueType* buffer = this->AoSData->GetBuffer();
-      std::copy(buffer + tupleIdx * this->GetNumberOfComponents(),
-        buffer + (tupleIdx + 1) * this->GetNumberOfComponents(), tuple);
-    }
-  }
+    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples());
 
   /**
    * Set this array's tuple at @a tupleIdx to the values in @a tuple.
    */
   void SetTypedTuple(vtkIdType tupleIdx, const ValueType* tuple)
+    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples())
   {
     if (this->StorageType == StorageTypeEnum::SOA)
     {
@@ -118,28 +111,15 @@ public:
    * Get component @a comp of the tuple at @a tupleIdx.
    */
   ValueType GetTypedComponent(vtkIdType tupleIdx, int comp) const
-  {
-    if (this->StorageType == StorageTypeEnum::SOA)
-    {
-      return this->Data[comp]->GetBuffer()[tupleIdx];
-    }
-    return this->AoSData->GetBuffer()[tupleIdx * this->GetNumberOfComponents() + comp];
-  }
+    VTK_EXPECTS(0 <= tupleIdx && GetNumberOfComponents() * tupleIdx + comp < GetNumberOfValues())
+      VTK_EXPECTS(0 <= comp && comp < GetNumberOfComponents());
 
   /**
    * Set component @a comp of the tuple at @a tupleIdx to @a value.
    */
   void SetTypedComponent(vtkIdType tupleIdx, int comp, ValueType value)
-  {
-    if (this->StorageType == StorageTypeEnum::SOA)
-    {
-      this->Data[comp]->GetBuffer()[tupleIdx] = value;
-    }
-    else
-    {
-      this->AoSData->GetBuffer()[tupleIdx * this->GetNumberOfComponents() + comp] = value;
-    }
-  }
+    VTK_EXPECTS(0 <= tupleIdx && GetNumberOfComponents() * tupleIdx + comp < GetNumberOfValues())
+      VTK_EXPECTS(0 <= comp && comp < GetNumberOfComponents());
 
   /**
    * Set component @a comp of all tuples to @a value.
@@ -197,19 +177,18 @@ public:
    */
   void ExportToVoidPointer(void* ptr) override;
 
-#ifndef __VTK_WRAP__
-  ///@{
   /**
-   * Perform a fast, safe cast from a vtkAbstractArray to a vtkDataArray.
-   * This method checks if source->GetArrayType() returns DataArray
-   * or a more derived type, and performs a static_cast to return
-   * source as a vtkDataArray pointer. Otherwise, nullptr is returned.
+   * Because we still need to support GetVoidPointer() for both reading from and writing
+   * to memory we may have the actual data stored in either this->Data or this->AoSData.
+   * This enum lets us know where our actual data buffer is stored.
    */
-  static vtkSOADataArrayTemplate<ValueType>* FastDownCast(vtkAbstractArray* source);
-  ///@}
-#endif
+  enum StorageTypeEnum
+  {
+    AOS,
+    SOA
+  };
+  StorageTypeEnum GetStorageType() { return this->StorageType; }
 
-  int GetArrayType() const override { return vtkAbstractArray::SoADataArrayTemplate; }
   VTK_NEWINSTANCE vtkArrayIterator* NewIterator() override;
   void SetNumberOfComponents(int numComps) override;
   void ShallowCopy(vtkDataArray* other) override;
@@ -253,16 +232,6 @@ protected:
   std::vector<vtkBuffer<ValueType>*> Data;
   vtkBuffer<ValueType>* AoSData;
 
-  /**
-   * Because we still need to support GetVoidPointer() for both reading from and writing
-   * to memory we may have the actual data stored in either this->Data or this->AoSData.
-   * This enum lets us know where our actual data buffer is stored.
-   */
-  enum StorageTypeEnum
-  {
-    AOS,
-    SOA
-  };
   StorageTypeEnum StorageType;
 
   void ClearSOAData();
@@ -277,13 +246,36 @@ private:
     comp = valueIdx % this->NumberOfComponents;
   }
 
-  friend class vtkGenericDataArray<vtkSOADataArrayTemplate<ValueTypeT>, ValueTypeT>;
+  friend class vtkGenericDataArray<SelfType, ValueType, ArrayTypeTag::value>;
 };
 
 // Declare vtkArrayDownCast implementations for SoA containers:
 vtkArrayDownCast_TemplateFastCastMacro(vtkSOADataArrayTemplate);
 
 VTK_ABI_NAMESPACE_END
+
+// This macro is used by the subclasses to create dummy
+// declarations for these functions such that the wrapper
+// can see them. The wrappers ignore vtkSOADataArrayTemplate.
+#define vtkCreateSOAWrappedArrayInterface(T)                                                       \
+  int GetDataType() const override;                                                                \
+  T GetDataTypeValueMin() const;                                                                   \
+  T GetDataTypeValueMax() const;                                                                   \
+  void GetTypedTuple(vtkIdType i, T* tuple) VTK_EXPECTS(0 <= i && i < GetNumberOfTuples());        \
+  T GetValue(vtkIdType id) const VTK_EXPECTS(0 <= id && id < GetNumberOfValues());                 \
+  T* GetValueRange(int comp) VTK_SIZEHINT(2);                                                      \
+  T* GetValueRange() VTK_SIZEHINT(2);                                                              \
+  void SetTypedTuple(vtkIdType i, const T* tuple) VTK_EXPECTS(0 <= i && i < GetNumberOfTuples());  \
+  void InsertTypedTuple(vtkIdType i, const T* tuple) VTK_EXPECTS(0 <= i);                          \
+  vtkIdType InsertNextTypedTuple(const T* tuple);                                                  \
+  void SetValue(vtkIdType id, T value) VTK_EXPECTS(0 <= id && id < GetNumberOfValues());           \
+  bool SetNumberOfValues(vtkIdType number) override;                                               \
+  void InsertValue(vtkIdType id, T f) VTK_EXPECTS(0 <= id);                                        \
+  vtkIdType InsertNextValue(T f);                                                                  \
+  T* GetComponentArrayPointer(int id);                                                             \
+  void SetArray(int comp, VTK_ZEROCOPY T* array, vtkIdType size, bool updateMaxId, bool save,      \
+    int deleteMethod);
+
 #endif // header guard
 
 // This portion must be OUTSIDE the include blockers. This is used to tell
@@ -313,10 +305,33 @@ VTK_ABI_NAMESPACE_END
 #endif
 VTK_ABI_NAMESPACE_BEGIN
 vtkExternTemplateMacro(extern template class VTKCOMMONCORE_EXPORT vtkSOADataArrayTemplate);
+VTK_ABI_NAMESPACE_END
+
+namespace vtkDataArrayPrivate
+{
+VTK_ABI_NAMESPACE_BEGIN
+
+// These are instantiated in vtkSOADataArrayTemplateInstantiate${i}.cxx
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<float>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<double>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<char>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<signed char>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<unsigned char>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<short>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<unsigned short>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<int>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<unsigned int>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<long>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<unsigned long>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<long long>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<unsigned long long>, double)
+
+VTK_ABI_NAMESPACE_END
+} // namespace vtkDataArrayPrivate
+
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
-VTK_ABI_NAMESPACE_END
 #endif // VTK_SOA_DATA_ARRAY_TEMPLATE_EXTERN
 
 // The following clause is only for MSVC 2008 and 2010
@@ -346,10 +361,10 @@ VTK_ABI_NAMESPACE_END
 // interface.  This is a compiler-specific extension.
 VTK_ABI_NAMESPACE_BEGIN
 vtkInstantiateTemplateMacro(extern template class VTKCOMMONCORE_EXPORT vtkSOADataArrayTemplate);
+VTK_ABI_NAMESPACE_END
 
 #pragma warning(pop)
 
-VTK_ABI_NAMESPACE_END
 #endif
 
 // VTK-HeaderTest-Exclude: vtkSOADataArrayTemplate.h

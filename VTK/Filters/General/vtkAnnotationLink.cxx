@@ -113,7 +113,7 @@ void vtkAnnotationLink::SetAnnotationLayers(vtkAnnotationLayers* layers)
 //------------------------------------------------------------------------------
 void vtkAnnotationLink::AddDomainMap(vtkTable* map)
 {
-  if (this->DomainMaps->IndexOfFirstOccurence(map) < 0)
+  if (this->DomainMaps->IndexOfFirstOccurrence(map) < 0)
   {
     this->DomainMaps->AddItem(map);
   }
@@ -291,19 +291,13 @@ vtkMTimeType vtkAnnotationLink::GetMTime()
   if (this->AnnotationLayers)
   {
     vtkMTimeType atime = this->AnnotationLayers->GetMTime();
-    if (atime > mtime)
-    {
-      mtime = atime;
-    }
+    mtime = std::max(atime, mtime);
   }
 
   if (this->DomainMaps)
   {
     vtkMTimeType dtime = this->DomainMaps->GetMTime();
-    if (dtime > mtime)
-    {
-      mtime = dtime;
-    }
+    mtime = std::max(dtime, mtime);
   }
 
   return mtime;

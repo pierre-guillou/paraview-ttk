@@ -39,6 +39,7 @@ public:
    * \li \c glyph_scale_factor: pqGlyphScaleFactorPropertyWidget
    * \li \c image_compressor_config : pqImageCompressorWidget
    * \li \c index_selection : pqIndexSelectionWidget
+   * \li \c dynamic_properties_widget : pqDynamicPropertiesWidget
    * \li \c input_selector : pqInputSelectorWidget
    * \li \c int_mask: pqIntMaskPropertyWidget
    * \li \c list : pqListPropertyWidget
@@ -76,6 +77,7 @@ public:
    * \li \c InteractiveBox: pqBoxPropertyWidget
    * \li \c InteractiveHandle: pqHandlePropertyWidget
    * \li \c InteractiveLine: pqLinePropertyWidget
+   * \li \c InteractiveFourLines: pqFourLinesPropertyWidget
    * \li \c InteractiveSpline: pqSplinePropertyWidget
    * \li \c InteractiveSphere: pqSpherePropertyWidget
    * \li \c InteractivePolyLine: pqSplinePropertyWidget (with mode==POLYLINE)

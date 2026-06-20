@@ -12,6 +12,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringFormatter.h"
 #include "vtkUnstructuredGrid.h"
 
 #include "gmsh.h"
@@ -50,7 +51,7 @@ struct PhysicalGroup
   Array2D<vtkIdType> ElemNodeTags; // [typeIndex]{nodeTags}
   // -------------------- Elements
 
-  std::vector<DataArray> Data; // [arrayIdx]
+  std::vector<struct DataArray> Data; // [arrayIdx]
 };
 
 //-----------------------------------------------------------------------------
@@ -225,7 +226,7 @@ void vtkGmshReader::LoadPhysicalGroups()
       gmsh::model::getPhysicalName(grp.first, grp.second, name);
       if (name.empty())
       {
-        name = "PhysicalGroup" + std::to_string(grp.second);
+        name = "PhysicalGroup" + vtk::to_string(grp.second);
       }
 
       PhysicalGroup currentGrp;
@@ -327,10 +328,10 @@ void vtkGmshReader::FillSubDataArray(int viewTag, int viewIdx, int step)
   gmsh::view::getHomogeneousModelData(viewTag, step, dataType, tags, data, time, nbOfComponents);
 
   const int idxView = gmsh::view::getIndex(viewTag);
-  gmsh::option::getString("View[" + std::to_string(idxView) + "].Name", name);
+  gmsh::option::getString("View[" + vtk::to_string(idxView) + "].Name", name);
   if (name.empty())
   {
-    name = "DataArray" + std::to_string(viewTag);
+    name = "DataArray" + vtk::to_string(viewTag);
   }
 
   if (dataType == "NodeData")
@@ -412,7 +413,7 @@ void vtkGmshReader::LoadPhysicalGroupsData()
     const int viewTag = tags[i];
     double nbTimeStepsDbl;
 
-    std::string viewStr = "View[" + std::to_string(gmsh::view::getIndex(viewTag));
+    std::string viewStr = "View[" + vtk::to_string(gmsh::view::getIndex(viewTag));
     std::string timeStepStr = viewStr + "].TimeStep";
     gmsh::option::getNumber(viewStr + "].NbTimeStep", nbTimeStepsDbl);
     const int nbTimeSteps = static_cast<int>(nbTimeStepsDbl);
@@ -452,7 +453,7 @@ int vtkGmshReader::FetchData()
     this->Internal->Timesteps.clear();
     for (const PhysicalGroup& group : this->Internal->Groups)
     {
-      for (const DataArray& data : group.Data)
+      for (const auto& data : group.Data)
       {
         this->Internal->Timesteps.insert(data.Times.begin(), data.Times.end());
       }
@@ -556,7 +557,7 @@ void vtkGmshReader::FillGrid(vtkUnstructuredGrid* grid, int groupIdx, double tim
     grid->GetCellData()->AddArray(physicalTags);
   }
 
-  for (const DataArray& data : group.Data)
+  for (const auto& data : group.Data)
   {
     int arrayIndex = -1;
     if (time < 0 && !data.VtkArrays.empty())
@@ -602,7 +603,7 @@ void vtkGmshReader::FillOutputTimeInformation(vtkInformation* outInfo) const
     double timeRange[2] = { inlineTimes.front(), inlineTimes.back() };
 
     std::copy(timesteps.begin(), timesteps.end(), inlineTimes.begin());
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &inlineTimes[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), inlineTimes.data(),
       static_cast<int>(inlineTimes.size()));
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), timeRange, 2);
   }

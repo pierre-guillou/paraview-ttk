@@ -404,7 +404,7 @@ public:
   ///@{
   /**
    * Get/set the numerical precision to use, default is 2. This is ignored
-   * when Notation is STANDARD_NOTATION or PRINTF_NOTATION.
+   * when Notation is STANDARD_NOTATION or FORMAT_NOTATION.
    */
   virtual void SetPrecision(int precision);
   vtkGetMacro(Precision, int);
@@ -413,28 +413,29 @@ public:
   /**
    * Enumeration of the axis notations available.
    */
-  enum
+  enum Notations
   {
     STANDARD_NOTATION = 0,
     SCIENTIFIC_NOTATION,
     FIXED_NOTATION,
-    PRINTF_NOTATION
+    PRINTF_NOTATION,
+    STD_FORMAT_NOTATION
   };
 
   ///@{
   /**
-   * Get/Set the printf-style format string used when TickLabelAlgorithm is
-   * TICK_SIMPLE and Notation is PRINTF_NOTATION. The default is "%g".
+   * Get/Set the std::format/printf style format style string used when TickLabelAlgorithm is
+   * TICK_SIMPLE and Notation is STD_FORMAT_NOTATION/PRINTF_NOTATION. The default is "{:g}".
    */
-  virtual void SetLabelFormat(const std::string& fmt);
+  virtual void SetLabelFormat(const std::string& format);
   vtkGetMacro(LabelFormat, std::string);
   ///@}
 
   ///@{
   /**
-   * Get/Set the printf-style format string used for range labels.
+   * Get/Set the std::format/printf style format string used for range labels.
    * This format is always used regardless of TickLabelAlgorithm and
-   * Notation. Default is "%g".
+   * Notation. Default is "{:g}".
    */
   vtkSetMacro(RangeLabelFormat, std::string);
   vtkGetMacro(RangeLabelFormat, std::string);
@@ -443,7 +444,7 @@ public:
   ///@{
   /**
    * Get/set the numerical notation, standard, scientific, fixed, or a
-   * printf-style format string.
+   * std::format/printf style format string.
    * \sa SetPrecision SetLabelFormat
    */
   virtual void SetNotation(int notation);
@@ -617,6 +618,11 @@ protected:
   virtual void GenerateLabelFormat(int notation, double n);
 
   /**
+   * Generate label using a std::format style format string.
+   */
+  virtual vtkStdString GenerateStdFormatLabel(double value, const std::string& format);
+
+  /**
    * Generate label using a printf-style format string.
    */
   virtual vtkStdString GenerateSprintfLabel(double value, const std::string& format);
@@ -701,12 +707,12 @@ protected:
   bool TitleVisible;                // Should the title be visible.
   int Precision;                    // Numerical precision to use, defaults to 2.
   int Notation;                     // The notation to use (standard, scientific, mixed)
-  std::string LabelFormat;          // The printf-style format string used for labels.
-  std::string RangeLabelFormat;     // The printf-style format string used for range labels.
-  int Behavior;                     // The behaviour of the axis (auto, fixed, custom).
-  float MaxLabel[2];                // The widest/tallest axis label.
-  bool TitleAppended;               // Track if the title is updated when the label formats
-                                    // are changed in the Extended Axis Labeling algorithm
+  std::string LabelFormat;          // The std::format/printf style format string used for labels.
+  std::string RangeLabelFormat; // The std::format/printf style format string used for range labels.
+  int Behavior;                 // The behaviour of the axis (auto, fixed, custom).
+  float MaxLabel[2];            // The widest/tallest axis label.
+  bool TitleAppended;           // Track if the title is updated when the label formats
+                                // are changed in the Extended Axis Labeling algorithm
 
   ///@{
   /**

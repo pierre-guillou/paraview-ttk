@@ -235,7 +235,7 @@ bool PopulateHistograms(vtkTable* input, vtkTable* output, vtkStringArray* s, in
   {
     double minmax[2] = { 0.0, 0.0 };
     vtkDataSetAttributes* rowData = input->GetRowData();
-    std::string nameVal = s->GetValue(i);
+    const auto& nameVal = s->GetValue(i);
     if (rowData->GetRange(nameVal.c_str(), minmax))
     {
       vtkDataArray* in = rowData->GetArray(nameVal.c_str());
@@ -255,7 +255,7 @@ bool PopulateHistograms(vtkTable* input, vtkTable* output, vtkStringArray* s, in
         extents->SetName((name + "_extents").c_str());
       }
       extents->SetNumberOfTuples(NumberOfBins);
-      float* centers = static_cast<float*>(extents->GetVoidPointer(0));
+      float* centers = extents->GetPointer(0);
       double min = minmax[0] - 0.0005 * inc + halfInc;
       for (int j = 0; j < NumberOfBins; ++j)
       {
@@ -269,7 +269,7 @@ bool PopulateHistograms(vtkTable* input, vtkTable* output, vtkStringArray* s, in
         populations->SetName((name + "_pops").c_str());
       }
       populations->SetNumberOfTuples(NumberOfBins);
-      int* pops = static_cast<int*>(populations->GetVoidPointer(0));
+      int* pops = populations->GetPointer(0);
       for (int k = 0; k < NumberOfBins; ++k)
       {
         pops[k] = 0;
@@ -508,7 +508,7 @@ bool vtkScatterPlotMatrix::SetActivePlot(const vtkVector2i& pos)
           if (this->Private->IndexedLabelsArray)
           {
             plot->SetIndexedLabels(this->Private->IndexedLabelsArray);
-            plot->SetTooltipLabelFormat("%i");
+            plot->SetTooltipLabelFormat("{i}");
           }
         }
         if (xy && active)
@@ -535,7 +535,7 @@ bool vtkScatterPlotMatrix::SetActivePlot(const vtkVector2i& pos)
         if (this->Private->IndexedLabelsArray)
         {
           plot->SetIndexedLabels(this->Private->IndexedLabelsArray);
-          plot->SetTooltipLabelFormat("%i");
+          plot->SetTooltipLabelFormat("{i}");
         }
       }
       plot->SetInputData(this->Input, column, row);
@@ -694,8 +694,8 @@ void vtkScatterPlotMatrix::AdvanceAnimation()
       // DO NOT MODIFY. These magic numbers were found by trial and error to
       // position the chart correctly so that the 3D axes are not clipped out
       // of the 3D viewport during animation.
-      const float scaleFactor = 0.08;
-      const float orthogonalScaleFactor = 0.008;
+      constexpr float scaleFactor = 0.08;
+      constexpr float orthogonalScaleFactor = 0.008;
 
       if (this->Private->NextActivePlot.GetY() == this->ActivePlot.GetY())
       {

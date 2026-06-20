@@ -101,7 +101,8 @@ const vtkIdType* vtkBiQuadraticQuadraticWedge::GetFaceArray(vtkIdType faceId)
 //------------------------------------------------------------------------------
 vtkCell* vtkBiQuadraticQuadraticWedge::GetEdge(int edgeId)
 {
-  edgeId = (edgeId < 0 ? 0 : (edgeId > 8 ? 8 : edgeId));
+  edgeId = std::max(edgeId, 0);
+  edgeId = std::min(edgeId, 8);
 
   // We have 9 quadratic edges
   for (int i = 0; i < 3; i++)
@@ -116,7 +117,8 @@ vtkCell* vtkBiQuadraticQuadraticWedge::GetEdge(int edgeId)
 //------------------------------------------------------------------------------
 vtkCell* vtkBiQuadraticQuadraticWedge::GetFace(int faceId)
 {
-  faceId = (faceId < 0 ? 0 : (faceId > 4 ? 4 : faceId));
+  faceId = std::max(faceId, 0);
+  faceId = std::min(faceId, 4);
 
   // load point id's and coordinates
   // be careful with the last two:
@@ -141,9 +143,9 @@ vtkCell* vtkBiQuadraticQuadraticWedge::GetFace(int faceId)
 }
 
 //------------------------------------------------------------------------------
-static const double VTK_DIVERGED = 1.e6;
-static const int VTK_WEDGE_MAX_ITERATION = 20;
-static const double VTK_WEDGE_CONVERGED = 1.e-03;
+static constexpr double VTK_DIVERGED = 1.e6;
+static constexpr int VTK_WEDGE_MAX_ITERATION = 20;
+static constexpr double VTK_WEDGE_CONVERGED = 1.e-03;
 
 int vtkBiQuadraticQuadraticWedge::EvaluatePosition(const double x[3], double* closestPoint,
   int& subId, double pcoords[3], double& dist2, double* weights)

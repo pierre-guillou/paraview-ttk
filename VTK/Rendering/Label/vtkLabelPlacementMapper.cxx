@@ -29,6 +29,8 @@
 #include "vtkTimerLog.h"
 #include "vtkTransformCoordinateSystems.h"
 
+#include <iostream>
+
 // From: http://www.flipcode.com/archives/2D_OBB_Intersection.shtml
 VTK_ABI_NAMESPACE_BEGIN
 class LabelRect
@@ -282,22 +284,10 @@ private:
     Bounds[3] = Corner[0][1];
     for (int i = 1; i < 4; ++i)
     {
-      if (Corner[i][0] < Bounds[0])
-      {
-        Bounds[0] = Corner[i][0];
-      }
-      if (Corner[i][0] > Bounds[1])
-      {
-        Bounds[1] = Corner[i][0];
-      }
-      if (Corner[i][1] < Bounds[2])
-      {
-        Bounds[2] = Corner[i][1];
-      }
-      if (Corner[i][1] > Bounds[3])
-      {
-        Bounds[3] = Corner[i][1];
-      }
+      Bounds[0] = std::min(Corner[i][0], Bounds[0]);
+      Bounds[1] = std::max(Corner[i][0], Bounds[1]);
+      Bounds[2] = std::min(Corner[i][1], Bounds[2]);
+      Bounds[3] = std::max(Corner[i][1], Bounds[3]);
     }
   }
 };
@@ -485,7 +475,10 @@ vtkLabelPlacementMapper::vtkLabelPlacementMapper()
 //------------------------------------------------------------------------------
 vtkLabelPlacementMapper::~vtkLabelPlacementMapper()
 {
-  this->AnchorTransform->Delete();
+  if (this->AnchorTransform)
+  {
+    this->AnchorTransform->Delete();
+  }
   delete this->Buckets;
   this->VisiblePoints->Delete();
   if (this->RenderStrategy)
@@ -864,7 +857,7 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
   timer->StopTimer();
   vtkDebugMacro("Iteration time: " << timer->GetElapsedTime());
   log->StopTimer();
-  // cerr << log->GetElapsedTime() << endl;
+  // std::cerr << log->GetElapsedTime() << endl;
 }
 
 //------------------------------------------------------------------------------

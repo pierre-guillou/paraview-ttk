@@ -21,6 +21,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkResliceCursorPolyDataAlgorithm);
 vtkCxxSetObjectMacro(vtkResliceCursorPolyDataAlgorithm, ResliceCursor, vtkResliceCursor);
@@ -266,7 +268,7 @@ void vtkResliceCursorPolyDataAlgorithm ::CutAndClip(vtkPolyData* input, vtkPolyD
 
   double s[3];
   this->ResliceCursor->GetImage()->GetSpacing(s);
-  const double smax = std::max(std::max(s[0], s[1]), s[2]);
+  const double smax = std::max({ s[0], s[1], s[2] });
   this->ExtrusionFilter1->SetScaleFactor(smax);
   this->ExtrusionFilter2->SetScaleFactor(smax);
 
@@ -293,10 +295,7 @@ vtkMTimeType vtkResliceCursorPolyDataAlgorithm::GetMTime()
   {
     vtkMTimeType time;
     time = this->ResliceCursor->GetMTime();
-    if (time > mTime)
-    {
-      mTime = time;
-    }
+    mTime = std::max(time, mTime);
   }
   return mTime;
 }

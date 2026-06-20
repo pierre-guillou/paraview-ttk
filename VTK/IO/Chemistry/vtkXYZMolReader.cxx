@@ -8,10 +8,13 @@
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 #include "vtkStringArray.h"
+#include "vtkStringScanner.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 
 #include <vtksys/SystemTools.hxx>
+
+#include <iostream>
 
 //------------------------------------------------------------------------------
 VTK_ABI_NAMESPACE_BEGIN
@@ -39,7 +42,7 @@ char* vtkXYZMolReader::GetNextLine(FILE* fp, char* line, int maxlen)
     comment = 0;
     if (!fgets(line, maxlen, fp))
     {
-      // cout << "Problem when reading. EOF?" << endl;
+      // std::cout << "Problem when reading. EOF?" << endl;
       return nullptr;
     }
     len = static_cast<int>(strlen(line));
@@ -61,7 +64,7 @@ char* vtkXYZMolReader::GetNextLine(FILE* fp, char* line, int maxlen)
       comment = 1;
     }
   } while (comment);
-  // cout << "Have line that is not a comment: [" << line << "]" << endl;
+  // std::cout << "Have line that is not a comment: [" << line << "]" << endl;
   len = static_cast<int>(strlen(line));
   int ft = 0;
   ptr = line;
@@ -92,17 +95,22 @@ char* vtkXYZMolReader::GetNextLine(FILE* fp, char* line, int maxlen)
 //------------------------------------------------------------------------------
 int vtkXYZMolReader::GetLine1(const char* line, int* cnt)
 {
-  char dummy[1024] = "";
-  if (!line || sscanf(line, "%d%s", cnt, dummy) < 1)
+  auto resultCount = vtk::scan_int<int>(std::string_view(line));
+  if (!resultCount)
   {
     return 0;
   }
-  int cc;
-  for (cc = 0; cc < static_cast<int>(strlen(dummy)); ++cc)
+  *cnt = resultCount->value();
+  auto resultDummy = vtk::scan_value<std::string_view>(resultCount->range());
+  if (resultDummy)
   {
-    if (dummy[cc] != ' ' && dummy[cc] != '\t' && dummy[cc] != '\n' && dummy[cc] != '\r')
+    const auto dummy = resultDummy->value();
+    for (const char& ch : dummy)
     {
-      return 0;
+      if (!std::isspace(ch))
+      {
+        return 0;
+      }
     }
   }
   return 1;
@@ -111,29 +119,40 @@ int vtkXYZMolReader::GetLine1(const char* line, int* cnt)
 //------------------------------------------------------------------------------
 int vtkXYZMolReader::GetLine2(const char* line, char* name)
 {
-  char dummy[1024] = "";
-  if (!line || sscanf(line, "%s%s", name, dummy) < 1)
+  auto resultName = vtk::scan_value<std::string_view>(std::string_view(line));
+  if (!resultName)
   {
     return 0;
   }
+  auto nameStr = resultName->value();
+  std::copy_n(nameStr.data(), nameStr.size(), name);
+  name[nameStr.size()] = '\0'; // Ensure null-termination
   return 1;
 }
 
 //------------------------------------------------------------------------------
 int vtkXYZMolReader::GetAtom(const char* line, char* atom, float* x)
 {
-  // cout << "Lookinf for atom: " << line << endl;
-  char dummy[1024] = "";
-  if (!line || sscanf(line, "%s %f %f %f%s", atom, x, x + 1, x + 2, dummy) < 4)
+  auto resultAtom =
+    vtk::scan<std::string_view, float, float, float>(std::string_view(line), "{:s} {:f} {:f} {:f}");
+  if (!resultAtom)
   {
     return 0;
   }
-  int cc;
-  for (cc = 0; cc < static_cast<int>(strlen(dummy)); ++cc)
+  std::string_view atomStr;
+  std::tie(atomStr, x[0], x[1], x[2]) = resultAtom->values();
+  std::copy_n(atomStr.data(), atomStr.size(), atom);
+  atom[atomStr.size()] = '\0'; // Ensure null-termination
+  auto resultDummy = vtk::scan_value<std::string_view>(resultAtom->range());
+  if (resultDummy)
   {
-    if (dummy[cc] != ' ' && dummy[cc] != '\t' && dummy[cc] != '\n' && dummy[cc] != '\r')
+    const auto dummy = resultDummy->value();
+    for (const char& ch : dummy)
     {
-      return 0;
+      if (!std::isspace(ch))
+      {
+        return 0;
+      }
     }
   }
   return 1;
@@ -177,7 +196,7 @@ int vtkXYZMolReader::CanReadFile(const char* name)
 
   int valid = 0;
 
-  const int maxlen = 1024;
+  constexpr int maxlen = 1024;
   char buffer[maxlen];
   char comment[maxlen];
   char atom[maxlen];
@@ -220,7 +239,7 @@ int vtkXYZMolReader::CanReadFile(const char* name)
 //------------------------------------------------------------------------------
 void vtkXYZMolReader::ReadSpecificMolecule(FILE* fp)
 {
-  const int maxlen = 1024;
+  constexpr int maxlen = 1024;
   char buffer[maxlen];
   char comment[maxlen];
   char* lptr;
@@ -256,7 +275,7 @@ void vtkXYZMolReader::ReadSpecificMolecule(FILE* fp)
     {
       if (this->GetAtom(lptr, atom, pos))
       {
-        // cout << "Found atom: " << atom << endl;
+        // std::cout << "Found atom: " << atom << endl;
         if (ccnt >= num)
         {
           vtkErrorMacro("Expecting " << num << " atoms, found: " << ccnt);
@@ -267,7 +286,7 @@ void vtkXYZMolReader::ReadSpecificMolecule(FILE* fp)
           if (selectstep == timestep - 1)
           {
             // Got atom with full signature
-            // cout << "Insert atom: " << atom << endl;
+            // std::cout << "Insert atom: " << atom << endl;
             this->InsertAtom(atom, pos);
             rcnt++;
           }

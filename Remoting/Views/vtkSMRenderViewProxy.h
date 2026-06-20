@@ -300,6 +300,13 @@ public:
   double GetEyeSeparation();
 
   /**
+   * @brief Get the remotely configured use of off axis projection.
+   *
+   * @return bool
+   */
+  bool GetUseOffAxisProjection();
+
+  /**
    * @brief Get whether or not remote displays show borders.
    *
    * @return bool
@@ -320,6 +327,13 @@ public:
    * @return vtkTuple<int, 4>
    */
   vtkTuple<int, 4> GetGeometry(int index);
+
+  /**
+   * @brief Get whether or not the given display shows 2D overlays.
+   *
+   * @return bool
+   */
+  bool GetShow2DOverlays(int index);
 
   /**
    * @brief Get whether or not the given display has screen corner
@@ -352,6 +366,11 @@ public:
    * @return vtkTuple<double, 3>
    */
   vtkTuple<double, 3> GetUpperRight(int index);
+
+  /**
+   * Set whether the window is currently resizing.
+   */
+  vtkSetMacro(ResizingWindow, bool);
 
 protected:
   vtkSMRenderViewProxy();
@@ -408,6 +427,8 @@ protected:
   // the cache of selection when the current user became master
   unsigned long NewMasterObserverId;
   void NewMasterCallback(vtkObject* src, unsigned long event, void* data);
+  // Update ANARI properties in the correct order
+  void UpdateAnariProperties();
 
   bool NeedsUpdateLOD;
 
@@ -427,6 +448,8 @@ private:
 
   class vtkInternals;
   std::unique_ptr<vtkInternals> Internal;
+
+  bool ResizingWindow = false;
 };
 
 #endif

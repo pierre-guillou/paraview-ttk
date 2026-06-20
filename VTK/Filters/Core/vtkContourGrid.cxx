@@ -6,6 +6,7 @@
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkCellIterator.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkContourHelper.h"
 #include "vtkContourValues.h"
 #include "vtkCutter.h"
@@ -150,10 +151,7 @@ void vtkContourGridExecute(vtkContourGrid* self, vtkDataSet* input, vtkPolyData*
   estimatedSize = static_cast<vtkIdType>(pow(static_cast<double>(numCells), .75));
   estimatedSize *= numContours;
   estimatedSize = estimatedSize / 1024 * 1024; // multiple of 1024
-  if (estimatedSize < 1024)
-  {
-    estimatedSize = 1024;
-  }
+  estimatedSize = std::max<vtkIdType>(estimatedSize, 1024);
 
   newPts = vtkPoints::New();
 
@@ -234,7 +232,7 @@ void vtkContourGridExecute(vtkContourGrid* self, vtkDataSet* input, vtkPolyData*
           vtkGenericWarningMacro("Unknown cell type " << cellType);
           continue;
         }
-        if (vtkCellTypes::GetDimension(cellType) != dimensionality)
+        if (vtkCellTypeUtilities::GetDimension(cellType) != dimensionality)
         {
           continue;
         }

@@ -12,6 +12,7 @@ bugprone-*,\
 -bugprone-multi-level-implicit-pointer-conversion,\
 -bugprone-narrowing-conversions,\
 -bugprone-parent-virtual-call,\
+-bugprone-pointer-arithmetic-on-polymorphic-object,\
 -bugprone-reserved-identifier,\
 -bugprone-signal-handler,\
 -bugprone-signed-char-misuse,\

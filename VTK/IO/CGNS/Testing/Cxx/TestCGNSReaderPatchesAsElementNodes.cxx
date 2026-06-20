@@ -3,12 +3,13 @@
 
 #include "vtkCGNSReader.h"
 
-#include "vtkCellTypes.h"
 #include "vtkInformation.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkNew.h"
 #include "vtkTestUtilities.h"
 #include "vtkUnstructuredGrid.h"
+
+#include <iostream>
 
 int TestCGNSReaderPatchesAsElementNodes_checkblock(
   vtkMultiBlockDataSet* ds, const std::string name, int expected_ncells)

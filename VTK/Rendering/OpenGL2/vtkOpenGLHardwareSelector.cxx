@@ -6,13 +6,13 @@
 
 #include "vtkDataObject.h"
 #include "vtkObjectFactory.h"
+#include "vtkOpenGLError.h"
 #include "vtkOpenGLRenderUtilities.h"
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkOpenGLState.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderer.h"
-
-#include "vtkOpenGLError.h"
+#include "vtkStringFormatter.h"
 
 // #define vtkOpenGLHardwareSelectorDEBUG
 #ifdef vtkOpenGLHardwareSelectorDEBUG
@@ -24,6 +24,9 @@
 #endif
 #include "vtkWindows.h" // OK on UNix etc
 #include <sstream>
+
+#include <iostream>
+
 #endif
 
 #define ID_OFFSET 1
@@ -202,7 +205,7 @@ void vtkOpenGLHardwareSelector::SavePixelBuffer(int passNo)
   fname += toString.str();
   fname += "_";
 #endif
-  fname += ("0" + std::to_string(passNo));
+  fname += ("0" + vtk::to_string(passNo));
   fname += ".pnm";
   vtkNew<vtkPNMWriter> pw;
   pw->SetInputConnection(ii->GetOutputPort());

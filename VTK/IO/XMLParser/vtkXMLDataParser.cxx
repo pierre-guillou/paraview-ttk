@@ -6,9 +6,9 @@
 #include "vtkByteSwap.h"
 #include "vtkCommand.h"
 #include "vtkDataCompressor.h"
-#include "vtkEndian.h"
 #include "vtkInputStream.h"
 #include "vtkObjectFactory.h"
+#include "vtkStringScanner.h"
 #include "vtkXMLDataElement.h"
 #define vtkXMLDataHeaderPrivate_DoNotInclude
 #include "vtkXMLDataHeaderPrivate.h"
@@ -353,8 +353,8 @@ int vtkXMLDataParser::ParseBuffer(const char* buffer, unsigned int count)
 {
   // Parsing must stop when "<AppendedData" is reached.  Use a search
   // similar to the KMP string search algorithm.
-  const char pattern[] = "<AppendedData";
-  const int length = sizeof(pattern) - 1;
+  constexpr char pattern[] = "<AppendedData";
+  constexpr int length = sizeof(pattern) - 1;
 
   const char* s = buffer;
   const char* end = buffer + count;
@@ -430,7 +430,7 @@ int vtkXMLDataParser::ParseBuffer(const char* buffer, unsigned int count)
     }
 
     // Artificially end the VTKFile element.
-    const char finish[] = "\n</VTKFile>\n";
+    constexpr char finish[] = "\n</VTKFile>\n";
     if (!this->Superclass::ParseBuffer(finish, sizeof(finish) - 1))
     {
       return 0;
@@ -662,10 +662,7 @@ size_t vtkXMLDataParser::ReadUncompressedData(
     return 0;
   }
   vtkTypeUInt64 end = offset + length;
-  if (end > size)
-  {
-    end = size;
-  }
+  end = std::min(end, size);
   length = end - offset;
 
   // Read the data.
@@ -675,7 +672,7 @@ size_t vtkXMLDataParser::ReadUncompressedData(
   }
 
   // Read data in 2MB blocks and report progress.
-  size_t const blockSize = 2097152;
+  constexpr size_t blockSize = 2097152;
   size_t left = length;
   unsigned char* p = data;
   this->UpdateProgress(0);
@@ -741,10 +738,7 @@ size_t vtkXMLDataParser::ReadCompressedData(
   {
     return 0;
   }
-  if (endOffset > totalSize)
-  {
-    endOffset = totalSize;
-  }
+  endOffset = std::min(endOffset, totalSize);
 
   // Find the range of compression blocks to read.
   vtkTypeUInt64 firstBlock = beginOffset / this->BlockUncompressedSize;
@@ -915,10 +909,7 @@ size_t vtkXMLDataParser::ReadAsciiData(
   {
     return 0;
   }
-  if (endWord > this->AsciiDataBufferLength)
-  {
-    endWord = this->AsciiDataBufferLength;
-  }
+  endWord = std::min<vtkTypeUInt64>(endWord, this->AsciiDataBufferLength);
   size_t wordSize = this->GetWordTypeSize(wordType);
   size_t actualWords = endWord - startWord;
   size_t actualBytes = wordSize * actualWords;
@@ -1026,7 +1017,7 @@ static float* vtkXMLParseAsciiData(istream& is, int* length, float*, int)
           stringBuffer.begin(), stringBuffer.end(), [](char& c) { c = std::tolower(c); });
         if (stringBuffer == "inf" || stringBuffer == "nan" || stringBuffer == "-inf")
         {
-          element = strtof(stringBuffer.c_str(), nullptr);
+          VTK_FROM_CHARS_IF_ERROR_BREAK(stringBuffer, element);
         }
         else
         {
@@ -1081,7 +1072,7 @@ static double* vtkXMLParseAsciiData(istream& is, int* length, double*, int)
           stringBuffer.begin(), stringBuffer.end(), [](char& c) { c = std::tolower(c); });
         if (stringBuffer == "inf" || stringBuffer == "nan" || stringBuffer == "-inf")
         {
-          element = strtod(stringBuffer.c_str(), nullptr);
+          VTK_FROM_CHARS_IF_ERROR_BREAK(stringBuffer, element);
         }
         else
         {

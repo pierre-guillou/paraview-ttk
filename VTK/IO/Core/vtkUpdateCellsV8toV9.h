@@ -11,10 +11,8 @@
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkCellType.h"
-#include "vtkCellTypes.h"
 #include "vtkHigherOrderHexahedron.h"
 #include "vtkIdList.h"
-#include "vtkIdTypeArray.h"
 #include "vtkNew.h"
 #include "vtkUnstructuredGrid.h"
 
@@ -25,7 +23,7 @@ inline void vtkUpdateCellsV8toV9(vtkUnstructuredGrid* output)
 
   for (vtkIdType i = 0; i < output->GetNumberOfCells(); ++i)
   {
-    vtkIdType type = output->GetCellTypesArray()->GetTypedComponent(i, 0);
+    int type = output->GetCellType(i);
     if (type == VTK_HIGHER_ORDER_HEXAHEDRON || type == VTK_LAGRANGE_HEXAHEDRON ||
       type == VTK_BEZIER_HEXAHEDRON)
     {

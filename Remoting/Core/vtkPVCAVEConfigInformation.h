@@ -59,6 +59,11 @@ public:
   virtual double GetEyeSeparation();
   ///@}
 
+  /**
+   * Return the use of off axis projection.
+   */
+  virtual bool GetUseOffAxisProjection();
+
   ///@{
   /**
    * Return the number of displays.
@@ -78,6 +83,13 @@ public:
    * Return whether or not displays are fullscreen.
    */
   virtual bool GetFullScreen();
+  ///@}
+
+  ///@{
+  /**
+   * Return whether or not the indexed display was configured to show 2D overlays.
+   */
+  virtual bool GetShow2DOverlays(int index);
   ///@}
 
   ///@{

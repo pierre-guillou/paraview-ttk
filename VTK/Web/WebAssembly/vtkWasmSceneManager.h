@@ -18,11 +18,13 @@
 
 #include "vtkObjectManager.h"
 
-#include "vtkSerializationManagerModule.h" // for export macro
+#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_5_0
 
 VTK_ABI_NAMESPACE_BEGIN
 
-class VTKSERIALIZATIONMANAGER_EXPORT vtkWasmSceneManager : public vtkObjectManager
+class VTK_DEPRECATED_IN_9_5_0(
+  "Please use vtkRemoteSession or vtkStandaloneSession") vtkWasmSceneManager
+  : public vtkObjectManager
 {
 public:
   static vtkWasmSceneManager* New();

@@ -8,13 +8,17 @@
 #include "vtkImageData.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
+#include "vtkStringScanner.h"
 
 #include "vtksys/Encoding.hxx"
 #include "vtksys/SystemTools.hxx"
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <string>
+
+using std::cerr;
 
 VTK_ABI_NAMESPACE_BEGIN
 namespace
@@ -244,7 +248,8 @@ bool vtkTIFFReader::vtkTIFFReaderInternal::Initialize()
           std::string::size_type pos2 = desc.find('\n');
           if ((pos != std::string::npos) && (pos2 != std::string::npos))
           {
-            this->NumberOfPages = atoi(desc.substr(pos + 7, pos2 - pos - 7).c_str());
+            VTK_FROM_CHARS_IF_ERROR_RETURN(
+              desc.substr(pos + 7, pos2 - pos - 7), this->NumberOfPages, false);
           }
         }
       }
@@ -258,7 +263,7 @@ bool vtkTIFFReader::vtkTIFFReaderInternal::Initialize()
       if (!TIFFGetField(this->Image, TIFFTAG_TILEWIDTH, &this->TileWidth) ||
         !TIFFGetField(this->Image, TIFFTAG_TILELENGTH, &this->TileHeight))
       {
-        cerr << "Cannot read tile width and height from file" << endl;
+        std::cerr << "Cannot read tile width and height from file" << endl;
       }
       else
       {
@@ -902,7 +907,7 @@ void vtkTIFFReader::ReadTiles(void* buffer)
         delete[] tile;
         return;
       }
-      const unsigned int zz = 0;
+      constexpr unsigned int zz = 0;
       for (unsigned int yy = 0; yy < tileHeight; ++yy)
       {
         const unsigned int y = flip ? tileHeight + height % tileHeight - yy - 1 : yy;
@@ -924,7 +929,7 @@ void vtkTIFFReader::ReadTiles(void* buffer)
         delete[] tile;
         return;
       }
-      const unsigned int zz = 0;
+      constexpr unsigned int zz = 0;
       for (unsigned int yy = 0; yy < leny; ++yy)
       {
         const unsigned int y = flip ? leny - yy - 1 : yy;
@@ -949,7 +954,7 @@ void vtkTIFFReader::ReadTiles(void* buffer)
       delete[] tile;
       return;
     }
-    const unsigned int zz = 0;
+    constexpr unsigned int zz = 0;
     unsigned int y;
     for (unsigned int yy = 0; yy < leny; ++yy)
     {

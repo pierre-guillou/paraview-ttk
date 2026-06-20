@@ -86,6 +86,18 @@ cmake -GNinja -DPARAVIEW_USE_PYTHON=ON -DPARAVIEW_USE_MPI=ON -DVTK_SMP_IMPLEMENT
 ninja
 ```
 
+ParaView also ships CMake presets:
+ - default
+ - dev
+ - mini
+
+They can be used directly like this:
+
+```
+cmake -GNinja --preset presetName ../paraview
+ninja
+```
+
 #### Run
 Double click on the paraview executable in the `/bin` directory or run in the previous terminal
 
@@ -232,7 +244,7 @@ Optional dependencies:
   * [Python][python]
     - At least 3.3 is required
   * [Qt5][qt]
-    - Version 5.12 or newer. Qt6 support is experimental and not tested yet.
+    - Version 5.15 or newer when using Qt 5, Qt 6.9 when using Qt 6.
 
 ##### Installing CMake
 
@@ -248,11 +260,6 @@ ParaView uses Qt to provide its graphical user interface. Precompiled binaries a
 
 Note that on Windows, the compiler used for building ParaView must match the
 compiler version used to build Qt.
-
-The Linux packages for Qt 5.9 use a version of protobuf that may conflict with
-that used by ParaView. If, when running ParaView, error messages about a
-mismatch in protobuf versions appears, moving the `libqgtk3.so` plugin out of
-the `plugins/platformthemes` directory has been sufficient in the past.
 
 #### Optional Additions
 
@@ -544,9 +551,11 @@ More advanced options:
     "${CMAKE_BINARY_DIR}/Testing/Temporary") to a location that is writable from
     the compute nodes. Typically the user home directory is not.
   * `PARAVIEW_LINKER_FATAL_WARNINGS`: Specify if linker warnings must
-    be considered as errors
+    be considered as errors.
   * `PARAVIEW_EXTRA_COMPILER_WARNINGS`: Add compiler flags to do
-    stricter checking when building debug
+    stricter checking when building.
+  * `PARAVIEW_ENABLE_EXTRA_BUILD_WARNINGS` (default `OFF`; requires CMake >= 3.19):
+    If set, PARAVIEW will enable additional build warnings.
 
 <!--
 These variables should be documented once they're effective again. Note that

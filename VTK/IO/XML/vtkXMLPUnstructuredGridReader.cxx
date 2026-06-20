@@ -165,11 +165,9 @@ int vtkXMLPUnstructuredGridReader::ReadPieceData()
   }
 
   // Copy the corresponding cell types.
-  vtkUnsignedCharArray* inTypes = input->GetCellTypesArray();
-  vtkUnsignedCharArray* outTypes = output->GetCellTypesArray();
-  vtkIdType components = outTypes->GetNumberOfComponents();
-  memcpy(outTypes->GetVoidPointer(this->StartCell * components), inTypes->GetVoidPointer(0),
-    inTypes->GetNumberOfTuples() * components * inTypes->GetDataTypeSize());
+  auto inTypes = input->GetCellTypes();
+  auto outTypes = output->GetCellTypes();
+  outTypes->InsertTuples(this->StartCell, inTypes->GetNumberOfTuples(), 0, inTypes);
 
   return 1;
 }
@@ -188,17 +186,7 @@ void vtkXMLPUnstructuredGridReader::CopyArrayForCells(
   }
 
   vtkIdType numCells = this->PieceReaders[this->Piece]->GetNumberOfCells();
-  vtkIdType components = outArray->GetNumberOfComponents();
-  vtkIdType tupleSize = inArray->GetDataTypeSize() * components;
-  if (auto outStringArray = vtkArrayDownCast<vtkStringArray>(outArray))
-  {
-    outStringArray->InsertTuples(this->StartCell, numCells, 0, inArray);
-  }
-  else
-  {
-    memcpy(outArray->GetVoidPointer(this->StartCell * components), inArray->GetVoidPointer(0),
-      numCells * tupleSize);
-  }
+  outArray->InsertTuples(this->StartCell, numCells, 0, inArray);
 }
 
 //------------------------------------------------------------------------------

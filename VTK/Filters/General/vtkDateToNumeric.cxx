@@ -9,19 +9,11 @@
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
 #include "vtkStringArray.h"
+#include "vtkStringScanner.h"
 
 #include <ctime>
-#include <iomanip>
 #include <iostream>
 #include <sstream>
-
-// old versions of gcc are missing some pices of c++11 such as std::get_time
-// so use
-
-#if (defined(__GNUC__) && (__GNUC__ < 5) && !defined(__clang__)) || defined(ANDROID)
-#define USE_STRPTIME
-#include "time.h"
-#endif
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDateToNumeric);
@@ -33,6 +25,15 @@ vtkDateToNumeric::vtkDateToNumeric()
 
 //------------------------------------------------------------------------------
 vtkDateToNumeric::~vtkDateToNumeric() = default;
+
+namespace
+{
+//------------------------------------------------------------------------------
+bool is_not_strftime_format(const std::string& format)
+{
+  return format.size() >= 5 && format[0] == '{' && format[1] == ':' && format.back() == '}';
+}
+}
 
 //------------------------------------------------------------------------------
 int vtkDateToNumeric::FillInputPortInformation(int, vtkInformation* info)
@@ -58,11 +59,16 @@ int vtkDateToNumeric::RequestData(
   std::vector<std::string> formats;
   if (this->DateFormat)
   {
-    formats.emplace_back(this->DateFormat);
+    std::string dateFormat(this->DateFormat);
+    if (!::is_not_strftime_format(dateFormat))
+    {
+      dateFormat = "{:" + dateFormat + '}';
+    }
+    formats.emplace_back(dateFormat);
   }
   // default formats
-  formats.emplace_back("%Y-%m-%d %H:%M:%S");
-  formats.emplace_back("%d/%m/%Y %H:%M:%S");
+  formats.emplace_back("{:%Y-%m-%d %H:%M:%S}");
+  formats.emplace_back("{:%d/%m/%Y %H:%M:%S}");
 
   // now filter arrays for each of the associations.
   for (int association = 0; association < vtkDataObject::NUMBER_OF_ASSOCIATIONS; ++association)
@@ -92,28 +98,16 @@ int vtkDateToNumeric::RequestData(
       if (inarray && inarray->GetName())
       {
         // look at the first value to see if it is a date we can parse
-        auto inval = inarray->GetValue(0);
         std::string useFormat;
         for (auto& format : formats)
         {
-#ifdef USE_STRPTIME
-          struct tm atime;
-          auto result = strptime(inval.c_str(), format.c_str(), &atime);
+          const std::string& inval = inarray->GetValue(0);
+          auto result = vtk::scan<std::tm>(inval, format);
           if (result)
           {
             useFormat = format;
             break;
           }
-#else
-          std::tm tm = {};
-          std::stringstream ss(inval);
-          ss >> std::get_time(&tm, format.c_str());
-          if (!ss.fail())
-          {
-            useFormat = format;
-            break;
-          }
-#endif
         }
         if (!useFormat.empty())
         {
@@ -124,25 +118,13 @@ int vtkDateToNumeric::RequestData(
           newArray->Allocate(inarray->GetNumberOfValues());
           for (vtkIdType i = 0; i < inarray->GetNumberOfValues(); ++i)
           {
-            inval = inarray->GetValue(i);
-#ifdef USE_STRPTIME
-            struct tm atime;
-            auto result = strptime(inval.c_str(), useFormat.c_str(), &atime);
+            const std::string& inval = inarray->GetValue(i);
+            auto result = vtk::scan<std::tm>(inval, useFormat);
             if (result)
             {
-              auto etime = mktime(&atime);
+              auto etime = std::mktime(&result->value());
               newArray->InsertNextValue(etime);
             }
-#else
-            std::tm tm = {};
-            std::stringstream ss(inval);
-            ss >> std::get_time(&tm, useFormat.c_str());
-            if (!ss.fail())
-            {
-              auto etime = std::mktime(&tm);
-              newArray->InsertNextValue(etime);
-            }
-#endif
             else
             {
               newArray->InsertNextValue(0.0);

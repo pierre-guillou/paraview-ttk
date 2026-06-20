@@ -3,6 +3,7 @@
 #include "vtkDisplayConfiguration.h"
 
 #include "vtkObjectFactory.h"
+#include "vtkStringScanner.h"
 
 #include <sstream>
 #include <string>
@@ -21,6 +22,7 @@ public:
     std::string Environment;
     bool HasCorners = false;
     bool Coverable = false;
+    bool Show2DOverlays = true;
 
     void Print(ostream& os, vtkIndent indent) const
     {
@@ -28,6 +30,7 @@ public:
          << this->Geometry[2] << ", " << this->Geometry[3] << endl;
       os << indent << "HasCorners: " << this->HasCorners << endl;
       os << indent << "Coverable: " << this->Coverable << endl;
+      os << indent << "Show2DOverlays: " << this->Show2DOverlays << endl;
       os << indent << "LoweLeft: " << this->LowerLeft[0] << ", " << this->LowerLeft[1] << ", "
          << this->LowerLeft[2] << endl;
       os << indent << "LowerRight: " << this->LowerRight[0] << ", " << this->LowerRight[1] << ", "
@@ -44,9 +47,13 @@ public:
       {
         return true;
       }
-      int matches = sscanf(value.c_str(), "%dx%d+%d+%d", &this->Geometry[2], &this->Geometry[3],
-        &this->Geometry[0], &this->Geometry[1]);
-      return (matches == 4);
+      auto result = vtk::scan<int, int, int, int>(value, "{:d}x{:d}+{:d}+{:d}");
+      if (result)
+      {
+        std::tie(this->Geometry[2], this->Geometry[3], this->Geometry[0], this->Geometry[1]) =
+          result->values();
+      }
+      return result.has_value();
     }
 
     bool SetCorners(const std::string& ll, const std::string& lr, const std::string& ur)
@@ -128,6 +135,14 @@ bool vtkDisplayConfiguration::GetCoverable(int index) const
 }
 
 //----------------------------------------------------------------------------
+bool vtkDisplayConfiguration::GetShow2DOverlays(int index) const
+{
+  const auto& internals = (*this->Internals);
+  auto& config = internals.Displays.at(index);
+  return config.Show2DOverlays;
+}
+
+//----------------------------------------------------------------------------
 vtkTuple<double, 3> vtkDisplayConfiguration::GetLowerLeft(int index) const
 {
   const auto& internals = (*this->Internals);
@@ -165,15 +180,27 @@ bool vtkDisplayConfiguration::LoadPVX(const char* fname)
   auto root = doc.child("pvx");
   auto process = root;
 
-  // if `Process` nodes exist, find the one which says "server" since that's the
-  // only one where Cave config was specified.
+  // PARAVIEW_DEPRECATED_IN_6_1_0
+  // Specifying a process is not needed and deprecated, warn user to remove it
+  bool warnProcess = false;
   for (auto child : root.children("Process"))
   {
+    warnProcess = true;
+
+    // Use the last one OR the one of Type "server" if any.
+    process = child;
     if (strcmp(child.attribute("Type").as_string(), "server") == 0)
     {
-      process = child;
       break;
     }
+  }
+
+  // PARAVIEW_DEPRECATED_IN_6_1_0
+  if (warnProcess)
+  {
+    vtkLogF(WARNING,
+      "\"Process\" and \"Type\" specification is not needed in .pvx file and therefore deprecated, "
+      "please remove that layer");
   }
 
   if (auto showBorders = process.select_node("/Option[@Name='ShowBorders']").node())
@@ -187,6 +214,9 @@ bool vtkDisplayConfiguration::LoadPVX(const char* fname)
   }
 
   this->EyeSeparation = process.child("EyeSeparation").attribute("Value").as_double(0.0);
+
+  this->UseOffAxisProjection =
+    process.child("UseOffAxisProjection").attribute("Value").as_bool(true);
 
   auto& internals = (*this->Internals);
   internals.Displays.clear();
@@ -204,6 +234,12 @@ bool vtkDisplayConfiguration::LoadPVX(const char* fname)
       display.attribute("LowerRight").as_string(), display.attribute("UpperRight").as_string());
 
     info.Coverable = display.attribute("Coverable").as_bool();
+
+    auto showAttr = display.attribute("Show2DOverlays");
+    if (!showAttr.empty())
+    {
+      info.Show2DOverlays = showAttr.as_bool();
+    }
 
     internals.Displays.push_back(std::move(info));
   }

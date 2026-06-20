@@ -8,6 +8,7 @@
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper2D.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextMapper.h"
 #include "vtkTextProperty.h"
 #include "vtkViewport.h"
@@ -36,8 +37,9 @@ vtkLeaderActor2D::vtkLeaderActor2D()
   this->Label = nullptr;
   this->LabelFactor = 1.0;
   this->AutoLabel = 0;
-  this->LabelFormat = new char[8];
-  snprintf(this->LabelFormat, 8, "%s", "%-#6.3g");
+  this->LabelFormat = new char[10];
+  auto result = vtk::format_to_n(this->LabelFormat, 10, "{:s}", "{:<#6.3g}");
+  *result.out = '\0';
 
   this->UseFontSizeFromProperty = 0;
 
@@ -213,8 +215,11 @@ void vtkLeaderActor2D::BuildLeader(vtkViewport* viewport)
     int stringSize[2];
     if (this->AutoLabel)
     {
+      std::string labelFormat = this->LabelFormat ? vtk::to_std_format(this->LabelFormat) : "";
       char string[512];
-      snprintf(string, sizeof(string), this->LabelFormat, this->Length);
+      VTK_FORMAT_IF_ERROR_RETURN(
+        auto result = vtk::format_to_n(string, sizeof(string), labelFormat, this->Length);
+        *result.out = '\0', );
       this->LabelMapper->SetInput(string);
     }
     else
@@ -536,8 +541,11 @@ void vtkLeaderActor2D::BuildCurvedLeader(double p1[3], double p2[3], double ray[
     int stringSize[2];
     if (this->AutoLabel)
     {
+      std::string labelFormat = this->LabelFormat ? vtk::to_std_format(this->LabelFormat) : "";
       char string[512];
-      snprintf(string, sizeof(string), this->LabelFormat, this->Angle);
+      VTK_FORMAT_IF_ERROR_RETURN(
+        auto result = vtk::format_to_n(string, sizeof(string), labelFormat, this->Angle);
+        *result.out = '\0', );
       this->LabelMapper->SetInput(string);
     }
     else

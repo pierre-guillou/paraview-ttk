@@ -18,13 +18,16 @@
 
 #include "vtkObject.h"
 
-#include "vtkDeserializer.h"               // for vtkDeserializer
-#include "vtkInvoker.h"                    // for vtkInvoker
-#include "vtkLogger.h"                     // for vtkLogger::Verbosity enum
-#include "vtkNew.h"                        // for vtkNew
 #include "vtkSerializationManagerModule.h" // for export macro
-#include "vtkSerializer.h"                 // for vtkSerializer
-#include "vtkSmartPointer.h"               // for vtkSmartPointer
+
+#include "vtkDeserializer.h"    // for vtkDeserializer
+#include "vtkInvoker.h"         // for vtkInvoker
+#include "vtkLogger.h"          // for vtkLogger::Verbosity enum
+#include "vtkNew.h"             // for vtkNew
+#include "vtkSerializer.h"      // for vtkSerializer
+#include "vtkSession.h"         // for vtkSessionObjectManagerRegistrarFunc
+#include "vtkSmartPointer.h"    // for vtkSmartPointer
+#include "vtkTypeUInt32Array.h" // for vtkTypeUInt32Array
 
 #include <string> // for string
 #include <vector> // for vector
@@ -51,9 +54,10 @@ public:
   /**
    * Loads user provided handlers
    */
-  using RegistrarType =
-    std::function<int(void* ser, void* deser, void* invoker, const char** error)>;
-  bool InitializeExtensionModuleHandlers(const std::vector<RegistrarType>& registrars);
+  bool InitializeExtensionModuleHandlers(
+    const std::vector<vtkSessionObjectManagerRegistrarFunc>& registrars);
+  bool InitializeExtensionModuleHandlers(
+    const vtkSessionObjectManagerRegistrarFunc* registrars, std::size_t count);
 
   /**
    * Adds `object` into an internal container and returns a unique identifier.
@@ -103,13 +107,19 @@ public:
    */
   vtkSmartPointer<vtkObjectBase> GetObjectAtId(vtkTypeUInt32 id);
 
+  ///@{
   /**
    * Returns a non-empty vector of identifiers of all objects that depend on an object with the
    * given identifier. Returns an empty vector if there are no dependents.
    * When the root string is empty, the entire dependency tree is returned as a flat vector of
    * identifiers.
+   * The overload which returns a vector<vtkTypeUInt32> is convenient for Python bindings.
+   * The overload which returns a vtkTypeUInt32Array is convenient for C
+   * bindings that can take ownership of memory from the vtkAOSDataArrayTemplate.
    */
   std::vector<vtkTypeUInt32> GetAllDependencies(vtkTypeUInt32 identifier);
+  vtkSmartPointer<vtkTypeUInt32Array> GetAllDependenciesAsVTKDataArray(vtkTypeUInt32 identifier);
+  ///@}
 
   /**
    * Returns a non-empty vector of hash strings that correspond to blobs used by the registered
@@ -119,8 +129,11 @@ public:
 
   /**
    * Returns a blob stored at `hash`.
+   * If `copy` is `true`, a copy of the blob is returned.
+   * If `copy` is `false`, the blob pointer is set in the array using `vtkTypeUInt8Array::SetArray`
+   * with the save flag set to `1`.
    */
-  vtkSmartPointer<vtkTypeUInt8Array> GetBlob(const std::string& hash) const;
+  vtkSmartPointer<vtkTypeUInt8Array> GetBlob(const std::string& hash, bool copy = false) const;
 
   /**
    * Specifies a `blob` for `hash`. Returns `true` if the `blob` is valid and successfully
@@ -190,7 +203,7 @@ public:
   std::size_t GetTotalVTKDataObjectMemoryUsage();
 
   /**
-   * Writes state of all registered objects to `filename.json`
+   * Writes state of all registered objects to `filename.states.json`
    * The blobs are written into `filename.blobs.json`.
    */
   void Export(const std::string& filename, int indentLevel = -1, char indentChar = ' ');
@@ -201,6 +214,19 @@ public:
    * objects from the states.
    */
   void Import(const std::string& stateFileName, const std::string& blobFileName);
+
+  /**
+   * Exports the states and blobs to a vtkUnsignedCharArray. The return value can be passed back
+   * into ImportFromBytes();
+   */
+  vtkSmartPointer<vtkUnsignedCharArray> ExportToBytes();
+
+  /**
+   * Imports the states and blobs from a vtkUnsignedCharArray previously exported via
+   * ExportToBytes(); Returns the list of imported strong objects.
+   */
+  std::vector<vtkSmartPointer<vtkObjectBase>> ImportFromBytes(
+    vtkSmartPointer<vtkUnsignedCharArray> byteArray);
 
   /**
    * Removes all states whose corresponding objects no longer exist.
@@ -250,6 +276,8 @@ protected:
 private:
   vtkObjectManager(const vtkObjectManager&) = delete;
   void operator=(const vtkObjectManager&) = delete;
+
+  std::vector<vtkTypeUInt32> ImportFromJSON(const nlohmann::json& json);
 };
 VTK_ABI_NAMESPACE_END
 #endif

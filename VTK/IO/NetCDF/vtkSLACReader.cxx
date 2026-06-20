@@ -163,11 +163,11 @@ static int nc_get_scalar_double(int ncid, const char* name, double* dp)
 
 //=============================================================================
 // Describes how faces are defined in a tetrahedra in the files.
-const int tetFaces[4][3] = { { 0, 2, 1 }, { 0, 3, 2 }, { 0, 1, 3 }, { 1, 2, 3 } };
+constexpr int tetFaces[4][3] = { { 0, 2, 1 }, { 0, 3, 2 }, { 0, 1, 3 }, { 1, 2, 3 } };
 
 // Describes the points on each edge of a VTK triangle.  The edges are in the
 // same order as the midpoints are defined in a VTK quadratic triangle.
-const int triEdges[3][2] = { { 0, 1 }, { 1, 2 }, { 0, 2 } };
+constexpr int triEdges[3][2] = { { 0, 1 }, { 1, 2 }, { 0, 2 } };
 
 //=============================================================================
 static int NetCDFTypeToVTKType(nc_type type)
@@ -1337,6 +1337,7 @@ vtkSmartPointer<vtkDataArray> vtkSLACReader::ReadPointDataArray(int ncFD, int va
     return nullptr;
   vtkSmartPointer<vtkDataArray> dataArray;
   dataArray.TakeReference(vtkDataArray::CreateDataArray(vtkType));
+  assert(dataArray->HasStandardMemoryLayout() && "Array must have standard memory layout");
   dataArray->SetNumberOfComponents(static_cast<int>(numComponents));
   dataArray->SetNumberOfTuples(static_cast<vtkIdType>(numCoords));
 
@@ -1344,7 +1345,7 @@ vtkSmartPointer<vtkDataArray> vtkSLACReader::ReadPointDataArray(int ncFD, int va
   size_t start[2], count[2];
   start[0] = start[1] = 0;
   count[0] = numCoords;
-  count[1] = numComponents;
+  count[1] = numComponents; // NOLINTNEXTLINE(bugprone-unsafe-functions)
   CALL_NETCDF_PTR(nc_get_vars(ncFD, varId, start, count, nullptr, dataArray->GetVoidPointer(0)));
 
   return dataArray;

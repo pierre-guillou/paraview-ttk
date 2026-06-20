@@ -269,7 +269,7 @@ int vtkAMRStreamingVolumeRepresentation::RequestData(
       // and we should initialize our streaming.
       vtkOverlappingAMR* amr = vtkOverlappingAMR::SafeDownCast(
         inInfo->Get(vtkCompositeDataPipeline::COMPOSITE_DATA_META_DATA()));
-      this->PriorityQueue->Initialize(amr->GetAMRInfo());
+      this->PriorityQueue->Initialize(amr->GetOverlappingAMRMetaData());
     }
   }
 
@@ -309,8 +309,7 @@ int vtkAMRStreamingVolumeRepresentation::RequestData(
     // FIXME: Currently, an empty overlapping AMR causes segfaults in the rest of the
     // pipeline. Until that's fixed, we initialize the dataset with 1 level and
     // 0 blocks.
-    int blocks = 0;
-    amr->Initialize(1, &blocks);
+    amr->Initialize(std::vector<unsigned int>{ 0 });
     this->ProcessedData = amr;
     this->DataBounds.Reset();
   }

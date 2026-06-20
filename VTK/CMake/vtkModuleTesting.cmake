@@ -16,6 +16,36 @@ order to indicate that test data is required.
 include(ExternalData)
 get_filename_component(_vtkModuleTesting_dir "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  add_test(
+    NAME HTTPServerStart
+    COMMAND  "${CMAKE_CROSSCOMPILING_EMULATOR}"
+      "${_vtkModuleTesting_dir}/wasm/server.js"
+      "--directory"
+      "${CMAKE_BINARY_DIR}/Testing/Temporary"
+      "--binaryDirectory"
+      "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+      "--port"
+      "0"
+      "--operation"
+      "start")
+  set_tests_properties(HTTPServerStart
+    PROPERTIES
+      FIXTURES_SETUP "HTTP")
+  add_test(
+    NAME HTTPServerStop
+    COMMAND  "${CMAKE_CROSSCOMPILING_EMULATOR}"
+      "${_vtkModuleTesting_dir}/wasm/server.js"
+      "--directory"
+      "${CMAKE_BINARY_DIR}/Testing/Temporary"
+      "--port"
+      "0"
+      "--operation"
+      "stop")
+  set_tests_properties(HTTPServerStop
+    PROPERTIES
+      FIXTURES_CLEANUP "HTTP")
+endif ()
 #[==[.rst:
 Loading data
 ^^^^^^^^^^^^
@@ -331,6 +361,9 @@ C++ tests
   - ``NO_OUTPUT``: The test does not need to write out any data to the
     filesystem. If it does, a directory which may be written to is passed via
     the ``-T`` flag.
+  - ``WEBGPU_GRAPHICS_BACKEND``: The test should be run using the WebGPU graphics backend.
+    This is only available when building with WebGPU support. It enables WebGPU via
+    setting the environment variable ``VTK_GRAPHICS_BACKEND=WEBGPU``.
 
   Additional flags may be passed to tests using the ``${_vtk_build_test}_ARGS``
   variable or the ``<NAME>_ARGS`` variable.
@@ -342,7 +375,8 @@ function (vtk_add_test_cxx exename _tests)
     NO_OUTPUT
     TIGHT_VALID
     LOOSE_VALID
-    LEGACY_VALID)
+    LEGACY_VALID
+    WEBGPU_GRAPHICS_BACKEND)
   _vtk_test_parse_args("${cxx_options}" "cxx" ${ARGN})
   _vtk_test_set_options("${cxx_options}" "" ${options})
 
@@ -363,6 +397,11 @@ function (vtk_add_test_cxx exename _tests)
     "vulkan: No DRI3 support detected - required for presentation"
     # OpenGL driver cannot render wide lines.
     "a line width has been requested that is larger than your system supports")
+  if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    # Some tests may fail due to GPU process issues if the GPU is not high performance.
+    list(APPEND _vtk_skip_regex
+      "GPU process exited unexpectedly: exit_code=34")
+  endif ()
 
   foreach (name IN LISTS names)
     _vtk_test_set_options("${cxx_options}" "local_" ${_${name}_options})
@@ -405,10 +444,15 @@ function (vtk_add_test_cxx exename _tests)
     if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
       if (_vtk_test_cxx_wasm_enabled_in_browser)
         set(_vtk_test_cxx_pre_args
-          "$<TARGET_FILE:Python3::Interpreter>"
-          "${VTK_SOURCE_DIR}/Testing/WebAssembly/runner.py"
-          "--engine=${VTK_TESTING_WASM_ENGINE}"
-          "--exit")
+          "${CMAKE_COMMAND}"
+          "-DEXIT_AFTER_TEST=ON"
+          "-DTESTING_WASM_ENGINE=${VTK_TESTING_WASM_ENGINE}"
+          "-DTESTING_WASM_HTML_TEMPLATE=${_vtkModuleTesting_dir}/wasm/vtkWasmTest.html.in"
+          "-DTEST_NAME=${_vtk_build_test}Cxx-${vtk_test_prefix}${test_name}"
+          "-DTEST_OUTPUT_DIR=${_vtk_build_TEST_OUTPUT_DIRECTORY}"
+          -P
+          "${_vtkModuleTesting_dir}/wasm/vtkWasmTestRunner.cmake"
+          "--")
       else ()
         ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
           NAME    "${_vtk_build_test}Cxx-${vtk_test_prefix}${test_name}"
@@ -440,11 +484,21 @@ function (vtk_add_test_cxx exename _tests)
         ENVIRONMENT "${vtk_testing}"
         SKIP_RETURN_CODE 125 # This must match VTK_SKIP_RETURN_CODE in vtkTesting.h
       )
-
+    if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+      set_tests_properties("${_vtk_build_test}Cxx-${vtk_test_prefix}${test_name}"
+        PROPERTIES
+          FIXTURES_REQUIRED "HTTP"
+        )
+    endif ()
     if (_vtk_testing_ld_preload)
       set_property(TEST "${_vtk_build_test}Cxx-${vtk_test_prefix}${test_name}" APPEND
         PROPERTY
           ENVIRONMENT "LD_PRELOAD=${_vtk_testing_ld_preload}")
+    endif ()
+    if (local_WEBGPU_GRAPHICS_BACKEND)
+      set_property(TEST "${_vtk_build_test}Cxx-${vtk_test_prefix}${test_name}" APPEND
+        PROPERTY
+          ENVIRONMENT "VTK_GRAPHICS_BACKEND=WEBGPU")
     endif ()
     list(APPEND ${_tests} "${test_file}")
   endforeach ()

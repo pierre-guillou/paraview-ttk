@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstdarg>
 #include <iomanip>
+#include <iostream>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -35,6 +36,8 @@
 #include <sys/types.h>
 #endif
 #include "vtkObjectFactory.h"
+
+using std::cerr;
 
 //==============================================================================
 VTK_ABI_NAMESPACE_BEGIN
@@ -116,25 +119,6 @@ void vtkTimerLog::ResetLog()
   vtkTimerLog::NextEntry = 0;
   // may want to free entry_vector to force realloc so
   // that user can resize the table by changing MaxEntries.
-}
-
-//------------------------------------------------------------------------------
-// Record a timing event.  The event is represented by a formatted
-// string.
-void vtkTimerLog::FormatAndMarkEvent(const char* format, ...)
-{
-  if (!vtkTimerLog::Logging)
-  {
-    return;
-  }
-
-  static char event[4096];
-  va_list var_args;
-  va_start(var_args, format);
-  vsnprintf(event, sizeof(event), format, var_args);
-  va_end(var_args);
-
-  vtkTimerLog::MarkEventInternal(event, vtkTimerLogEntry::STANDALONE);
 }
 
 //------------------------------------------------------------------------------
@@ -333,7 +317,7 @@ vtkTimerLogEntry* vtkTimerLog::GetEvent(int idx)
 
   if (idx < 0 || idx >= num)
   {
-    cerr << "Bad entry index " << idx << endl;
+    std::cerr << "Bad entry index " << idx << endl;
     return nullptr;
   }
   idx = (idx + start) % vtkTimerLog::MaxEntries;

@@ -19,6 +19,8 @@
 #include <cmath>
 #include <sstream>
 
+#include <iostream>
+
 // #define DEBUG
 
 double exponential_distribution(const int i, const double beta)
@@ -55,7 +57,7 @@ int CheckGrid(vtkRectilinearGrid* grid)
   }
 
   vtkDoubleArray* xyz_data = vtkArrayDownCast<vtkDoubleArray>(PD->GetArray("xyz"));
-  double* xyz = static_cast<double*>(xyz_data->GetVoidPointer(0));
+  double* xyz = xyz_data->GetPointer(0);
 
   vtkIdType npoints = grid->GetNumberOfPoints();
   for (vtkIdType pntIdx = 0; pntIdx < npoints; ++pntIdx)

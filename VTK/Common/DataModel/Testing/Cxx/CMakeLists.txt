@@ -20,8 +20,30 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestVector.cxx
   TestVectorOperators.cxx
   TestAMRBox.cxx
+  TestAMRIterator.cxx
   TestBiQuadraticQuad.cxx
-  TestCellArray.cxx
+  TestCellArrayFixedSizeInt32.cxx
+  TestCellArrayFixedSizeInt64.cxx
+  TestCellArrayGeneric1.cxx
+  TestCellArrayGeneric2.cxx
+  TestCellArrayGeneric3.cxx
+  TestCellArrayGeneric4.cxx
+  TestCellArrayGeneric5.cxx
+  TestCellArrayGeneric6.cxx
+  TestCellArrayGeneric7.cxx
+  TestCellArrayGeneric8.cxx
+  TestCellArrayGeneric9.cxx
+  TestCellArrayGeneric10.cxx
+  TestCellArrayGeneric11.cxx
+  TestCellArrayGeneric12.cxx
+  TestCellArrayGeneric13.cxx
+  TestCellArrayGeneric14.cxx
+  TestCellArrayGeneric15.cxx
+  TestCellArrayGeneric16.cxx
+  TestCellArrayGeneric17.cxx
+  TestCellArrayGeneric18.cxx
+  TestCellArrayInt32.cxx
+  TestCellArrayInt64.cxx
   TestCellArrayTraversal.cxx
   TestCompositeDataSets.cxx
   TestCompositeDataSetRange.cxx
@@ -52,6 +74,11 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestMappedGridDeepCopy.cxx
   TestMappedGridShallowCopy.cxx
   TestMeshMTime.cxx
+  TestNonOverlappingAMR.cxx
+  TestNonOverlappingAMRRectilinear.cxx
+  TestOverlappingAMR.cxx
+  TestOverlappingAMRRectilinear.cxx
+  TestOverlappingAMRDeprecated.cxx
   TestPath.cxx
   TestPentagonalPrism.cxx
   TestPiecewiseFunction.cxx
@@ -125,6 +152,7 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests data_tests
   TestLagrangeTetra.cxx
   TestLagrangeWedge.cxx
   quadraticIntersection.cxx
+  TestPolyDataIncorrectConnectivity.cxx,NO_VALID,NO_OUTPUT
   TestCellIterators.cxx,NO_VALID,NO_OUTPUT
   TestCellLocator.cxx,NO_DATA
   TestCellLocatorsEdgeCases.cxx,NO_VALID

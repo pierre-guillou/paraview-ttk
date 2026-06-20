@@ -15,6 +15,7 @@
 #include "vtkPolyData.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringScanner.h"
 #include "vtkStructuredGrid.h"
 #include "vtkUnstructuredGrid.h"
 
@@ -550,7 +551,7 @@ int vtkPVEnSightMasterServerReader2::ParseMasterServerFile()
       {
         // Handle the case file line an sos file with one server.
         numServers = 1;
-        this->Internal->PieceFileNames.push_back(this->CaseFileName);
+        this->Internal->PieceFileNames.emplace_back(this->CaseFileName);
         // We could exit the state machine here
         // because we have nothing else to do from this state.
         // We assume the line "SERVERS" will not appear in any case file.
@@ -574,11 +575,13 @@ int vtkPVEnSightMasterServerReader2::ParseMasterServerFile()
       vtkPVEnSightMasterServerReader2StartsWith(line.c_str(), "number of servers:"))
     {
       // Found the number of servers line.
-      if (sscanf(line.c_str(), "number of servers: %i", &numServers) < 1)
+      auto resultServers = vtk::scan<int>(line, "number of servers: {:d}");
+      if (!resultServers)
       {
         vtkErrorMacro("Error parsing number of servers from: " << line.c_str());
         return VTK_ERROR;
       }
+      numServers = resultServers->value();
       // Check the number of servers is > 0.
       if (numServers < 1)
       {
@@ -600,7 +603,7 @@ int vtkPVEnSightMasterServerReader2::ParseMasterServerFile()
         vtkErrorMacro("Error parsing case file name from: " << line.c_str());
         return VTK_ERROR;
       }
-      this->Internal->PieceFileNames.push_back(p);
+      this->Internal->PieceFileNames.emplace_back(p);
     }
   }
 

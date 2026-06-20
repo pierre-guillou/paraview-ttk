@@ -15,12 +15,12 @@
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
+#include <vtkStringFormatter.h>
 #include <vtkTestUtilities.h>
 #include <vtkTexture.h>
 #include <vtkTexturedSphereSource.h>
 
-#include <vtkNumberToString.h>
-
+#include <iostream>
 #include <string>
 
 int TestOBJPolyDataWriter(int argc, char* argv[])
@@ -56,7 +56,7 @@ int TestOBJPolyDataWriter(int argc, char* argv[])
 
   if (polyInput->GetNumberOfPoints() != polyOutput->GetNumberOfPoints())
   {
-    cerr << "PolyData do not have the same number of points.\n";
+    std::cerr << "PolyData do not have the same number of points.\n";
     return EXIT_FAILURE;
   }
 
@@ -70,7 +70,7 @@ int TestOBJPolyDataWriter(int argc, char* argv[])
   if (!positionsInput || !positionsOutput || !normalsInput || !normalsOutput || !tcoordsInput ||
     !tcoordsOutput)
   {
-    cerr << "One of the arrays is null.\n";
+    std::cerr << "One of the arrays is null.\n";
     return EXIT_FAILURE;
   }
 
@@ -78,7 +78,6 @@ int TestOBJPolyDataWriter(int argc, char* argv[])
   int numberOfDifferentPoints = 0;
   int numberOfDifferentNormals = 0;
   int numberOfDifferentTCoords = 0;
-  vtkNumberToString converter;
   for (vtkIdType i = 0; i < polyInput->GetNumberOfPoints(); i++)
   {
     double pi[3], po[3];
@@ -88,11 +87,9 @@ int TestOBJPolyDataWriter(int argc, char* argv[])
     positionsOutput->GetTuple(i, po);
     if (vtkMath::Distance2BetweenPoints(pi, po) > 0.0)
     {
-      cerr << "Point is different.\n";
-      cerr << "  Input:  " << converter.Convert(pi[0]) << " " << converter.Convert(pi[1]) << " "
-           << converter.Convert(pi[2]) << "\n";
-      cerr << "  Output: " << converter.Convert(po[0]) << " " << converter.Convert(po[1]) << " "
-           << converter.Convert(po[2]) << "\n";
+      std::cerr << "Point is different.\n";
+      std::cerr << vtk::format("  Input:  {} {} {}\n", pi[0], pi[1], pi[2]);
+      std::cerr << vtk::format("  Output: {} {} {}\n", po[0], po[1], po[2]);
       numberOfDifferentPoints++;
     }
 
@@ -101,11 +98,9 @@ int TestOBJPolyDataWriter(int argc, char* argv[])
     normalsOutput->GetTuple(i, po);
     if (vtkMath::AngleBetweenVectors(pi, po) > 0)
     {
-      cerr << "Normal is different:\n";
-      cerr << "  Input:  " << converter.Convert(pi[0]) << " " << converter.Convert(pi[1]) << " "
-           << converter.Convert(pi[2]) << "\n";
-      cerr << "  Output: " << converter.Convert(po[0]) << " " << converter.Convert(po[1]) << " "
-           << converter.Convert(po[2]) << "\n";
+      std::cerr << "Normal is different:\n";
+      std::cerr << vtk::format("  Input:  {} {} {}\n", pi[0], pi[1], pi[2]);
+      std::cerr << vtk::format("  Output: {} {} {}\n", po[0], po[1], po[2]);
       numberOfDifferentNormals++;
     }
 
@@ -115,9 +110,9 @@ int TestOBJPolyDataWriter(int argc, char* argv[])
     pi[2] = po[2] = 0.0;
     if (vtkMath::Distance2BetweenPoints(pi, po) > 0.0)
     {
-      cerr << "Texture coord is different:\n";
-      cerr << "Input:  " << converter.Convert(pi[0]) << " " << converter.Convert(pi[1]) << "\n";
-      cerr << "Output: " << converter.Convert(po[0]) << " " << converter.Convert(po[1]) << "\n";
+      std::cerr << "Texture coord is different:\n";
+      std::cerr << vtk::format("  Input:  {} {} {}\n", pi[0], pi[1], pi[2]);
+      std::cerr << vtk::format("  Output: {} {} {}\n", po[0], po[1], po[2]);
       numberOfDifferentTCoords++;
     }
   }

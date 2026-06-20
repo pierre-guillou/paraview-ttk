@@ -16,6 +16,8 @@
 #include <array>
 #include <vector>
 
+#include <iostream>
+
 namespace
 {
 
@@ -46,10 +48,7 @@ struct HullFunctor
         v = -(planes[j * 4 + 0] * coord[0] + planes[j * 4 + 1] * coord[1] +
           planes[j * 4 + 2] * coord[2]);
         // negative means further in + direction of plane
-        if (v < planes[j * 4 + 3])
-        {
-          planes[j * 4 + 3] = v;
-        }
+        planes[j * 4 + 3] = std::min(planes[j * 4 + 3], v);
       }
     }
   }
@@ -191,10 +190,7 @@ int TestSMPFeatures(int, char*[])
           v = -(planes[j * 4 + 0] * coord[0] + planes[j * 4 + 1] * coord[1] +
             planes[j * 4 + 2] * coord[2]);
           // negative means further in + direction of plane
-          if (v < planes[j * 4 + 3])
-          {
-            planes[j * 4 + 3] = v;
-          }
+          planes[j * 4 + 3] = std::min(planes[j * 4 + 3], v);
         }
       }
     }); // end lambda
@@ -215,7 +211,7 @@ int TestSMPFeatures(int, char*[])
   mt->SetSingleMethod(MyFunction, nullptr);
   mt->SetNumberOfThreads(NumThreads);
   mt->SingleMethodExecute();
-  std::cout << TotalAtomic.load() << endl;
+  std::cout << TotalAtomic.load() << std::endl;
 
   return EXIT_SUCCESS;
 }

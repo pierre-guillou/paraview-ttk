@@ -25,13 +25,13 @@
 
 //----------------------------------------------------------------------------
 // Check for unsupported old compilers.
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#error VTK requires MSVC++ 14.0 aka Visual Studio 2015 or newer
+#if defined(_MSC_VER) && _MSC_VER < 1915
+#error VTK requires MSVC++ 15.8 aka Visual Studio 2017 or newer
 #endif
 
 #if !defined(__clang__) && defined(__GNUC__) &&                                                    \
-  (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8))
-#error VTK requires GCC 4.8 or newer
+  (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 0))
+#error VTK requires GCC 8.0 or newer
 #endif
 
 #if VTK_USE_FUTURE_CONST
@@ -1020,12 +1020,6 @@ VTK_ABI_NAMESPACE_END
 // example, a template specialization might not be used in compiles of sources
 // which use different template types.
 //
-#ifdef __GNUC__
-#define vtkMaybeUnused(reason) __attribute__((unused))
-#else
-#define vtkMaybeUnused(reason)
-#endif
-
 #define vtkWorldCoordinateMacro(name)                                                              \
   virtual vtkCoordinate* Get##name##Coordinate()                                                   \
   {                                                                                                \
@@ -1320,21 +1314,25 @@ public:
   vtkTemplateMacroCase(VTK_BIT, vtkBitArrayIterator, call)
 
 //----------------------------------------------------------------------------
-// Deprecation attribute.
+// Deprecation attribute, currently deprecated and will be removed
+// at the same time as VTK_DEPRECATED_IN_9_6_0 deprecations
+#if !defined(VTK_WRAPPING_CXX)
 
-#if !defined(VTK_DEPRECATED) && !defined(VTK_WRAPPING_CXX)
-#if __cplusplus >= 201402L && defined(__has_cpp_attribute)
-#if __has_cpp_attribute(deprecated)
+#if defined(VTK_COMPILER_GCC) || defined(VTK_COMPILER_CLANG) || defined(VTK_COMPILER_ICC)
+// GCC warning compatible compiler
+#define VTK_DEPRECATED                                                                             \
+  _Pragma("GCC warning \"VTK_DEPRECATED is deprecated, use [[deprecated]] instead\"") [[deprecated]]
+#elif defined(VTK_COMPILER_MSVC)
+// MSVC pragma
+#define VTK_DEPRECATED                                                                             \
+  _Pragma("message( \"VTK_DEPRECATED is deprecated, use [[deprecated]] instead\")") [[deprecated]]
+#else
+// Other compiler do not have a deprecated warning
 #define VTK_DEPRECATED [[deprecated]]
 #endif
-#elif defined(_MSC_VER)
-#define VTK_DEPRECATED __declspec(deprecated)
-#elif defined(__GNUC__) && !defined(__INTEL_COMPILER)
-#define VTK_DEPRECATED __attribute__((deprecated))
-#endif
-#endif
 
-#ifndef VTK_DEPRECATED
+#else
+// During wrapping, do not deprecate at all
 #define VTK_DEPRECATED
 #endif
 
@@ -1354,22 +1352,23 @@ public:
 #define VTK_WRAP_EXTERN
 
 //----------------------------------------------------------------------------
-// Switch case fall-through policy.
+// Switch case fall-through policy, currently deprecated and will be removed
+// at the same time as VTK_DEPRECATED_IN_9_6_0 deprecations
 
 // Use "VTK_FALLTHROUGH;" to annotate deliberate fall-through in switches,
 // use it analogously to "break;".  The trailing semi-colon is required.
-#if !defined(VTK_FALLTHROUGH) && defined(__has_cpp_attribute)
-#if __cplusplus >= 201703L && __has_cpp_attribute(fallthrough)
+#if defined(VTK_COMPILER_GCC) || defined(VTK_COMPILER_CLANG) || defined(VTK_COMPILER_ICC)
+// GCC warning compatible compiler
+#define VTK_FALLTHROUGH                                                                            \
+  _Pragma("GCC warning \"VTK_FALLTHROUGH is deprecated, use [[fallthrough]] instead\"")            \
+    [[fallthrough]]
+#elif defined(VTK_COMPILER_MSVC)
+// MSVC pragma
+#define VTK_FALLTHROUGH                                                                            \
+  __pragma(message("VTK_FALLTHROUGH is deprecated, use [[fallthrough]] instead")) [[fallthrough]]
+#else
+// Other compiler do not have a deprecated warning
 #define VTK_FALLTHROUGH [[fallthrough]]
-#elif __cplusplus >= 201103L && __has_cpp_attribute(gnu::fallthrough)
-#define VTK_FALLTHROUGH [[gnu::fallthrough]]
-#elif __cplusplus >= 201103L && __has_cpp_attribute(clang::fallthrough)
-#define VTK_FALLTHROUGH [[clang::fallthrough]]
-#endif
-#endif
-
-#ifndef VTK_FALLTHROUGH
-#define VTK_FALLTHROUGH ((void)0)
 #endif
 
 //----------------------------------------------------------------------------

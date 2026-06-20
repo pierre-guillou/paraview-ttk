@@ -15,6 +15,7 @@
 
 #include <algorithm> // For transform()
 #include <cctype>    // For to_lower
+#include <iostream>  // For std::cout, std::cerr
 #include <sstream>   // For stringstream
 #include <string>    // For find_last_of()
 
@@ -22,9 +23,7 @@ int TestImportExportOBJ(int argc, char* argv[])
 {
   char* tname =
     vtkTestUtilities::GetArgOrEnvOrDefault("-T", argc, argv, "VTK_TEMP_DIR", "Testing/Temporary");
-  std::string tmpDir(tname);
   delete[] tname;
-  std::string filename = tmpDir + "/TestOBJPolyDataWriter_write.obj";
 
   auto renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
   auto renderer = vtkSmartPointer<vtkRenderer>::New();

@@ -82,6 +82,8 @@ class VTKCOMMONCORE_EXPORT VTK_MARSHALAUTO vtkAbstractArray : public vtkObject
 public:
   vtkTypeMacro(vtkAbstractArray, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+  using ArrayTypeTag = std::integral_constant<int, vtkArrayTypes::VTK_ABSTRACT_ARRAY>;
+  using DataTypeTag = std::integral_constant<int, VTK_OPAQUE>;
 
   /**
    * Print the array values to an `ostream` object.
@@ -107,7 +109,7 @@ public:
    * Return the underlying data type. An integer indicating data type is
    * returned as specified in vtkType.h.
    */
-  virtual int GetDataType() const = 0;
+  virtual int GetDataType() const { return vtkAbstractArray::DataTypeTag::value; };
 
   ///@{
   /**
@@ -158,6 +160,22 @@ public:
    * make sure that the current array has the same number of components as the input array
    */
   int CopyComponentNames(vtkAbstractArray* da);
+
+  /**
+   * Copy a component from one array into a component on this array.
+   *
+   * This method may fail if the array storage types are incompatible
+   * (for example, there is no automatic conversion from a string array
+   * to a double array). Data arrays will convert types, but as a rule
+   * variant and string arrays must have matching types.
+   *
+   * This method copies the specified component ("srcComponent") from the
+   * specified data array ("src") to the specified component ("dstComponent")
+   * over all the tuples in this data array.  This method can be used to extract
+   * a component (column) from one data array and paste that data into
+   * a component on this data array.
+   */
+  virtual bool CopyComponent(int dstComponent, vtkAbstractArray* src, int srcComponent) = 0;
 
   /**
    * Set the number of tuples (a component group) in the array. Note that
@@ -329,7 +347,8 @@ public:
   ///@}
 
   /**
-   * Return the size of the data.
+   * Get the capacity of the array.  This returns the number of value slots
+   * in the array's allocated storage.
    */
   vtkIdType GetSize() const { return this->Size; }
 
@@ -592,6 +611,7 @@ public:
   /**
    * This key is a hint to end user interface that this array
    * is internal and should not be shown to the end user.
+   * \ingroup InformationKeys
    */
   static vtkInformationIntegerKey* GUI_HIDE();
 
@@ -606,6 +626,7 @@ public:
    * and ComputeRange(component) <b>before</b> modifying the information object.
    * Otherwise it is possible for modifications to the array to take place
    * without the bounds on the component being updated.
+   * \ingroup InformationKeys
    */
   static vtkInformationInformationVectorKey* PER_COMPONENT();
 
@@ -620,6 +641,7 @@ public:
    * and ComputeFiniteRange(component) <b>before</b> modifying the information object.
    * Otherwise it is possible for modifications to the array to take place
    * without the bounds on the component being updated.
+   * \ingroup InformationKeys
    */
   static vtkInformationInformationVectorKey* PER_FINITE_COMPONENT();
 
@@ -632,6 +654,7 @@ public:
    * A key used to hold discrete values taken on either by the tuples of the
    * array (when present in this->GetInformation()) or individual components
    * (when present in one entry of the PER_COMPONENT() information vector).
+   * \ingroup InformationKeys
    */
   static vtkInformationVariantVectorKey* DISCRETE_VALUES();
 
@@ -641,10 +664,10 @@ public:
    * The first entry corresponds to the maximum uncertainty that prominent values
    * exist but have not been detected. The second entry corresponds to the smallest
    * relative frequency a value is allowed to have and still appear on the list.
+   * \ingroup InformationKeys
    */
   static vtkInformationDoubleVectorKey* DISCRETE_VALUE_SAMPLE_PARAMETERS();
 
-  // Deprecated.  Use vtkAbstractArray::MaxDiscreteValues instead.
   enum
   {
     MAX_DISCRETE_VALUES = 32
@@ -659,30 +682,44 @@ public:
   vtkSetMacro(MaxDiscreteValues, unsigned int);
   ///@}
 
-  enum
-  {
-    AbstractArray = 0,
-    DataArray,
-    AoSDataArrayTemplate,
-    SoADataArrayTemplate,
-    TypedDataArray,
-    MappedDataArray,
-    ScaleSoADataArrayTemplate,
-    ImplicitArray,
-
-    DataArrayTemplate = AoSDataArrayTemplate //! Legacy
-  };
+  static constexpr int AbstractArray VTK_DEPRECATED_IN_9_6_0(
+    "Use vtkArrayTypes::VTK_ABSTRACT_ARRAY") = vtkArrayTypes::VTK_ABSTRACT_ARRAY;
+  static constexpr int DataArray VTK_DEPRECATED_IN_9_6_0(
+    "Use vtkArrayTypes::VTK_DATA_ARRAY") = vtkArrayTypes::VTK_DATA_ARRAY;
+  static constexpr int AoSDataArrayTemplate VTK_DEPRECATED_IN_9_6_0(
+    "Use vtkArrayTypes::VTK_AOS_DATA_ARRAY") = vtkArrayTypes::VTK_AOS_DATA_ARRAY;
+  static constexpr int SoADataArrayTemplate VTK_DEPRECATED_IN_9_6_0(
+    "Use vtkArrayTypes::VTK_SOA_DATA_ARRAY") = vtkArrayTypes::VTK_SOA_DATA_ARRAY;
+  static constexpr int TypedDataArray VTK_DEPRECATED_IN_9_5_0(
+    "TypedDataArray has been deprecated") = vtkArrayTypes::VTK_NUM_ARRAY_TYPES;
+  static constexpr int MappedDataArray VTK_DEPRECATED_IN_9_5_0(
+    "MappedDataArray has been deprecated") = vtkArrayTypes::VTK_NUM_ARRAY_TYPES + 1;
+  static constexpr int ScaledSoADataArrayTemplate VTK_DEPRECATED_IN_9_6_0(
+    "Use vtkArrayTypes::VTK_SCALED_SOA_DATA_ARRAY") = vtkArrayTypes::VTK_SCALED_SOA_DATA_ARRAY;
+  static constexpr int ImplicitArray VTK_DEPRECATED_IN_9_6_0(
+    "Use vtkArrayTypes::VTK_IMPLICIT_ARRAY") = vtkArrayTypes::VTK_IMPLICIT_ARRAY;
+  static constexpr int DataArrayTemplate VTK_DEPRECATED_IN_9_6_0(
+    "DataArrayTemplate has been deprecated") = vtkArrayTypes::VTK_AOS_DATA_ARRAY;
+  static constexpr int ScaleSoADataArrayTemplate VTK_DEPRECATED_IN_9_6_0(
+    "ScaleSoADataArrayTemplate has been renamed to ScaledSoADataArrayTemplate") =
+    vtkArrayTypes::VTK_SCALED_SOA_DATA_ARRAY;
 
   /**
    * Method for type-checking in FastDownCast implementations. See also
    * vtkArrayDownCast.
    */
-  virtual int GetArrayType() const { return AbstractArray; }
+  virtual int GetArrayType() const { return vtkAbstractArray::ArrayTypeTag::value; }
 
+  ///@{
   /**
    * Get the name for the array type as string
    */
-  const char* GetArrayTypeAsString() const;
+  static const char* GetArrayTypeAsString(int arrayType);
+  const char* GetArrayTypeAsString() const
+  {
+    return vtkAbstractArray::GetArrayTypeAsString(this->GetArrayType());
+  }
+  ///@}
 
 protected:
   // Construct object with default tuple dimension (number of components) of 1.
@@ -800,6 +837,24 @@ VTK_ABI_NAMESPACE_END
     inline ArrayT<ValueT>* operator()(vtkAbstractArray* array)                                     \
     {                                                                                              \
       return ArrayT<ValueT>::FastDownCast(array);                                                  \
+    }                                                                                              \
+  }
+///@}
+
+///@{
+/**
+ * Same as vtkArrayDownCast_FastCastMacro, but treats ArrayT as a
+ * two-parameter template (the parameter is the value type and the array type). Defines a
+ * vtkArrayDownCast implementation that uses the specified array template class
+ * with any value type / array type.
+ */
+#define vtkArrayDownCast_Template2FastCastMacro(ArrayT)                                            \
+  template <typename ValueT, int ArrayType>                                                        \
+  struct vtkArrayDownCast_impl<ArrayT<ValueT, ArrayType>>                                          \
+  {                                                                                                \
+    inline ArrayT<ValueT, ArrayType>* operator()(vtkAbstractArray* array)                          \
+    {                                                                                              \
+      return ArrayT<ValueT, ArrayType>::FastDownCast(array);                                       \
     }                                                                                              \
   }
 ///@}

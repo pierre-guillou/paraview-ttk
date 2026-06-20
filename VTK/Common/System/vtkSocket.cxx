@@ -4,6 +4,7 @@
 
 #include "vtkLogger.h"
 #include "vtkObjectFactory.h"
+#include "vtkStringScanner.h"
 
 // The VTK_SOCKET_FAKE_API definition is given to the compiler
 // command line by CMakeLists.txt if there is no real sockets
@@ -127,6 +128,8 @@ vtkSocket::~vtkSocket()
 int vtkSocket::CreateSocket()
 {
 #ifndef VTK_SOCKET_FAKE_API
+  this->BoundAddress.clear();
+
   int sock;
   vtkRestartInterruptedSystemCallMacro(socket(AF_INET, SOCK_STREAM, 0), sock);
   if (sock == vtkSocketErrorReturnMacro)
@@ -178,7 +181,8 @@ int vtkSocket::BindSocket(int socketdescriptor, int port, const std::string& bin
       {
         nextDot = bindAddr.size();
       }
-      int byte = std::stoi(bindAddr.substr(lastDot, nextDot - lastDot));
+      int byte = 0;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(bindAddr.substr(lastDot, nextDot - lastDot), byte);
       if (byte < 0 || byte > 255)
       {
         vtkSocketErrorMacro(vtkErrnoMacro, "Wrong bind address.");
@@ -215,6 +219,7 @@ int vtkSocket::BindSocket(int socketdescriptor, int port, const std::string& bin
     return -1;
   }
 
+  this->BoundAddress = bindAddr;
   return 0;
 #else
   static_cast<void>(socketdescriptor);
@@ -649,5 +654,6 @@ void vtkSocket::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "SocketDescriptor: " << this->SocketDescriptor << endl;
+  os << indent << "BoundAddress: " << this->BoundAddress << endl;
 }
 VTK_ABI_NAMESPACE_END

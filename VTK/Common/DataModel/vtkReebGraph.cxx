@@ -15,9 +15,12 @@
 #include "vtkVariantArray.h"
 
 #include <algorithm>
+#include <iostream>
 #include <map>
 #include <queue>
 #include <vector>
+
+using std::cout;
 
 //------------------------------------------------------------------------------
 // Contain all of the internal data structures, and macros, in the
@@ -1276,7 +1279,7 @@ int vtkReebGraph::Implementation::SimplifyBranches(
 
   int nsimp = 0;
   int cont = 0;
-  const int step = 10000;
+  constexpr int step = 10000;
   bool redo;
 
   vtkDataSet* input = inputMesh;
@@ -2077,17 +2080,17 @@ void vtkReebGraph::PrintNodeData(ostream& os, vtkIndent indent)
     this->Storage->GetNodeDownArcIds(nodeId, downArcIdList);
     this->Storage->GetNodeUpArcIds(nodeId, upArcIdList);
 
-    cout << indent << indent << "Node " << nodeId << ":" << endl;
-    cout << indent << indent << indent;
-    cout << "Vert: " << this->Storage->GetNodeVertexId(nodeId);
-    cout << ", Val: " << this->Storage->GetNodeScalarValue(nodeId);
-    cout << ", DwA:";
+    std::cout << indent << indent << "Node " << nodeId << ":" << endl;
+    std::cout << indent << indent << indent;
+    std::cout << "Vert: " << this->Storage->GetNodeVertexId(nodeId);
+    std::cout << ", Val: " << this->Storage->GetNodeScalarValue(nodeId);
+    std::cout << ", DwA:";
     for (vtkIdType i = 0; i < downArcIdList->GetNumberOfIds(); i++)
-      cout << " " << this->Storage->GetArcDownNodeId(downArcIdList->GetId(i));
-    cout << ", UpA:";
+      std::cout << " " << this->Storage->GetArcDownNodeId(downArcIdList->GetId(i));
+    std::cout << ", UpA:";
     for (vtkIdType i = 0; i < upArcIdList->GetNumberOfIds(); i++)
-      cout << " " << this->Storage->GetArcUpNodeId(upArcIdList->GetId(i));
-    cout << endl;
+      std::cout << " " << this->Storage->GetArcUpNodeId(upArcIdList->GetId(i));
+    std::cout << endl;
 
     downArcIdList->Delete();
     upArcIdList->Delete();
@@ -2109,14 +2112,14 @@ void vtkReebGraph::PrintNodeData(ostream& os, vtkIndent indent)
   while (prevArcId != arcId)
   {
     prevArcId = arcId;
-    cout << indent << indent << "Arc " << arcId << ":" << endl;
-    cout << indent << indent << indent;
-    cout << "Down: " << this->Storage->GetArcDownNodeId(arcId);
-    cout << ", Up: " << this->Storage->GetArcUpNodeId(arcId);
-    cout << ", Persistence: "
-         << this->Storage->GetNodeScalarValue(this->Storage->GetArcUpNodeId(arcId)) -
+    std::cout << indent << indent << "Arc " << arcId << ":" << endl;
+    std::cout << indent << indent << indent;
+    std::cout << "Down: " << this->Storage->GetArcDownNodeId(arcId);
+    std::cout << ", Up: " << this->Storage->GetArcUpNodeId(arcId);
+    std::cout << ", Persistence: "
+              << this->Storage->GetNodeScalarValue(this->Storage->GetArcUpNodeId(arcId)) -
         this->Storage->GetNodeScalarValue(this->Storage->GetArcDownNodeId(arcId));
-    cout << endl;
+    std::cout << endl;
     arcId = this->Storage->GetNextArcId();
   }
 }
@@ -2263,10 +2266,8 @@ vtkIdType vtkReebGraph::Implementation::AddMeshVertex(vtkIdType vertexId, double
   }
   else
   {
-    if (node->Value > this->MaximumScalarValue)
-      this->MaximumScalarValue = node->Value;
-    if (node->Value < this->MinimumScalarValue)
-      this->MinimumScalarValue = node->Value;
+    this->MaximumScalarValue = std::max(node->Value, this->MaximumScalarValue);
+    this->MinimumScalarValue = std::min(node->Value, this->MinimumScalarValue);
   }
   firstVertex = false;
 

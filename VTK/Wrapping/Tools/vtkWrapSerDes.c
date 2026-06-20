@@ -15,10 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-/* for Sleep() */
-#include <windows.h>
-#endif
+// NOLINTBEGIN(bugprone-unsafe-functions)
 
 /* -------------------------------------------------------------------- */
 /* Get the header file for the specified class */
@@ -63,10 +60,10 @@ static void vtkWrapSerDes_GenerateSpecialHeaders(
      what types each templated class is instantiated for (that info
      might be in the .cxx files, which we cannot access here) */
   types[numTypes++] = "vtkVariant";
-  /* the header file for the marshalled class */
   types[numTypes++] = "vtkDeserializer";
   types[numTypes++] = "vtkInvoker";
   types[numTypes++] = "vtkSerializer";
+  types[numTypes++] = "vtkStringToken";
 
   nn = file_info->Contents->NumberOfClasses;
   for (ii = 0; ii < nn; ii++)
@@ -272,7 +269,7 @@ static void vtkWrapSerDes_MarkAllEnums(NamespaceInfo* contents, const HierarchyI
 
 /**
  * This is the main entry point for generating object coders.
- * When called, it will print the vtkXXXSerialization.cxx file contents to "fp".
+ * When called, it will print the vtkClassNameSerDes.cxx file contents to "fp".
  */
 int VTK_PARSE_MAIN(int argc, char* argv[])
 {
@@ -302,20 +299,6 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
 
   /* get the output file */
   fp = vtkParse_FileOpen(options->OutputFileName, "w");
-
-#ifdef _WIN32
-  if (!fp)
-  {
-    /* repeatedly try to open output file in case of access/sharing error */
-    /* (for example, antivirus software might be scanning the output file) */
-    int tries;
-    for (tries = 0; !fp && tries < 5 && errno == EACCES; tries++)
-    {
-      Sleep(1000);
-      fp = vtkParse_FileOpen(options->OutputFileName, "w");
-    }
-  }
-#endif
   if (!fp)
   {
     int e = errno;
@@ -447,3 +430,5 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   vtkParse_Free(file_info);
   return vtkParse_FinalizeMain(exitCode);
 }
+
+// NOLINTEND(bugprone-unsafe-functions)

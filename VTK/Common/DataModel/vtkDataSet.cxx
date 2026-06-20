@@ -11,6 +11,7 @@
 #include "vtkCallbackCommand.h"
 #include "vtkCell.h"
 #include "vtkCellData.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkCellTypes.h"
 #include "vtkDataSetCellIterator.h"
 #include "vtkDoubleArray.h"
@@ -122,14 +123,8 @@ struct ComputeBoundsFunctor
       this->DataSet->GetPoint(pointId, x);
       for (j = 0; j < 3; j++)
       {
-        if (x[j] < bounds[2 * j])
-        {
-          bounds[2 * j] = x[j];
-        }
-        if (x[j] > bounds[2 * j + 1])
-        {
-          bounds[2 * j + 1] = x[j];
-        }
+        bounds[2 * j] = std::min(x[j], bounds[2 * j]);
+        bounds[2 * j + 1] = std::max(x[j], bounds[2 * j + 1]);
       }
     }
   }
@@ -142,14 +137,8 @@ struct ComputeBoundsFunctor
     {
       for (uint8_t j = 0; j < 3; j++)
       {
-        if (bounds[2 * j] < this->Bounds[2 * j])
-        {
-          this->Bounds[2 * j] = bounds[2 * j];
-        }
-        if (bounds[2 * j + 1] > this->Bounds[2 * j + 1])
-        {
-          this->Bounds[2 * j + 1] = bounds[2 * j + 1];
-        }
+        this->Bounds[2 * j] = std::min(bounds[2 * j], this->Bounds[2 * j]);
+        this->Bounds[2 * j + 1] = std::max(bounds[2 * j + 1], this->Bounds[2 * j + 1]);
       }
     }
   }
@@ -467,7 +456,7 @@ public:
 }
 
 //------------------------------------------------------------------------------
-void vtkDataSet::GetCellTypes(vtkCellTypes* types)
+void vtkDataSet::GetDistinctCellTypes(vtkCellTypes* types)
 {
   DistinctCellTypesWorker worker(this);
   vtkSMPTools::For(0, this->GetNumberOfCells(), worker);
@@ -495,11 +484,11 @@ void vtkDataSet::GetCellPoints(
 int vtkDataSet::GetMaxSpatialDimension()
 {
   vtkNew<vtkCellTypes> cellTypes;
-  this->GetCellTypes(cellTypes);
+  this->GetDistinctCellTypes(cellTypes);
   int maxDim = 0;
   for (vtkIdType i = 0; i < cellTypes->GetNumberOfTypes(); ++i)
   {
-    maxDim = std::max(vtkCellTypes::GetDimension(cellTypes->GetCellType(i)), maxDim);
+    maxDim = std::max(vtkCellTypeUtilities::GetDimension(cellTypes->GetCellType(i)), maxDim);
   }
   return maxDim;
 }
@@ -508,11 +497,11 @@ int vtkDataSet::GetMaxSpatialDimension()
 int vtkDataSet::GetMinSpatialDimension()
 {
   vtkNew<vtkCellTypes> cellTypes;
-  this->GetCellTypes(cellTypes);
+  this->GetDistinctCellTypes(cellTypes);
   int minDim = 3;
   for (vtkIdType i = 0; i < cellTypes->GetNumberOfTypes(); ++i)
   {
-    minDim = std::min(vtkCellTypes::GetDimension(cellTypes->GetCellType(i)), minDim);
+    minDim = std::min(vtkCellTypeUtilities::GetDimension(cellTypes->GetCellType(i)), minDim);
   }
   return minDim;
 }
@@ -845,14 +834,8 @@ void vtkDataSet::GenerateGhostArray(int zeroExt[6], bool cellOnly)
           }
           // Compute Manhattan distance.
           dist = di;
-          if (dj > dist)
-          {
-            dist = dj;
-          }
-          if (dk > dist)
-          {
-            dist = dk;
-          }
+          dist = std::max(dj, dist);
+          dist = std::max(dk, dist);
           unsigned char value = ghostPoints->GetValue(index);
           if (dist > 0)
           {
@@ -934,14 +917,8 @@ void vtkDataSet::GenerateGhostArray(int zeroExt[6], bool cellOnly)
         }
         // Compute Manhattan distance.
         dist = di;
-        if (dj > dist)
-        {
-          dist = dj;
-        }
-        if (dk > dist)
-        {
-          dist = dk;
-        }
+        dist = std::max(dj, dist);
+        dist = std::max(dk, dist);
         unsigned char value = ghostCells->GetValue(index);
         if (dist > 0)
         {

@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+// VTK_DEPRECATED_IN_9_5_0()
+#define VTK_DEPRECATION_LEVEL 0
 #include "vtkWasmSceneManager.h"
 
 #include "vtkCallbackCommand.h"
@@ -12,18 +14,21 @@
 #include "vtkWebAssemblyRenderWindowInteractor.h"
 
 // Init factories.
-#ifdef VTK_MODULE_ENABLE_VTK_RenderingContextOpenGL2
+#if VTK_MODULE_ENABLE_VTK_RenderingContextOpenGL2
 #include "vtkRenderingContextOpenGL2Module.h"
 #endif
-#ifdef VTK_MODULE_ENABLE_VTK_RenderingOpenGL2
+#if VTK_MODULE_ENABLE_VTK_RenderingOpenGL2
 #include "vtkOpenGLPolyDataMapper.h" // needed to remove unused mapper, also includes vtkRenderingOpenGL2Module.h
 #include "vtkWebAssemblyOpenGLRenderWindow.h"
 #endif
-#ifdef VTK_MODULE_ENABLE_VTK_RenderingUI
+#if VTK_MODULE_ENABLE_VTK_RenderingUI
 #include "vtkRenderingUIModule.h"
 #endif
-#ifdef VTK_MODULE_ENABLE_VTK_RenderingVolumeOpenGL2
+#if VTK_MODULE_ENABLE_VTK_RenderingVolumeOpenGL2
 #include "vtkRenderingVolumeOpenGL2Module.h"
+
+#include <iostream>
+
 #endif
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -39,8 +44,9 @@ vtkWasmSceneManager::~vtkWasmSceneManager() = default;
 //-------------------------------------------------------------------------------
 bool vtkWasmSceneManager::Initialize()
 {
+  vtkRenderWindowInteractor::InteractorManagesTheEventLoop = false;
   bool result = this->Superclass::Initialize();
-#ifdef VTK_MODULE_ENABLE_VTK_RenderingOpenGL2
+#if VTK_MODULE_ENABLE_VTK_RenderingOpenGL2
   // Remove the default vtkOpenGLPolyDataMapper as it is not used with wasm build.
   /// get rid of serialization handler
   this->Serializer->UnRegisterHandler(typeid(vtkOpenGLPolyDataMapper));
@@ -100,7 +106,6 @@ bool vtkWasmSceneManager::ResetCamera(vtkTypeUInt32 identifier)
 //-------------------------------------------------------------------------------
 bool vtkWasmSceneManager::StartEventLoop(vtkTypeUInt32 identifier)
 {
-  vtkRenderWindowInteractor::InteractorManagesTheEventLoop = false;
   auto object = this->GetObjectAtId(identifier);
   if (auto* renderWindow = vtkRenderWindow::SafeDownCast(object))
   {
@@ -193,6 +198,7 @@ bool vtkWasmSceneManager::RemoveObserver(vtkTypeUInt32 identifier, unsigned long
   return true;
 }
 
+//-------------------------------------------------------------------------------
 bool vtkWasmSceneManager::BindRenderWindow(
   vtkTypeUInt32 renderWindowIdentifier, const char* canvasSelector)
 {

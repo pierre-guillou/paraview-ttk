@@ -13,11 +13,11 @@
 
 #include "vtkDataObjectAlgorithm.h"
 #include "vtkPVVTKExtensionsFiltersRenderingModule.h" // needed for export macro
-#include "vtkParaViewDeprecation.h"                   // For PARAVIEW_DEPRECATED_IN_5_13_0
 #include "vtkSmartPointer.h"                          // needed for vtkSmartPointer
 
 #include "vtkNew.h" // for vtkNew
 
+class vtkCartesianGrid;
 class vtkCellGrid;
 class vtkDataSet;
 class vtkDataObjectMeshCache;
@@ -29,7 +29,6 @@ class vtkGenericGeometryFilter;
 class vtkGeometryFilter;
 class vtkHyperTreeGrid;
 class vtkImageData;
-class vtkUniformGrid;
 class vtkInformationIntegerVectorKey;
 class vtkInformationVector;
 class vtkMultiProcessController;
@@ -228,19 +227,6 @@ public:
   vtkBooleanMacro(UseNonOverlappingAMRMetaDataForOutlines, bool);
   ///@}
 
-  // These keys are put in the output composite-data metadata for multipieces
-  // since this filter merges multipieces together.
-  PARAVIEW_DEPRECATED_IN_5_13_0("They are not used anymore.")
-  static vtkInformationIntegerVectorKey* POINT_OFFSETS();
-  PARAVIEW_DEPRECATED_IN_5_13_0("They are not used anymore.")
-  static vtkInformationIntegerVectorKey* VERTS_OFFSETS();
-  PARAVIEW_DEPRECATED_IN_5_13_0("They are not used anymore.")
-  static vtkInformationIntegerVectorKey* LINES_OFFSETS();
-  PARAVIEW_DEPRECATED_IN_5_13_0("They are not used anymore.")
-  static vtkInformationIntegerVectorKey* POLYS_OFFSETS();
-  PARAVIEW_DEPRECATED_IN_5_13_0("They are not used anymore.")
-  static vtkInformationIntegerVectorKey* STRIPS_OFFSETS();
-
 protected:
   vtkPVGeometryFilter();
   ~vtkPVGeometryFilter() override;
@@ -264,7 +250,7 @@ protected:
    * This does not handle producing outlines. Call only when this->UseOutline ==
    * 0; \c extractface mask it is used to determine external faces.
    */
-  void ExecuteAMRBlock(vtkUniformGrid* input, vtkPolyData* output, const bool extractface[6]);
+  void ExecuteAMRBlock(vtkCartesianGrid* input, vtkPolyData* output, const bool extractface[6]);
 
   /**
    * Used instead of ExecuteAMRBlock() when this->UseOutline is true.
@@ -304,16 +290,8 @@ protected:
    * Cleans up the output polydata. If doCommunicate is true the method is free
    * to communicate with other processes as needed.
    */
-  PARAVIEW_DEPRECATED_IN_5_13_0("Use CleanupOutputData(vtkPolyData* output) instead.")
-  void CleanupOutputData(vtkPolyData* output, int vtkNotUsed(doCommunicate))
-  {
-    this->CleanupOutputData(output);
-  }
   void CleanupOutputData(vtkPolyData* output);
   ///@}
-
-  PARAVIEW_DEPRECATED_IN_5_13_0("Use ExecuteNormalsComputation instead.")
-  void ExecuteCellNormals(vtkPolyData* output, int doCommunicate);
 
   int OutlineFlag;
   int UseOutline;
@@ -359,7 +337,18 @@ private:
   vtkPVGeometryFilter(const vtkPVGeometryFilter&) = delete;
   void operator=(const vtkPVGeometryFilter&) = delete;
 
+  /**
+   * Add vtkBlockColors and vtkCompositeIndex arrays to output vtkDataObjectTrees.
+   * The realInput is needed to get the correct flat index when the input has been
+   * converted to a vtkPartitionedDataSetCollection.
+   */
+  void AddDataObjectTreeArrays(vtkDataObjectTree* realInput, vtkDataObjectTree* output);
+
+  /**
+   * Adds a point and cell data array called "vtkCompositeIndex" to a vtkPolyData.
+   */
   void AddCompositeIndex(vtkPolyData* pd, unsigned int index);
+
   ///@{
   /**
    * Adds a field array called "vtkBlockColors". The array is

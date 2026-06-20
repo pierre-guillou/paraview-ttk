@@ -11,6 +11,7 @@
 #include "vtkTriangle.h"
 
 #include <algorithm> //std::copy
+#include <array>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBiQuadraticTriangle);
@@ -44,7 +45,8 @@ vtkBiQuadraticTriangle::~vtkBiQuadraticTriangle()
 //------------------------------------------------------------------------------
 vtkCell* vtkBiQuadraticTriangle::GetEdge(int edgeId)
 {
-  edgeId = (edgeId < 0 ? 0 : (edgeId > 2 ? 2 : edgeId));
+  edgeId = std::max(edgeId, 0);
+  edgeId = std::min(edgeId, 2);
   int p = (edgeId + 1) % 3;
 
   // load point id's
@@ -249,7 +251,9 @@ int vtkBiQuadraticTriangle::IntersectWithLine(
 int vtkBiQuadraticTriangle::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
   ptIds->SetNumberOfIds(18);
-  std::copy(&LinearTris[0][0], &LinearTris[0][0] + 18, ptIds->begin());
+  constexpr std::array<vtkIdType, 18> localPtIds{ 0, 3, 6, 6, 3, 4, 6, 4, 5, 0, 6, 5, 3, 1, 4, 5, 4,
+    2 };
+  std::copy(localPtIds.begin(), localPtIds.end(), ptIds->begin());
   return 1;
 }
 
@@ -425,10 +429,7 @@ double vtkBiQuadraticTriangle::GetParametricDistance(const double pcoords[3])
     {
       pDist = 0.0;
     }
-    if (pDist > pDistMax)
-    {
-      pDistMax = pDist;
-    }
+    pDistMax = std::max(pDist, pDistMax);
   }
 
   return pDistMax;

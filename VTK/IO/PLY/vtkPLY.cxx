@@ -23,14 +23,16 @@ chars representing red, green and blue.
 
 #include "vtkPLY.h"
 #include "vtkByteSwap.h"
+#include "vtkFileResourceStream.h"
 #include "vtkHeap.h"
 #include "vtkMath.h"
-#include <vtksys/FStream.hxx>
-#include <vtksys/SystemTools.hxx>
-
-#include "vtkFileResourceStream.h"
 #include "vtkMemoryResourceStream.h"
 #include "vtkResourceParser.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
+
+#include <vtksys/FStream.hxx>
+#include <vtksys/SystemTools.hxx>
 
 #include <cassert>
 #include <cstddef>
@@ -50,7 +52,7 @@ chars representing red, green and blue.
 VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
-const int LINE_LENGTH = 4096;
+constexpr int LINE_LENGTH = 4096;
 // wjs: added to manage memory leak
 vtkHeap* plyHeap = nullptr;
 void plyInitialize()
@@ -76,7 +78,7 @@ void* plyAllocateMemory(size_t n)
 const char* type_names[] = { "invalid", "char", "short", "int", "int8", "int16", "int32", "uchar",
   "ushort", "uint", "uint8", "uint16", "uint32", "float", "float32", "double", "float64" };
 
-const int ply_type_size[] = { 0, 1, 2, 4, 1, 2, 4, 1, 2, 4, 1, 2, 4, 4, 4, 8 };
+constexpr int ply_type_size[] = { 0, 1, 2, 4, 1, 2, 4, 1, 2, 4, 1, 2, 4, 4, 4, 8 };
 }
 
 #define NO_OTHER_PROPS (-1)
@@ -308,6 +310,7 @@ void vtkPLY::ply_describe_property(PlyFile* plyfile, const char* elem_name, PlyP
   else
   {
     elem->nprops++;
+    // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
     elem->props = (PlyProperty**)realloc(elem->props, sizeof(PlyProperty*) * elem->nprops);
     elem->store_prop = (char*)realloc(elem->store_prop, sizeof(char) * elem->nprops);
   }
@@ -351,6 +354,7 @@ void vtkPLY::ply_describe_other_properties(PlyFile* plyfile, PlyOtherProp* other
   {
     int newsize;
     newsize = elem->nprops + other->nprops;
+    // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
     elem->props = (PlyProperty**)realloc(elem->props, sizeof(PlyProperty*) * newsize);
     elem->store_prop = (char*)realloc(elem->store_prop, sizeof(char) * newsize);
   }
@@ -619,7 +623,7 @@ void vtkPLY::ply_put_comment(PlyFile* plyfile, const char* comment)
   }
   else
   {
-    plyfile->comments =
+    plyfile->comments = // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
       (char**)realloc(plyfile->comments, sizeof(char*) * (plyfile->num_comments + 1));
   }
 
@@ -646,7 +650,7 @@ void vtkPLY::ply_put_obj_info(PlyFile* plyfile, const char* obj_info)
   }
   else
   {
-    plyfile->obj_info =
+    plyfile->obj_info = // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
       (char**)realloc(plyfile->obj_info, sizeof(char*) * (plyfile->num_obj_info + 1));
   }
 
@@ -725,7 +729,7 @@ PlyFile* vtkPLY::ply_read(vtkResourceStream* is, int* nelems, char*** elem_names
         delete plyfile;
         return (nullptr);
       }
-      plyfile->version = atof(words[2]);
+      VTK_FROM_CHARS_IF_ERROR_BREAK(words[2], plyfile->version);
     }
     else if (equal_strings(words[0], "element"))
       add_element(plyfile, words);
@@ -798,6 +802,7 @@ PlyFile* vtkPLY::ply_open_for_reading(const char* filename, int* nelems, char***
   auto ifs = vtkSmartPointer<vtkFileResourceStream>::New();
   if (!ifs->Open(filename))
   {
+    plyCleanUp();
     return nullptr;
   }
 
@@ -806,6 +811,7 @@ PlyFile* vtkPLY::ply_open_for_reading(const char* filename, int* nelems, char***
   plyfile = vtkPLY::ply_read(ifs, nelems, elem_names);
   if (plyfile == nullptr)
   {
+    plyCleanUp();
     return nullptr;
   }
 
@@ -915,8 +921,8 @@ void vtkPLY::ply_get_element_setup(
     prop = find_property(elem, prop_list[i].name, &index);
     if (prop == nullptr)
     {
-      fprintf(stderr, "Warning:  Can't find property '%s' in element '%s'\n", prop_list[i].name,
-        elem_name);
+      vtk::print(stderr, "Warning:  Can't find property '{:s}' in element '{:s}'\n",
+        prop_list[i].name, elem_name);
       continue;
     }
 
@@ -958,7 +964,8 @@ void vtkPLY::ply_get_property(PlyFile* plyfile, const char* elem_name, PlyProper
   prop_ptr = find_property(elem, prop->name, &index);
   if (prop_ptr == nullptr)
   {
-    fprintf(stderr, "Warning:  Can't find property '%s' in element '%s'\n", prop->name, elem_name);
+    vtk::print(
+      stderr, "Warning:  Can't find property '{:s}' in element '{:s}'\n", prop->name, elem_name);
     return;
   }
   prop_ptr->internal_type = prop->internal_type;
@@ -1364,24 +1371,24 @@ void vtkPLY::ply_close(PlyFile* plyfile)
     }
     if (elem->nprops > 0)
     {
-      free(elem->props);
+      free(elem->props); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
     }
     free(elem->store_prop);
     free(elem);
   }
-  free(plyfile->elems);
+  free(plyfile->elems); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
 
   for (i = 0; i < plyfile->num_comments; i++)
   {
     free(plyfile->comments[i]);
   }
-  free(plyfile->comments);
+  free(plyfile->comments); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
 
   for (i = 0; i < plyfile->num_obj_info; i++)
   {
     free(plyfile->obj_info[i]);
   }
-  free(plyfile->obj_info);
+  free(plyfile->obj_info); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
 
   delete plyfile;
 
@@ -1723,7 +1730,7 @@ void vtkPLY::write_scalar_type(std::ostream* os, int code)
 
   if (code <= PLY_START_TYPE || code >= PLY_END_TYPE)
   {
-    fprintf(stderr, "write_scalar_type: bad data code = %d\n", code);
+    vtk::print(stderr, "write_scalar_type: bad data code = {:d}\n", code);
     assert(0);
   }
 
@@ -1899,7 +1906,7 @@ double vtkPLY::get_item_value(const char* item, int type)
       return (value);
     }
   }
-  fprintf(stderr, "get_item_value: bad type = %d\n", type);
+  vtk::print(stderr, "get_item_value: bad type = {:d}\n", type);
   return 0;
 }
 
@@ -1976,7 +1983,7 @@ void vtkPLY::write_binary_item(
       os->write(reinterpret_cast<char*>(&double_val), sizeof(double_val));
       break;
     default:
-      fprintf(stderr, "write_binary_item: bad type = %d\n", type);
+      vtk::print(stderr, "write_binary_item: bad type = {:d}\n", type);
       assert(0);
   }
 }
@@ -2021,7 +2028,7 @@ void vtkPLY::write_ascii_item(
       *os << std::setprecision(std::numeric_limits<double>::max_digits10) << double_val << " ";
       break;
     default:
-      fprintf(stderr, "write_ascii_item: bad type = %d\n", type);
+      vtk::print(stderr, "write_ascii_item: bad type = {:d}\n", type);
       assert(0);
   }
 }
@@ -2107,7 +2114,7 @@ double vtkPLY::old_write_ascii_item(std::ostream* os, char* item, int type)
       return value;
     }
   }
-  fprintf(stderr, "old_write_ascii_item: bad type = %d\n", type);
+  vtk::print(stderr, "old_write_ascii_item: bad type = {:d}\n", type);
   return 0.0;
 }
 
@@ -2212,7 +2219,7 @@ void vtkPLY::get_stored_item(
       break;
     }
     default:
-      fprintf(stderr, "get_stored_item: bad type = %d\n", type);
+      vtk::print(stderr, "get_stored_item: bad type = {:d}\n", type);
       assert(0);
   }
 }
@@ -2390,7 +2397,7 @@ bool vtkPLY::get_binary_item(
     }
     break;
     default:
-      fprintf(stderr, "get_binary_item: bad type = %d\n", type);
+      vtk::print(stderr, "get_binary_item: bad type = {:d}\n", type);
       assert(0);
       return false;
   }
@@ -2445,7 +2452,7 @@ void vtkPLY::get_ascii_item(
       break;
 
     default:
-      fprintf(stderr, "get_ascii_item: bad type = %d\n", type);
+      vtk::print(stderr, "get_ascii_item: bad type = {:d}\n", type);
       assert(0);
   }
 }
@@ -2525,7 +2532,7 @@ void vtkPLY::store_item(char* item, int type, int int_val, unsigned int uint_val
       break;
     }
     default:
-      fprintf(stderr, "store_item: bad type = %d\n", type);
+      vtk::print(stderr, "store_item: bad type = {:d}\n", type);
       assert(0);
   }
 }
@@ -2545,14 +2552,14 @@ void vtkPLY::add_element(PlyFile* plyfile, const std::vector<char*>& words)
   /* create the new element */
   elem = (PlyElement*)myalloc(sizeof(PlyElement));
   elem->name = strdup(words[1]);
-  elem->num = atoi(words[2]);
+  VTK_FROM_CHARS_IF_ERROR_RETURN(words[2], elem->num, );
   elem->nprops = 0;
 
   /* make room for new element in the object's list of elements */
   if (plyfile->nelems == 0)
     plyfile->elems = (PlyElement**)myalloc(sizeof(PlyElement*));
   else
-    plyfile->elems =
+    plyfile->elems = // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
       (PlyElement**)realloc(plyfile->elems, sizeof(PlyElement*) * (plyfile->nelems + 1));
 
   /* add the new element to the object's list */
@@ -2620,7 +2627,10 @@ void vtkPLY::add_property(PlyFile* plyfile, const std::vector<char*>& words)
   if (elem->nprops == 0)
     elem->props = (PlyProperty**)myalloc(sizeof(PlyProperty*));
   else
+  {
+    // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
     elem->props = (PlyProperty**)realloc(elem->props, sizeof(PlyProperty*) * (elem->nprops + 1));
+  }
 
   elem->props[elem->nprops] = prop;
   elem->nprops++;
@@ -2705,7 +2715,7 @@ void* vtkPLY::my_alloc(size_t size, int lnum, const char* fname)
 
   if (ptr == nullptr)
   {
-    fprintf(stderr, "Memory allocation bombed on line %d in %s\n", lnum, fname);
+    vtk::print(stderr, "Memory allocation bombed on line {:d} in {:s}\n", lnum, fname);
   }
 
   return (ptr);

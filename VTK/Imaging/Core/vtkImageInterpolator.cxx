@@ -4,7 +4,7 @@
 #include "vtkImageInterpolator.h"
 #include "vtkDataArray.h"
 #include "vtkImageData.h"
-#include "vtkImageInterpolatorInternals.h"
+#include "vtkInterpolationMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkTypeTraits.h"
 
@@ -100,7 +100,7 @@ void vtkImageInterpolator::ComputeSupportSize(const double matrix[16], int size[
   for (int i = 0; i < 3; i++)
   {
     int integerRow = 1;
-    for (int j = 0; j < 3; j++)
+    for (int j = 0; j < 4; j++)
     {
       // verify that the element is an integer
       double x = matrix[4 * i + j];
@@ -712,11 +712,11 @@ void vtkImageNLCRowInterpolate<F, T>::Tricubic(
       case 4:
         iX3 = iX[3];
         fX3 = fX[3];
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case 3:
         iX2 = iX[2];
         fX2 = fX[2];
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case 2:
         iX1 = iX[1];
         fX1 = fX[1];
@@ -941,16 +941,16 @@ void vtkImageInterpolatorPrecomputeWeights(const F newmat[16], const int outExt[
           }
           else
           {
-            // it gets tricky if there are fewer than 4 slices
+            // it gets tricky if there are fewer than 4 samples
             F gg[4] = { 0, 0, 0, 0 };
             for (int ll = 0; ll < 4; ll++)
             {
-              int rIdx = inId[ll] - minExt;
+              int rIdx = inId[ll];
               gg[rIdx] += g[ll];
             }
             for (int jj = 0; jj < step; jj++)
             {
-              positions[step * i + jj] = minExt + jj;
+              positions[step * i + jj] = jj * inInc;
               constants[step * i + jj] = gg[jj];
             }
           }

@@ -21,6 +21,8 @@
 #include <vtkThreshold.h>
 #include <vtkUnstructuredGrid.h>
 
+#include <iostream>
+
 // Replaces the old `PCellDataToPointData` test
 int TestCellDataToPointDataPieceInvariant()
 {
@@ -61,7 +63,7 @@ int TestCellDataToPointDataPieceInvariant()
 
 int TestCellDataToPointData(int, char*[])
 {
-  char const name[] = "RTData";
+  constexpr char name[] = "RTData";
   vtkNew<vtkRTAnalyticSource> wavelet;
   wavelet->SetWholeExtent(-2, 2, -2, 2, -2, 2);
   wavelet->SetCenter(0, 0, 0);
@@ -166,7 +168,7 @@ int TestCellDataToPointData(int, char*[])
 
     if (!(fabs(mean) < 1e-4 && fabs(variance) < 1e-4))
     {
-      cerr << "Failure on option " << opt << endl;
+      std::cerr << "Failure on option " << opt << std::endl;
       return EXIT_FAILURE;
     }
   }

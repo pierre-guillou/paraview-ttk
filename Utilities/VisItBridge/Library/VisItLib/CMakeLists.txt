@@ -11,7 +11,30 @@ project(VisItBridgePlugin)
 include(${CMAKE_CURRENT_SOURCE_DIR}/CMake/VisItCommon.cmake)
 
 #-----------------------------------------------------------------------------
-# Create visit-config.h
+# Read the version
+#-----------------------------------------------------------------------------
+file(STRINGS VERSION VERSION)
+if(NOT VERSION)
+    message(FATAL_ERROR
+        "File \"VERSION\" with ascii string of VisIt version does not exist")
+endif()
+set(VISIT_VERSION ${VERSION})
+
+# Want to split VISIT_VERSION into major,minor and patch vars.
+# Could use SETUP_APP_VERSION, but it sets the vars as CACHE (needed for TP).
+# This conflicts with the non-cache var VISIT_VERSION automagically set by
+# the call to PROJECT(VISIT).  (Non-cache vars overshadow cache vars).
+# There is a 'VERSION' argument to PROJECT, but it only accepts integers, thus
+# it bails on things like '3.0.0b'.  So we will parse the visit version here
+# instead.
+string(REPLACE "." ";" v_list ${VERSION})
+list(GET v_list 0 VISIT_VERSION_MAJOR)
+list(GET v_list 1 VISIT_VERSION_MINOR)
+list(GET v_list 2 VISIT_VERSION_PATCH)
+unset(v_list)
+
+#-----------------------------------------------------------------------------
+# Create visit-config.h and other configuration.
 #-----------------------------------------------------------------------------
 
 if(WIN32)
@@ -23,6 +46,9 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/visit-cmake.h.in
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/common/misc/ConfigureInfo.C.in
                ${CMAKE_CURRENT_BINARY_DIR}/common/misc/ConfigureInfo.C @ONLY IMMEDIATE)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/visit-version.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/visit-version.h @ONLY IMMEDIATE)
 
 
 add_subdirectory(common)

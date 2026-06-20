@@ -68,14 +68,7 @@ vtkPVZSpaceView::vtkPVZSpaceView()
 }
 
 //----------------------------------------------------------------------------
-vtkPVZSpaceView::~vtkPVZSpaceView()
-{
-  vtkZSpaceSDKManager* sdkManager = vtkZSpaceSDKManager::GetInstance();
-  if (sdkManager)
-  {
-    sdkManager->ShutDown();
-  }
-}
+vtkPVZSpaceView::~vtkPVZSpaceView() = default;
 
 //----------------------------------------------------------------------------
 void vtkPVZSpaceView::SetupInteractor(vtkRenderWindowInteractor* vtkNotUsed(rwi))
@@ -103,7 +96,7 @@ void vtkPVZSpaceView::SetInteractionMode(int mode)
         this->Interactor->SetInteractorStyle(this->ZSpaceInteractorStyle);
         break;
       case INTERACTION_MODE_2D:
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       default:
         break;
     }

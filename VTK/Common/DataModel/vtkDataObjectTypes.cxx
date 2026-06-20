@@ -6,6 +6,7 @@
 
 #include "vtkDataObjectTypes.h"
 
+#include "vtkAMRDataObject.h"
 #include "vtkAnnotation.h"
 #include "vtkAnnotationLayers.h"
 #include "vtkArrayData.h"
@@ -38,16 +39,21 @@
 #include "vtkRectilinearGrid.h"
 #include "vtkReebGraph.h"
 #include "vtkSelection.h"
+#include "vtkStatisticalModel.h"
 #include "vtkStructuredGrid.h"
 #include "vtkStructuredPoints.h"
 #include "vtkTable.h"
 #include "vtkTree.h"
 #include "vtkUndirectedGraph.h"
 #include "vtkUniformGrid.h"
+#include "vtkUniformGridAMR.h"
 #include "vtkUniformHyperTreeGrid.h"
 #include "vtkUnstructuredGrid.h"
 
+#include <iostream>
 #include <map>
+
+using std::cerr;
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDataObjectTypes);
@@ -106,6 +112,9 @@ static const char* vtkDataObjectTypesStrings[] = {
   "vtkGeoJSONFeature",
   "vtkImageStencilData",
   "vtkCellGrid",
+  "vtkAMRDataObject",
+  "vtkCartesianGrid",
+  "vtkStatisticalModel",
   nullptr,
 };
 
@@ -113,7 +122,7 @@ namespace
 {
 bool IsTypeIdValid(int typeId)
 {
-  return (typeId >= VTK_POLY_DATA && typeId <= VTK_CELL_GRID);
+  return (typeId >= VTK_POLY_DATA && typeId <= VTK_STATISTICAL_MODEL);
 }
 }
 
@@ -264,6 +273,12 @@ vtkDataObject* vtkDataObjectTypes::NewDataObject(int type)
       return nullptr;
     case VTK_CELL_GRID:
       return vtkCellGrid::New();
+    case VTK_AMR_DATA_OBJECT:
+      return vtkAMRDataObject::New();
+    case VTK_CARTESIAN_GRID:
+      return nullptr;
+    case VTK_STATISTICAL_MODEL:
+      return vtkStatisticalModel::New();
     default:
       vtkLogF(WARNING, "Unknown data type '%d'", type);
       return nullptr;
@@ -306,15 +321,16 @@ int vtkDataObjectTypes::Validate()
 
     if (strcmp(vtkDataObjectTypesStrings[type], cls) != 0)
     {
-      cerr << "ERROR: In " __FILE__ ", line " << __LINE__ << endl;
-      cerr << "Type mismatch for: " << cls << endl;
-      cerr << "The value looked up in vtkDataObjectTypesStrings using ";
-      cerr << "the index returned by GetDataObjectType() does not match the object type." << endl;
-      cerr << "Value from vtkDataObjectTypesStrings[obj->GetDataObjectType()]): ";
-      cerr << vtkDataObjectTypesStrings[type] << endl;
-      cerr << "Check that the correct value is being returned by GetDataObjectType() ";
-      cerr << "for this object type. Also check that the values in vtkDataObjectTypesStrings ";
-      cerr << "are in the same order as the #define's in vtkType.h.";
+      std::cerr << "ERROR: In " __FILE__ ", line " << __LINE__ << endl;
+      std::cerr << "Type mismatch for: " << cls << endl;
+      std::cerr << "The value looked up in vtkDataObjectTypesStrings using ";
+      std::cerr << "the index returned by GetDataObjectType() does not match the object type."
+                << endl;
+      std::cerr << "Value from vtkDataObjectTypesStrings[obj->GetDataObjectType()]): ";
+      std::cerr << vtkDataObjectTypesStrings[type] << endl;
+      std::cerr << "Check that the correct value is being returned by GetDataObjectType() ";
+      std::cerr << "for this object type. Also check that the values in vtkDataObjectTypesStrings ";
+      std::cerr << "are in the same order as the #define's in vtkType.h.";
       return EXIT_FAILURE;
     }
   }
@@ -323,11 +339,13 @@ int vtkDataObjectTypes::Validate()
     !vtkDataObjectTypes::TypeIdIsA(VTK_DATA_SET, VTK_TABLE) &&
     vtkDataObjectTypes::TypeIdIsA(VTK_PARTITIONED_DATA_SET_COLLECTION, VTK_COMPOSITE_DATA_SET) &&
     vtkDataObjectTypes::TypeIdIsA(VTK_MULTIBLOCK_DATA_SET, VTK_DATA_OBJECT_TREE) &&
+    vtkDataObjectTypes::TypeIdIsA(VTK_UNIFORM_GRID_AMR, VTK_AMR_DATA_OBJECT) &&
     vtkDataObjectTypes::TypeIdIsA(VTK_OVERLAPPING_AMR, VTK_UNIFORM_GRID_AMR) &&
     vtkDataObjectTypes::TypeIdIsA(VTK_UNSTRUCTURED_GRID, VTK_POINT_SET) &&
     vtkDataObjectTypes::TypeIdIsA(VTK_UNSTRUCTURED_GRID, VTK_DATA_SET) &&
     vtkDataObjectTypes::TypeIdIsA(VTK_HIERARCHICAL_BOX_DATA_SET, VTK_UNIFORM_GRID_AMR) &&
-    vtkDataObjectTypes::TypeIdIsA(VTK_CELL_GRID, VTK_DATA_OBJECT))
+    vtkDataObjectTypes::TypeIdIsA(VTK_CELL_GRID, VTK_DATA_OBJECT) &&
+    vtkDataObjectTypes::TypeIdIsA(VTK_STATISTICAL_MODEL, VTK_DATA_OBJECT))
   {
     return EXIT_SUCCESS;
   }
@@ -380,12 +398,14 @@ int vtkDataObjectTypes::GetCommonBaseTypeId(int typeA, int typeB)
       { VTK_UNDIRECTED_GRAPH, VTK_GRAPH }, { VTK_DIRECTED_GRAPH, VTK_GRAPH },
       { VTK_MOLECULE, VTK_UNDIRECTED_GRAPH }, { VTK_DIRECTED_ACYCLIC_GRAPH, VTK_DIRECTED_GRAPH },
       { VTK_REEB_GRAPH, VTK_DIRECTED_GRAPH }, { VTK_TREE, VTK_DIRECTED_ACYCLIC_GRAPH },
-      { VTK_RECTILINEAR_GRID, VTK_DATA_SET }, { VTK_POINT_SET, VTK_DATA_SET },
-      { VTK_IMAGE_DATA, VTK_DATA_SET }, { VTK_UNSTRUCTURED_GRID_BASE, VTK_POINT_SET },
-      { VTK_STRUCTURED_GRID, VTK_POINT_SET }, { VTK_POLY_DATA, VTK_POINT_SET },
-      { VTK_PATH, VTK_POINT_SET }, { VTK_EXPLICIT_STRUCTURED_GRID, VTK_POINT_SET },
+      { VTK_RECTILINEAR_GRID, VTK_CARTESIAN_GRID }, { VTK_POINT_SET, VTK_DATA_SET },
+      { VTK_CARTESIAN_GRID, VTK_DATA_SET }, { VTK_IMAGE_DATA, VTK_CARTESIAN_GRID },
+      { VTK_UNSTRUCTURED_GRID_BASE, VTK_POINT_SET }, { VTK_STRUCTURED_GRID, VTK_POINT_SET },
+      { VTK_POLY_DATA, VTK_POINT_SET }, { VTK_PATH, VTK_POINT_SET },
+      { VTK_EXPLICIT_STRUCTURED_GRID, VTK_POINT_SET },
       { VTK_UNSTRUCTURED_GRID, VTK_UNSTRUCTURED_GRID_BASE }, { VTK_UNIFORM_GRID, VTK_IMAGE_DATA },
-      { VTK_STRUCTURED_POINTS, VTK_IMAGE_DATA }, { VTK_OVERLAPPING_AMR, VTK_UNIFORM_GRID_AMR },
+      { VTK_STRUCTURED_POINTS, VTK_IMAGE_DATA }, { VTK_UNIFORM_GRID_AMR, VTK_AMR_DATA_OBJECT },
+      { VTK_OVERLAPPING_AMR, VTK_UNIFORM_GRID_AMR },
       { VTK_HIERARCHICAL_BOX_DATA_SET, VTK_OVERLAPPING_AMR },
       { VTK_NON_OVERLAPPING_AMR, VTK_UNIFORM_GRID_AMR },
       { VTK_DATA_OBJECT_TREE, VTK_COMPOSITE_DATA_SET },
@@ -393,7 +413,8 @@ int vtkDataObjectTypes::GetCommonBaseTypeId(int typeA, int typeB)
       { VTK_PARTITIONED_DATA_SET, VTK_DATA_OBJECT_TREE },
       { VTK_MULTIPIECE_DATA_SET, VTK_PARTITIONED_DATA_SET },
       { VTK_MULTIBLOCK_DATA_SET, VTK_DATA_OBJECT_TREE },
-      { VTK_OPEN_QUBE_ELECTRONIC_DATA, VTK_ABSTRACT_ELECTRONIC_DATA } };
+      { VTK_OPEN_QUBE_ELECTRONIC_DATA, VTK_ABSTRACT_ELECTRONIC_DATA },
+      { VTK_STATISTICAL_MODEL, VTK_DATA_OBJECT } };
 
     std::vector<int> branch;
     do

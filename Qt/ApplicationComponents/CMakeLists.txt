@@ -1,6 +1,12 @@
 # SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
 # SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
 # SPDX-License-Identifier: BSD-3-Clause
+
+set(CMAKE_AUTOMOC 1)
+set(CMAKE_AUTORCC 1)
+set(CMAKE_AUTOUIC 1)
+set(CMAKE_AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/UI")
+
 set(classes
   pqAboutDialogReaction
   pqAddToFavoritesReaction
@@ -90,6 +96,7 @@ set(classes
   pqFiltersMenuReaction
   pqFindDataWidget
   pqFontPropertyWidget
+  pqFourLinesPropertyWidget
   pqFrustumPropertyWidget
   pqGenericPropertyWidgetDecorator
   pqGlyphScaleFactorPropertyWidget
@@ -121,7 +128,6 @@ set(classes
   pqMainWindowEventBehavior
   pqManageCustomFiltersReaction
   pqManageExpressionsReaction
-  pqManageFavoritesReaction
   pqManageLinksReaction
   pqManagePluginsReaction
   pqMasterOnlyReaction
@@ -251,6 +257,7 @@ set(ui_files
   Resources/UI/pqFileListPropertyWidget.ui
   Resources/UI/pqFindDataWidget.ui
   Resources/UI/pqFontPropertyWidget.ui
+  Resources/UI/pqFourLinesPropertyWidget.ui
   Resources/UI/pqFrustumPropertyWidget.ui
   Resources/UI/pqHandlePropertyWidget.ui
   Resources/UI/pqImageCompressorWidget.ui
@@ -265,7 +272,6 @@ set(ui_files
   Resources/UI/pqPauseLiveSourcePropertyWidget.ui
   Resources/UI/pqQuickLaunchDialogExtended.ui
   Resources/UI/pqPropertyCollectionWidget.ui
-  Resources/UI/pqResetScalarRangeToDataOverTime.ui
   Resources/UI/pqSavePresetOptions.ui
   Resources/UI/pqSelectionEditor.ui
   Resources/UI/pqSeriesEditorPropertyWidget.ui
@@ -341,11 +347,6 @@ vtk_module_find_package(
 source_group("Resources" FILES
   ${ui_files}
   ${resource_files})
-
-set(CMAKE_AUTOMOC 1)
-set(CMAKE_AUTORCC 1)
-set(CMAKE_AUTOUIC 1)
-set(CMAKE_AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/UI")
 
 set(translatable_files)
 if (PARAVIEW_BUILD_TRANSLATIONS)

@@ -19,6 +19,9 @@
 
 #if VTK_MODULE_ENABLE_VTK_InfovisBoostGraphAlgorithms
 #include "vtkBoostBreadthFirstSearchTree.h"
+
+#include <iostream>
+
 #endif
 
 // Define to print debug showing convergence (or lack thereof) of loop to find enclosing radius, Re
@@ -164,7 +167,7 @@ static int vtkCosmicTreeLayoutStrategyComputeCentersQuick(
     // is close to or exceeds pi, then just start them out
     // with equal slices (independent of radius).
     double Rtot = 0.;
-    const double twopi = 2. * vtkMath::Pi();
+    constexpr double twopi = 2. * vtkMath::Pi();
     std::vector<double> ang;
     std::vector<double> angp;
     ang.resize(N);
@@ -174,7 +177,7 @@ static int vtkCosmicTreeLayoutStrategyComputeCentersQuick(
       Rtot += circles[i].Radius;
     }
     double factor = twopi / Rtot;
-    const double limit = 0.75 * vtkMath::Pi();
+    constexpr double limit = 0.75 * vtkMath::Pi();
     for (i = 0; i < N; ++i)
     {
       ang[i] = factor * circles[i].Radius;
@@ -221,10 +224,7 @@ static int vtkCosmicTreeLayoutStrategyComputeCentersQuick(
         cumAngle += ang[i];
         sumAngp += (angp[i] = 2. * asin(circ->Radius / (Re - circ->Radius)));
         double localErr = fabs(angp[i] - ang[i]);
-        if (localErr > err)
-        {
-          err = localErr;
-        }
+        err = std::max(localErr, err);
       }
       for (i = 0; i < N; ++i)
       {
@@ -368,27 +368,27 @@ void vtkCosmicTreeLayoutStrategy::Layout()
   this->OffsetChildren(tree, newPoints, radii, scale, metaRoot, currentRoot,
     this->LayoutDepth < 0 ? 0 : this->LayoutDepth, mode);
 #ifdef VTK_COSMIC_DBG
-  cout << "octr = [ ";
+  std::cout << "octr = [ ";
   for (vtkIdType k = 0; k < newPoints->GetNumberOfPoints(); ++k)
   {
     double* x = newPoints->GetPoint(k);
     // double r = radii->GetValue( k );
-    // cout << "k: " << k << "   x: " << x[0] << " y: " << x[1] << "  r: " << r <<  "\n";
-    cout << x[0] << " " << x[1] << "\n";
+    // std::cout << "k: " << k << "   x: " << x[0] << " y: " << x[1] << "  r: " << r <<  "\n";
+    std::cout << x[0] << " " << x[1] << "\n";
   }
-  cout << "]; orad = [ ";
+  std::cout << "]; orad = [ ";
 #endif // VTK_COSMIC_DBG
   for (vtkIdType k = 0; k < newPoints->GetNumberOfPoints(); ++k)
   {
     double r = radii->GetValue(k);
 #ifdef VTK_COSMIC_DBG
-    cout << r << "\n";
+    std::cout << r << "\n";
 #endif // VTK_COSMIC_DBG
     // FIXME: the GraphMapper expects a diameter. Make it accept radii instead.
     radii->SetValue(k, 2. * r);
   }
 #ifdef VTK_COSMIC_DBG
-  cout << "];\nplotbub( octr, orad );\n";
+  std::cout << "];\nplotbub( octr, orad );\n";
 #endif // VTK_COSMIC_DBG
 
   // Copy coordinates back into the original graph
@@ -450,7 +450,7 @@ void vtkCosmicTreeLayoutStrategy::LayoutChildren(vtkTree* tree, vtkPoints* pts,
       // initialized to 1.0
       if (depth < 0 && this->LayoutDepth >= 0)
         return;
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
     case LEAVES:
       // We must descend all the way down to the leaves, regardless of LayoutDepth.
       for (childIdx = 0; childIdx < numberOfChildren; ++childIdx)
@@ -491,7 +491,7 @@ void vtkCosmicTreeLayoutStrategy::OffsetChildren(vtkTree* tree, vtkPoints* pts,
   vtkDoubleArray* radii, vtkDoubleArray* scale, double parent[4], vtkIdType root, int depth,
   RadiusMode mode)
 {
-  // cout << "depth: " << depth << " LOD: " << this->LayoutDepth << "\n";
+  // std::cout << "depth: " << depth << " LOD: " << this->LayoutDepth << "\n";
   if (depth < 0 && this->LayoutDepth > 0)
     return;
 

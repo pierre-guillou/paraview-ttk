@@ -24,6 +24,7 @@
 #include "vtkUnstructuredGrid.h"
 
 #include <iostream>
+#include <vector>
 
 #if VTK_MODULE_ENABLE_ParaView_PythonCatalyst
 #include "FortranPythonAdaptorAPI.h"
@@ -71,10 +72,9 @@ void setcoprocessorgeometry_(int* mx, int* my, int* mz, double* x0, double* y0, 
 
   // Nonoverlapping AMR has just one level and a block per processor
   vtkNonOverlappingAMR* grid = vtkNonOverlappingAMR::New();
-  int numLevels = 1;
-  const int blocksPerLevel[1] = { *tot_pes };
-  grid->Initialize(numLevels, blocksPerLevel);
-  grid->SetGridDescription(VTK_XYZ_GRID);
+  std::vector<unsigned int> blocksPerLevel = { static_cast<unsigned int>(*tot_pes) };
+  grid->Initialize(blocksPerLevel);
+  grid->SetGridDescription(vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
   unsigned int level = 0;
   unsigned int blockId = *my_id;
   grid->SetDataSet(level, blockId, img);
@@ -187,7 +187,13 @@ void addgridfield_(
   unsigned int level = 0;
   unsigned int blockId = *my_id;
 
-  vtkUniformGrid* img = vtkUniformGrid::SafeDownCast(grid->GetDataSet(level, blockId));
+  vtkImageData* img = grid->GetDataSetAsImageData(level, blockId);
+  if (!img)
+  {
+    vtkErrorWithObjectMacro(nullptr, "Unsupported datatype in AMR");
+    return;
+  }
+
   vtkIdType numCells = (*mx + 1) * (*my + 1) * (*mz + 1);
 
   if (*down_convert)

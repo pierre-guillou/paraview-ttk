@@ -18,6 +18,7 @@
 #include "vtkXMLUnstructuredGridWriter.h"
 
 #include <array>
+#include <iostream>
 
 namespace
 {
@@ -183,9 +184,9 @@ void constructVelocityProfile(vtkUnstructuredGrid* unstructuredGrid)
 {
   auto velocity = [](const double p[3]) -> std::array<double, 3>
   {
-    const double s = .5;
-    const double r = .5;
-    const double k = .1;
+    constexpr double s = .5;
+    constexpr double r = .5;
+    constexpr double k = .1;
 
     const double& x = p[0];
     const double& y = p[1];

@@ -21,6 +21,8 @@
 #include "vtkTestUtilities.h"
 #include "vtkUniformGrid.h"
 
+#include <iostream>
+
 inline double ComputeLength(vtkIdList* poly, vtkPoints* pts)
 {
   int n = poly->GetNumberOfIds();
@@ -98,9 +100,9 @@ protected:
 
     for (unsigned int level = 0; level < output->GetNumberOfLevels(); ++level)
     {
-      for (unsigned int idx = 0; idx < output->GetNumberOfDataSets(level); ++idx)
+      for (unsigned int idx = 0; idx < output->GetNumberOfBlocks(level); ++idx)
       {
-        vtkUniformGrid* grid = output->GetDataSet(level, idx);
+        vtkCartesianGrid* grid = output->GetDataSetAsCartesianGrid(level, idx);
         if (!grid)
         {
           continue;
@@ -219,7 +221,7 @@ int TestPStreamAMR(int argc, char* argv[])
 
   if (Rank == 0)
   {
-    cout << "Trace Length: " << totalLengthAll << endl;
+    std::cout << "Trace Length: " << totalLengthAll << std::endl;
   }
   res = (totalLengthAll - 17.18) / 17.18 < 0.01;
 

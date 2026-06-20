@@ -35,6 +35,7 @@
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 
+#include <algorithm>
 #include <vector>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -643,10 +644,7 @@ int vtkStreamTracer::CheckInputs(vtkAbstractInterpolatedVelocityField*& func, in
       if (inp)
       {
         int cellSize = inp->GetMaxCellSize();
-        if (cellSize > *maxCellSize)
-        {
-          *maxCellSize = cellSize;
-        }
+        *maxCellSize = std::max(cellSize, *maxCellSize);
         compVelocityField->AddDataSet(inp);
       }
       iter->GoToNextItem();
@@ -1082,7 +1080,7 @@ struct TracerIntegrator
       inVectors = input->GetAttributesAsFieldData(vecType)->GetArray(vecName);
       // Convert intervals to arc-length unit
       input->GetCell(func->GetLastCellId(), cell);
-      cellLength = std::sqrt(static_cast<double>(cell->GetLength2()));
+      cellLength = std::sqrt(cell->GetLength2());
       speed = vtkMath::Norm(velocity);
       // Never call conversion methods if speed == 0
       if (speed != 0.0)
@@ -1252,7 +1250,7 @@ struct TracerIntegrator
 
         // Calculate cell length and speed to be used in unit conversions
         input->GetCell(func->GetLastCellId(), cell);
-        cellLength = std::sqrt(static_cast<double>(cell->GetLength2()));
+        cellLength = std::sqrt(cell->GetLength2());
         speed = speed2;
 
         // Check if conversion to float will produce a point in same place
@@ -1624,7 +1622,7 @@ void vtkStreamTracer::Integrate(vtkPointData* input0Data, vtkPolyData* output,
   // threshold value.  This is because there is a cost to spinning up
   // threads, and then compositing the results. So for small numbers of
   // seeds, just use a serial approach. Otherwise thread the streamlines.
-  const int VTK_ST_THREADING_THRESHOLD = 8;
+  constexpr int VTK_ST_THREADING_THRESHOLD = 8;
 
   bool runSequential = numSeeds < VTK_ST_THREADING_THRESHOLD || this->SerialExecution;
 

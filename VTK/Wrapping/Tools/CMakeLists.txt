@@ -8,6 +8,7 @@ endif ()
 
 set(sources
   vtkParse.tab.c
+  vtkParseAttributes.c
   vtkParseData.c
   vtkParseDepends.c
   vtkParseExtras.c
@@ -77,8 +78,12 @@ if (NOT TARGET "${ns}::WrapHierarchy")
         "-pthread"
         # Remove after https://github.com/WebAssembly/design/issues/1271 is closed
         "-Wno-pthreads-mem-growth"
-        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-        "SHELL:-s NODERAWFS=1")
+        "-sSINGLE_FILE=1"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sNODERAWFS=1")
+    set_target_properties(WrapHierarchy
+      PROPERTIES
+        SUFFIX ".cjs")
   endif ()
   add_executable("${ns}::WrapHierarchy" ALIAS
     WrapHierarchy)
@@ -162,9 +167,42 @@ if (NOT TARGET WrapSerDes)
         "-pthread"
         # Remove after https://github.com/WebAssembly/design/issues/1271 is closed
         "-Wno-pthreads-mem-growth"
-        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-        "SHELL:-s NODERAWFS=1")
+        "-sSINGLE_FILE=1"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sNODERAWFS=1")
+    set_target_properties(WrapSerDes
+      PROPERTIES
+        SUFFIX ".cjs")
   endif ()
   add_executable("${ns}::WrapSerDes" ALIAS
     WrapSerDes)
+endif ()
+
+if (NOT TARGET WrapJavaScript)
+  vtk_module_add_executable(WrapJavaScript
+    DEVELOPMENT
+    BASENAME vtkWrapJavaScript
+    vtkWrapJavaScript.c
+    vtkWrapJavaScriptClass.c
+    vtkWrapJavaScriptConstant.c
+    vtkWrapJavaScriptEnum.c
+    vtkWrapJavaScriptNamespace.c
+    vtkWrapJavaScriptMethod.c)
+  if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    # allows vtkWrapJavaScript to access host file system for headers, generated sources, etc.
+    # permit memory growth to generate arbitrary sized embind CXX files.
+    target_link_options(WrapJavaScript
+      PRIVATE
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sSINGLE_FILE=1"
+        "-sNODERAWFS=1")
+    set_target_properties(WrapJavaScript
+      PROPERTIES
+        SUFFIX ".cjs")
+  endif ()
+  target_link_libraries(WrapJavaScript
+    PRIVATE
+      "${ns}::WrappingTools")
+  add_executable("${ns}::WrapJavaScript" ALIAS
+    WrapJavaScript)
 endif ()

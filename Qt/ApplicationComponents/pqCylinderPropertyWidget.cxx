@@ -6,6 +6,7 @@
 
 #include "pqActiveObjects.h"
 #include "pqRenderView.h"
+#include "pqWidgetUtilities.h"
 
 #include "vtkCamera.h"
 #include "vtkMath.h"
@@ -20,7 +21,7 @@ namespace
 {
 
 // Scale the bounds by the given factor
-static void pqAdjustBounds(vtkBoundingBox& bbox, double scaleFactor)
+void pqAdjustBounds(vtkBoundingBox& bbox, double scaleFactor)
 {
   double min_point[3], max_point[3];
   bbox.GetMinPoint(min_point[0], min_point[1], min_point[2]);
@@ -45,6 +46,7 @@ pqCylinderPropertyWidget::pqCylinderPropertyWidget(
 {
   Ui::CylinderPropertyWidget ui;
   ui.setupUi(this);
+  pqWidgetUtilities::formatChildTooltips(this);
 
   if (vtkSMProperty* center = smgroup->GetProperty("Center"))
   {

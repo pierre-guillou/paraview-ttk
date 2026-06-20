@@ -25,9 +25,11 @@
 #include <vtkProperty.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderer.h>
+#include <vtkStringFormatter.h>
 #include <vtkTexture.h>
 #include <vtkTransform.h>
 #include <vtkViewNode.h>
+
 #include <vtksys/SystemTools.hxx>
 
 #include <array>
@@ -113,10 +115,10 @@ struct vtkVtkJSSceneGraphSerializer::Internal
   std::unordered_map<void*, Json::ArrayIndex> UniqueIds;
   std::size_t UniqueIdCount;
   std::vector<std::pair<Json::ArrayIndex, vtkDataObject*>> DataObjects;
-  std::vector<std::pair<std::string, vtkDataArray*>> DataArrays;
+  std::vector<std::pair<std::string, vtkSmartPointer<vtkDataArray>>> DataArrays;
 
   Json::Value* entry(const std::string& index, Json::Value* node);
-  Json::Value* entry(const Json::ArrayIndex index) { return entry(std::to_string(index), &Root); }
+  Json::Value* entry(const Json::ArrayIndex index) { return entry(vtk::to_string(index), &Root); }
   Json::Value* entry(void* address) { return entry(UniqueIds.at(address)); }
 
   Json::ArrayIndex uniqueId(void* ptr = nullptr);
@@ -267,7 +269,7 @@ void vtkVtkJSSceneGraphSerializer::Add(vtkViewNode* node, vtkActor* actor)
   Json::Value v = Json::arrayValue;
   v.append("addViewProp");
   Json::Value w = Json::arrayValue;
-  w.append("instance:${" + std::to_string(this->UniqueId(node->GetRenderable())) + "}");
+  w.append("instance:${" + vtk::to_string(this->UniqueId(node->GetRenderable())) + "}");
   v.append(w);
   (*parent)["calls"].append(v);
 }
@@ -292,7 +294,7 @@ void vtkVtkJSSceneGraphSerializer::Add(Json::Value* self, vtkAlgorithm* algorith
     Json::Value v = Json::arrayValue;
     v.append("setInputData");
     Json::Value w = Json::arrayValue;
-    w.append("instance:${" + std::to_string(this->UniqueId(dataObject)) + "}");
+    w.append("instance:${" + vtk::to_string(this->UniqueId(dataObject)) + "}");
     w.append(inputPort);
     v.append(w);
     (*self)["calls"].append(v);
@@ -349,7 +351,7 @@ void vtkVtkJSSceneGraphSerializer::Add(
       Json::Value actor =
         this->ToJson(*renderer, vtkActor::SafeDownCast(node->GetParent()->GetRenderable()), true);
       Json::ArrayIndex actorId = this->UniqueId();
-      actor["id"] = std::to_string(actorId);
+      actor["id"] = vtk::to_string(actorId);
 
       {
         // Locate the actor's entry for its vtkProperty
@@ -382,7 +384,7 @@ void vtkVtkJSSceneGraphSerializer::Add(
       Json::Value v = Json::arrayValue;
       v.append("setMapper");
       Json::Value w = Json::arrayValue;
-      w.append("instance:${" + std::to_string(id) + "}");
+      w.append("instance:${" + vtk::to_string(id) + "}");
       v.append(w);
       (*parent)["calls"].append(v);
       parent = &(*parent)["dependencies"].append(value);
@@ -399,7 +401,7 @@ void vtkVtkJSSceneGraphSerializer::Add(
       Json::Value v = Json::arrayValue;
       v.append("setInputData");
       Json::Value w = Json::arrayValue;
-      w.append("instance:${" + std::to_string(dataId) + "}");
+      w.append("instance:${" + vtk::to_string(dataId) + "}");
       v.append(w);
       (*parent)["calls"].append(v);
     }
@@ -458,7 +460,7 @@ void vtkVtkJSSceneGraphSerializer::Add(vtkViewNode* node, vtkGlyph3DMapper* mapp
   Json::Value v = Json::arrayValue;
   v.append("setMapper");
   Json::Value w = Json::arrayValue;
-  w.append("instance:${" + std::to_string(this->UniqueId(node->GetRenderable())) + "}");
+  w.append("instance:${" + vtk::to_string(this->UniqueId(node->GetRenderable())) + "}");
   v.append(w);
   (*parent)["calls"].append(v);
 
@@ -475,7 +477,7 @@ void vtkVtkJSSceneGraphSerializer::Add(vtkViewNode* node, vtkMapper* mapper)
   Json::Value v = Json::arrayValue;
   v.append("setMapper");
   Json::Value w = Json::arrayValue;
-  w.append("instance:${" + std::to_string(this->UniqueId(node->GetRenderable())) + "}");
+  w.append("instance:${" + vtk::to_string(this->UniqueId(node->GetRenderable())) + "}");
   v.append(w);
   (*parent)["calls"].append(v);
 
@@ -492,7 +494,7 @@ void vtkVtkJSSceneGraphSerializer::Add(vtkViewNode* node, vtkRenderer* renderer)
   Json::Value v = Json::arrayValue;
   v.append("addRenderer");
   Json::Value w = Json::arrayValue;
-  w.append("instance:${" + std::to_string(this->UniqueId(node->GetRenderable())) + "}");
+  w.append("instance:${" + vtk::to_string(this->UniqueId(node->GetRenderable())) + "}");
   v.append(w);
   (*parent)["calls"].append(v);
 }
@@ -528,7 +530,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(this->UniqueId(imageData));
+  val["id"] = vtk::to_string(this->UniqueId(imageData));
   val["type"] = "vtkImageData";
 
   Json::Value properties;
@@ -559,7 +561,9 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(vtkDataArray* array)
   Json::Value val;
   std::string hash;
   {
-    const unsigned char* content = (const unsigned char*)array->GetVoidPointer(0);
+    auto aos = array->ToAOSDataArray();
+    // NOLINTNEXTLINE(bugprone-unsafe-functions)
+    const unsigned char* content = (const unsigned char*)aos->GetVoidPointer(0);
     int size = array->GetNumberOfValues() * array->GetDataTypeSize();
     computeMD5(content, size, hash);
   }
@@ -592,7 +596,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(this->UniqueId(polyData));
+  val["id"] = vtk::to_string(this->UniqueId(polyData));
   val["type"] = "vtkPolyData";
 
   Json::Value properties;
@@ -604,27 +608,35 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(
     properties["points"]["vtkClass"] = "vtkPoints";
   }
 
-  if (polyData->GetVerts() && polyData->GetVerts()->GetData()->GetNumberOfTuples() > 0)
+  if (polyData->GetVerts() && polyData->GetVerts()->GetNumberOfCells() > 0)
   {
-    properties["verts"] = this->ToJson(polyData->GetVerts()->GetData());
+    vtkNew<vtkIdTypeArray> legacyData;
+    polyData->GetVerts()->ExportLegacyFormat(legacyData);
+    properties["verts"] = this->ToJson(legacyData);
     properties["verts"]["vtkClass"] = "vtkCellArray";
   }
 
-  if (polyData->GetLines() && polyData->GetLines()->GetData()->GetNumberOfTuples() > 0)
+  if (polyData->GetLines() && polyData->GetLines()->GetNumberOfCells() > 0)
   {
-    properties["lines"] = this->ToJson(polyData->GetLines()->GetData());
+    vtkNew<vtkIdTypeArray> legacyData;
+    polyData->GetLines()->ExportLegacyFormat(legacyData);
+    properties["lines"] = this->ToJson(legacyData);
     properties["lines"]["vtkClass"] = "vtkCellArray";
   }
 
-  if (polyData->GetPolys() && polyData->GetPolys()->GetData()->GetNumberOfTuples() > 0)
+  if (polyData->GetPolys() && polyData->GetPolys()->GetNumberOfCells() > 0)
   {
-    properties["polys"] = this->ToJson(polyData->GetPolys()->GetData());
+    vtkNew<vtkIdTypeArray> legacyData;
+    polyData->GetPolys()->ExportLegacyFormat(legacyData);
+    properties["polys"] = this->ToJson(legacyData);
     properties["polys"]["vtkClass"] = "vtkCellArray";
   }
 
-  if (polyData->GetStrips() && polyData->GetStrips()->GetData()->GetNumberOfTuples() > 0)
+  if (polyData->GetStrips() && polyData->GetStrips()->GetNumberOfCells() > 0)
   {
-    properties["strips"] = this->ToJson(polyData->GetStrips()->GetData());
+    vtkNew<vtkIdTypeArray> legacyData;
+    polyData->GetStrips()->ExportLegacyFormat(legacyData);
+    properties["strips"] = this->ToJson(legacyData);
     properties["strips"]["vtkClass"] = "vtkCellArray";
   }
 
@@ -641,7 +653,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkPropert
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(this->UniqueId(property));
+  val["id"] = vtk::to_string(this->UniqueId(property));
   val["type"] = "vtkProperty";
 
   Json::Value properties;
@@ -679,7 +691,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkTransfo
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(this->UniqueId(transform));
+  val["id"] = vtk::to_string(this->UniqueId(transform));
   val["type"] = "vtkTransform";
 
   Json::Value properties;
@@ -708,7 +720,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkTexture
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(this->UniqueId(texture));
+  val["id"] = vtk::to_string(this->UniqueId(texture));
   val["type"] = "vtkTexture";
 
   Json::Value properties;
@@ -731,7 +743,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkTexture
   if (lookupTable != nullptr)
   {
     Json::Value lut = this->ToJson(val, lookupTable);
-    std::string lutId = std::to_string(this->UniqueId(lookupTable));
+    std::string lutId = vtk::to_string(this->UniqueId(lookupTable));
     lut["id"] = lutId;
     val["dependencies"].append(lut);
     Json::Value v = Json::arrayValue;
@@ -746,7 +758,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkTexture
   if (transform != nullptr)
   {
     Json::Value trans = this->ToJson(val, transform);
-    std::string transId = std::to_string(this->UniqueId(lookupTable));
+    std::string transId = vtk::to_string(this->UniqueId(lookupTable));
     trans["id"] = transId;
     val["dependencies"].append(trans);
     Json::Value v = Json::arrayValue;
@@ -770,7 +782,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(this->UniqueId(actor));
+  val["id"] = vtk::to_string(this->UniqueId(actor));
   val["type"] = "vtkActor";
 
   Json::Value properties;
@@ -797,7 +809,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(
   {
     Json::Value prop = this->ToJson(val, property);
     std::string propertyId =
-      (newPropertyId ? std::to_string(this->UniqueId()) : std::to_string(this->UniqueId(property)));
+      (newPropertyId ? vtk::to_string(this->UniqueId()) : vtk::to_string(this->UniqueId(property)));
     prop["id"] = propertyId;
     val["dependencies"].append(prop);
     Json::Value v = Json::arrayValue;
@@ -812,7 +824,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(
   if (texture != nullptr)
   {
     Json::Value tex = this->ToJson(val, texture);
-    std::string textureId = std::to_string(this->UniqueId(texture));
+    std::string textureId = vtk::to_string(this->UniqueId(texture));
     tex["id"] = textureId;
     val["dependencies"].append(tex);
     Json::Value v = Json::arrayValue;
@@ -831,7 +843,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkLookupT
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(this->UniqueId(lookupTable));
+  val["id"] = vtk::to_string(this->UniqueId(lookupTable));
   val["type"] = "vtkLookupTable";
 
   Json::Value properties;
@@ -863,7 +875,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(id);
+  val["id"] = vtk::to_string(id);
   val["type"] = "vtkMapper";
 
   Json::Value properties;
@@ -890,7 +902,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(
   {
     Json::Value lut = this->ToJson(val, lookupTable);
     std::string lutId =
-      (newLUTId ? std::to_string(this->UniqueId()) : std::to_string(this->UniqueId(lookupTable)));
+      (newLUTId ? vtk::to_string(this->UniqueId()) : vtk::to_string(this->UniqueId(lookupTable)));
     lut["id"] = lutId;
     val["dependencies"].append(lut);
     Json::Value v = Json::arrayValue;
@@ -926,7 +938,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkCamera*
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(this->UniqueId(camera));
+  val["id"] = vtk::to_string(this->UniqueId(camera));
   val["type"] = "vtkCamera";
 
   Json::Value properties;
@@ -950,7 +962,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkLight* 
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(this->UniqueId(light));
+  val["id"] = vtk::to_string(this->UniqueId(light));
   val["type"] = "vtkLight";
 
   Json::Value properties;
@@ -983,7 +995,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkRendere
 {
   Json::Value val;
   val["parent"] = parent["id"];
-  val["id"] = std::to_string(this->UniqueId(renderer));
+  val["id"] = vtk::to_string(this->UniqueId(renderer));
   val["type"] = renderer->GetClassName();
 
   Json::Value properties;
@@ -1020,7 +1032,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkRendere
     Json::Value v = Json::arrayValue;
     v.append("setActiveCamera");
     Json::Value w = Json::arrayValue;
-    w.append("instance:${" + std::to_string(this->UniqueId(renderer->GetActiveCamera())) + "}");
+    w.append("instance:${" + vtk::to_string(this->UniqueId(renderer->GetActiveCamera())) + "}");
     v.append(w);
     val["calls"].append(v);
   }
@@ -1037,7 +1049,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(Json::Value& parent, vtkRendere
     for (vtkLight* light = lights->GetNextItem(); light != nullptr; light = lights->GetNextItem())
     {
       val["dependencies"].append(this->ToJson(val, light));
-      w.append("instance:${" + std::to_string(this->UniqueId(light)) + "}");
+      w.append("instance:${" + vtk::to_string(this->UniqueId(light)) + "}");
     }
     v.append(w);
     val["calls"].append(v);
@@ -1051,7 +1063,7 @@ Json::Value vtkVtkJSSceneGraphSerializer::ToJson(vtkRenderWindow* renderWindow)
 {
   Json::Value val;
   val["parent"] = "0x0";
-  val["id"] = std::to_string(this->UniqueId(renderWindow));
+  val["id"] = vtk::to_string(this->UniqueId(renderWindow));
   val["type"] = renderWindow->GetClassName();
   val["mtime"] = static_cast<Json::UInt64>(renderWindow->GetMTime());
 

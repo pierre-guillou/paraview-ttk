@@ -30,6 +30,8 @@
 #include "vtkUnsignedLongLongArray.h"
 #include "vtkUnsignedShortArray.h"
 
+#include <algorithm>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRandomAttributeGenerator);
 
@@ -280,21 +282,6 @@ vtkDataArray* vtkRandomAttributeGenerator::GenerateData(
 }
 
 //------------------------------------------------------------------------------
-// VTK_DEPRECATED_IN_9_4_0()
-int vtkRandomAttributeGenerator::RequestData(
-  vtkCompositeDataSet* input, vtkCompositeDataSet* output)
-{
-  return this->ProcessComposite(input, output);
-}
-
-//------------------------------------------------------------------------------
-// VTK_DEPRECATED_IN_9_4_0()
-int vtkRandomAttributeGenerator::RequestData(vtkDataSet* input, vtkDataSet* output)
-{
-  return this->ProcessDataSet(input, output);
-}
-
-//------------------------------------------------------------------------------
 int vtkRandomAttributeGenerator::ProcessComposite(
   vtkCompositeDataSet* input, vtkCompositeDataSet* output)
 {
@@ -485,9 +472,7 @@ void vtkRandomAttributeGenerator::GeneratePointData(vtkPointData* outputPD, vtkI
   if (this->GeneratePointTCoords)
   {
     // Clamp the number of component between 1 and 3
-    int numComp = this->NumberOfComponents < 1
-      ? 1
-      : (this->NumberOfComponents > 3 ? 3 : this->NumberOfComponents);
+    int numComp = std::min(std::max(this->NumberOfComponents, 1), 3);
     vtkDataArray* ptTCoords = this->GenerateData(this->DataType, numPts, numComp, 0,
       this->NumberOfComponents - 1, this->MinimumComponentValue, this->MaximumComponentValue);
     const char* tCoordsName = "RandomPointTCoords";
@@ -568,9 +553,7 @@ void vtkRandomAttributeGenerator::GenerateCellData(vtkCellData* outputCD, vtkIdT
   }
   if (this->GenerateCellTCoords)
   {
-    int numComp = this->NumberOfComponents < 1
-      ? 1
-      : (this->NumberOfComponents > 3 ? 3 : this->NumberOfComponents);
+    int numComp = std::min(std::max(this->NumberOfComponents, 1), 3);
     vtkDataArray* cellTCoords = this->GenerateData(this->DataType, numCells, numComp, 0,
       this->NumberOfComponents - 1, this->MinimumComponentValue, this->MaximumComponentValue);
     const char* tCoordsName = "RandomCellTCoords";

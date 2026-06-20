@@ -9,15 +9,14 @@
 #include "vtkPVLogger.h"
 #include "vtkPVProxyDefinitionIterator.h"
 #include "vtkPVXMLElement.h"
+#include "vtkSMCoreUtilities.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMPropertyIterator.h"
-#include "vtkSMPropertyLink.h"
 #include "vtkSMProxyDefinitionManager.h"
 #include "vtkSMProxyInitializationHelper.h"
 #include "vtkSMProxyIterator.h"
 #include "vtkSMProxyListDomain.h"
-#include "vtkSMProxyProperty.h"
 #include "vtkSMProxySelectionModel.h"
 #include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
@@ -27,7 +26,10 @@
 #include "vtkSMTimeKeeperProxy.h"
 #include "vtkSMTrace.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringFormatter.h"
 #include "vtkWeakPointer.h"
+
+#include <vtksys/SystemTools.hxx>
 
 #include <cassert>
 #include <map>
@@ -74,7 +76,7 @@ public:
     assert(prop != nullptr);
     unsigned long oid =
       prop->AddObserver(vtkCommand::DomainModifiedEvent, this, &vtkDomainObserver::DomainModified);
-    this->MonitoredProperties.push_back(std::pair<vtkSMProperty*, unsigned long>(prop, oid));
+    this->MonitoredProperties.emplace_back(prop, oid);
   }
 
   const std::set<vtkSMProperty*>& GetPropertiesWithModifiedDomains() const
@@ -506,7 +508,19 @@ bool vtkSMParaViewPipelineController::RegisterPipelineProxy(
   // If proxyname is nullptr, the proxy manager makes up a name.
   if (proxyname == nullptr || proxyname[0] == 0)
   {
-    auto pname = proxy->GetSessionProxyManager()->RegisterProxy("sources", proxy);
+    std::optional<std::string> registrationName =
+      vtkSMCoreUtilities::RecoverRegistrationName(proxy);
+    std::string pname;
+    if (registrationName.has_value())
+    {
+      proxy->GetSessionProxyManager()->RegisterProxy(
+        "sources", registrationName.value().c_str(), proxy);
+      pname = registrationName.value();
+    }
+    else
+    {
+      pname = proxy->GetSessionProxyManager()->RegisterProxy("sources", proxy);
+    }
 
     // assign a name for logging
     proxy->SetLogName(pname.c_str());
@@ -696,7 +710,7 @@ bool vtkSMParaViewPipelineController::UnRegisterViewProxy(
     vtkSMPropertyHelper helper(prop);
     for (unsigned int cc = 0, max = helper.GetNumberOfElements(); cc < max; ++cc)
     {
-      reprs.push_back(helper.GetAsProxy(cc));
+      reprs.emplace_back(helper.GetAsProxy(cc));
     }
 
     for (proxyvectortype::iterator iter = reprs.begin(), end = reprs.end(); iter != end; ++iter)
@@ -781,8 +795,7 @@ bool vtkSMParaViewPipelineController::UnRegisterRepresentationProxy(vtkSMProxy* 
     consumer = consumer ? consumer->GetTrueParentProxy() : nullptr;
     if (consumer && consumer->IsA("vtkSMViewProxy") && proxy->GetConsumerProperty(cc))
     {
-      views.push_back(
-        std::pair<vtkSMProxy*, vtkSMProperty*>(consumer, proxy->GetConsumerProperty(cc)));
+      views.emplace_back(consumer, proxy->GetConsumerProperty(cc));
     }
   }
   for (viewsvector::iterator iter = views.begin(), max = views.end(); iter != max; ++iter)
@@ -906,7 +919,7 @@ bool vtkSMParaViewPipelineController::UnRegisterAnimationProxy(vtkSMProxy* proxy
     if (proxy->GetConsumerProperty(cc) && consumer && consumer->GetXMLGroup() &&
       strcmp(consumer->GetXMLGroup(), "animation") == 0)
     {
-      consumers.push_back(proxypairitemtype(consumer, proxy->GetConsumerProperty(cc)));
+      consumers.emplace_back(consumer, proxy->GetConsumerProperty(cc));
     }
   }
   for (proxypairvectortype::iterator iter = consumers.begin(), max = consumers.end(); iter != max;
@@ -928,7 +941,7 @@ bool vtkSMParaViewPipelineController::UnRegisterAnimationProxy(vtkSMProxy* proxy
     vtkSMPropertyHelper helper(kfProperty);
     for (unsigned int cc = 0, max = helper.GetNumberOfElements(); cc < max; ++cc)
     {
-      keyframes.push_back(helper.GetAsProxy(cc));
+      keyframes.emplace_back(helper.GetAsProxy(cc));
     }
   }
 
@@ -979,6 +992,45 @@ bool vtkSMParaViewPipelineController::RegisterLightProxy(
 }
 
 //----------------------------------------------------------------------------
+bool vtkSMParaViewPipelineController::RegisterTextureProxyFromFile(
+  vtkSMProxy* proxy, const char* filename, const char* registrationName)
+{
+  if (!proxy)
+  {
+    return false;
+  }
+
+  SM_SCOPED_TRACE(RegisterTextureProxyFromFile)
+    .arg("proxy", proxy)
+    .arg("filename", filename)
+    .arg("registration_name", registrationName);
+
+  // Register proxies created for proxy list domains.
+  this->RegisterProxiesForProxyListDomains(proxy);
+
+  // Register the proxy itself.
+  if (filename)
+  {
+    if (registrationName)
+    {
+      proxy->GetSessionProxyManager()->RegisterProxy("textures", registrationName, proxy);
+    }
+    else
+    {
+      auto regName = vtksys::SystemTools::GetFilenameName(filename);
+      proxy->GetSessionProxyManager()->RegisterProxy("textures", regName.c_str(), proxy);
+    }
+    vtkSMPropertyHelper(proxy, "FileName").Set(filename);
+    vtkSMPropertyHelper(proxy, "Mode").Set(0);
+  }
+  else
+  {
+    proxy->GetSessionProxyManager()->RegisterProxy("textures", nullptr, proxy);
+  }
+  return true;
+}
+
+//----------------------------------------------------------------------------
 bool vtkSMParaViewPipelineController::RegisterTextureProxy(vtkSMProxy* proxy, const char* filename)
 {
   if (!proxy)
@@ -992,18 +1044,23 @@ bool vtkSMParaViewPipelineController::RegisterTextureProxy(vtkSMProxy* proxy, co
   this->RegisterProxiesForProxyListDomains(proxy);
 
   // Register the proxy itself.
-  proxy->GetSessionProxyManager()->RegisterProxy("textures", nullptr, proxy);
   if (filename)
   {
+    auto regName = vtksys::SystemTools::GetFilenameName(filename);
+    proxy->GetSessionProxyManager()->RegisterProxy("textures", regName.c_str(), proxy);
     vtkSMPropertyHelper(proxy, "FileName").Set(filename);
     vtkSMPropertyHelper(proxy, "Mode").Set(0);
+  }
+  else
+  {
+    proxy->GetSessionProxyManager()->RegisterProxy("textures", nullptr, proxy);
   }
   return true;
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMParaViewPipelineController::RegisterTextureProxy(
-  vtkSMProxy* proxy, const char* trivialProducerKey, const char* proxyname)
+  vtkSMProxy* proxy, const char* trivialProducerKey, const char* registrationName)
 {
   if (!proxy)
   {
@@ -1013,13 +1070,13 @@ bool vtkSMParaViewPipelineController::RegisterTextureProxy(
   SM_SCOPED_TRACE(RegisterTextureProxy)
     .arg("proxy", proxy)
     .arg("trivial_producer_key", trivialProducerKey)
-    .arg("proxyname", proxyname);
+    .arg("registration_name", registrationName);
 
   // Register proxies created for proxy list domains.
   this->RegisterProxiesForProxyListDomains(proxy);
 
   // Register the proxy itself.
-  proxy->GetSessionProxyManager()->RegisterProxy("textures", proxyname, proxy);
+  proxy->GetSessionProxyManager()->RegisterProxy("textures", registrationName, proxy);
   if (trivialProducerKey)
   {
     vtkSMPropertyHelper(proxy, "TrivialProducerKey").Set(trivialProducerKey);
@@ -1240,7 +1297,7 @@ bool vtkSMParaViewPipelineController::FinalizeProxy(vtkSMProxy* proxy)
     iter->SetModeToOneGroup();
     for (iter->Begin(groupname.c_str()); !iter->IsAtEnd(); iter->Next())
     {
-      proxymap.push_back(proxymapitemtype(iter->GetKey(), iter->GetProxy()));
+      proxymap.emplace_back(iter->GetKey(), iter->GetProxy());
     }
   }
 
@@ -1278,7 +1335,7 @@ bool vtkSMParaViewPipelineController::UnRegisterDependencies(vtkSMProxy* proxy)
     consumer = consumer ? consumer->GetTrueParentProxy() : nullptr;
     if (consumer)
     {
-      consumers.push_back(consumer);
+      consumers.emplace_back(consumer);
     }
   }
 
@@ -1307,6 +1364,23 @@ bool vtkSMParaViewPipelineController::UnRegisterDependencies(vtkSMProxy* proxy)
       this->UnRegisterProxy(consumer);
     }
   }
+
+  //---------------------------------------------------------------------------
+  // check if there are related selection proxies and unregister them if any
+  vtkSMSessionProxyManager* pxm = proxy->GetSessionProxyManager();
+  vtkSMSourceProxy* appendSelectionProxy =
+    vtkSMSourceProxy::SafeDownCast(pxm->GetProxy("selections", "AppendSelections"));
+  if (appendSelectionProxy && appendSelectionProxy->GetSelectionId() == proxy->GetGlobalID())
+  {
+    unsigned int numSelSources =
+      vtkSMPropertyHelper(appendSelectionProxy, "Input").GetNumberOfElements();
+    pxm->UnRegisterProxy("AppendSelections");
+    for (unsigned int i = 0; i < numSelSources; ++i)
+    {
+      pxm->UnRegisterProxy(("SelectionSource" + vtk::to_string(i)).c_str());
+    }
+  }
+
   //---------------------------------------------------------------------------
 
   // TODO: remove any property links/proxy link setup for this proxy.

@@ -7,6 +7,7 @@
 #include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringFormatter.h"
 
 #include <vtk_cli11.h>
 #include <vtksys/SystemInformation.hxx>
@@ -46,7 +47,7 @@ bool vtkProcessModuleConfiguration::PopulateOptions(
         {
           throw CLI::ValidationError("Invalid verbosity specified!");
         }
-        return std::to_string(xformedValue);
+        return vtk::to_string(static_cast<int>(xformedValue));
       },
       "verbosity");
 
@@ -94,7 +95,8 @@ bool vtkProcessModuleConfiguration::PopulateOptions(
       "are same as those accepted for `--verbosity` argument.")
     ->delimiter('+') // reset delimiter. For log files ',' is used to separate verbosity.
     ->multi_option_policy(CLI::MultiOptionPolicy::TakeAll)
-    ->type_name("TEXT:filename[,ENUM:verbosity] ...");
+    ->type_name("TEXT:filename[,ENUM:verbosity] ...")
+    ->envname("PARAVIEW_LOG_FILE");
 
   auto group = app->add_option_group("MPI", "MPI-specific options");
   auto mpi = group->add_flag(
@@ -138,7 +140,7 @@ std::string vtkProcessModuleConfiguration::GetRankAnnotatedFileName(const std::s
 
   auto controller = vtkMultiProcessController::GetGlobalController();
   return (controller && controller->GetNumberOfProcesses() > 1)
-    ? fname + "." + std::to_string(controller->GetLocalProcessId())
+    ? fname + "." + vtk::to_string(controller->GetLocalProcessId())
     : fname;
 }
 

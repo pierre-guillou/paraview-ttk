@@ -5,8 +5,7 @@
  * @brief   OpenGL rendering window
  *
  * vtkWebAssemblyWebGPURenderWindow is a concrete implementation of the abstract
- * class vtkRenderWindow. vtkSDL2OpenGL2Renderer interfaces to the standard
- * OpenGL graphics library using SDL2
+ * class vtkRenderWindow.
  */
 
 #ifndef vtkWebAssemblyWebGPURenderWindow_h
@@ -19,9 +18,11 @@
 #include "vtkWebGPURenderWindow.h"
 
 #include "vtkRenderingWebGPUModule.h" // For export macro
+#include "vtkWrappingHints.h"         // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKRENDERINGWEBGPU_EXPORT vtkWebAssemblyWebGPURenderWindow : public vtkWebGPURenderWindow
+class VTKRENDERINGWEBGPU_EXPORT VTK_MARSHALAUTO vtkWebAssemblyWebGPURenderWindow
+  : public vtkWebGPURenderWindow
 {
 public:
   static vtkWebAssemblyWebGPURenderWindow* New();

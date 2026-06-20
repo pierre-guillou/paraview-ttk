@@ -3,20 +3,29 @@
 
 #include "vtkRenderWindow.h"
 #include "vtkRenderer.h"
+#include "vtkStringScanner.h"
 
-#include <cstdlib>
+#include <iostream>
 
 /**
- * This unit test exercises that many render windows can be created
+ * This unit test exercises many render windows can be created
  * and destroyed in succession. It is developed to prevent
  * issues such as https://gitlab.kitware.com/vtk/vtk/-/issues/19618
  */
 int TestManyRenderWindows(int argc, char* argv[])
 {
   int n = 300;
-  if (argc > 1)
+  for (int i = 0; i < argc; ++i)
   {
-    n = std::atoi(argv[1]);
+    if (!strcmp(argv[i], "--count"))
+    {
+      ++i;
+      if (i < argc)
+      {
+        VTK_FROM_CHARS_IF_ERROR_RETURN(argv[i], n, EXIT_FAILURE);
+        break;
+      }
+    }
   }
   std::cout << "Create " << n << " render windows\n";
   for (int i = 0; i < n; ++i)

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAMRResampleFilter.h"
-#include "vtkAMRInformation.h"
 #include "vtkAMRUtilities.h"
 #include "vtkBoundingBox.h"
 #include "vtkCell.h"
@@ -19,6 +18,7 @@
 #include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
 #include "vtkOverlappingAMR.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include "vtkPointData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUniformGrid.h"
@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <iostream>
 #include <sstream>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -155,7 +156,7 @@ int vtkAMRResampleFilter::RequestInformation(vtkInformation* vtkNotUsed(rqst),
 int vtkAMRResampleFilter::RequestData(vtkInformation* vtkNotUsed(rqst),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
-  cerr << "Running Resampler\n";
+  std::cerr << "Running Resampler\n";
 
   // STEP 0: Get input object
   vtkInformation* input = inputVector[0]->GetInformationObject(0);
@@ -306,8 +307,6 @@ void vtkAMRResampleFilter::TransferToCellCenters(vtkUniformGrid* g, vtkOverlappi
   assert("pre: AMR data-structure is nullptr" && (amrds != nullptr));
 
   // STEP 0: Get the first block so that we know the arrays
-  //  vtkUniformGrid *refGrid = amrds->GetDataSet(0,0);
-  //  assert( "pre: Block(0,0) is nullptr!" && (refGrid != nullptr) );
   vtkUniformGrid* refGrid = this->GetReferenceGrid(amrds);
 
   // STEP 1: Get the cell-data of the reference grid
@@ -336,13 +335,14 @@ void vtkAMRResampleFilter::TransferToCellCenters(vtkUniformGrid* g, vtkOverlappi
     this->ComputeCellCentroid(g, cellIdx, qPoint);
 
     unsigned int level = 0;
-    for (; level < amrds->GetNumberOfDataSets(level); ++level)
+    for (; level < amrds->GetNumberOfBlocks(level); ++level)
     {
       unsigned int dataIdx = 0;
-      for (; dataIdx < amrds->GetNumberOfDataSets(level); ++dataIdx)
+      for (; dataIdx < amrds->GetNumberOfBlocks(level); ++dataIdx)
       {
         int donorCellIdx = -1;
-        vtkUniformGrid* donorGrid = amrds->GetDataSet(level, dataIdx);
+        vtkUniformGrid* donorGrid =
+          vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(level, dataIdx));
         if ((donorGrid != nullptr) && this->FoundDonor(qPoint, donorGrid, donorCellIdx))
         {
           assert("pre: donorCellIdx is invalid" && (donorCellIdx >= 0) &&
@@ -366,11 +366,11 @@ bool vtkAMRResampleFilter::SearchForDonorGridAtLevel(double q[3], vtkOverlapping
 
   vtkTimerLog::MarkStartEvent(oss.str().c_str());
 
-  for (donorGridId = 0; donorGridId < amrds->GetNumberOfDataSets(level); ++donorGridId)
+  for (donorGridId = 0; donorGridId < amrds->GetNumberOfBlocks(level); ++donorGridId)
   {
     donorCellIdx = -1;
     this->NumberOfBlocksTestedForLevel++;
-    if (amrds->GetAMRInfo()->FindCell(q, level, donorGridId, donorCellIdx))
+    if (amrds->GetOverlappingAMRMetaData()->FindCell(q, level, donorGridId, donorCellIdx))
     {
       assert("pre: donorCellIdx is invalid" && (donorCellIdx >= 0)); //  &&
       // (donorCellIdx < donorGrid->GetNumberOfCells()) );
@@ -397,18 +397,22 @@ int vtkAMRResampleFilter::ProbeGridPointInAMR(double q[3], unsigned int& donorLe
   int donorCellIdx = -1;
   unsigned int currentLevel = 0;
   unsigned int currentGridId = 0;
-  vtkUniformGrid* donorGrid = hadDonorGrid ? amrds->GetDataSet(donorLevel, donorGridId) : nullptr;
+  vtkUniformGrid* donorGrid = hadDonorGrid
+    ? vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(donorLevel, donorGridId))
+    : nullptr;
 
   // STEP 0: Check the previously cached donor-grid
   if (hadDonorGrid)
   {
     this->NumberOfBlocksTested++;
     bool res(true);
-    if (!amrds->GetAMRInfo()->FindCell(q, donorLevel, donorGridId, donorCellIdx))
+    if (!amrds->GetOverlappingAMRMetaData()->FindCell(q, donorLevel, donorGridId, donorCellIdx))
     {
       // Lets see if the point is contained by a grid at the same donar level
       res = this->SearchForDonorGridAtLevel(q, amrds, donorLevel, donorGridId, donorCellIdx);
-      donorGrid = res ? amrds->GetDataSet(donorLevel, donorGridId) : nullptr;
+      donorGrid = res
+        ? vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(donorLevel, donorGridId))
+        : nullptr;
       this->NumberOfBlocksTested += this->NumberOfBlocksTestedForLevel;
     }
 
@@ -427,7 +431,9 @@ int vtkAMRResampleFilter::ProbeGridPointInAMR(double q[3], unsigned int& donorLe
       currentGridId = donorGridId;
       currentCellIdx = donorCellIdx;
       currentLevel = donorLevel;
-      assert(!donorGrid || amrds->GetDataSet(donorLevel, donorGridId) == donorGrid);
+      assert(!donorGrid ||
+        vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(donorLevel, donorGridId)) ==
+          donorGrid);
     }
     else if (donorLevel == 0)
     {
@@ -480,7 +486,9 @@ int vtkAMRResampleFilter::ProbeGridPointInAMR(double q[3], unsigned int& donorLe
       this->NumberOfTimesLevelDown++;
     }
     bool res = this->SearchForDonorGridAtLevel(q, amrds, level, donorGridId, donorCellIdx);
-    donorGrid = res ? amrds->GetDataSet(level, donorGridId) : nullptr;
+    donorGrid = res
+      ? vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(level, donorGridId))
+      : nullptr;
 
     this->NumberOfBlocksTested += this->NumberOfBlocksTestedForLevel;
     if (res)
@@ -489,7 +497,8 @@ int vtkAMRResampleFilter::ProbeGridPointInAMR(double q[3], unsigned int& donorLe
       // if we are going from fine to coarse then we can stop the search
       if (incLevel == -1)
       {
-        assert(amrds->GetDataSet(donorLevel, donorGridId) == donorGrid);
+        assert(vtkUniformGrid::SafeDownCast(
+                 amrds->GetDataSetAsCartesianGrid(donorLevel, donorGridId)) == donorGrid);
         return donorCellIdx;
       }
 
@@ -518,7 +527,9 @@ int vtkAMRResampleFilter::ProbeGridPointInAMR(double q[3], unsigned int& donorLe
       donorCellIdx = currentCellIdx;
       donorLevel = currentLevel;
       donorGridId = currentGridId;
-      assert(!donorGrid || amrds->GetDataSet(donorLevel, donorGridId) == donorGrid);
+      assert(!donorGrid ||
+        vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(donorLevel, donorGridId)) ==
+          donorGrid);
       break;
     }
     else
@@ -532,7 +543,9 @@ int vtkAMRResampleFilter::ProbeGridPointInAMR(double q[3], unsigned int& donorLe
       break;
     }
   } // END for all levels
-  assert(!donorGrid || amrds->GetDataSet(donorLevel, donorGridId) == donorGrid);
+  assert(!donorGrid ||
+    vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(donorLevel, donorGridId)) ==
+      donorGrid);
   return (donorCellIdx);
 }
 
@@ -557,7 +570,7 @@ bool vtkAMRResampleFilter::SearchGridAncestors(
       vtkDebugMacro("Number of parents: " << numParents << " - Only processing 1 route");
     }
     gridId = parents[0];
-    if (amrds->GetAMRInfo()->FindCell(q, plevel, gridId, cellId))
+    if (amrds->GetOverlappingAMRMetaData()->FindCell(q, plevel, gridId, cellId))
     {
       level = plevel;
       return true;
@@ -587,7 +600,7 @@ void vtkAMRResampleFilter::SearchGridDecendants(double q[3], vtkOverlappingAMR* 
     //    assert(n == children[0]);
     for (i = 0; i < n; ++i)
     {
-      if (amrds->GetAMRInfo()->FindCell(q, clevel, children[i], cellId))
+      if (amrds->GetOverlappingAMRMetaData()->FindCell(q, clevel, children[i], cellId))
       {
         // We found a descendant so stop searching the
         // children and can instead search that grid's
@@ -621,15 +634,18 @@ int vtkAMRResampleFilter::ProbeGridPointInAMRGraph(double q[3], unsigned int& do
   // STEP 0: Check the previously cached donor-grid
   if (useCached)
   {
-    if (!amrds->GetAMRInfo()->FindCell(q, donorLevel, donorGridId, donorCellIdx))
+    if (!amrds->GetOverlappingAMRMetaData()->FindCell(q, donorLevel, donorGridId, donorCellIdx))
     {
       // Lets find the grid's ancestor that contains the point
       bool res = this->SearchGridAncestors(q, amrds, donorLevel, donorGridId, donorCellIdx);
-      donorGrid = res ? amrds->GetDataSet(donorLevel, donorGridId) : nullptr;
+      donorGrid = res
+        ? vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(donorLevel, donorGridId))
+        : nullptr;
     }
     else
     {
-      donorGrid = amrds->GetDataSet(donorLevel, donorGridId);
+      donorGrid =
+        vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(donorLevel, donorGridId));
       ++this->NumberOfTimesFoundOnDonorLevel;
     }
     // if the point is not contained in an ancestor then lets just assume its on level
@@ -717,7 +733,8 @@ void vtkAMRResampleFilter::TransferToGridNodes(vtkUniformGrid* g, vtkOverlapping
       if (donorCellIdx != -1)
       {
         useCached = true;
-        vtkUniformGrid* amrGrid = amrds->GetDataSet(donorLevel, donorGridId);
+        vtkUniformGrid* amrGrid =
+          vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(donorLevel, donorGridId));
         this->AverageLevel += donorLevel;
         CD = amrGrid->GetCellData();
         this->CopyData(PD, pIdx, CD, donorCellIdx);
@@ -743,7 +760,8 @@ void vtkAMRResampleFilter::TransferToGridNodes(vtkUniformGrid* g, vtkOverlapping
       {
         useCached = true;
         this->AverageLevel += donorLevel;
-        vtkUniformGrid* donorGrid = amrds->GetDataSet(donorLevel, donorGridId);
+        vtkUniformGrid* donorGrid =
+          vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(donorLevel, donorGridId));
         assert(donorGrid != nullptr);
         CD = donorGrid->GetCellData();
         this->CopyData(PD, pIdx, CD, donorCellIdx);
@@ -855,20 +873,20 @@ void vtkAMRResampleFilter::ComputeAMRBlocksToLoad(vtkOverlappingAMR* metadata)
   for (; level < maxLevelToLoad; ++level)
   {
     unsigned int dataIdx = 0;
-    for (; dataIdx < metadata->GetNumberOfDataSets(level); ++dataIdx)
+    for (; dataIdx < metadata->GetNumberOfBlocks(level); ++dataIdx)
     {
       double grd[6];
       metadata->GetBounds(level, dataIdx, grd);
       if (this->IsBlockWithinBounds(grd))
       {
-        this->BlocksToLoad.push_back(metadata->GetCompositeIndex(level, dataIdx));
+        this->BlocksToLoad.push_back(metadata->GetAbsoluteBlockIndex(level, dataIdx));
       } // END check if the block is within the bounds of the ROI
     }   // END for all data
   }     // END for all levels
 
   std::sort(this->BlocksToLoad.begin(), this->BlocksToLoad.end());
-  cerr << "Number Levels Loaded = " << maxLevelToLoad
-       << " Number of Blocks = " << BlocksToLoad.size() << "\n";
+  std::cerr << "Number Levels Loaded = " << maxLevelToLoad
+            << " Number of Blocks = " << BlocksToLoad.size() << "\n";
 }
 
 //------------------------------------------------------------------------------
@@ -878,7 +896,7 @@ void vtkAMRResampleFilter::GetDomainParameters(vtkOverlappingAMR* amr, double do
   assert("pre: AMR dataset is nullptr!" && (amr != nullptr));
 
   rf = amr->GetRefinementRatio(1);
-  amr->GetAMRInfo()->GetAMRBox(0, 0).GetNumberOfNodes(dims);
+  amr->GetAMRBox(0, 0).GetNumberOfNodes(dims);
   amr->GetMin(domainMin);
   amr->GetMax(domainMax);
 
@@ -926,10 +944,7 @@ void vtkAMRResampleFilter::ComputeLevelOfResolution(
   {
     double c1 = ((N[i] * h0[i]) / L[i]);
     int currentLevel = vtkMath::Floor(0.5 + (log(c1) / log(rf)));
-    if (currentLevel > this->LevelOfResolution)
-    {
-      this->LevelOfResolution = currentLevel;
-    }
+    this->LevelOfResolution = std::max(currentLevel, this->LevelOfResolution);
   } // END for all i
   std::cerr << "Requested Max Level = " << this->LevelOfResolution << "\n";
 }
@@ -976,10 +991,7 @@ void vtkAMRResampleFilter::AdjustNumberOfSamplesInRegion(
       dx = this->GridMax[i] - this->Min[i];
       endIndex = static_cast<int>(dx / Rh[i] + 1);
 
-      if (endIndex > N[i])
-      {
-        endIndex = N[i];
-      }
+      endIndex = std::min(endIndex, N[i]);
       int newN = endIndex - startIndex + 1;
       if (newN <= N[i])
       {
@@ -1002,6 +1014,7 @@ void vtkAMRResampleFilter::AdjustNumberOfSamplesInRegion(
     a[2] = fabs(this->BiasVector[2]);
 
     // Find the max component
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     int bdir = (a[0] > a[1]) ? ((a[0] > a[2]) ? 0 : 2) : ((a[1] > a[2]) ? 1 : 2);
 
     if (bdir == 0)
@@ -1205,10 +1218,11 @@ vtkUniformGrid* vtkAMRResampleFilter::GetReferenceGrid(vtkOverlappingAMR* amrds)
   unsigned int numLevels = amrds->GetNumberOfLevels();
   for (unsigned int l = 0; l < numLevels; ++l)
   {
-    unsigned int numDatasets = amrds->GetNumberOfDataSets(l);
+    unsigned int numDatasets = amrds->GetNumberOfBlocks(l);
     for (unsigned int dataIdx = 0; dataIdx < numDatasets; ++dataIdx)
     {
-      vtkUniformGrid* refGrid = amrds->GetDataSet(l, dataIdx);
+      vtkUniformGrid* refGrid =
+        vtkUniformGrid::SafeDownCast(amrds->GetDataSetAsCartesianGrid(l, dataIdx));
       if (refGrid != nullptr)
       {
         return (refGrid);

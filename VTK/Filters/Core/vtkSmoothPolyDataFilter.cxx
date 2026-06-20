@@ -44,10 +44,7 @@ public:
     {
       this->Resize(ptId + 1);
     }
-    if (ptId > this->MaxId)
-    {
-      this->MaxId = ptId;
-    }
+    this->MaxId = std::max(ptId, this->MaxId);
     return this->Array + ptId;
   }
   vtkSmoothPoint* Resize(vtkIdType sz); // reallocates data
@@ -198,7 +195,8 @@ void vtkSPDF_MovePoints(vtkSPDF_InternalParams<T>& params)
     }
 
     maxDist = 0.0;
-    T* newPtsCoords = static_cast<T*>(params.newPts->GetVoidPointer(0));
+    T* newPtsCoords =
+      vtkAOSDataArrayTemplate<T>::FastDownCast(params.newPts->GetData())->GetPointer(0);
     T* start = newPtsCoords;
     vtkMeshVertexPtr vertsPtr = params.vertexPtr;
     vtkIdType npts, *edgeIdPtr;

@@ -20,6 +20,7 @@
 #include "vtkCommand.h"               // for vtkCommand
 #include "vtkLogger.h"                // for vtkLogger::Verbosity enum
 #include "vtkRenderingWebGPUModule.h" // for export macro
+#include "vtkWrappingHints.h"         // For VTK_MARSHALAUTO
 #include "vtk_wgpu.h"                 // for wgpu
 
 #include <memory> // for unique_ptr
@@ -30,7 +31,7 @@ class vtkWebGPURenderWindow;
 class vtkWebGPUComputePipeline;
 class vtkWebGPUConfigurationInternals;
 
-class VTKRENDERINGWEBGPU_EXPORT vtkWebGPUConfiguration : public vtkObject
+class VTKRENDERINGWEBGPU_EXPORT VTK_MARSHALAUTO vtkWebGPUConfiguration : public vtkObject
 {
 public:
   static vtkWebGPUConfiguration* New();
@@ -258,7 +259,8 @@ public:
    * assuming `bytesPerRow` bytes of data per row in the texture.
    */
   void WriteTexture(wgpu::Texture texture, uint32_t bytesPerRow, uint32_t byteSize,
-    const void* data, const char* description = nullptr);
+    const void* data, uint32_t srcOffset = 0, wgpu::Origin3D dstOffset = { 0, 0, 0 },
+    uint32_t dstMipLevel = 0, const char* description = nullptr);
 
   ///@{
   /**

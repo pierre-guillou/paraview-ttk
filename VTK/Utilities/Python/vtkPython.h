@@ -17,7 +17,7 @@
    check is performed in the same compilation unit, and the flags are found,
    and error is triggered. Let's prevent that by setting _CRT_NOFORCE_MANIFEST.
 */
-#if defined(_DEBUG) && !defined(VTK_WINDOWS_PYTHON_DEBUGGABLE)
+#if defined(_DEBUG) && !defined(VTK_WINDOWS_PYTHON_DEBUGGABLE) && defined(_MSC_VER)
 #define VTK_PYTHON_UNDEF_DEBUG
 // Include these low level headers before undefing _DEBUG. Otherwise when doing
 // a debug build against a release build of python the compiler will end up
@@ -90,8 +90,15 @@ they are system headers.  Do NOT add any #undef lines here.  */
 #undef toupper
 #endif
 
-/* This logic is borrowed from mpi4py/vtkmpi4py/src/pycompat.h */
-#ifdef VTK_NO_PYTHON_THREADS
+#if !defined(VTK_NO_PYTHON_THREADS) && !defined(Py_GIL_DISABLED)
+#define VTK_PYTHON_HAS_GIL
+#else
+/* VTK_PYTHON_FULL_THREADSAFE does not make sense without GIL */
+#undef VTK_PYTHON_FULL_THREADSAFE
+#endif
+
+/* This logic is roughly borrowed from mpi4py/vtkmpi4py/src/pycompat.h */
+#ifndef VTK_PYTHON_HAS_GIL
 #undef PyGILState_Ensure
 #define PyGILState_Ensure() ((PyGILState_STATE)0)
 #undef PyGILState_Release

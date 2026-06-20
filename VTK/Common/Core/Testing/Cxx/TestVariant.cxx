@@ -7,6 +7,8 @@
 #include "vtkVariant.h"
 #include "vtkVariantArray.h"
 
+#include <iostream>
+
 int TestVariant(int, char*[])
 {
   double value = 123456;
@@ -37,7 +39,7 @@ int TestVariant(int, char*[])
         v = static_cast<float>(value);
         break;
       case VTK_DOUBLE:
-        v = static_cast<double>(value);
+        v = value;
         break;
       case VTK_STRING:
         v = strValue;
@@ -45,10 +47,9 @@ int TestVariant(int, char*[])
       default:
         continue;
     }
-    cerr << "v = " << v << " (" << vtkImageScalarTypeNameMacro(type[i]) << ")\n";
+    std::cerr << "v = " << v << " (" << vtkImageScalarTypeNameMacro(type[i]) << ")\n";
     for (int j = 0; j < numTypes; j++)
     {
-      std::string str;
       switch (type[j])
       {
         case VTK_INT:
@@ -56,9 +57,9 @@ int TestVariant(int, char*[])
           int conv = v.ToInt();
           if (conv != static_cast<int>(value))
           {
-            cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " " << conv
-                 << " != " << vtkImageScalarTypeNameMacro(type[j]) << " " << static_cast<int>(value)
-                 << ")" << endl;
+            std::cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " "
+                      << conv << " != " << vtkImageScalarTypeNameMacro(type[j]) << " "
+                      << static_cast<int>(value) << ")" << std::endl;
             errors++;
           }
           break;
@@ -68,9 +69,9 @@ int TestVariant(int, char*[])
           unsigned int conv = v.ToUnsignedInt();
           if (conv != static_cast<unsigned int>(value))
           {
-            cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " " << conv
-                 << " != " << vtkImageScalarTypeNameMacro(type[j]) << " "
-                 << static_cast<unsigned int>(value) << ")" << endl;
+            std::cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " "
+                      << conv << " != " << vtkImageScalarTypeNameMacro(type[j]) << " "
+                      << static_cast<unsigned int>(value) << ")" << std::endl;
             errors++;
           }
           break;
@@ -80,9 +81,9 @@ int TestVariant(int, char*[])
           vtkTypeInt64 conv = v.ToTypeInt64();
           if (conv != static_cast<vtkTypeInt64>(value))
           {
-            cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " " << conv
-                 << " != " << vtkImageScalarTypeNameMacro(type[j]) << " "
-                 << static_cast<vtkTypeInt64>(value) << ")" << endl;
+            std::cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " "
+                      << conv << " != " << vtkImageScalarTypeNameMacro(type[j]) << " "
+                      << static_cast<vtkTypeInt64>(value) << ")" << std::endl;
             errors++;
           }
           break;
@@ -92,9 +93,9 @@ int TestVariant(int, char*[])
           vtkTypeUInt64 conv = v.ToTypeUInt64();
           if (conv != static_cast<vtkTypeUInt64>(value))
           {
-            cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " " << conv
-                 << " != " << vtkImageScalarTypeNameMacro(type[j]) << " "
-                 << static_cast<vtkTypeUInt64>(value) << ")" << endl;
+            std::cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " "
+                      << conv << " != " << vtkImageScalarTypeNameMacro(type[j]) << " "
+                      << static_cast<vtkTypeUInt64>(value) << ")" << std::endl;
             errors++;
           }
           break;
@@ -104,9 +105,9 @@ int TestVariant(int, char*[])
           float conv = v.ToFloat();
           if (conv != static_cast<float>(value))
           {
-            cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " " << conv
-                 << " != " << vtkImageScalarTypeNameMacro(type[j]) << " "
-                 << static_cast<float>(value) << ")" << endl;
+            std::cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " "
+                      << conv << " != " << vtkImageScalarTypeNameMacro(type[j]) << " "
+                      << static_cast<float>(value) << ")" << std::endl;
             errors++;
           }
           break;
@@ -114,11 +115,11 @@ int TestVariant(int, char*[])
         case VTK_DOUBLE:
         {
           double conv = v.ToDouble();
-          if (conv != static_cast<double>(value))
+          if (conv != value)
           {
-            cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " " << conv
-                 << " != " << vtkImageScalarTypeNameMacro(type[j]) << " "
-                 << static_cast<double>(value) << ")" << endl;
+            std::cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " "
+                      << conv << " != " << vtkImageScalarTypeNameMacro(type[j]) << " " << value
+                      << ")" << std::endl;
             errors++;
           }
           break;
@@ -128,9 +129,9 @@ int TestVariant(int, char*[])
           std::string conv = v.ToString();
           if (conv != strValue)
           {
-            cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " " << conv
-                 << " != " << vtkImageScalarTypeNameMacro(type[j]) << " " << strValue << ")"
-                 << endl;
+            std::cerr << "conversion invalid (" << vtkImageScalarTypeNameMacro(type[i]) << " "
+                      << conv << " != " << vtkImageScalarTypeNameMacro(type[j]) << " " << strValue
+                      << ")" << std::endl;
             errors++;
           }
           break;
@@ -147,24 +148,24 @@ int TestVariant(int, char*[])
   if (!(flt == dbl) || flt < dbl || flt > dbl || !(str == dbl) || str < dbl || str > dbl ||
     !(flt == str) || flt < str || flt > str)
   {
-    cerr << "Comparison of dissimilar-precision floats failed.\n";
+    std::cerr << "Comparison of dissimilar-precision floats failed.\n";
     errors++;
   }
 
   vtkVariant doubleToString(103.317);
   if (doubleToString.ToString() != "103.317")
   {
-    cerr << "double to string complex conversion failed with default parameters.\n";
+    std::cerr << "double to string complex conversion failed with default parameters.\n";
     errors++;
   }
   if (doubleToString.ToString(vtkVariant::FIXED_FORMATTING, 8) != "103.31700000")
   {
-    cerr << "double to string complex conversion failed with fixed formatting.\n";
+    std::cerr << "double to string complex conversion failed with fixed formatting.\n";
     errors++;
   }
   if (doubleToString.ToString(vtkVariant::SCIENTIFIC_FORMATTING, 2) != "1.03e+02")
   {
-    cerr << "double to string complex conversion failed with scientific formatting.\n";
+    std::cerr << "double to string complex conversion failed with scientific formatting.\n";
     errors++;
   }
 
@@ -177,7 +178,7 @@ int TestVariant(int, char*[])
     short numericValue = arrayVariant.ToShort(&isValid);
     if (isValid || (numericValue != 0))
     {
-      cerr << "empty vtkFloatArray should have failed to convert to numeric.\n";
+      std::cerr << "empty vtkFloatArray should have failed to convert to numeric.\n";
       errors++;
     }
   }
@@ -188,7 +189,7 @@ int TestVariant(int, char*[])
     int numericValue = arrayVariant.ToInt(&isValid);
     if (isValid || (numericValue != 0))
     {
-      cerr << "empty vtkStringArray should have failed to convert to numeric.\n";
+      std::cerr << "empty vtkStringArray should have failed to convert to numeric.\n";
       errors++;
     }
   }
@@ -199,7 +200,7 @@ int TestVariant(int, char*[])
     char numericValue = arrayVariant.ToChar(&isValid);
     if (isValid || (numericValue != 0))
     {
-      cerr << "empty vtkVariantArray should have failed to convert to numeric.\n";
+      std::cerr << "empty vtkVariantArray should have failed to convert to numeric.\n";
       errors++;
     }
   }

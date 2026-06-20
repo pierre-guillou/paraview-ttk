@@ -22,6 +22,3 @@ within a single process.
   * Add the `ValidNETCDFFile.h` header.
   * Add CMake lists for databases imported into ParaView.
   * Comment out unused functions in `RC_cpp_lib`.
-  * Updating avtANSYSFileFormat reader to read in 10-noded tetras.
-  * Read PFLOTRAN files with big-endian floating-point arrays.
-  * Port MFIXCDF from netcdfcpp to netcdf

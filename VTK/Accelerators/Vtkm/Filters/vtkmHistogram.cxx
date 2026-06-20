@@ -26,6 +26,7 @@ vtkStandardNewMacro(vtkmHistogram);
 //------------------------------------------------------------------------------
 vtkmHistogram::vtkmHistogram()
 {
+  this->ForceVTKm = true; // Because it's NOT VTKm a implementation of  VTK filter.
   this->CustomBinRange[0] = 0;
   this->CustomBinRange[0] = 100;
   this->UseCustomBinRanges = false;
@@ -58,7 +59,7 @@ int vtkmHistogram::RequestData(vtkInformation* vtkNotUsed(request),
   // These are the mid-points for each of the bins
   vtkSmartPointer<vtkDoubleArray> binExtents = vtkSmartPointer<vtkDoubleArray>::New();
   binExtents->SetNumberOfComponents(1);
-  binExtents->SetNumberOfTuples(static_cast<vtkIdType>(this->NumberOfBins));
+  binExtents->SetNumberOfTuples(this->NumberOfBins);
   binExtents->SetName("bin_extents");
   binExtents->FillComponent(0, 0.0);
 
@@ -77,7 +78,7 @@ int vtkmHistogram::RequestData(vtkInformation* vtkNotUsed(request),
 
   try
   {
-    viskores::cont::DataSet in = tovtkm::Convert(input);
+    viskores::cont::DataSet in = tovtkm::Convert(input, tovtkm::FieldsFlag::None, this->ForceVTKm);
     auto field = tovtkm::Convert(fieldArray, association);
     in.AddField(field);
 
@@ -139,12 +140,12 @@ void vtkmHistogram::PrintSelf(std::ostream& os, vtkIndent indent)
 void vtkmHistogram::FillBinExtents(vtkDoubleArray* binExtents)
 {
   binExtents->SetNumberOfComponents(1);
-  binExtents->SetNumberOfTuples(static_cast<vtkIdType>(this->NumberOfBins));
+  binExtents->SetNumberOfTuples(this->NumberOfBins);
   double binDelta = this->CenterBinsAroundMinAndMax
     ? ((this->ComputedRange[1] - this->ComputedRange[0]) / (this->NumberOfBins - 1))
     : this->BinDelta;
   double halfBinDelta = binDelta / 2.0;
-  for (vtkIdType i = 0; i < static_cast<vtkIdType>(this->NumberOfBins); i++)
+  for (vtkIdType i = 0; i < this->NumberOfBins; i++)
   {
     binExtents->SetValue(i,
       this->ComputedRange[0] + (i * binDelta) +

@@ -13,7 +13,7 @@
 #include <cmath>
 
 VTK_ABI_NAMESPACE_BEGIN
-const unsigned int BIT_INCREMENT = 32;
+constexpr unsigned int BIT_INCREMENT = 32;
 
 void vtkLargeInteger::Contract()
 {
@@ -538,20 +538,14 @@ vtkLargeInteger& vtkLargeInteger::operator>>=(int n)
 
   // then clear the other values to be safe
   int start = (this->Sig - n + 1);
-  if (start < 0)
-  {
-    start = 0;
-  }
+  start = std::max(start, 0);
   for (i = start; i <= this->Sig; i++)
   {
     this->Number[i] = 0;
   }
 
   start = start - 1;
-  if (start < 0)
-  {
-    start = 0;
-  }
+  start = std::max(start, 0);
   this->Sig = start;
   if (this->IsZero())
   {

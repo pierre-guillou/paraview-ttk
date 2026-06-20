@@ -222,6 +222,16 @@ public:
   int GetFirstNodeByPath(const char* path) const;
 
   /**
+   * Given a simple \a path (node names between separators, not a path query),
+   * return the matching node. If no such node exists, create any required
+   * nodes and return the final (deepest) node.
+   *
+   * If \a parent is provided, root the \a path at the given node.
+   * By default \a parent is 0 (the root of the tree).
+   */
+  int FindOrCreateNodeAtPath(const char* path, int parent = 0);
+
+  /**
    * Add a dataset index to a node. The node id can refer to any
    * valid node in the assembly, including the root.
    *
@@ -451,6 +461,10 @@ public:
 
   /**
    * Returns true for node names that are reserved.
+   *
+   * Name **MUST** not be null: all usages must either check that name is valid, or
+   * acquire the name directly from `pugi::xml_node::name` which never returns null
+   * (it returns "" for missing values).
    */
   static bool IsNodeNameReserved(const char* name);
 

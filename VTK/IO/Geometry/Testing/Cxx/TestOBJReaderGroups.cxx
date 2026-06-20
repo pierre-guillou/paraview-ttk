@@ -5,6 +5,9 @@
 // .SECTION Description
 //
 
+#include <algorithm>
+#include <iostream>
+
 #include "vtkCellData.h"
 #include "vtkFloatArray.h"
 #include "vtkOBJReader.h"
@@ -44,11 +47,7 @@ static bool CheckOBJGroups(const std::string& filename, const int maxExpected)
   for (vtkIdType i = 0; i < nTuple; ++i)
   {
     int thisGroup = static_cast<int>(round(groups->GetTuple(i)[0]));
-
-    if (maxGroupId < thisGroup)
-    {
-      maxGroupId = thisGroup;
-    }
+    maxGroupId = std::max(maxGroupId, thisGroup);
   }
 
   if (maxExpected == maxGroupId)

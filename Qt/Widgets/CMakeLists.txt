@@ -38,7 +38,6 @@ set(classes
   pqListWidgetItemObject
   pqMultiColumnHeaderView
   pqProgressWidget
-  pqQuickLaunchDialog
   pqScaleByButton
   pqScaledSpinBox
   pqScopedOverrideCursor
@@ -59,8 +58,8 @@ set(classes
   pqTreeWidgetItemObject
   pqTreeWidgetSelectionHelper
   pqVectorWidget
-  pqWaitCursor
   pqWidgetCompleter
+  pqWidgetUtilities
   pqWidgetsInit)
 
 set(headers)

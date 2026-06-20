@@ -12,6 +12,7 @@
 #include "vtkSMIntVectorProperty.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSMUncheckedPropertyHelper.h"
+#include "vtkStringScanner.h"
 
 #include <algorithm>
 #include <cmath>
@@ -185,59 +186,66 @@ void vtkSMBoundsDomain::UpdateOriented()
     }
 
     std::vector<vtkEntry> entries;
-    entries.push_back(vtkEntry(min, max));
+    entries.emplace_back(min, max);
     this->SetEntries(entries);
   }
 }
 
 //---------------------------------------------------------------------------
-void vtkSMBoundsDomain::SetDomainValues(double bounds[6])
+void vtkSMBoundsDomain::SetDomainValues(double inputBds[6])
 {
+  double bounds[6] = {
+    inputBds[0],
+    inputBds[1],
+    inputBds[2],
+    inputBds[3],
+    inputBds[4],
+    inputBds[5],
+  };
+  if (vtkMath::AreBoundsInitialized(inputBds) == 0)
+  {
+    bounds[0] = 0.0;
+    bounds[1] = 0.0;
+    bounds[2] = 0.0;
+    bounds[3] = 0.0;
+    bounds[4] = 0.0;
+    bounds[5] = 0.0;
+  }
+
+  std::vector<vtkEntry> entries;
   if (this->Mode == vtkSMBoundsDomain::NORMAL)
   {
-    std::vector<vtkEntry> entries;
     for (int j = 0; j < 3; j++)
     {
       if (this->IsAxisEnabled(j))
       {
-        entries.push_back(vtkEntry(bounds[2 * j], bounds[2 * j + 1]));
+        entries.emplace_back(bounds[2 * j], bounds[2 * j + 1]);
       }
     }
-    this->SetEntries(entries);
   }
   else if (this->Mode == vtkSMBoundsDomain::DATA_BOUNDS)
   {
-    std::vector<vtkEntry> entries;
     for (int j = 0; j < 3; j++)
     {
       if (this->IsAxisEnabled(j))
       {
-        entries.push_back(vtkEntry(bounds[2 * j], bounds[2 * j + 1]));
-        entries.push_back(vtkEntry(bounds[2 * j], bounds[2 * j + 1]));
+        entries.emplace_back(bounds[2 * j], bounds[2 * j + 1]);
+        entries.emplace_back(bounds[2 * j], bounds[2 * j + 1]);
       }
     }
-    this->SetEntries(entries);
   }
   else if (this->Mode == vtkSMBoundsDomain::EXTENTS)
   {
-    std::vector<vtkEntry> entries;
     for (int j = 0; j < 3; j++)
     {
       if (this->IsAxisEnabled(j))
       {
-        entries.push_back(vtkEntry(0, bounds[2 * j + 1] - bounds[2 * j]));
+        entries.emplace_back(0, bounds[2 * j + 1] - bounds[2 * j]);
       }
     }
-    this->SetEntries(entries);
   }
   else if (this->Mode == vtkSMBoundsDomain::MAGNITUDE)
   {
-    // first check if the bounds have valid values before setting them
-    if (vtkMath::AreBoundsInitialized(bounds) == 0)
-    {
-      return;
-    }
-
     double magn = sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
       (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
       (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
@@ -246,9 +254,7 @@ void vtkSMBoundsDomain::SetDomainValues(double bounds[6])
     {
       magn = 1;
     }
-    std::vector<vtkEntry> entries;
-    entries.push_back(vtkEntry(-magn / 2.0, magn / 2.0));
-    this->SetEntries(entries);
+    entries.emplace_back(-magn / 2.0, magn / 2.0);
   }
   else if (this->Mode == vtkSMBoundsDomain::SCALED_EXTENT)
   {
@@ -260,9 +266,7 @@ void vtkSMBoundsDomain::SetDomainValues(double bounds[6])
     {
       maxbounds = this->ScaleFactor;
     }
-    std::vector<vtkEntry> entries;
-    entries.push_back(vtkEntry(0, maxbounds));
-    this->SetEntries(entries);
+    entries.emplace_back(0, maxbounds);
   }
   else if (this->Mode == vtkSMBoundsDomain::ARRAY_SCALED_EXTENT)
   {
@@ -289,32 +293,23 @@ void vtkSMBoundsDomain::SetDomainValues(double bounds[6])
     {
       maxbounds = this->ScaleFactor;
     }
-    std::vector<vtkEntry> entries;
-    entries.push_back(vtkEntry(0, maxbounds));
-    this->SetEntries(entries);
+    entries.emplace_back(0, maxbounds);
   }
   else if (this->Mode == vtkSMBoundsDomain::APPROXIMATE_CELL_LENGTH)
   {
     double diameter = sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
       (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
       (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
-    std::vector<vtkEntry> entries;
-    entries.push_back(vtkEntry(0, diameter));
-    this->SetEntries(entries);
+    entries.emplace_back(0, diameter);
   }
   else if (this->Mode == vtkSMBoundsDomain::COMPONENT_MAGNITUDE)
   {
-    if (vtkMath::AreBoundsInitialized(bounds) == 0)
-    {
-      return;
-    }
-
-    std::vector<vtkEntry> entries;
-    entries.emplace_back(vtkEntry(0, bounds[1] - bounds[0]));
-    entries.emplace_back(vtkEntry(0, bounds[3] - bounds[2]));
-    entries.emplace_back(vtkEntry(0, bounds[5] - bounds[4]));
-    this->SetEntries(entries);
+    entries.emplace_back(0, bounds[1] - bounds[0]);
+    entries.emplace_back(0, bounds[3] - bounds[2]);
+    entries.emplace_back(0, bounds[5] - bounds[4]);
   }
+
+  this->SetEntries(entries);
 }
 
 //---------------------------------------------------------------------------
@@ -436,7 +431,7 @@ int vtkSMBoundsDomain::ReadXMLAttributes(vtkSMProperty* prop, vtkPVXMLElement* e
   const char* scalefactor = element->GetAttribute("scale_factor");
   if (scalefactor)
   {
-    sscanf(scalefactor, "%lf", &this->ScaleFactor);
+    this->ScaleFactor = vtk::scan_value<double>(std::string_view(scalefactor))->value();
   }
   return 1;
 }

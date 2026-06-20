@@ -26,6 +26,7 @@
 #include "vtkIdTypeArray.h"
 #include "vtkImageData.h"
 #include "vtkLogger.h"
+#include "vtkLongLongArray.h"
 #include "vtkMathUtilities.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkMultiPieceDataSet.h"
@@ -1969,11 +1970,11 @@ vtkSmartPointer<vtkUnstructuredGrid> Convert3DImageToUnstructuredGrid(
 
   vtkIdType numberOfCells = input->GetNumberOfCells();
 
-  using ArrayType32 = vtkCellArray::ArrayType32;
+  using ArrayType32 = vtkCellArray::AOSArray32;
   vtkNew<vtkCellArray> cells;
   cells->Use32BitStorage();
 
-  ArrayType32* offsets = cells->GetOffsetsArray32();
+  ArrayType32* offsets = cells->GetOffsetsAOSArray32();
   offsets->SetNumberOfValues(numberOfCells + 1);
   for (vtkIdType id = 0; id < offsets->GetNumberOfValues(); ++id)
   {
@@ -1991,7 +1992,7 @@ vtkSmartPointer<vtkUnstructuredGrid> Convert3DImageToUnstructuredGrid(
   vtkNew<vtkUnsignedCharArray> types;
   types->SetNumberOfValues(numberOfCells);
 
-  ArrayType32* connectivity = cells->GetConnectivityArray32();
+  ArrayType32* connectivity = cells->GetConnectivityAOSArray32();
   connectivity->SetNumberOfValues(8 * numberOfCells);
   int ijkCell[3];
   int ijkPoint[3];
@@ -2103,13 +2104,13 @@ vtkSmartPointer<vtkPolyData> Convert2DImageToPolyData(
 
   vtkIdType numberOfCells = input->GetNumberOfCells();
 
-  using ArrayType32 = vtkCellArray::ArrayType32;
+  using ArrayType32 = vtkCellArray::AOSArray32;
   vtkNew<vtkCellArray> polys, strips;
   polys->Use32BitStorage();
   strips->Use32BitStorage();
 
   {
-    ArrayType32* offsets = polys->GetOffsetsArray32();
+    ArrayType32* offsets = polys->GetOffsetsAOSArray32();
     offsets->SetNumberOfValues(
       produceStrips ? numberOfCells / 2 + numberOfCells % 2 + 1 : numberOfCells + 1);
     for (vtkIdType id = 0; id < offsets->GetNumberOfValues(); ++id)
@@ -2118,7 +2119,7 @@ vtkSmartPointer<vtkPolyData> Convert2DImageToPolyData(
     }
   }
   {
-    ArrayType32* offsets = strips->GetOffsetsArray32();
+    ArrayType32* offsets = strips->GetOffsetsAOSArray32();
     offsets->SetNumberOfValues(produceStrips ? numberOfCells / 2 + 1 : 0);
     for (vtkIdType id = 0; id < offsets->GetNumberOfValues(); ++id)
     {
@@ -2129,9 +2130,9 @@ vtkSmartPointer<vtkPolyData> Convert2DImageToPolyData(
   const int* extent = input->GetExtent();
   constexpr vtkIdType pixel2hexMap[4] = { 0, 1, 3, 2 };
 
-  ArrayType32* polyConnectivity = polys->GetConnectivityArray32();
+  ArrayType32* polyConnectivity = polys->GetConnectivityAOSArray32();
   polyConnectivity->SetNumberOfValues((polys->GetOffsetsArray()->GetNumberOfValues() - 1) * 4);
-  ArrayType32* stripConnectivity = strips->GetConnectivityArray32();
+  ArrayType32* stripConnectivity = strips->GetConnectivityAOSArray32();
   stripConnectivity->SetNumberOfValues(
     produceStrips ? (strips->GetOffsetsArray()->GetNumberOfValues() - 1) * 4 : 0);
 
@@ -2196,18 +2197,18 @@ vtkSmartPointer<vtkPolyData> Convert1DImageToPolyData(vtkImageData* input)
 
   vtkIdType numberOfCells = input->GetNumberOfCells();
 
-  using ArrayType32 = vtkCellArray::ArrayType32;
+  using ArrayType32 = vtkCellArray::AOSArray32;
   vtkNew<vtkCellArray> lines;
   lines->Use32BitStorage();
 
-  ArrayType32* offsets = lines->GetOffsetsArray32();
+  ArrayType32* offsets = lines->GetOffsetsAOSArray32();
   offsets->SetNumberOfValues(numberOfCells + 1);
   for (vtkIdType id = 0; id < offsets->GetNumberOfValues(); ++id)
   {
     offsets->SetValue(id, 2 * id);
   }
 
-  ArrayType32* connectivity = lines->GetConnectivityArray32();
+  ArrayType32* connectivity = lines->GetConnectivityAOSArray32();
   connectivity->SetNumberOfValues(numberOfCells * 2);
 
   for (vtkIdType cellId = 0; cellId < numberOfCells; ++cellId)
@@ -3245,18 +3246,9 @@ bool TestPointPrecision(vtkMultiProcessController* controller, int myrank)
   connectivity->SetValue(0, 0);
   connectivity->SetValue(1, 1);
 
-  vtkNew<vtkIdTypeArray> offsets;
-  offsets->SetNumberOfValues(2);
-  offsets->SetValue(0, 0);
-  offsets->SetValue(1, 2);
-
-  vtkNew<vtkUnsignedCharArray> types;
-  types->SetNumberOfValues(1);
-  types->SetValue(0, VTK_LINE);
-
   vtkNew<vtkCellArray> cells;
-  cells->SetData(offsets, connectivity);
-  ug->SetCells(types, cells);
+  cells->SetData(2, connectivity);
+  ug->SetCells(VTK_LINE, cells);
 
   // Checking point precision
   if (myrank == 0)
@@ -3439,6 +3431,69 @@ bool TestStaticMeshCache()
 
   return true;
 }
+
+bool TestArraySerialization(vtkMultiProcessController* contr, int myrank)
+{
+  /*
+  Check that:
+   - GCG can use something other than vtkIdTypeArray as globalIds
+   - DIY can properly transfer arrays without a name.
+  */
+
+  vtkNew<vtkUnstructuredGrid> source;
+  vtkNew<vtkCellArray> cells;
+  vtkNew<vtkPoints> points;
+  vtkNew<vtkDoubleArray> pointsArray;
+  pointsArray->SetNumberOfComponents(3);
+  pointsArray->InsertNextTuple3(2.0, 0.0, 0.0);
+  pointsArray->InsertNextTuple3(0.0, 0.0, 0.0);
+  pointsArray->InsertNextTuple3(1.0, 1.0, 0.0);
+  pointsArray->InsertNextTuple3(3.0, 1.0, 0.0);
+  pointsArray->InsertNextTuple3(4.0, 0.0, 0.0);
+
+  vtkNew<vtkLongLongArray> globalIds;
+  globalIds->InsertNextTuple1(0);
+  globalIds->InsertNextTuple1(1);
+  globalIds->InsertNextTuple1(2);
+  globalIds->InsertNextTuple1(3);
+  globalIds->InsertNextTuple1(4);
+
+  vtkNew<vtkUnsignedCharArray> data;
+  data->InsertNextTuple1(1);
+  data->InsertNextTuple1(2);
+  data->InsertNextTuple1(5);
+  data->InsertNextTuple1(124);
+  data->InsertNextTuple1(6);
+
+  points->SetData(pointsArray);
+  if (myrank == 0)
+  {
+    cells->InsertNextCell(3, std::vector<vtkIdType>{ 0, 1, 2 }.data());
+    cells->InsertNextCell(3, std::vector<vtkIdType>{ 0, 2, 3 }.data());
+  }
+  else
+  {
+    cells->InsertNextCell(3, std::vector<vtkIdType>{ 0, 3, 4 }.data());
+  }
+
+  source->SetPoints(points);
+  source->SetCells(VTK_TRIANGLE, cells);
+  source->GetPointData()->SetGlobalIds(globalIds);
+  source->GetPointData()->AddArray(data);
+
+  vtkNew<vtkGhostCellsGenerator> gcg;
+  gcg->SetNumberOfGhostLayers(1);
+  gcg->SetInputData(source);
+  gcg->UpdatePiece(contr->GetLocalProcessId(), contr->GetNumberOfProcesses(), 1);
+  auto output = vtkUnstructuredGrid::SafeDownCast(gcg->GetOutputDataObject(0));
+
+  if (output->GetNumberOfCells() != 3)
+  {
+    vtkLog(ERROR, "Expected 3 cells but got " << output->GetNumberOfCells());
+  }
+
+  return true;
+}
 } // anonymous namespace
 
 //----------------------------------------------------------------------------
@@ -3492,6 +3547,11 @@ int TestGhostCellsGenerator(int argc, char* argv[])
   }
 
   if (!TestStaticMeshCache())
+  {
+    retVal = EXIT_FAILURE;
+  }
+
+  if (!::TestArraySerialization(contr, myrank))
   {
     retVal = EXIT_FAILURE;
   }

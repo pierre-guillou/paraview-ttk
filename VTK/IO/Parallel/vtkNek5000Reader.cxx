@@ -17,15 +17,19 @@
 #include "vtkSmartPointer.h"
 #include "vtkStaticCleanUnstructuredGrid.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringFormatter.h"
 #include "vtkTimerLog.h"
 #include "vtkTrivialProducer.h"
 #include "vtkTypeUInt32Array.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
+
+#include <vtksys/SystemTools.hxx>
+
+#include <iostream>
 #include <map>
 #include <new>
 #include <string>
-#include <vtksys/SystemTools.hxx>
 
 #ifdef _WIN32
 #include <algorithm>
@@ -34,8 +38,6 @@
 #define strcasecmp _stricmp
 #define getcwd _getcwd
 #endif
-
-using std::string;
 
 vtkStandardNewMacro(vtkNek5000Reader);
 
@@ -210,8 +212,7 @@ vtkNek5000Reader::~vtkNek5000Reader()
   }
 
   delete[] this->var_length;
-  if (this->var_names)
-    free(this->var_names);
+  delete[] this->var_names;
   this->PointDataArraySelection->Delete();
 
   delete[] this->myBlockPositions;
@@ -225,7 +226,7 @@ bool vtkNek5000Reader::GetAllTimesAndVariableNames(vtkInformationVector* outputV
   char dummy[64];
   double t;
   int c;
-  string v;
+  std::string v;
 
   char dfName[265];
   char firstTags[32];
@@ -245,10 +246,13 @@ bool vtkNek5000Reader::GetAllTimesAndVariableNames(vtkInformationVector* outputV
     this->timestep_has_mesh[i] = false;
     file_index = this->datafile_start + i;
 
-    snprintf(dfName, sizeof(dfName), this->datafile_format.c_str(), 0, file_index);
+    // the format is expected to be in printf style format, so it's converted to std::format
+    auto result = vtk::format_to_n(
+      dfName, sizeof(dfName), vtk::printf_to_std_format(this->datafile_format), 0, file_index);
     vtkDebugMacro(<< "vtkNek5000Reader::GetAllTimesAndVariableNames:  this->datafile_start = "
                   << this->datafile_start << "  i: " << i << " file_index: " << file_index
                   << " dfName: " << dfName);
+    *result.out = '\0';
 
     dfPtr.open(dfName, std::ifstream::binary);
 
@@ -452,7 +456,7 @@ size_t vtkNek5000Reader::GetVariableNamesFromData(char* varTags)
 
   // allocate space for variable names and lengths,
   // will be at most 4 + numSFields  (4 for velocity, velocity_magnitude, pressure and temperature)
-  this->var_names = (char**)malloc((4 + numSFields) * sizeof(char*));
+  this->var_names = new char*[4 + numSFields];
   for (int i = 0; i < 4 + numSFields; i++)
     this->var_names[i] = nullptr;
 
@@ -510,7 +514,8 @@ size_t vtkNek5000Reader::GetVariableNamesFromData(char* varTags)
         for (int sloop = 0; sloop < numSFields; sloop++)
         {
           char sname[12];
-          snprintf(sname, sizeof(sname), "S%02d", sloop + 1);
+          auto result = vtk::format_to_n(sname, sizeof(sname), "S{:02d}", sloop + 1);
+          *result.out = '\0';
           this->PointDataArraySelection->AddArray(sname);
           this->var_names[this->num_vars] = strdup(sname);
           vtkDebugMacro(<< "GetVariableNamesFromData:  this->var_names[" << this->num_vars
@@ -604,7 +609,7 @@ void vtkNek5000Reader::readData(char* dfName)
           for (auto j = 0; j < this->myNumBlocks; j++)
           {
             read_location =
-              total_header_size + var_offset + long(this->myBlockPositions[j] * l_blocksize);
+              total_header_size + var_offset + (this->myBlockPositions[j] * l_blocksize);
             dfPtr.seekg(read_location, std::ios_base::beg);
             if (!dfPtr)
               std::cerr << __LINE__ << "block=" << j
@@ -636,7 +641,7 @@ void vtkNek5000Reader::readData(char* dfName)
           for (auto j = 0; j < this->myNumBlocks; j++)
           {
             read_location =
-              total_header_size + var_offset + long(this->myBlockPositions[j] * l_blocksize);
+              total_header_size + var_offset + (this->myBlockPositions[j] * l_blocksize);
             dfPtr.seekg(read_location, std::ios_base::beg);
             if (!dfPtr)
               std::cerr << __LINE__ << ": seekg error at read_location = " << read_location
@@ -689,7 +694,7 @@ void vtkNek5000Reader::readData(char* dfName)
   }
   else
   {
-    std::cerr << "Error opening datafile : " << dfName << endl;
+    std::cerr << "Error opening datafile : " << dfName << std::endl;
     exit(1);
   }
 } // vtkNek5000Reader::readData(char* dfName)
@@ -698,10 +703,9 @@ void vtkNek5000Reader::readData(char* dfName)
 
 void vtkNek5000Reader::partitionAndReadMesh()
 {
-  char dfName[265];
   std::ifstream dfPtr;
   int i;
-  string buf2, tag;
+  std::string buf2, tag;
   std::map<long, long> blockMap;
 
   int my_rank;
@@ -718,19 +722,22 @@ void vtkNek5000Reader::partitionAndReadMesh()
     num_ranks = 1;
   }
 
-  snprintf(dfName, sizeof(dfName), this->datafile_format.c_str(), 0, this->datafile_start);
+  // the format is expected to be in printf style format, so it's converted to std::format
+  auto dfName =
+    vtk::format(vtk::printf_to_std_format(this->datafile_format), 0, this->datafile_start);
   dfPtr.open(dfName, std::ifstream::binary);
 
   if ((dfPtr.rdstate() & std::ifstream::failbit) != 0)
   {
-    std::cerr << "Error opening : " << dfName << endl;
+    std::cerr << "Error opening : " << dfName << std::endl;
     exit(1);
   }
 
   dfPtr >> tag;
   if (tag != "#std")
   {
-    cerr << "Error reading the header.  Expected it to start with #std " << dfName << endl;
+    std::cerr << "Error reading the header.  Expected it to start with #std " << dfName
+              << std::endl;
     exit(1);
   }
   dfPtr >> this->precision;
@@ -768,7 +775,8 @@ void vtkNek5000Reader::partitionAndReadMesh()
       this->swapEndian = true;
     else
     {
-      std::cerr << "Error reading file, while trying to determine endianness : " << dfName << endl;
+      std::cerr << "Error reading file, while trying to determine endianness : " << dfName
+                << std::endl;
       exit(1);
     }
   }
@@ -805,7 +813,8 @@ void vtkNek5000Reader::partitionAndReadMesh()
   int* all_element_list;
   ext++;
   size_t extLength = strlen(ext);
-  snprintf(ext, extLength + 1, "map");
+  auto result = vtk::format_to_n(ext, extLength + 1, "map");
+  *result.out = '\0';
   std::ifstream mptr(map_filename);
   int* map_elements = nullptr;
   if (mptr.is_open())
@@ -865,8 +874,8 @@ void vtkNek5000Reader::partitionAndReadMesh()
       {
         if (this->myBlockPositions[i] == this->myBlockPositions[j])
         {
-          cerr << "********my_rank: " << my_rank << " : Hey (this->myBlockPositions[" << i
-               << "] and [" << j << "] both == " << this->myBlockPositions[j] << endl;
+          std::cerr << "********my_rank: " << my_rank << " : Hey (this->myBlockPositions[" << i
+                    << "] and [" << j << "] both == " << this->myBlockPositions[j] << std::endl;
         }
       }
     }
@@ -973,7 +982,7 @@ void vtkNek5000Reader::partitionAndReadMesh()
 int vtkNek5000Reader::RequestInformation(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)
 {
-  string tag;
+  std::string tag;
   char buf[2048];
 #ifndef NDEBUG
   int my_rank;
@@ -993,7 +1002,7 @@ int vtkNek5000Reader::RequestInformation(vtkInformation* vtkNotUsed(request),
     // Might consider having just the master node read the .nek5000 file, and broadcast each line to
     // the other processes ??
 
-    char* filename = this->GetFileName();
+    const char* filename = this->GetFileName();
     std::ifstream inPtr(this->GetFileName());
 
     // print the name of the file we're supposed to open
@@ -1023,14 +1032,14 @@ int vtkNek5000Reader::RequestInformation(vtkInformation* vtkNotUsed(request),
       {
         // This tag is deprecated.  There's a float written into each binary file
         // from which endianness can be determined.
-        string dummy_endianness;
+        std::string dummy_endianness;
         inPtr >> dummy_endianness;
       }
       else if (strcasecmp("version:", tag.c_str()) == 0)
       {
         // This tag is deprecated.  There's a float written into each binary file
         // from which endianness can be determined.
-        string dummy_version;
+        std::string dummy_version;
         inPtr >> dummy_version;
         vtkDebugMacro(<< "vtkNek5000Reader::RequestInformation:  version: " << dummy_version);
       }
@@ -1054,8 +1063,9 @@ int vtkNek5000Reader::RequestInformation(vtkInformation* vtkNotUsed(request),
       }
       else
       {
-        snprintf(buf, 2048, "Error parsing file.  Unknown tag %s", tag.c_str());
-        cerr << buf << endl;
+        auto result = vtk::format_to_n(buf, 2048, "Error parsing file.  Unknown tag {:s}", tag);
+        *result.out = '\0';
+        std::cerr << buf << std::endl;
         exit(1);
       }
     } // while (inPtr.good())
@@ -1101,7 +1111,10 @@ int vtkNek5000Reader::RequestInformation(vtkInformation* vtkNotUsed(request),
 
     vtkDebugMacro(<< "Rank: " << my_rank << " :: this->datafile_start= " << this->datafile_start);
 
-    snprintf(dfName, sizeof(dfName), this->datafile_format.c_str(), 0, this->datafile_start);
+    // the format is expected to be in printf style format, so it's converted to std::format
+    auto result = vtk::format_to_n(dfName, sizeof(dfName),
+      vtk::printf_to_std_format(this->datafile_format), 0, this->datafile_start);
+    *result.out = '\0';
     this->SetDataFileName(dfName);
 
     vtkInformation* outInfo0 = outputVector->GetInformationObject(0);
@@ -1179,7 +1192,6 @@ int vtkNek5000Reader::RequestData(vtkInformation* request,
     double minDist = -1;
     for (int cnt = 0; cnt < tsLength; cnt++)
     {
-      // fprintf(stderr, "RequestData: steps[%d]=%f\n", cnt, steps[cnt]);
       double tdist = (steps[cnt] - this->TimeValue > this->TimeValue - steps[cnt])
         ? steps[cnt] - this->TimeValue
         : this->TimeValue - steps[cnt];
@@ -1264,8 +1276,10 @@ int vtkNek5000Reader::RequestData(vtkInformation* request,
   }
 
   // Get the file name for requested time step
-
-  snprintf(dfName, sizeof(dfName), this->datafile_format.c_str(), 0, this->requested_step);
+  // the format is expected to be in printf style format, so it's converted to std::format
+  auto result = vtk::format_to_n(dfName, sizeof(dfName),
+    vtk::printf_to_std_format(this->datafile_format), 0, this->requested_step);
+  *result.out = '\0';
   vtkDebugMacro(<< "vtkNek5000Reader::RequestData: Rank: " << my_rank
                 << " Now reading data from file: " << dfName
                 << " this->requested_step: " << this->requested_step);
@@ -1479,16 +1493,13 @@ void vtkNek5000Reader::addCellsToContinuumMesh()
 
   vtkCellArray* outCells = vtkCellArray::New(); // the connectivity array
 
-  vtkIdTypeArray* locations = vtkIdTypeArray::New(); // the offset array
-  locations->SetNumberOfTuples(numVTKCells);
-
   vtkIdType p, pts[8];
-  int n = 0, c = 0;
+  int n = 0;
 
   if (this->MeshIs3D)
   {
     cellTypes->Fill(VTK_HEXAHEDRON);
-    outCells->Allocate(9L * numVTKCells);
+    outCells->AllocateExact(numVTKCells, 8 * numVTKCells); // 8 nodes per hex
     for (auto e = 0; e < this->myNumBlocks; ++e)
     {
       for (auto ii = 0; ii < this->blockDims[0] - 1; ++ii)
@@ -1513,8 +1524,6 @@ void vtkNek5000Reader::addCellsToContinuumMesh()
             pts[7] = p;
 
             outCells->InsertNextCell(8, pts);
-            locations->SetTuple1(c, c * 9L);
-            c++;
           }
         }
       }
@@ -1524,7 +1533,7 @@ void vtkNek5000Reader::addCellsToContinuumMesh()
   else // 2D
   {
     cellTypes->Fill(VTK_QUAD);
-    outCells->Allocate(5L * numVTKCells);
+    outCells->AllocateExact(numVTKCells, 4 * numVTKCells); // 4 nodes per quad
     for (auto e = 0; e < this->myNumBlocks; ++e)
     {
       for (auto ii = 0; ii < this->blockDims[0] - 1; ++ii)
@@ -1538,16 +1547,13 @@ void vtkNek5000Reader::addCellsToContinuumMesh()
           pts[2] = p + 1;
           pts[3] = p;
           outCells->InsertNextCell(4, pts);
-          locations->SetTuple1(c, c * 5L);
-          c++;
         }
       }
       n += this->totalBlockSize;
     }
   }
 
-  this->UGrid->SetCells(cellTypes, locations, outCells);
-  locations->Delete();
+  this->UGrid->SetCells(cellTypes, outCells);
   outCells->Delete();
   cellTypes->Delete();
 } // addPointsToContinuumMesh()
@@ -1692,7 +1698,7 @@ void vtkNek5000Reader::copyContinuumData(vtkUnstructuredGrid* pv_ugrid)
         {
           // for every point in this element/block
 #ifndef NDEBUG
-          cerr << "rank= " << my_rank << " : b_index= " << b_index << endl;
+          std::cerr << "rank= " << my_rank << " : b_index= " << b_index << std::endl;
 #endif
           int mag_block_offset = b_index * this->totalBlockSize;
           int comp_block_offset = mag_block_offset * 3;

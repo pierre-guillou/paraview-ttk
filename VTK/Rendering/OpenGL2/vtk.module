@@ -17,11 +17,13 @@ DEPENDS
   VTK::CommonCore
   VTK::CommonDataModel
   VTK::FiltersGeneral
+  VTK::IOCore
   VTK::IOImage
   VTK::RenderingCore
   VTK::RenderingHyperTreeGrid
   VTK::RenderingUI
   VTK::glad
+  VTK::x11
 PRIVATE_DEPENDS
   VTK::CommonColor
   VTK::CommonExecutionModel

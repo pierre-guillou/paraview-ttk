@@ -25,6 +25,8 @@
 
 #include <unordered_set>
 
+#include <iostream>
+
 // Switch the following to #define to get debug printouts. Beware, these are in a tight loop.
 #undef VTK_DBG_DGEVAL
 
@@ -48,10 +50,7 @@ void centerAndRadiusOfCellPoints(
   for (const auto& corner : cellCorners)
   {
     double cornerRadius = (corner - center).Norm();
-    if (cornerRadius > radius)
-    {
-      radius = cornerRadius;
-    }
+    radius = std::max(cornerRadius, radius);
   }
 }
 

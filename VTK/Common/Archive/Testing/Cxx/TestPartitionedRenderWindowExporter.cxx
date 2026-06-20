@@ -24,6 +24,8 @@
 #include <cstring>
 #include <fstream>
 
+#include <iostream>
+
 // Construct a scene and write it to disk and to buffer. Decompress the buffer
 // and compare its contents to the files on disk.
 int TestPartitionedRenderWindowExporter(int argc, char* argv[])
@@ -136,7 +138,8 @@ int TestPartitionedRenderWindowExporter(int argc, char* argv[])
           break;
         }
 
-        std::rewind(fp);
+        clearerr(fp);           // clear error and EOF flags
+        fseek(fp, 0, SEEK_SET); // move to beginning
 
         // allocate memory for entire content
         fbuffer = (char*)malloc(lSize);

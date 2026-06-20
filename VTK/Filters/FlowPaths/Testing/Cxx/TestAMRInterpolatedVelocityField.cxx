@@ -1,13 +1,16 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-#include "vtkUniformGrid.h"
 #include <vtkAMRGaussianPulseSource.h>
 #include <vtkAMRInterpolatedVelocityField.h>
 #include <vtkCompositeDataPipeline.h>
 #include <vtkGradientFilter.h>
+#include <vtkImageData.h>
 #include <vtkMath.h>
 #include <vtkNew.h>
 #include <vtkOverlappingAMR.h>
+
+#include <iostream>
+
 #define RETURNONFALSE(b)                                                                           \
   do                                                                                               \
   {                                                                                                \
@@ -36,18 +39,18 @@ int TestAMRInterpolatedVelocityField(int, char*[])
   amrGrad->GenerateParentChildInformation();
   for (unsigned int datasetLevel = 0; datasetLevel < amrGrad->GetNumberOfLevels(); datasetLevel++)
   {
-    for (unsigned int id = 0; id < amrGrad->GetNumberOfDataSets(datasetLevel); id++)
+    for (unsigned int id = 0; id < amrGrad->GetNumberOfBlocks(datasetLevel); id++)
     {
-      vtkUniformGrid* grid = amrGrad->GetDataSet(datasetLevel, id);
+      vtkImageData* grid = amrGrad->GetDataSetAsImageData(datasetLevel, id);
       int numBlankedCells(0);
       for (int i = 0; i < grid->GetNumberOfCells(); i++)
       {
         numBlankedCells += grid->IsCellVisible(i) ? 0 : 1;
       }
-      cout << numBlankedCells << " ";
+      std::cout << numBlankedCells << " ";
     }
   }
-  cout << endl;
+  std::cout << std::endl;
 
   vtkNew<vtkAMRInterpolatedVelocityField> func;
   func->SetAMRData(amrGrad);

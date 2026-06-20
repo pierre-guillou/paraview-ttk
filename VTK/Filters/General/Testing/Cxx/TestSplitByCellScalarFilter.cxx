@@ -11,9 +11,12 @@
 #include "vtkNew.h"
 #include "vtkPolyData.h"
 #include "vtkSplitByCellScalarFilter.h"
+#include "vtkStringFormatter.h"
 #include "vtkTestUtilities.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkXMLImageDataReader.h"
+
+#include <iostream>
 
 int TestSplitByCellScalarFilter(int argc, char* argv[])
 {
@@ -57,10 +60,10 @@ int TestSplitByCellScalarFilter(int argc, char* argv[])
     auto oscalars = vtkDataSet::SafeDownCast(output->GetBlock(cc))->GetCellData()->GetScalars();
     double r[2];
     oscalars->GetRange(r);
-    auto blockname = std::string("Material_") + std::to_string(static_cast<int>(r[0]));
+    auto blockname = std::string("Material_") + vtk::to_string(static_cast<int>(r[0]));
     if (name == nullptr || blockname != name)
     {
-      cerr << "Mismatched block names" << endl;
+      std::cerr << "Mismatched block names" << std::endl;
       return EXIT_FAILURE;
     }
   }

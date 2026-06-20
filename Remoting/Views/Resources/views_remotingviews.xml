@@ -257,6 +257,36 @@
         <Documentation>Toggle the visibility of the axes showing the center of
         rotation in the scene.</Documentation>
       </IntVectorProperty>
+      <DoubleVectorProperty name="CenterAxesXColor"
+                            number_of_elements="3"
+                            default_values="1 0 0"
+                            command="SetCenterAxesXColor"
+                            panel_widget="color_selector_with_palette"
+                            panel_visibility="advanced">
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="CenterAxesVisibility" value="1" />
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty name="CenterAxesYColor"
+                            number_of_elements="3"
+                            default_values="1 1 0"
+                            command="SetCenterAxesYColor"
+                            panel_widget="color_selector_with_palette"
+                            panel_visibility="advanced">
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="CenterAxesVisibility" value="1" />
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty name="CenterAxesZColor"
+                            number_of_elements="3"
+                            default_values="0 1 0"
+                            command="SetCenterAxesZColor"
+                            panel_widget="color_selector_with_palette"
+                            panel_visibility="advanced">
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="CenterAxesVisibility" value="1" />
+        </Hints>
+      </DoubleVectorProperty>
       <IntVectorProperty command="SetOrientationAxesVisibility"
                          default_values="1"
                          name="OrientationAxesVisibility"
@@ -1300,6 +1330,32 @@
             property="UseColorPaletteForBackground" values="0" />
         </Hints>
       </ProxyProperty>
+      <DoubleVectorProperty command="SetSkyboxRotation"
+                            default_values="0.0 0.0 0.0"
+                            information_property="SkyboxRotationInfo"
+                            name="SkyboxRotation"
+                            number_of_elements="3">
+        <DoubleRangeDomain name="range" />
+        <Documentation>
+          Set the rotation parameters of the skybox in degree angles.
+        </Documentation>
+        <Hints>
+          <!-- hide widget unless mode is "Skybox" -->
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility"
+                                   property="BackgroundColorMode" value="3" />
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="GetSkyboxRotation"
+                            default_values="0.0 0.0 0.0"
+                            information_only="1"
+                            name="SkyboxRotationInfo"
+                            number_of_elements="3">
+        <Hints>
+          <!-- hide widget unless mode is "Skybox" -->
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility"
+                                   property="BackgroundColorMode" value="3" />
+        </Hints>
+      </DoubleVectorProperty>
       <DoubleVectorProperty command="SetBackground2"
                             default_values="0 0 0.165"
                             name="Background2"
@@ -1384,11 +1440,119 @@
           animateable="0"
           number_of_elements="1">
         <BooleanDomain name="bool" />
-        <Documentation>Switches between rasterization and ray tracing.</Documentation>
+        <Documentation>Enables ray tracing with OSPRay.</Documentation>
         <Hints>
           <PropertyWidgetDecorator type="OSPRayHidingDecorator" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="enabled_state"
+                                   property="EnableANARI"
+                                   values="0" />
         </Hints>
       </IntVectorProperty>
+      <IntVectorProperty name="EnableANARI"
+          label="Enable Rendering with ANARI"
+          command="SetEnableANARI"
+          default_values="0"
+          animateable="0"
+          number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>Enables rendering with ANARI.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="OSPRayHidingDecorator" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="enabled_state"
+                                   property="EnableOSPRay"
+                                   values="0" />
+        </Hints>
+      </IntVectorProperty>
+      <StringVectorProperty command="SetANARILibrary"
+                            default_values="visrtx"
+                            name="ANARILibrary"
+                            number_of_elements="1"
+                            panel_visibility="never">
+        <StringListDomain name="list">
+          <String value="visrtx" />
+          <String value="helide" />
+          <String value="environment" />
+        </StringListDomain>
+        <Documentation>Set the ANARI backend.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="OSPRayHidingDecorator" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="EnableANARI"
+                                   values="1" />
+        </Hints>
+      </StringVectorProperty>
+      <StringVectorProperty
+          command="GetANARIRendererNames"
+          information_only="1"
+          name="ANARIRendererNames">
+        <StringArrayHelper />
+      </StringVectorProperty>
+      <StringVectorProperty command="SetANARIRenderer"
+                            default_values="default"
+                            name="ANARIRenderer"
+                            number_of_elements="1">
+        <StringListDomain name="list">
+          <RequiredProperties>
+            <Property
+                function="ANARIRendererNames"
+                name="ANARIRendererNames" />
+          </RequiredProperties>
+        </StringListDomain>
+        <Documentation>Set the ANARI renderer.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="OSPRayHidingDecorator" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="EnableANARI"
+                                   values="1" />
+        </Hints>
+      </StringVectorProperty>
+      <StringVectorProperty command="GetANARIRendererParameters"
+                            default_values="{}"
+                            information_only = "1"
+                            name="ANARIRendererParametersInfo"
+                            panel_visibility="never"
+                            number_of_elements="1">
+        <Documentation>Json containing a array of maps
+        renderer sub-type (a string) to an array of properties,
+        each property has a name, type, description, default, min, max
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="OSPRayHidingDecorator" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="EnableANARI"
+                                   values="1" />
+        </Hints>
+        <SimpleStringInformationHelper/>
+      </StringVectorProperty>
+      <StringVectorProperty command="SetANARIRendererParameter"
+                            name="ANARIRendererParameter"
+                            label="ANARI Renderer Parameters"
+                            panel_widget="dynamic_properties_widget"
+                            element_types="2 0 2"
+                            number_of_elements="3"
+                            number_of_elements_per_command="3"
+                            repeat_command="1">
+        <Documentation>Set a ANARI renderer parameter.</Documentation>
+        <DynamicPropertiesDomain name="json_list">
+          <RequiredProperties>
+            <Property
+                function="Info"
+                name="ANARIRendererParametersInfo" />
+          </RequiredProperties>
+        </DynamicPropertiesDomain>
+        <Hints>
+          <PropertyWidgetDecorator type="OSPRayHidingDecorator" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="EnableANARI"
+                                   values="1" />
+        </Hints>
+      </StringVectorProperty>
       <StringVectorProperty name="OSPRayRendererType"
           command="SetOSPRayRendererType"
           label="Back End"
@@ -1428,10 +1592,10 @@ OSPRay pathtracer may need to transfer default materials from client to server. 
                                        property="EnableOSPRay"
                                        values="1" />
               <PropertyWidgetDecorator type="EnableWidgetDecorator">
-                 <Property name="OSPRayRendererType" function="equals" value="OSPRay raycaster"/>
+                <Property name="OSPRayRendererType" function="equals" value="OSPRay raycaster"/>
               </PropertyWidgetDecorator>
             </Expression>
-	  </PropertyWidgetDecorator>
+          </PropertyWidgetDecorator>
         </Hints>
       </IntVectorProperty>
       <IntVectorProperty
@@ -1454,10 +1618,10 @@ OSPRay pathtracer may need to transfer default materials from client to server. 
                                        property="EnableOSPRay"
                                        values="1" />
               <PropertyWidgetDecorator type="EnableWidgetDecorator">
-                 <Property name="OSPRayRendererType" function="equals" value="OSPRay raycaster"/>
+                <Property name="OSPRayRendererType" function="equals" value="OSPRay raycaster"/>
               </PropertyWidgetDecorator>
             </Expression>
-	  </PropertyWidgetDecorator>
+          </PropertyWidgetDecorator>
         </Hints>
       </IntVectorProperty>
       <IntVectorProperty
@@ -1477,6 +1641,7 @@ OSPRay pathtracer may need to transfer default materials from client to server. 
                                    mode="visibility"
                                    property="EnableOSPRay"
                                    values="1" />
+
         </Hints>
       </IntVectorProperty>
       <IntVectorProperty
@@ -1494,10 +1659,23 @@ OSPRay pathtracer may need to transfer default materials from client to server. 
         'Enable Streaming' setting in Edit->Preferences/Settings.</Documentation>
         <Hints>
           <PropertyWidgetDecorator type="OSPRayHidingDecorator" />
-          <PropertyWidgetDecorator type="GenericDecorator"
-                                   mode="visibility"
-                                   property="EnableOSPRay"
-                                   values="1" />
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="or">
+              <Expression type="and">
+                <PropertyWidgetDecorator type="GenericDecorator"
+                                         mode="visibility"
+                                         property="EnableOSPRay"
+                                         values="1" />
+                <PropertyWidgetDecorator type="EnableWidgetDecorator">
+                   <Property name="OSPRayRendererType" function="equals" value="OSPRay raycaster"/>
+                </PropertyWidgetDecorator>
+              </Expression>
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="EnableANARI"
+                                       values="1" />
+            </Expression>
+                </PropertyWidgetDecorator>
         </Hints>
       </IntVectorProperty>
       <IntVectorProperty
@@ -1537,7 +1715,7 @@ OSPRay pathtracer may need to transfer default materials from client to server. 
       <IntVectorProperty
           name="Denoise"
           command="SetDenoise"
-          default_values="1"
+          default_values="0"
           animateable="0"
           number_of_elements="1">
         <BooleanDomain name="bool" />
@@ -1850,6 +2028,7 @@ OSPRay pathtracer may need to transfer default materials from client to server. 
         <Property name="BackgroundColorMode" />
         <Property name="Background2"/>
         <Property name="Background"/>
+        <Property name="SkyboxRotation"/>
         <Property name="BackgroundTexture"/>
         <Property name="UseEnvironmentLighting"/>
       </PropertyGroup>
@@ -1865,8 +2044,9 @@ OSPRay pathtracer may need to transfer default materials from client to server. 
         <Property name="MaxClipBounds"/>
         <Property name="LockBounds"/>
       </PropertyGroup>
-      <PropertyGroup label="Ray Traced Rendering"
+      <PropertyGroup label="Rendering Backend"
                      panel_visibility="advanced">
+        <Property name="EnableANARI"/>
         <Property name="EnableOSPRay"/>
         <Property name="Shadows"/>
         <Property name="OSPRayRendererType"/>
@@ -2787,6 +2967,7 @@ OSPRay pathtracer may need to transfer default materials from client to server. 
             <Property name="BackgroundColorMode" />
             <Property name="Background2"/>
             <Property name="Background"/>
+            <Property name="SkyboxRotation"/>
             <Property name="BackgroundTexture"/>
             <Property name="UseEnvironmentLighting"/>
           </PropertyGroup>

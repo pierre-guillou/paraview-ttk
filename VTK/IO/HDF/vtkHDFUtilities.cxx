@@ -11,6 +11,7 @@
 #include "vtkLogger.h"
 #include "vtkLongArray.h"
 #include "vtkLongLongArray.h"
+#include "vtkMemoryResourceStream.h"
 #include "vtkShortArray.h"
 #include "vtkSignedCharArray.h"
 #include "vtkStringArray.h"
@@ -185,10 +186,18 @@ bool NewArray(
   // read hyperslab
   if (H5Dread(dataset, nativeType, memspace, filespace, H5P_DEFAULT, data) < 0)
   {
+    std::stringstream starts;
+    for (auto& val : start)
+    {
+      starts << val << ", ";
+    }
+    std::stringstream counts;
+    for (auto& val : count)
+    {
+      counts << val << " ";
+    }
     vtkErrorWithObjectMacro(nullptr, << "Error H5Dread "
-                                     << "start: " << start[0] << ", " << start[1] << ", "
-                                     << start[2] << " count: " << count[0] << ", " << count[1]
-                                     << ", " << count[2]);
+                                     << "start: " << starts.str() << " count: " << counts.str());
     return false;
   }
 
@@ -388,6 +397,7 @@ bool vtkHDFUtilities::GetStringAttribute(
   if (H5Tis_variable_str(hdfType) > 0)
   {
     char* buffer = nullptr;
+    // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
     if (H5Aread(typeAttributeHID, hdfType, &buffer) < 0)
     {
       vtkErrorWithObjectMacro(
@@ -527,6 +537,26 @@ bool vtkHDFUtilities::Open(const char* fileName, hid_t& fileID)
 }
 
 //------------------------------------------------------------------------------
+bool vtkHDFUtilities::Open(vtkMemoryResourceStream* stream, hid_t& fileImageID)
+{
+  if (!stream)
+  {
+    vtkErrorWithObjectMacro(nullptr, "stream is nullptr.");
+    return false;
+  }
+
+  fileImageID = H5LTopen_file_image((void*)(stream->GetBuffer()), stream->GetSize(),
+    H5LT_FILE_IMAGE_DONT_COPY | H5LT_FILE_IMAGE_DONT_RELEASE);
+  if (fileImageID < 0)
+  {
+    // we try to read a non-HDF memory stream
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 vtkStringArray* vtkHDFUtilities::NewStringArray(
   hid_t dataset, std::vector<hsize_t> dims, std::vector<hsize_t> fileExtent)
 {
@@ -597,6 +627,7 @@ vtkStringArray* vtkHDFUtilities::NewStringArray(
     vtkErrorWithObjectMacro(nullptr, << "Error H5Screate_simple for memory space");
     return nullptr;
   }
+  // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
   if (H5Dread(dataset, memtype, memspace, filespace, H5P_DEFAULT, rdata.data()) < 0)
   {
     vtkErrorWithObjectMacro(nullptr, << "Error H5Dread");

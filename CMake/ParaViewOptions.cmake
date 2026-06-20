@@ -175,7 +175,11 @@ endif ()
 #========================================================================
 
 vtk_deprecated_setting(raytracing_default PARAVIEW_ENABLE_RAYTRACING PARAVIEW_USE_RAYTRACING "OFF")
-option(PARAVIEW_ENABLE_RAYTRACING "Build ParaView with OSPray and/or OptiX ray-tracing support" "${raytracing_default}")
+option(PARAVIEW_ENABLE_RAYTRACING "Build ParaView with OSPray, ANARI and/or OptiX ray-tracing support" "${raytracing_default}")
+
+cmake_dependent_option(PARAVIEW_ENABLE_ANARI
+  "Enable Anari Support" OFF
+  "PARAVIEW_ENABLE_RAYTRACING" ON)
 
 set(paraview_web_default ON)
 if (PARAVIEW_USE_PYTHON AND WIN32)
@@ -192,6 +196,12 @@ cmake_dependent_option(PARAVIEW_ENABLE_WEB "Enable/Disable web support" "${parav
 
 # NvPipe requires an NVIDIA GPU.
 option(PARAVIEW_ENABLE_NVPIPE "Build ParaView with NvPipe remoting. Requires CUDA and an NVIDIA GPU" OFF)
+if (PARAVIEW_ENABLE_NVPIPE)
+  message(DEPRECATION
+    "NvPipe is not longer supported. See "
+    "https://gitlab.kitware.com/paraview/paraview/-/issues/23231 for progress")
+  set(PARAVIEW_ENABLE_NVPIPE OFF)
+endif ()
 
 option(PARAVIEW_ENABLE_ALEMBIC "Enable Alembic support." OFF)
 
@@ -395,6 +405,11 @@ paraview_require_module(
   EXCLUSIVE)
 
 paraview_require_module(
+  CONDITION PARAVIEW_ENABLE_RAYTRACING AND PARAVIEW_ENABLE_RENDERING AND PARAVIEW_ENABLE_ANARI
+  MODULES   VTK::RenderingAnari
+  EXCLUSIVE)
+
+paraview_require_module(
   CONDITION PARAVIEW_ENABLE_RAYTRACING AND VTK_ENABLE_OSPRAY
   MODULES   ParaView::VTKExtensionsShaderBall
   EXCLUSIVE)
@@ -575,7 +590,6 @@ paraview_require_module(
             VTK::IOOMF
             VTK::IOParallelExodus
             VTK::IOParallelLSDyna
-            VTK::IOPIO
             VTK::IOHDF
             VTK::IOSegY
             VTK::IOTRUCHAS
@@ -603,7 +617,8 @@ paraview_require_module(
 
 paraview_require_module(
   CONDITION PARAVIEW_USE_MPI AND PARAVIEW_BUILD_CANONICAL AND PARAVIEW_ENABLE_NONESSENTIAL
-  MODULES   VTK::IOParallelNetCDF)
+  MODULES   VTK::IOParallelNetCDF
+            VTK::IOPIO)
 
 paraview_require_module(
   CONDITION PARAVIEW_BUILD_CANONICAL AND PARAVIEW_ENABLE_RENDERING AND PARAVIEW_ENABLE_NONESSENTIAL

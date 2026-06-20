@@ -18,10 +18,13 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
 #include "vtkSphereSource.h"
+#include "vtkStringFormatter.h"
 #include "vtkTesting.h"
 
 #include <cstdlib>
 #include <string>
+
+#include <iostream>
 
 int TestCompositePolyDataMapperBlockOpacities(int argc, char* argv[])
 {
@@ -114,7 +117,6 @@ int TestCompositePolyDataMapperBlockOpacities(int argc, char* argv[])
       {
         const unsigned int n = compositeMesh->GetNumberOfPartitionedDataSets();
         selectedSphere %= (n + 1);
-        std::string text = "Selected sphere: " + std::to_string(selectedSphere);
         if (auto* mesh = compositeMesh->GetPartitionAsDataObject(selectedSphere, 0))
         {
           const auto flatIndex = compositeMesh->GetCompositeIndex(selectedSphere, 0);
@@ -172,7 +174,7 @@ int TestCompositePolyDataMapperBlockOpacities(int argc, char* argv[])
     if (i > 0)
     {
       auto pos = newValidImageFileName.find(".png");
-      std::string suffix = "_" + std::to_string(i) + ".png";
+      std::string suffix = "_" + vtk::to_string(i) + ".png";
       newValidImageFileName.replace(pos, 6, suffix);
     }
     // Replace the -V argument image name with incremented suffix
@@ -193,7 +195,7 @@ int TestCompositePolyDataMapperBlockOpacities(int argc, char* argv[])
     interactor->InvokeEvent(vtkCommand::KeyPressEvent);
     interactor->InvokeEvent(vtkCommand::CharEvent);
     interactor->InvokeEvent(vtkCommand::KeyReleaseEvent);
-    if (testing->RegressionTest(0.01, cout) == vtkTesting::FAILED)
+    if (testing->RegressionTest(0.01, std::cout) == vtkTesting::FAILED)
     {
       // store the result and continue.
       // do not exit here to ensure successive iterations will get a chance to perform the test and

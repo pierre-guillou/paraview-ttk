@@ -25,6 +25,8 @@
 
 #include "vtkTestUtilities.h"
 
+#include <iostream>
+
 int ImageInterpolateSlidingWindow3D(int argc, char* argv[])
 {
   auto iren = vtkSmartPointer<vtkRenderWindowInteractor>::New();
@@ -78,7 +80,7 @@ int ImageInterpolateSlidingWindow3D(int argc, char* argv[])
     maxdiff = (fabs(diff) > fabs(maxdiff) ? diff : maxdiff);
   }
   std::cerr << "Maximum Pixel Error: " << maxdiff << "\n";
-  const double tol = 1e-10;
+  constexpr double tol = 1e-10;
   if (fabs(maxdiff) > tol)
   {
     std::cerr << "Difference is larger than tolerance " << tol << "\n";

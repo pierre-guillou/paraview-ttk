@@ -26,10 +26,13 @@
 #include <vtkTimerLog.h>
 #include <vtkVolumeProperty.h>
 
+#include <iostream>
+
 // Return nullptr if no override is supplied.
 VTK_ABI_NAMESPACE_BEGIN
 vtkAbstractObjectFactoryNewMacro(vtkGPUVolumeRayCastMapper);
 vtkCxxSetObjectMacro(vtkGPUVolumeRayCastMapper, MaskInput, vtkImageData);
+vtkCxxSetObjectMacro(vtkGPUVolumeRayCastMapper, DepthPassContourValues, vtkContourValues);
 
 vtkGPUVolumeRayCastMapper::vtkGPUVolumeRayCastMapper()
   : LockSampleDistanceToInputSpacing(0)
@@ -160,7 +163,7 @@ void vtkGPUVolumeRayCastMapper::Render(vtkRenderer* ren, vtkVolume* vol)
   timer->StopTimer();
   double t = timer->GetElapsedTime();
 
-  //  cout << "Render Timer " << t << " seconds, " << 1.0/t << " frames per second" << endl;
+  //  std::cout << "Render Timer " << t << " seconds, " << 1.0/t << " frames per second" << endl;
 
   this->TimeToDraw = t;
   timer->Delete();

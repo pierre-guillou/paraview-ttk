@@ -8,6 +8,7 @@
 #include "vtkOpenXRRenderWindow.h"
 #include "vtkOpenXRUtilities.h"
 #include "vtkResourceFileLocator.h"
+#include "vtkStringFormatter.h"
 #include "vtkVersion.h"
 
 #include "vtk_jsoncpp.h"
@@ -120,11 +121,11 @@ void vtkOpenXRRenderWindowInteractor::ProcessXrEvents()
           }
           case XR_SESSION_STATE_STOPPING:
             vtkDebugMacro(<< "OpenXR event [XR_SESSION_STATE_STOPPING]");
-            VTK_FALLTHROUGH;
+            [[fallthrough]];
           case XR_SESSION_STATE_LOSS_PENDING:
             // Session was lost, so start over and poll for new systemId.
             vtkDebugMacro(<< "OpenXR event [XR_SESSION_STATE_LOSS_PENDING]");
-            VTK_FALLTHROUGH;
+            [[fallthrough]];
           case XR_SESSION_STATE_EXITING:
           {
             // Do not attempt to restart, because user closed this session.
@@ -162,7 +163,7 @@ void vtkOpenXRRenderWindowInteractor::ProcessXrEvents()
           if (!xrManager.XrCheckOutput(vtkOpenXRManager::WarningOutput,
                 xrGetCurrentInteractionProfile(
                   xrManager.GetSession(), xrManager.GetSubactionPaths()[hand], &state),
-                "Failed to get interaction profile for hand " + hand))
+                "Failed to get interaction profile for hand " + vtk::to_string(hand)))
           {
             continue;
           }
@@ -180,7 +181,7 @@ void vtkOpenXRRenderWindowInteractor::ProcessXrEvents()
           if (!xrManager.XrCheckOutput(vtkOpenXRManager::WarningOutput,
                 xrPathToString(xrManager.GetXrRuntimeInstance(), interactionProfile,
                   XR_MAX_PATH_LENGTH, &strLength, profileString),
-                "Failed to get interaction profile path string for hand " + hand))
+                "Failed to get interaction profile path string for hand " + vtk::to_string(hand)))
           {
             continue;
           }
@@ -625,7 +626,7 @@ bool vtkOpenXRRenderWindowInteractor::LoadActions(const std::string& actionFilen
   for (Json::Value::ArrayIndex i = 0; i < actions.size(); ++i)
   {
     // Create one action per json value
-    Json::Value action = actions[i];
+    const Json::Value& action = actions[i];
 
     std::string name = action["name"].asString();
     std::string localizedName = localization[name].asString();
@@ -691,7 +692,7 @@ bool vtkOpenXRRenderWindowInteractor::LoadActions(const std::string& actionFilen
 
   for (Json::Value::ArrayIndex i = 0; i < defaultBindings.size(); ++i)
   {
-    Json::Value binding = defaultBindings[i];
+    const Json::Value& binding = defaultBindings[i];
     std::string bindingUrl = binding["binding_url"].asString();
     std::string bindingFilename = vtksys::SystemTools::CollapseFullPath(path + "/" + bindingUrl);
     if (!this->LoadDefaultBinding(bindingFilename))
@@ -761,7 +762,7 @@ bool vtkOpenXRRenderWindowInteractor::LoadDefaultBinding(const std::string& bind
 
   Json::Value bindings = root["bindings"];
 
-  Json::Value actionSet = bindings[this->ActionSetName];
+  const Json::Value& actionSet = bindings[this->ActionSetName];
   if (actionSet.isNull())
   {
     vtkErrorMacro(<< "Selected action set : " << this->ActionSetName
@@ -824,10 +825,10 @@ bool vtkOpenXRRenderWindowInteractor::LoadDefaultBinding(const std::string& bind
   };
 
   // First, look after all sources inputs, ie. boolean/float/vector2f actions
-  Json::Value sources = actionSet["sources"];
+  const Json::Value& sources = actionSet["sources"];
   for (Json::Value::ArrayIndex i = 0; i < sources.size(); ++i)
   {
-    Json::Value source = sources[i];
+    const Json::Value& source = sources[i];
 
     // The path for this action
     std::string path = source["path"].asString();
@@ -836,10 +837,10 @@ bool vtkOpenXRRenderWindowInteractor::LoadDefaultBinding(const std::string& bind
     // For example, if the input is "click", then append click to the path
     // if the input is "position", add nothing as openxr binds the position as a vector2f
     // (for example if we want to retrieve the position of the trackpad as a vector2f directly)
-    Json::Value inputs = source["inputs"];
+    const Json::Value& inputs = source["inputs"];
     for (auto const& inputStr : inputs.getMemberNames())
     {
-      Json::Value action = inputs[inputStr];
+      const Json::Value& action = inputs[inputStr];
       if (inputStr == "position")
       {
         fillActionSuggestedBindings(path, action);
@@ -852,10 +853,10 @@ bool vtkOpenXRRenderWindowInteractor::LoadDefaultBinding(const std::string& bind
   }
 
   // Look under haptics for any outputs
-  Json::Value haptics = actionSet["haptics"];
+  const Json::Value& haptics = actionSet["haptics"];
   for (Json::Value::ArrayIndex i = 0; i < haptics.size(); i++)
   {
-    Json::Value haptic = haptics[i];
+    const Json::Value& haptic = haptics[i];
 
     // The path for this action
     std::string path = haptic["path"].asString();

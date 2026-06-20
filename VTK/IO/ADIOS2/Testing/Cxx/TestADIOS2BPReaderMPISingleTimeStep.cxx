@@ -32,6 +32,8 @@
 
 #include <sstream> // istringstream
 
+#include <iostream>
+
 struct TestArgs
 {
   int* retval;
@@ -65,9 +67,12 @@ void TestADIOS2BPReaderMPISingleTimeStep(vtkMultiProcessController* controller, 
 
   reader->UpdateInformation();
   auto& availVars = reader->GetAvilableVariables();
-  assert(availVars.size() == 2);
+  if (availVars.size() != 2)
+  {
+    std::cerr << "Expected 2 available variables, but found " << availVars.size() << std::endl;
+    return;
+  }
   // Get the dimension
-  std::string varName = availVars.begin()->first;
 
   reader->SetOrigin(0.0, 0.0, 0.0);
   reader->SetSpacing(1.0, 1.0, 1.0);

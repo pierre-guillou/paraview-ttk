@@ -1,9 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
-// VTK_DEPRECATED_IN_9_4_0()
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkGLTFReader.h"
 
 #include "vtkCommand.h"
@@ -23,10 +20,12 @@
 #include "vtkResourceStream.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
 #include "vtkTexture.h"
 #include "vtkTransform.h"
 #include "vtkTransformPolyDataFilter.h"
 #include "vtkWeightedTransformFilter.h"
+
 #include "vtksys/SystemTools.hxx"
 
 #include <array>
@@ -35,16 +34,6 @@
 VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
-//------------------------------------------------------------------------------
-// Replacement for std::to_string as it is not supported by certain compilers
-template <typename T>
-std::string value_to_string(const T& val)
-{
-  std::ostringstream ss;
-  ss << val;
-  return ss.str();
-}
-
 //------------------------------------------------------------------------------
 std::string MakeUniqueNonEmptyName(
   const std::string& name, std::map<std::string, unsigned int>& duplicateCounters)
@@ -57,7 +46,7 @@ std::string MakeUniqueNonEmptyName(
   if (duplicateCounters.count(newName) > 0)
   {
     duplicateCounters[newName]++;
-    newName += '_' + value_to_string(duplicateCounters[newName] - 1);
+    newName += '_' + vtk::to_string(duplicateCounters[newName] - 1);
     duplicateCounters[newName] = 1;
   }
   else
@@ -276,7 +265,7 @@ void AddJointMatricesToFieldData(const std::vector<vtkSmartPointer<vtkMatrix4x4>
 {
   for (unsigned int matId = 0; matId < jointMats.size(); matId++)
   {
-    AddTransformToFieldData(jointMats[matId], fieldData, "jointMatrix_" + value_to_string(matId));
+    AddTransformToFieldData(jointMats[matId], fieldData, "jointMatrix_" + vtk::to_string(matId));
   }
 }
 
@@ -538,7 +527,7 @@ bool BuildMultiBlockDataSetFromNode(vtkGLTFDocumentLoader::Model& m, unsigned in
     {
       meshDataSet = vtkMultiBlockDataSet::SafeDownCast(nodeDataset->GetBlock(blockId));
     }
-    std::string meshDatasetName = "Mesh_" + value_to_string(node.Mesh);
+    std::string meshDatasetName = "Mesh_" + vtk::to_string(node.Mesh);
     if (!BuildMultiBlockDatasetFromMesh(m, node.Mesh, nodeDataset, meshDataSet, meshDatasetName,
           node.GlobalTransform, jointMats, applyDeformations, morphingWeights,
           outputPointsPrecision))
@@ -553,7 +542,7 @@ bool BuildMultiBlockDataSetFromNode(vtkGLTFDocumentLoader::Model& m, unsigned in
   {
     // look for existing dataset for this node
     vtkSmartPointer<vtkMultiBlockDataSet> childDataset;
-    std::string childDatasetName = "Node_" + value_to_string(child);
+    std::string childDatasetName = "Node_" + vtk::to_string(child);
     if (!createNewBlocks)
     {
       // find existing child dataset for this node
@@ -588,7 +577,7 @@ bool BuildMultiBlockDataSetFromScene(vtkGLTFDocumentLoader::Model& m, vtkIdType 
   int blockId = 0;
   for (int node : scene.Nodes)
   {
-    std::string nodeDatasetName = "Node_" + value_to_string(node);
+    std::string nodeDatasetName = "Node_" + vtk::to_string(node);
     vtkSmartPointer<vtkMultiBlockDataSet> nodeDataset = nullptr;
     if (!createNewBlocks)
     {
@@ -789,10 +778,7 @@ int vtkGLTFReader::RequestInformation(
       if (this->AnimationSelection->ArrayIsEnabled(this->AnimationSelection->GetArrayName(i)))
       {
         float duration = model->Animations[i].Duration;
-        if (maxDuration < duration)
-        {
-          maxDuration = duration;
-        }
+        maxDuration = std::max<double>(maxDuration, duration);
       }
     }
   }
@@ -1051,21 +1037,6 @@ vtkSmartPointer<vtkGLTFTexture> vtkGLTFReader::GetTexture(vtkIdType textureIndex
     return t;
   }
   return this->Textures[textureIndex];
-}
-
-//------------------------------------------------------------------------------
-vtkGLTFReader::GLTFTexture vtkGLTFReader::GetGLTFTexture(vtkIdType textureIndex)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkGLTFReader::GetGLTFTexture, "VTK 9.4", vtkGLTFReader::GetTexture);
-  if (textureIndex < 0 || textureIndex >= static_cast<vtkIdType>(this->Textures.size()))
-  {
-    vtkErrorMacro("Out of range texture index");
-    return vtkGLTFReader::GLTFTexture{ nullptr, 0, 0, 0, 0 };
-  }
-  auto t = this->Textures[textureIndex];
-  GLTFTexture gltfTexture{ t->Image, t->Sampler.MinFilter, t->Sampler.MagFilter, t->Sampler.WrapS,
-    t->Sampler.WrapT };
-  return gltfTexture;
 }
 
 //------------------------------------------------------------------------------

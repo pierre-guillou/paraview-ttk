@@ -9,6 +9,7 @@
 #include "pqFileDialog.h"
 #include "pqServer.h"
 #include "pqSettings.h"
+#include "pqWidgetUtilities.h"
 #include "vtkLogger.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
@@ -182,6 +183,7 @@ public:
     : Parent(self)
   {
     this->Ui.setupUi(self);
+    pqWidgetUtilities::formatChildTooltips(self);
     this->Ui.filterButton->hide(); // for now. not sure how useful the filter is.
     this->Model = new QStandardItemModel(self);
     this->Model->setColumnCount(2);
@@ -217,6 +219,8 @@ public:
                                QXcbWindow::setNetWmStateOnUnmappedWindow() called on mapped window"
                                */
                             << "QXcbWindow::setNetWmStateOnUnmappedWindow"
+                            // Suppress DISPLAY not found error for XOpenGLRenderWindow
+                            << "bad X server connection. DISPLAY="
                             /* suppress "warning: In unknown, line 0" and
                                "warning: Populating font family aliases took"
                              */
@@ -462,6 +466,7 @@ void pqOutputWidget::clear()
 {
   pqInternals& internals = (*this->Internals);
   internals.clear();
+  Q_EMIT this->cleared();
 }
 
 //-----------------------------------------------------------------------------

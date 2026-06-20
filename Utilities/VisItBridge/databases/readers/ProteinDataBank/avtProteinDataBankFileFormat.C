@@ -12,7 +12,6 @@
 
 #include <vtkFloatArray.h>
 #include <vtkRectilinearGrid.h>
-#include <vtkUnsignedCharArray.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkPolyData.h>
 #include <vtkCellArray.h>
@@ -59,7 +58,7 @@ TrimTrailingSpaces(char *s)
 // ****************************************************************************
 
 avtProteinDataBankFileFormat::avtProteinDataBankFileFormat(const char *fn,
-                                                DBOptionsAttributes *readOpts)
+                                                const DBOptionsAttributes *readOpts)
     : avtSTSDFileFormat(fn)
 {
     filename = fn;

@@ -13,11 +13,8 @@
 #include "vtkSmartPointer.h"
 #include "vtkWendlandQuinticKernel.h"
 
-#include "vtkMath.h"
-#include "vtkMathUtilities.h"
-
 #include <cmath>
-#include <sstream>
+#include <iostream>
 #include <string>
 
 //------------------------------------------------------------------------------
@@ -40,7 +37,7 @@ int TestSPHKernel(vtkSmartPointer<T> kernel, const std::string& description)
   kernel->Initialize(nullptr, nullptr, nullptr);
   normFactor = kernel->GetNormFactor();
   cutoff = kernel->GetCutoffFactor();
-  inc = 2.0 * cutoff / static_cast<double>(res);
+  inc = 2.0 * cutoff / res;
   area = inc * inc;
 
   integral = 0.0;
@@ -66,7 +63,7 @@ int TestSPHKernel(vtkSmartPointer<T> kernel, const std::string& description)
   kernel->Initialize(nullptr, nullptr, nullptr);
   normFactor = kernel->GetNormFactor();
   cutoff = kernel->GetCutoffFactor();
-  inc = 2.0 * cutoff / static_cast<double>(res);
+  inc = 2.0 * cutoff / res;
   volume = inc * inc * inc;
 
   integral = 0.0;

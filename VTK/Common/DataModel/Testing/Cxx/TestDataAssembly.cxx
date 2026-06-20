@@ -1,18 +1,19 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "vtkDataAssembly.h"
 #include "vtkLogger.h"
+#include "vtkNew.h"
+#include "vtkStringFormatter.h"
 
 #include <algorithm>
 #include <iterator>
 #include <map>
+#include <sstream>
 #include <unordered_map>
 #include <vector>
 
-#include "vtkDataAssembly.h"
-#include "vtkNew.h"
-
-#include <sstream>
+#include <iostream>
 
 namespace
 {
@@ -28,7 +29,7 @@ void Assemble(vtkDataAssembly* assembly, const std::vector<int>& children, int& 
   std::copy(std::next(children.begin(), 1), children.end(), subset.begin());
   for (auto cc = 0; cc < children.front(); ++cc)
   {
-    auto name = ("Child[" + std::to_string(depth) + "]#" + std::to_string(cc));
+    auto name = ("Child[" + vtk::to_string(depth) + "]#" + vtk::to_string(cc));
     auto child =
       assembly->AddNode(vtkDataAssembly::MakeValidNodeName(name.c_str()).c_str(), parent);
     ++count;
@@ -78,7 +79,7 @@ int TestDataAssembly(int, char*[])
   assembly->AddDataSetIndices(elem_sets[1], { 6, 7, 8 });
   // add dataset on a non-leaf node.
   assembly->AddDataSetIndices(groups[1], { 11 });
-  assembly->Print(cout);
+  assembly->Print(std::cout);
 
   try
   {
@@ -108,14 +109,14 @@ int TestDataAssembly(int, char*[])
     VERIFY((assembly->SelectNodes({ "//sets" }) == std::vector<int>{ 2 }));
     VERIFY(assembly->SelectNodes({ "/sets" }).empty());
     VERIFY((assembly->SelectNodes({ "//sets/*" }) == std::vector<int>{ 6, 7, 8 }));
-    assembly->Print(cout);
+    assembly->Print(std::cout);
 
     vtkNew<vtkDataAssembly> subset;
     subset->SubsetCopy(assembly, { 6 });
-    subset->Print(cout);
+    subset->Print(std::cout);
 
     subset->RemapDataSetIndices({ { 11, 0 }, { 6, 1 } }, /*remove_unmapped=*/true);
-    subset->Print(cout);
+    subset->Print(std::cout);
     VERIFY((subset->GetDataSetIndices(0) == std::vector<unsigned int>{ 0, 1 }));
     VERIFY(subset->GetDataSetIndices(14).empty());
     VERIFY((subset->GetDataSetIndices(15) == std::vector<unsigned int>{ 1 }));

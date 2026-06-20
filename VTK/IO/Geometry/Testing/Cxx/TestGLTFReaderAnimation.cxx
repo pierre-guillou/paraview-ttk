@@ -1,21 +1,20 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
-// VTK_DEPRECATED_IN_9_4_0()
-#define VTK_DEPRECATION_LEVEL 0
-
 #include <vtkActor.h>
 #include <vtkCamera.h>
 #include <vtkCompositePolyDataMapper.h>
 #include <vtkGLTFReader.h>
 #include <vtkInformation.h>
-#include <vtkMultiBlockDataSet.h>
 #include <vtkRegressionTestImage.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
 #include <vtkStreamingDemandDrivenPipeline.h>
+#include <vtkStringScanner.h>
+
+#include <iostream>
 
 int TestGLTFReaderAnimation(int argc, char* argv[])
 {
@@ -25,7 +24,8 @@ int TestGLTFReaderAnimation(int argc, char* argv[])
     return EXIT_FAILURE;
   }
 
-  const int step = std::atoi(argv[1]);
+  int step;
+  VTK_FROM_CHARS_IF_ERROR_RETURN(argv[1], step, EXIT_FAILURE);
   vtkNew<vtkGLTFReader> reader;
   reader->SetFileName(argv[2]);
   reader->SetFrameRate(60);

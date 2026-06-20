@@ -35,6 +35,7 @@
 #include "vtkUnsignedCharArray.h"
 
 #include <algorithm>
+#include <iostream>
 #include <list>
 #include <utility>
 
@@ -453,7 +454,7 @@ public:
   {
     if (image->GetScalarType() != VTK_UNSIGNED_CHAR)
     {
-      cout << "Error = not an unsigned char..." << endl;
+      std::cout << "Error = not an unsigned char..." << std::endl;
       return 0;
     }
     int bytesPerPixel = image->GetNumberOfScalarComponents();
@@ -759,8 +760,7 @@ private:
     if (!cacheItem->Lines.empty())
     {
       this->Device->DrawLines(cacheItem->Lines.data(),
-        static_cast<int>(cacheItem->Lines.size() / 2),
-        static_cast<unsigned char*>(cacheItem->LineColors->GetVoidPointer(0)),
+        static_cast<int>(cacheItem->Lines.size() / 2), cacheItem->LineColors->GetPointer(0),
         cacheItem->LineColors->GetNumberOfComponents());
     }
   }
@@ -867,8 +867,7 @@ private:
 
     if (!cacheItem->PolyTri.empty())
     {
-      this->Device->CoreDrawTriangles(cacheItem->PolyTri,
-        static_cast<unsigned char*>(cacheItem->PolyColors->GetVoidPointer(0)), 4);
+      this->Device->CoreDrawTriangles(cacheItem->PolyTri, cacheItem->PolyColors->GetPointer(0), 4);
     }
   }
 

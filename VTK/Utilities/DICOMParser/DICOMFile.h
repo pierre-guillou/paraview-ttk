@@ -12,13 +12,13 @@
 #pragma warn - 8027 /* functions containing while are not expanded inline */
 #endif
 
-#include <iosfwd>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string>
-
 #include "DICOMConfig.h"
 #include "DICOMTypes.h"
+#include "vtkStringScanner.h"
+
+#include <cstdlib>
+#include <iosfwd>
+#include <string>
 
 //
 // Abstraction of a file used by the DICOMParser.
@@ -33,14 +33,23 @@ public:
   virtual ~DICOMFile();
 
   //
-  // Open a file with filename.  Returns a bool
+  // Close any opened file or stream and
+  // open a file with filename. Returns a bool
   // that is true if the file is successfully
   // opened.
   //
   bool Open(const std::string& filename);
 
   //
-  // Close a file.
+  // Close any opened file or stream and
+  // set provided strean. Returns a bool
+  // that is true if the stream is usable
+  //
+  //
+  bool SetStream(std::istream* stream);
+
+  //
+  // Close file and stream.
   //
   void Close();
 
@@ -143,12 +152,12 @@ public:
   //
   static int ReturnAsInteger(unsigned char* data, bool)
   {
-    return atoi(reinterpret_cast<const char*>(data));
+    return vtk::scan_int<int>(std::string_view(reinterpret_cast<const char*>(data)))->value();
   }
 
   static float ReturnAsFloat(unsigned char* data, bool)
   {
-    return static_cast<float>(atof(reinterpret_cast<const char*>(data)));
+    return vtk::scan_value<float>(std::string_view(reinterpret_cast<const char*>(data)))->value();
   }
 
   bool GetPlatformIsBigEndian() { return PlatformIsBigEndian; }

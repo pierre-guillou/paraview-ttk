@@ -11,9 +11,12 @@
 #include "vtkOpenXRSceneObserver.h"
 #include "vtkOpenXRUtilities.h"
 #include "vtkRendererCollection.h"
+#include "vtkStringFormatter.h"
 #include "vtkWindows.h" // Does nothing if we are not on windows
 
 #include <cstring>
+
+#include <iostream>
 
 #define VTK_CHECK_NULL_XRHANDLE(handle, msg)                                                       \
   if (handle == XR_NULL_HANDLE)                                                                    \
@@ -233,9 +236,9 @@ std::string vtkOpenXRManager::GetOpenXRPropertiesAsString()
   }
 
   std::string properties = std::string(instanceProperties.runtimeName) + " " +
-    std::to_string(XR_VERSION_MAJOR(instanceProperties.runtimeVersion)) + "." +
-    std::to_string(XR_VERSION_MINOR(instanceProperties.runtimeVersion)) + "." +
-    std::to_string(XR_VERSION_PATCH(instanceProperties.runtimeVersion));
+    vtk::to_string(XR_VERSION_MAJOR(instanceProperties.runtimeVersion)) + "." +
+    vtk::to_string(XR_VERSION_MINOR(instanceProperties.runtimeVersion)) + "." +
+    vtk::to_string(XR_VERSION_PATCH(instanceProperties.runtimeVersion));
 
   return properties;
 }
@@ -631,7 +634,7 @@ void vtkOpenXRManager::PrintSupportedViewConfigs()
     XrViewConfigurationProperties props = { XR_TYPE_VIEW_CONFIGURATION_PROPERTIES };
     this->XrCheckOutput(vtkOpenXRManager::WarningOutput,
       xrGetViewConfigurationProperties(this->Instance, this->SystemId, viewConfigs[i], &props),
-      "Failed to get view configuration info " + i);
+      "Failed to get view configuration info " + vtk::to_string(i));
 
     std::cout << "Type "
               << vtkOpenXRUtilities::GetViewConfigurationTypeAsString(props.viewConfigurationType)
@@ -697,9 +700,17 @@ std::vector<const char*> vtkOpenXRManager::SelectExtensions(vtkOpenXRRenderWindo
 {
   // Fetch the list of extensions supported by the runtime.
   uint32_t extensionCount;
-  this->XrCheckOutput(vtkOpenXRManager::ErrorOutput,
+  bool countResult = this->XrCheckOutput(vtkOpenXRManager::ErrorOutput,
     xrEnumerateInstanceExtensionProperties(nullptr, 0, &extensionCount, nullptr),
     "Failed to enumerate number of extension properties");
+
+  std::vector<const char*> enabledExtensions;
+
+  if (!countResult)
+  {
+    vtkWarningWithObjectMacro(nullptr, "Cannot select extensions, unable to get an accurate count");
+    return enabledExtensions;
+  }
 
   std::vector<XrExtensionProperties> extensionProperties(
     extensionCount, { XR_TYPE_EXTENSION_PROPERTIES });
@@ -708,7 +719,6 @@ std::vector<const char*> vtkOpenXRManager::SelectExtensions(vtkOpenXRRenderWindo
       nullptr, extensionCount, &extensionCount, extensionProperties.data()),
     "Failed to enumerate extension properties");
 
-  std::vector<const char*> enabledExtensions;
   // Add a specific extension to the list of extensions to be enabled, if it is supported.
   auto EnableExtensionIfSupported = [&](const char* extensionName)
   {

@@ -19,6 +19,7 @@
 #include "vtkUnstructuredGrid.h"
 
 #include <algorithm>
+#include <iostream>
 #include <list>
 #include <vector>
 
@@ -329,7 +330,7 @@ public:
           std::cout << "The numCells is:    " << info->numCells << std::endl;
           std::cout << std::endl;
           std::cout << "The Part is :" << std::endl;
-          info->part->PrintSelf(cout, vtkIndent().GetNextIndent());
+          info->part->PrintSelf(std::cout, vtkIndent().GetNextIndent());
           std::cout << std::endl;
           std::cout << std::endl;
         }
@@ -575,7 +576,7 @@ void vtkLSDynaPartCollection::SetCellDeadFlags(
   this->Storage->InitCellIteration(partType);
   vtkIdType numCells, startId;
   vtkLSDynaPart* part;
-  unsigned char* dead = static_cast<unsigned char*>(death->GetVoidPointer(0));
+  unsigned char* dead = death->GetPointer(0);
   while (this->Storage->GetNextCellPart(startId, numCells, part))
   {
     // perfectly valid to have a nullptr part being returned
@@ -893,7 +894,7 @@ void vtkLSDynaPartCollection::FillPointProperty(
   const vtkIdType numPointsToSkipEnd(numTuples - (realNumberOfTuples + minGlobalPoint));
 
   vtkIdType offset = numPointsToSkipStart;
-  const vtkIdType numPointsToRead(1048576);
+  constexpr vtkIdType numPointsToRead(1048576);
   const vtkIdType loopTimes(realNumberOfTuples / numPointsToRead);
   const vtkIdType leftOver(realNumberOfTuples % numPointsToRead);
   const vtkIdType bufferChunkSize(numPointsToRead * numComps);

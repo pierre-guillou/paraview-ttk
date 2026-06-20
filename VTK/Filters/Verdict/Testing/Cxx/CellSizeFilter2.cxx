@@ -4,7 +4,9 @@
 #include "vtkCellSizeFilter.h"
 #include "vtkCellType.h"
 #include "vtkCellTypeSource.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkDoubleArray.h"
+#include "vtkMathUtilities.h"
 #include "vtkNew.h"
 #include "vtkTestUtilities.h"
 #include "vtkUnstructuredGrid.h"
@@ -38,8 +40,20 @@ int CellSizeFilter2(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
       filter->SetInputConnection(cellTypeSource->GetOutputPort());
       filter->ComputeSumOn();
       filter->Update();
-      const int cellDim = vtkCellTypes::GetDimension(cellType);
-      std::string sizeType = (cellDim == 1) ? "Length" : ((cellDim == 2) ? "Area" : "Volume");
+      const int cellDim = vtkCellTypeUtilities::GetDimension(cellType);
+      std::string sizeType;
+      switch (cellDim)
+      {
+        case 1:
+          sizeType = "Length";
+          break;
+        case 2:
+          sizeType = "Area";
+          break;
+        default:
+          sizeType = "Volume";
+          break;
+      }
 
       const double size =
         vtkDoubleArray::SafeDownCast(vtkUnstructuredGrid::SafeDownCast(filter->GetOutput())
@@ -47,11 +61,25 @@ int CellSizeFilter2(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
                                        ->GetArray(sizeType.c_str()))
           ->GetValue(0);
 
-      if (fabs(size - 1.0) > .0001)
+      double correctSize;
+      switch (cellType)
+      {
+        case VTK_QUADRATIC_HEXAHEDRON:
+          correctSize = 1. / 12.;
+          break;
+        case VTK_TRIQUADRATIC_HEXAHEDRON:
+          correctSize = 1. / 48.;
+          break;
+        default:
+          correctSize = 1.;
+          break;
+      }
+      if (!vtkMathUtilities::NearlyEqual(std::abs(size), correctSize, 1e-15))
       {
         vtkGenericWarningMacro("Wrong " << sizeType << " dimension for the cell source type "
-                                        << vtkCellTypes::GetClassNameFromTypeId(cellType)
-                                        << " supposed to be 1.0 whereas it is " << size);
+                                        << vtkCellTypeUtilities::GetClassNameFromTypeId(cellType)
+                                        << " supposed to be " << correctSize << " whereas it is "
+                                        << size);
         return EXIT_FAILURE;
       }
     }

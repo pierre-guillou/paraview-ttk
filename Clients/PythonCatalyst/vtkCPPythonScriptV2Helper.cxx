@@ -22,6 +22,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkSmartPyObject.h"
 #include "vtkStringList.h"
+#include "vtkStringScanner.h"
 
 #include <cassert>
 #include <map>
@@ -382,12 +383,6 @@ bool vtkCPPythonScriptV2Helper::CatalystExecute(
     return false;
   }
 
-  if (!this->IsActivated(timestep, time))
-  {
-    // skip calling RequestDataDescription.
-    return true;
-  }
-
   auto& internals = (*this->Internals);
 
   // populate execute parameters.
@@ -395,6 +390,12 @@ bool vtkCPPythonScriptV2Helper::CatalystExecute(
   for (auto& param : params)
   {
     internals.ParametersList->AddString(param.c_str());
+  }
+
+  if (!this->IsActivated(timestep, time))
+  {
+    // skip calling RequestDataDescription.
+    return true;
   }
 
   // Update ViewTime on each of the views.
@@ -574,7 +575,7 @@ void vtkCPPythonScriptV2Helper::RegisterView(vtkSMProxy* view)
   auto& internals = (*this->Internals);
   vtkVLogF(PARAVIEW_LOG_CATALYST_VERBOSITY(), "Registering view (%s) for pipeline (%s)",
     vtkLogIdentifier(view), vtkLogIdentifier(this));
-  internals.Views.push_back(view);
+  internals.Views.emplace_back(view);
 }
 
 //----------------------------------------------------------------------------
@@ -724,7 +725,7 @@ void vtkCPPythonScriptV2Helper::DoLive(int timestep, double time)
     else
     {
       hostname = url.substr(0, split_idx);
-      port = std::atoi(url.substr(split_idx + 1).c_str());
+      VTK_FROM_CHARS_IF_ERROR_RETURN(url.substr(split_idx + 1), port, );
     }
     internals.LiveLink->SetHostname(hostname.empty() ? "localhost" : hostname.c_str());
     internals.LiveLink->SetInsituPort(port <= 0 ? 22222 : port);

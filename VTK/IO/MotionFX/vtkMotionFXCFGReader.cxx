@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMotionFXCFGReader.h"
+// Set to 1 to generate debugging trace if grammar match fails.
+#include "vtkMotionFXCFGGrammar.h" // grammar
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkAssume.h"
 #include "vtkDataArrayRange.h"
 #include "vtkDoubleArray.h"
-#include "vtkFloatArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMath.h"
@@ -17,14 +19,12 @@
 #include "vtkSTLReader.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringScanner.h"
 #include "vtkTransform.h"
 #include "vtkVector.h"
 
 #include <vtksys/RegularExpression.hxx>
 #include <vtksys/SystemTools.hxx>
-
-// Set to 1 to generate debugging trace if grammar match fails.
-#include "vtkMotionFXCFGGrammar.h" // grammar
 
 #include <cassert>
 #include <cctype>
@@ -195,7 +195,7 @@ protected:
       vtkSMPTools::For(0, darray->GetNumberOfTuples(),
         [&](vtkIdType begin, vtkIdType end)
         {
-          auto drange = vtk::DataArrayTupleRange(darray, begin, end);
+          auto drange = vtk::DataArrayTupleRange<3>(darray, begin, end);
           for (auto tuple : drange)
           {
             vtkVector4<ValueType> in, out;
@@ -259,8 +259,11 @@ struct ImposeVelMotion : public Motion
       ApplyDisplacement worker(s);
 
       // displace points.
-      using PointTypes = vtkTypeList::Create<float, double>;
-      vtkArrayDispatch::DispatchByValueType<PointTypes>::Execute(pts->GetData(), worker);
+      if (!vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>::Execute(
+            pts->GetData(), worker))
+      {
+        worker(pts->GetData());
+      }
       pts->GetData()->Modified();
     }
 
@@ -366,8 +369,11 @@ struct RotateAxisMotion : public Motion
 
       ApplyTransform worker(transform);
       // transform points.
-      using PointTypes = vtkTypeList::Create<float, double>;
-      vtkArrayDispatch::DispatchByValueType<PointTypes>::Execute(pts->GetData(), worker);
+      if (!vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>::Execute(
+            pts->GetData(), worker))
+      {
+        worker(pts->GetData());
+      }
       pts->GetData()->Modified();
     }
     return true;
@@ -430,8 +436,11 @@ struct RotateMotion : public Motion
 
       ApplyTransform worker(transform);
       // transform points.
-      using PointTypes = vtkTypeList::Create<float, double>;
-      vtkArrayDispatch::DispatchByValueType<PointTypes>::Execute(pts->GetData(), worker);
+      if (!vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>::Execute(
+            pts->GetData(), worker))
+      {
+        worker(pts->GetData());
+      }
       pts->GetData()->Modified();
     }
     return true;
@@ -553,8 +562,11 @@ struct PlanetaryMotion : public Motion
 
       ApplyTransform worker(transform);
       // transform points.
-      using PointTypes = vtkTypeList::Create<float, double>;
-      vtkArrayDispatch::DispatchByValueType<PointTypes>::Execute(pts->GetData(), worker);
+      if (!vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>::Execute(
+            pts->GetData(), worker))
+      {
+        worker(pts->GetData());
+      }
       pts->GetData()->Modified();
     }
     return true;
@@ -717,8 +729,11 @@ struct PositionFileMotion : public Motion
 
     ApplyTransform worker(transform);
     // transform points.
-    using PointTypes = vtkTypeList::Create<float, double>;
-    vtkArrayDispatch::DispatchByValueType<PointTypes>::Execute(pts->GetData(), worker);
+    if (!vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>::Execute(
+          pts->GetData(), worker))
+    {
+      worker(pts->GetData());
+    }
     pts->GetData()->Modified();
     return true;
   }
@@ -868,8 +883,11 @@ struct UniversalTransformMotion : public Motion
 
     ApplyTransform worker(transform);
     // transform points.
-    using PointTypes = vtkTypeList::Create<float, double>;
-    vtkArrayDispatch::DispatchByValueType<PointTypes>::Execute(pts->GetData(), worker);
+    if (!vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>::Execute(
+          pts->GetData(), worker))
+    {
+      worker(pts->GetData());
+    }
     pts->GetData()->Modified();
     return true;
   }
@@ -953,7 +971,7 @@ struct action<MotionFX::Common::Number>
   template <typename Input, typename OtherState>
   static void apply(const Input& in, std::vector<double>& active_numbers, OtherState&)
   {
-    active_numbers.push_back(std::atof(in.string().c_str()));
+    active_numbers.push_back(vtk::scan_value<double>(in.string())->value());
   }
 };
 
@@ -1015,7 +1033,7 @@ struct action<MotionFX::Common::Number>
   template <typename Input, typename OtherState>
   static void apply(const Input& in, std::vector<double>& active_numbers, OtherState&)
   {
-    active_numbers.push_back(std::atof(in.string().c_str()));
+    active_numbers.push_back(vtk::scan_value<double>(in.string())->value());
   }
 };
 
@@ -1108,7 +1126,8 @@ struct action<MotionFX::CFG::Value>
       {
         if (numberRe.find(val))
         {
-          state.ActiveValue.DoubleValue.push_back(std::atof(numberRe.match(0).c_str()));
+          state.ActiveValue.DoubleValue.push_back(
+            vtk::scan_value<double>(numberRe.match(0))->value());
         }
         else
         {
@@ -1119,7 +1138,7 @@ struct action<MotionFX::CFG::Value>
     }
     else if (numberRe.find(content))
     {
-      state.ActiveValue.DoubleValue.push_back(std::atof(numberRe.match(0).c_str()));
+      state.ActiveValue.DoubleValue.push_back(vtk::scan_value<double>(numberRe.match(0))->value());
     }
     else
     {

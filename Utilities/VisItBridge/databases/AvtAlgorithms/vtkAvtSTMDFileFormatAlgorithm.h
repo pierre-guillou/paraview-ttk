@@ -43,7 +43,6 @@ class vtkCallbackCommand;
 class vtkDataArray;
 class vtkDataArraySelection;
 class vtkDataSet;
-class vtkHierarchicalBoxDataSet;
 class vtkOverlappingAMR;
 class vtkMultiBlockDataSet;
 

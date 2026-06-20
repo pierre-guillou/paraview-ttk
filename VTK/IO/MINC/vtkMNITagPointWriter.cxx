@@ -17,6 +17,8 @@
 #include "vtkPointSet.h"
 #include "vtkPoints.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
+
 #include "vtksys/FStream.hxx"
 
 #include <cctype>
@@ -120,10 +122,7 @@ vtkMTimeType vtkMNITagPointWriter::GetMTime()
     if (objects[i])
     {
       vtkMTimeType m = objects[i]->GetMTime();
-      if (m > mtime)
-      {
-        mtime = m;
-      }
+      mtime = std::max(m, mtime);
     }
   }
 
@@ -329,7 +328,9 @@ void vtkMNITagPointWriter::WriteData(vtkPointSet* inputs[2])
       {
         double point[3];
         points[kk]->GetPoint(i, point);
-        snprintf(text, sizeof(text), " %.15g %.15g %.15g", point[0], point[1], point[2]);
+        auto result = vtk::format_to_n(
+          text, sizeof(text), " {:.15g} {:.15g} {:.15g}", point[0], point[1], point[2]);
+        *result.out = '\0';
         outfile << text;
       }
     }
@@ -352,7 +353,8 @@ void vtkMNITagPointWriter::WriteData(vtkPointSet* inputs[2])
         p = static_cast<int>(dataArrays[2]->GetComponent(i, 0));
       }
 
-      snprintf(text, sizeof(text), " %.15g %d %d", w, s, p);
+      auto result = vtk::format_to_n(text, sizeof(text), " {:.15g} {:d} {:d}", w, s, p);
+      *result.out = '\0';
       outfile << text;
     }
 
@@ -386,7 +388,9 @@ void vtkMNITagPointWriter::WriteData(vtkPointSet* inputs[2])
           }
           else
           {
-            snprintf(text, sizeof(text), "x%2.2x", (static_cast<unsigned int>(*si) & 0x00ff));
+            auto result = vtk::format_to_n(
+              text, sizeof(text), "x{:02x}", (static_cast<unsigned int>(*si) & 0x00ff));
+            *result.out = '\0';
             outfile << text;
           }
         }
@@ -447,10 +451,7 @@ int vtkMNITagPointWriter::RequestData(
       if (input[idx])
       {
         vtkMTimeType updateTime = input[idx]->GetUpdateTime();
-        if (updateTime > lastUpdateTime)
-        {
-          lastUpdateTime = updateTime;
-        }
+        lastUpdateTime = std::max(updateTime, lastUpdateTime);
       }
     }
   }

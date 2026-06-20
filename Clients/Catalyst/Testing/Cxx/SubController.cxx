@@ -8,6 +8,7 @@
 #include <vtkSmartPointer.h>
 
 #include <cassert>
+#include <iostream>
 #include <numeric>
 #include <vector>
 
@@ -29,7 +30,7 @@ extern int SubController(int argc, char* argv[])
 
   if (numprocs < 2)
   {
-    cout << "ERROR: Too few ranks. Needs at least 2!" << std::endl;
+    std::cout << "ERROR: Too few ranks. Needs at least 2!" << std::endl;
     MPI_Finalize();
     return EXIT_FAILURE;
   }
@@ -43,7 +44,7 @@ extern int SubController(int argc, char* argv[])
   assert(subranks.size() >= 1);
 
   MPI_Group subgroup;
-  MPI_Group_incl(orig_group, static_cast<int>(subranks.size()), &(subranks[0]), &subgroup);
+  MPI_Group_incl(orig_group, static_cast<int>(subranks.size()), subranks.data(), &subgroup);
   MPI_Comm subcommunicator;
   MPI_Comm_create(MPI_COMM_WORLD, subgroup, &subcommunicator);
 

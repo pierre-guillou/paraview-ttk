@@ -128,10 +128,6 @@ void vtkOrientationMarkerWidget::BindOrientationMarker()
     this->Renderer->AddActor(this->OrientationMarker);
     this->OrientationMarkerBound = true;
   }
-  if (this->CurrentRenderer)
-  {
-    this->CurrentRenderer->AddViewProp(this->OutlineActor);
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -142,10 +138,6 @@ void vtkOrientationMarkerWidget::UnBindOrientationMarker()
   {
     this->OrientationMarker->VisibilityOff();
     this->Renderer->RemoveActor(this->OrientationMarker);
-  }
-  if (this->CurrentRenderer)
-  {
-    this->CurrentRenderer->RemoveViewProp(this->OutlineActor);
   }
 }
 
@@ -158,6 +150,7 @@ void vtkOrientationMarkerWidget::BindRenderer()
   }
   if (this->CurrentRenderer && this->Renderer)
   {
+    this->CurrentRenderer->AddViewProp(this->OutlineActor);
     if (auto renWin = this->CurrentRenderer->GetRenderWindow())
     {
       renWin->AddRenderer(this->Renderer);
@@ -176,6 +169,7 @@ void vtkOrientationMarkerWidget::UnBindRenderer()
   this->RendererBound = false;
   if (this->CurrentRenderer && this->Renderer)
   {
+    this->CurrentRenderer->RemoveViewProp(this->OutlineActor);
     if (auto renWin = this->CurrentRenderer->GetRenderWindow())
     {
       renWin->RemoveRenderer(this->Renderer);
@@ -800,33 +794,21 @@ void vtkOrientationMarkerWidget::ResizeTopLeft(int X, int Y)
 
   double newPos[4] = { vp[0] + dx, vp[1], vp[2], vp[3] + dy };
 
-  if (newPos[0] < currentViewport[0])
-  {
-    newPos[0] = currentViewport[0];
-  }
+  newPos[0] = std::max(newPos[0], currentViewport[0]);
   // Constrain the widget width to the minimum size.
-  if (newPos[0] > newPos[2] - actualMinDimensionSize)
-  {
-    newPos[0] = newPos[2] - actualMinDimensionSize;
-  }
+  newPos[0] = std::min(newPos[0], newPos[2] - actualMinDimensionSize);
   // Constrain the widget width to the maximum size if required.
-  else if (this->ShouldConstrainSize && newPos[0] < newPos[2] - this->MaxDimensionSize)
+  if (this->ShouldConstrainSize)
   {
-    newPos[0] = newPos[2] - this->MaxDimensionSize;
+    newPos[0] = std::max(newPos[0], newPos[2] - this->MaxDimensionSize);
   }
-  if (newPos[3] > currentViewport[3])
-  {
-    newPos[3] = currentViewport[3];
-  }
+  newPos[3] = std::min(newPos[3], currentViewport[3]);
   // Constrain the widget height to the minimum size.
-  if (newPos[3] < newPos[1] + actualMinDimensionSize)
-  {
-    newPos[3] = newPos[1] + actualMinDimensionSize;
-  }
+  newPos[3] = std::max(newPos[3], newPos[1] + actualMinDimensionSize);
   // Constrain the widget height to the maximum size if required.
-  else if (this->ShouldConstrainSize && newPos[3] > newPos[1] + this->MaxDimensionSize)
+  if (this->ShouldConstrainSize)
   {
-    newPos[3] = newPos[1] + this->MaxDimensionSize;
+    newPos[3] = std::min(newPos[3], newPos[1] + this->MaxDimensionSize);
   }
 
   this->StartPosition[0] = static_cast<int>(newPos[0]);
@@ -877,33 +859,21 @@ void vtkOrientationMarkerWidget::ResizeTopRight(int X, int Y)
 
   double newPos[4] = { vp[0], vp[1], vp[2] + dx, vp[3] + dy };
 
-  if (newPos[2] > currentViewport[2])
-  {
-    newPos[2] = currentViewport[2];
-  }
+  newPos[2] = std::min(newPos[2], currentViewport[2]);
   // Constrain the widget width to the minimum size.
-  if (newPos[2] < newPos[0] + actualMinDimensionSize)
-  {
-    newPos[2] = newPos[0] + actualMinDimensionSize;
-  }
+  newPos[2] = std::max(newPos[2], newPos[0] + actualMinDimensionSize);
   // Constrain the widget width to the maximum size if required.
-  else if (this->ShouldConstrainSize && newPos[2] > newPos[0] + this->MaxDimensionSize)
+  if (this->ShouldConstrainSize)
   {
-    newPos[2] = newPos[0] + this->MaxDimensionSize;
+    newPos[2] = std::min(newPos[2], newPos[0] + this->MaxDimensionSize);
   }
-  if (newPos[3] > currentViewport[3])
-  {
-    newPos[3] = currentViewport[3];
-  }
+  newPos[3] = std::min(newPos[3], currentViewport[3]);
   // Constrain the widget height to the minimum size.
-  if (newPos[3] < newPos[1] + actualMinDimensionSize)
-  {
-    newPos[3] = newPos[1] + actualMinDimensionSize;
-  }
+  newPos[3] = std::max(newPos[3], newPos[1] + actualMinDimensionSize);
   // Constrain the widget height to the maximum size if required.
-  else if (this->ShouldConstrainSize && newPos[3] > newPos[1] + this->MaxDimensionSize)
+  if (this->ShouldConstrainSize)
   {
-    newPos[3] = newPos[1] + this->MaxDimensionSize;
+    newPos[3] = std::min(newPos[3], newPos[1] + this->MaxDimensionSize);
   }
 
   this->StartPosition[0] = static_cast<int>(newPos[2]);
@@ -954,33 +924,21 @@ void vtkOrientationMarkerWidget::ResizeBottomRight(int X, int Y)
 
   double newPos[4] = { vp[0], vp[1] + dy, vp[2] + dx, vp[3] };
 
-  if (newPos[2] > currentViewport[2])
-  {
-    newPos[2] = currentViewport[2];
-  }
+  newPos[2] = std::min(newPos[2], currentViewport[2]);
   // Constrain the widget width to the minimum size.
-  if (newPos[2] < newPos[0] + actualMinDimensionSize)
-  {
-    newPos[2] = newPos[0] + actualMinDimensionSize;
-  }
+  newPos[2] = std::max(newPos[2], newPos[0] + actualMinDimensionSize);
   // Constrain the widget width to the maximum size if required.
-  else if (this->ShouldConstrainSize && newPos[2] > newPos[0] + this->MaxDimensionSize)
+  if (this->ShouldConstrainSize)
   {
-    newPos[2] = newPos[0] + this->MaxDimensionSize;
+    newPos[2] = std::min(newPos[2], newPos[0] + this->MaxDimensionSize);
   }
-  if (newPos[1] < currentViewport[1])
-  {
-    newPos[1] = currentViewport[1];
-  }
+  newPos[1] = std::max(newPos[1], currentViewport[1]);
   // Constrain the widget height to the minimum size.
-  if (newPos[1] > newPos[3] - actualMinDimensionSize)
-  {
-    newPos[1] = newPos[3] - actualMinDimensionSize;
-  }
+  newPos[1] = std::min(newPos[1], newPos[3] - actualMinDimensionSize);
   // Constrain the widget height to the maximum size if required.
-  else if (this->ShouldConstrainSize && newPos[1] < newPos[3] - this->MaxDimensionSize)
+  if (this->ShouldConstrainSize)
   {
-    newPos[1] = newPos[3] - this->MaxDimensionSize;
+    newPos[1] = std::max(newPos[1], newPos[3] - this->MaxDimensionSize);
   }
 
   this->StartPosition[0] = static_cast<int>(newPos[2]);
@@ -1031,33 +989,21 @@ void vtkOrientationMarkerWidget::ResizeBottomLeft(int X, int Y)
 
   double newPos[4] = { vp[0] + dx, vp[1] + dy, vp[2], vp[3] };
 
-  if (newPos[0] < currentViewport[0])
-  {
-    newPos[0] = currentViewport[0];
-  }
+  newPos[0] = std::max(newPos[0], currentViewport[0]);
   // Constrain the widget width to the minimum size.
-  if (newPos[0] > newPos[2] - actualMinDimensionSize)
-  {
-    newPos[0] = newPos[2] - actualMinDimensionSize;
-  }
+  newPos[0] = std::min(newPos[0], newPos[2] - actualMinDimensionSize);
   // Constrain the widget width to the maximum size if required.
-  else if (this->ShouldConstrainSize && newPos[0] < newPos[2] - this->MaxDimensionSize)
+  if (this->ShouldConstrainSize)
   {
-    newPos[0] = newPos[2] - this->MaxDimensionSize;
+    newPos[0] = std::max(newPos[0], newPos[2] - this->MaxDimensionSize);
   }
-  if (newPos[1] < currentViewport[1])
-  {
-    newPos[1] = currentViewport[1];
-  }
+  newPos[1] = std::max(newPos[1], currentViewport[1]);
   // Constrain the widget height to the minimum size.
-  if (newPos[1] > newPos[3] - actualMinDimensionSize)
-  {
-    newPos[1] = newPos[3] - actualMinDimensionSize;
-  }
+  newPos[1] = std::min(newPos[1], newPos[3] - actualMinDimensionSize);
   // Constrain the widget height to the maximum size if required.
-  else if (this->ShouldConstrainSize && newPos[1] < newPos[3] - this->MaxDimensionSize)
+  if (this->ShouldConstrainSize)
   {
-    newPos[1] = newPos[3] - this->MaxDimensionSize;
+    newPos[1] = std::max(newPos[1], newPos[3] - this->MaxDimensionSize);
   }
 
   this->StartPosition[0] = static_cast<int>(newPos[0]);

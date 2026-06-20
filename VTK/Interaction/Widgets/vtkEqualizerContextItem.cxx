@@ -5,7 +5,6 @@
 #include "vtkBrush.h"
 #include "vtkCommand.h"
 #include "vtkContext2D.h"
-#include "vtkContextKeyEvent.h"
 #include "vtkContextMouseEvent.h"
 #include "vtkContextScene.h"
 #include "vtkContextTransform.h"
@@ -13,6 +12,7 @@
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkPen.h"
+#include "vtkStringScanner.h"
 #include "vtkVector.h"
 
 #include <limits>
@@ -136,8 +136,9 @@ public:
       std::vector<std::string> pointStr{ splitStringByDelimiter(point, ',') };
       if (pointStr.size() > 1)
       {
-        float x = std::stof(pointStr.at(0));
-        float y = std::stof(pointStr.at(1));
+        float x, y;
+        VTK_FROM_CHARS_IF_ERROR_BREAK(pointStr.at(0), x);
+        VTK_FROM_CHARS_IF_ERROR_BREAK(pointStr.at(1), y);
         this->Points.emplace_back(x, y);
       }
     }
@@ -377,10 +378,7 @@ bool vtkEqualizerContextItem::MouseMoveEvent(const vtkContextMouseEvent& mouse)
     auto posX = vtkMath::ClampValue<int>(posScene.GetX(), scope.first, scope.second);
 
     auto posY = posScene.GetY();
-    if (posY < 0)
-    {
-      posY = 0;
-    }
+    posY = std::max(posY, 0.f);
 
     point.freq = posX;
     point.coef = posY;

@@ -19,10 +19,12 @@ public:
   bool IsInCAVE;
   int NumberOfDisplays;
   double EyeSeparation;
+  bool UseOffAxisProjection;
   bool ShowBorders;
   bool FullScreen;
   std::vector<int> Geometries;
   std::vector<int> HasCorners;
+  std::vector<int> Show2DOverlays;
   std::vector<double> LowerLefts;
   std::vector<double> LowerRights;
   std::vector<double> UpperRights;
@@ -52,9 +54,11 @@ void vtkPVCAVEConfigInformation::CopyFromObject(vtkObject* vtkNotUsed(obj))
   this->Internal->IsInCAVE = config->GetIsInCave();
   this->Internal->NumberOfDisplays = numberOfDisplays;
   this->Internal->EyeSeparation = caveConfig->GetEyeSeparation();
+  this->Internal->UseOffAxisProjection = caveConfig->GetUseOffAxisProjection();
   this->Internal->ShowBorders = caveConfig->GetShowBorders();
   this->Internal->FullScreen = caveConfig->GetFullScreen();
 
+  this->Internal->Show2DOverlays.resize(0);
   this->Internal->Geometries.resize(0);
   this->Internal->HasCorners.resize(0);
   this->Internal->LowerLefts.resize(0);
@@ -63,6 +67,9 @@ void vtkPVCAVEConfigInformation::CopyFromObject(vtkObject* vtkNotUsed(obj))
 
   for (int i = 0; i < numberOfDisplays; ++i)
   {
+    bool show2DOverlays = caveConfig->GetShow2DOverlays(i);
+    this->Internal->Show2DOverlays.push_back(show2DOverlays ? 1 : 0);
+
     vtkTuple<int, 4> geom = caveConfig->GetGeometry(i);
     this->Internal->Geometries.push_back(geom[0]);
     this->Internal->Geometries.push_back(geom[1]);
@@ -104,9 +111,11 @@ void vtkPVCAVEConfigInformation::AddInformation(vtkPVInformation* pvinfo)
   this->Internal->IsInCAVE = info->GetIsInCAVE();
   this->Internal->NumberOfDisplays = numberOfDisplays;
   this->Internal->EyeSeparation = info->GetEyeSeparation();
+  this->Internal->UseOffAxisProjection = info->GetUseOffAxisProjection();
   this->Internal->ShowBorders = info->GetShowBorders();
   this->Internal->FullScreen = info->GetFullScreen();
 
+  this->Internal->Show2DOverlays.resize(0);
   this->Internal->Geometries.resize(0);
   this->Internal->HasCorners.resize(0);
   this->Internal->LowerLefts.resize(0);
@@ -115,6 +124,9 @@ void vtkPVCAVEConfigInformation::AddInformation(vtkPVInformation* pvinfo)
 
   for (int i = 0; i < numberOfDisplays; ++i)
   {
+    bool show2DOverlays = info->GetShow2DOverlays(i);
+    this->Internal->Show2DOverlays.push_back(show2DOverlays ? 1 : 0);
+
     vtkTuple<int, 4> geom = info->GetGeometry(i);
     this->Internal->Geometries.push_back(geom[0]);
     this->Internal->Geometries.push_back(geom[1]);
@@ -148,30 +160,35 @@ void vtkPVCAVEConfigInformation::CopyToStream(vtkClientServerStream* css)
 
   *css << vtkClientServerStream::Reply;
   *css << this->Internal->IsInCAVE << this->Internal->NumberOfDisplays
-       << this->Internal->EyeSeparation << this->Internal->ShowBorders
-       << this->Internal->FullScreen;
+       << this->Internal->EyeSeparation << this->Internal->UseOffAxisProjection
+       << this->Internal->ShowBorders << this->Internal->FullScreen;
 
-  for (int i = 0; i < this->Internal->Geometries.size(); ++i)
+  for (std::size_t i = 0; i < this->Internal->Show2DOverlays.size(); ++i)
+  {
+    *css << this->Internal->Show2DOverlays[i];
+  }
+
+  for (std::size_t i = 0; i < this->Internal->Geometries.size(); ++i)
   {
     *css << this->Internal->Geometries[i];
   }
 
-  for (int i = 0; i < this->Internal->HasCorners.size(); ++i)
+  for (std::size_t i = 0; i < this->Internal->HasCorners.size(); ++i)
   {
     *css << this->Internal->HasCorners[i];
   }
 
-  for (int i = 0; i < this->Internal->LowerLefts.size(); ++i)
+  for (std::size_t i = 0; i < this->Internal->LowerLefts.size(); ++i)
   {
     *css << this->Internal->LowerLefts[i];
   }
 
-  for (int i = 0; i < this->Internal->LowerRights.size(); ++i)
+  for (std::size_t i = 0; i < this->Internal->LowerRights.size(); ++i)
   {
     *css << this->Internal->LowerRights[i];
   }
 
-  for (int i = 0; i < this->Internal->UpperRights.size(); ++i)
+  for (std::size_t i = 0; i < this->Internal->UpperRights.size(); ++i)
   {
     *css << this->Internal->UpperRights[i];
   }
@@ -198,6 +215,11 @@ void vtkPVCAVEConfigInformation::CopyFromStream(const vtkClientServerStream* css
     vtkErrorMacro("Error parsing EyeSeparation from message.");
     return;
   }
+  if (!css->GetArgument(0, idx++, &this->Internal->UseOffAxisProjection))
+  {
+    vtkErrorMacro("Error parsing UseOffAxisProjection from message.");
+    return;
+  }
   if (!css->GetArgument(0, idx++, &this->Internal->ShowBorders))
   {
     vtkErrorMacro("Error parsing ShowBorders from message.");
@@ -211,6 +233,18 @@ void vtkPVCAVEConfigInformation::CopyFromStream(const vtkClientServerStream* css
 
   // Use the one we just read out of the stream, above
   int numberOfDisplays = this->Internal->NumberOfDisplays;
+
+  // Copy the Show2DOverlays values from the stream
+  this->Internal->Show2DOverlays.resize(numberOfDisplays);
+
+  for (int i = 0; i < numberOfDisplays; ++i)
+  {
+    if (!css->GetArgument(0, idx++, &(this->Internal->Show2DOverlays[i])))
+    {
+      vtkErrorMacro("Error parsing Show2DOverlays from message.");
+      return;
+    }
+  }
 
   // Copy the Geometries from the stream
   this->Internal->Geometries.resize(4 * numberOfDisplays);
@@ -302,6 +336,12 @@ double vtkPVCAVEConfigInformation::GetEyeSeparation()
 }
 
 //----------------------------------------------------------------------------
+bool vtkPVCAVEConfigInformation::GetUseOffAxisProjection()
+{
+  return this->Internal->UseOffAxisProjection;
+}
+
+//----------------------------------------------------------------------------
 bool vtkPVCAVEConfigInformation::GetShowBorders()
 {
   return this->Internal->ShowBorders;
@@ -317,6 +357,12 @@ bool vtkPVCAVEConfigInformation::GetFullScreen()
 int vtkPVCAVEConfigInformation::GetNumberOfDisplays()
 {
   return this->Internal->NumberOfDisplays;
+}
+
+//----------------------------------------------------------------------------
+bool vtkPVCAVEConfigInformation::GetShow2DOverlays(int index)
+{
+  return this->Internal->Show2DOverlays.at(index) == 1 ? true : false;
 }
 
 //----------------------------------------------------------------------------

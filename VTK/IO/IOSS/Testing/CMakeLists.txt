@@ -1,4 +1,5 @@
 set(datasets
+  Data/can.ex2
   Data/CGNS/fluid.cgns.4.0
   Data/CGNS/fluid.cgns.4.1
   Data/CGNS/fluid.cgns.4.2
@@ -11,10 +12,12 @@ set(datasets
   Data/Exodus/can.e.4/can.e.4.1
   Data/Exodus/can.e.4/can.e.4.2
   Data/Exodus/can.e.4/can.e.4.3
+  Data/Exodus/different_topologies.ex2
   Data/Exodus/exo_cell_vec2.e
   Data/Exodus/ExRestarts/blow.e
   Data/Exodus/ExRestarts/blow.e-s.001
   Data/Exodus/ExRestarts/blow.ex-timeseries
+  Data/Exodus/Flow1D.e
   Data/Exodus/ghost.ex2
   Data/Exodus/hello_world_fix-d_frf.frq
   Data/Exodus/RubiksCubeWithRotations_gold.g
@@ -58,6 +61,8 @@ endfunction()
 vtk_add_conduit_data(Iocatalyst_can_ex2 1 44)
 vtk_add_conduit_data(Iocatalyst_can_ex2 4 44)
 vtk_add_conduit_data(Iocatalyst_sparc1_cgns 1 3)
+vtk_add_conduit_data(Iocatalyst_one_cell_structured 4 1)
+vtk_add_conduit_data(Iocatalyst_one_cell_unstructured 4 1)
 
 if (VTK_USE_LARGE_DATA)
   list(APPEND datasets

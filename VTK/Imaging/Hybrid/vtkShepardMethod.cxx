@@ -249,10 +249,7 @@ double vtkShepardMethod::ComputeModelBounds(double origin[3], double spacing[3])
 
   for (maxDist = 0.0, i = 0; i < 3; i++)
   {
-    if ((bounds[2 * i + 1] - bounds[2 * i]) > maxDist)
-    {
-      maxDist = bounds[2 * i + 1] - bounds[2 * i];
-    }
+    maxDist = std::max(bounds[2 * i + 1] - bounds[2 * i], maxDist);
   }
   maxDist *= this->MaximumDistance;
 
@@ -350,7 +347,7 @@ int vtkShepardMethod::RequestData(vtkInformation* vtkNotUsed(request),
     vtkErrorMacro(<< "Scalars must be defined!");
     return 1;
   }
-  float* newS = static_cast<float*>(newScalars->GetVoidPointer(0));
+  float* newS = newScalars->GetPointer(0);
 
   newScalars->SetName(inScalars->GetName());
 

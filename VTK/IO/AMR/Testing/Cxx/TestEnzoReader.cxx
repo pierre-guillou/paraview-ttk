@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+#include <algorithm>
 #include <iostream>
 #include <string>
 
@@ -9,7 +10,7 @@
 #include "vtkSetGet.h"
 #include "vtkTestUtilities.h"
 #include "vtkUniformGrid.h"
-#include "vtkUniformGridAMRDataIterator.h"
+#include "vtkUniformGridAMRIterator.h"
 namespace EnzoReaderTest
 {
 
@@ -31,17 +32,12 @@ int CheckValue(const std::string& name, T actualValue, T expectedValue)
 
 static int ComputeMaxNonEmptyLevel(vtkOverlappingAMR* amr)
 {
-  vtkUniformGridAMRDataIterator* iter =
-    vtkUniformGridAMRDataIterator::SafeDownCast(amr->NewIterator());
+  vtkUniformGridAMRIterator* iter = vtkUniformGridAMRIterator::SafeDownCast(amr->NewIterator());
   iter->SetSkipEmptyNodes(true);
   int maxLevel(-1);
   for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
   {
-    int level = iter->GetCurrentLevel();
-    if (level > maxLevel)
-    {
-      maxLevel = level;
-    }
+    maxLevel = static_cast<unsigned int>(std::max<int>(iter->GetCurrentLevel(), maxLevel));
   }
   iter->Delete();
   return maxLevel + 1;
@@ -89,13 +85,17 @@ int TestEnzoReader(int argc, char* argv[])
     rc += EnzoReaderTest::CheckValue("BLOCKS", myEnzoReader->GetNumberOfBlocks(), 10);
 
     amr = myEnzoReader->GetOutput();
-    amr->Audit();
     if (amr != nullptr)
     {
-      rc += EnzoReaderTest::CheckValue(
-        "OUTPUT LEVELS", static_cast<int>(ComputeMaxNonEmptyLevel(amr)), level + 1);
+      if (!amr->CheckValidity())
+      {
+        std::cerr << "ERROR: output AMR dataset is not valid!";
+        return 1;
+      }
+
+      rc += EnzoReaderTest::CheckValue("OUTPUT LEVELS", ComputeMaxNonEmptyLevel(amr), level + 1);
       rc += EnzoReaderTest::CheckValue("NUMBER OF BLOCKS AT LEVEL",
-        static_cast<int>(amr->GetNumberOfDataSets(level)), NumBlocksPerLevel[level]);
+        static_cast<int>(amr->GetNumberOfBlocks(level)), NumBlocksPerLevel[level]);
       rc += EnzoReaderTest::CheckValue(
         "Number of Visible cells ", ComputeNumberOfVisibleCells(amr), numVisibleCells[level]);
     }

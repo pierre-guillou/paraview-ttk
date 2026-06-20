@@ -72,7 +72,7 @@ public:
 
 static int tet_edges[6][2] = { { 0, 1 }, { 1, 2 }, { 2, 0 }, { 0, 3 }, { 1, 3 }, { 2, 3 } };
 
-const int SqrtTableSize = 2048;
+constexpr int SqrtTableSize = 2048;
 
 //------------------------------------------------------------------------------
 class vtkOpenGLProjectedTetrahedraMapper::vtkInternals
@@ -353,10 +353,7 @@ void vtkOpenGLProjectedTetrahedraMapper::Render(vtkRenderer* renderer, vtkVolume
         input->GetPoint(pts[tet_edges[j][0]], p1);
         input->GetPoint(pts[tet_edges[j][1]], p2);
         float size2 = (float)vtkMath::Distance2BetweenPoints(p1, p2);
-        if (size2 > max_cell_size2)
-        {
-          max_cell_size2 = size2;
-        }
+        max_cell_size2 = std::max(size2, max_cell_size2);
       }
     }
 

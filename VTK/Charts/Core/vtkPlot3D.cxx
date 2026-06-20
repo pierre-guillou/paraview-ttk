@@ -145,7 +145,7 @@ void vtkPlot3D::SetColors(vtkDataArray* colorArr)
 {
   assert(colorArr);
   const vtkIdType numPoints = this->Points->GetNumberOfPoints();
-  assert((unsigned int)colorArr->GetNumberOfTuples() == numPoints);
+  assert(colorArr->GetNumberOfTuples() == numPoints);
 
   this->NumberOfComponents = 3;
 
@@ -157,14 +157,8 @@ void vtkPlot3D::SetColors(vtkDataArray* colorArr)
   for (vtkIdType i = 0; i < numPoints; ++i)
   {
     double value = colorArr->GetComponent(i, 0);
-    if (value > max)
-    {
-      max = value;
-    }
-    if (value < min)
-    {
-      min = value;
-    }
+    max = std::max(value, max);
+    min = std::min(value, min);
   }
 
   lookupTable->SetNumberOfTableValues(256);

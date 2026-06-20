@@ -3,7 +3,6 @@
 /**
  * @class vtkConduitArrayUtilitiesDevice
  * @brief helper to convert Conduit arrays stored on acceleration devices to Viskores arrays.
- * @ingroup Insitu
  *
  * vtkConduitArrayUtilitiesDevice is intended to convert Conduit nodes satisfying the
  * `mcarray` protocol, with memory allocated on acceleration devices, to Viskores arrays. It uses
@@ -15,6 +14,7 @@
 #ifndef vtkConduitArrayUtilitiesDevice_h
 #define vtkConduitArrayUtilitiesDevice_h
 
+#include "vtkDeprecation.h"             // for VTK_DEPRECATED_IN_9_6_0
 #include "vtkIOCatalystConduitModule.h" // for exports
 #include "vtkObject.h"
 #include "vtkSmartPointer.h" // for vtkSmartPointer
@@ -35,10 +35,23 @@ public:
   vtkTypeMacro(vtkConduitArrayUtilitiesDevice, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
+  static vtkSmartPointer<vtkDataArray> MCArrayToVTKmAOSArray(
+    const conduit_node* mcarray, const viskores::cont::DeviceAdapterId& deviceAdapterId);
+  static vtkSmartPointer<vtkDataArray> MCArrayToVTKmSOAArray(
+    const conduit_node* mcarray, const viskores::cont::DeviceAdapterId& deviceAdapterId);
+
+  VTK_DEPRECATED_IN_9_6_0("Use the overload without force_signed parameter.")
   static vtkSmartPointer<vtkDataArray> MCArrayToVTKmAOSArray(const conduit_node* mcarray,
-    bool force_signed, const viskores::cont::DeviceAdapterId& deviceAdapterId);
+    bool vtkNotUsed(force_signed), const viskores::cont::DeviceAdapterId& deviceAdapterId)
+  {
+    return MCArrayToVTKmAOSArray(mcarray, deviceAdapterId);
+  }
+  VTK_DEPRECATED_IN_9_6_0("Use the overload without force_signed parameter.")
   static vtkSmartPointer<vtkDataArray> MCArrayToVTKmSOAArray(const conduit_node* mcarray,
-    bool force_signed, const viskores::cont::DeviceAdapterId& deviceAdapterId);
+    bool vtkNotUsed(force_signed), const viskores::cont::DeviceAdapterId& deviceAdapterId)
+  {
+    return MCArrayToVTKmSOAArray(mcarray, deviceAdapterId);
+  }
   static bool IfVTKmConvertVTKMonoShapedCellArray(vtkIdType numberOfPoints, int cellType,
     vtkIdType cellSize, vtkDataArray* connectivity, vtkCellArray* cellArray);
   static bool IfVTKmConvertVTKMixedCellArray(vtkIdType numberOfPoints, vtkDataArray* offsets,

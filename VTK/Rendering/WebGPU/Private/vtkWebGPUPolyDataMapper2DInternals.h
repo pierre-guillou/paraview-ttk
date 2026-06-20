@@ -19,6 +19,8 @@ class vtkMatrix4x4;
 class vtkViewport;
 class vtkActor2D;
 class vtkWebGPUPolyDataMapper2D;
+class vtkWebGPURenderTextureDeviceResource;
+class vtkWebGPURenderWindow;
 
 /**
  * Internal implementation details of vtkWebGPUPolyDataMapper2D
@@ -34,10 +36,13 @@ class VTKRENDERINGWEBGPU_NO_EXPORT vtkWebGPUPolyDataMapper2DInternals
   {
     // Pipeline that renders points
     GFX_PIPELINE_2D_POINTS = 0,
+    GFX_PIPELINE_2D_POINTS_HOMOGENEOUS_CELL_SIZE,
     // Pipeline that renders lines
     GFX_PIPELINE_2D_LINES,
+    GFX_PIPELINE_2D_LINES_HOMOGENEOUS_CELL_SIZE,
     // Pipeline that renders triangles
     GFX_PIPELINE_2D_TRIANGLES,
+    GFX_PIPELINE_2D_TRIANGLES_HOMOGENEOUS_CELL_SIZE,
     NUM_GFX_PIPELINE_2D_NB_TYPES
   };
 
@@ -50,6 +55,8 @@ class VTKRENDERINGWEBGPU_NO_EXPORT vtkWebGPUPolyDataMapper2DInternals
     vtkTypeUInt32 Flags;
     vtkTypeUInt32 Padding;
   };
+  static constexpr int BIT_POSITION_USE_CELL_COLOR = 0;
+  static constexpr int BIT_POSITION_USE_POINT_COLOR = 1;
 
   struct MeshAttributeArrayDescriptor
   {
@@ -74,10 +81,12 @@ class VTKRENDERINGWEBGPU_NO_EXPORT vtkWebGPUPolyDataMapper2DInternals
 
   struct TopologyBindGroupInfo
   {
-    // buffer for the primitive cell ids and point ids.
-    wgpu::Buffer TopologyBuffer;
-    // // buffer for indirect draw command
-    // wgpu::Buffer IndirectDrawBuffer;
+    // buffer for the connectivity
+    wgpu::Buffer ConnectivityBuffer;
+    // buffer for the cell id
+    wgpu::Buffer CellIdBuffer;
+    // uniform buffer for the cell id offset
+    wgpu::Buffer CellIdOffsetUniformBuffer;
     // bind group for the primitive size uniform.
     wgpu::BindGroup BindGroup;
     // vertexCount for draw call.
@@ -91,16 +100,21 @@ class VTKRENDERINGWEBGPU_NO_EXPORT vtkWebGPUPolyDataMapper2DInternals
   std::map<GraphicsPipeline2DType, vtkWebGPUCellToPrimitiveConverter::TopologySourceType>
     PipelineBindGroupCombos = {
       { GFX_PIPELINE_2D_POINTS, vtkWebGPUCellToPrimitiveConverter::TOPOLOGY_SOURCE_VERTS },
+      { GFX_PIPELINE_2D_POINTS_HOMOGENEOUS_CELL_SIZE,
+        vtkWebGPUCellToPrimitiveConverter::TOPOLOGY_SOURCE_VERTS },
       { GFX_PIPELINE_2D_LINES, vtkWebGPUCellToPrimitiveConverter::TOPOLOGY_SOURCE_LINES },
+      { GFX_PIPELINE_2D_LINES_HOMOGENEOUS_CELL_SIZE,
+        vtkWebGPUCellToPrimitiveConverter::TOPOLOGY_SOURCE_LINES },
       { GFX_PIPELINE_2D_TRIANGLES, vtkWebGPUCellToPrimitiveConverter::TOPOLOGY_SOURCE_POLYGONS },
+      { GFX_PIPELINE_2D_TRIANGLES_HOMOGENEOUS_CELL_SIZE,
+        vtkWebGPUCellToPrimitiveConverter::TOPOLOGY_SOURCE_POLYGONS },
     };
 
   const std::array<wgpu::PrimitiveTopology, NUM_GFX_PIPELINE_2D_NB_TYPES>
     GraphicsPipeline2DPrimitiveTypes = { wgpu::PrimitiveTopology::TriangleStrip,
-      wgpu::PrimitiveTopology::TriangleStrip, wgpu::PrimitiveTopology::TriangleList };
-  const std::array<std::string, NUM_GFX_PIPELINE_2D_NB_TYPES> VertexShaderEntryPoints = {
-    "pointVertexMain", "lineVertexMain", "polygonVertexMain"
-  };
+      wgpu::PrimitiveTopology::TriangleStrip, wgpu::PrimitiveTopology::TriangleStrip,
+      wgpu::PrimitiveTopology::TriangleStrip, wgpu::PrimitiveTopology::TriangleList,
+      wgpu::PrimitiveTopology::TriangleList };
 
   std::string GraphicsPipeline2DKeys[NUM_GFX_PIPELINE_2D_NB_TYPES];
 
@@ -118,25 +132,59 @@ class VTKRENDERINGWEBGPU_NO_EXPORT vtkWebGPUPolyDataMapper2DInternals
     TopologyBindGroupInfos[vtkWebGPUCellToPrimitiveConverter::NUM_TOPOLOGY_SOURCE_TYPES] = {};
 
   wgpu::BindGroup MeshAttributeBindGroup;
+  vtkTimeStamp TextureBindTime;
+  int ActorTextureUnit = -1;
+  wgpu::BindGroupLayout MeshAttributeBindGroupLayout;
 
   vtkNew<vtkWebGPUCellToPrimitiveConverter> CellConverter;
 
   /**
    * Create a bind group layout for the mesh attribute bind group.
    */
-  static wgpu::BindGroupLayout CreateMeshAttributeBindGroupLayout(
-    const wgpu::Device& device, const std::string& label);
+  static wgpu::BindGroupLayout CreateMeshAttributeBindGroupLayout(const wgpu::Device& device,
+    const std::string& label, vtkWebGPURenderTextureDeviceResource* textureDevRc = nullptr);
 
   /**
    * Create a bind group layout for the `TopologyRenderInfo::BindGroup`
    */
   static wgpu::BindGroupLayout CreateTopologyBindGroupLayout(
-    const wgpu::Device& device, const std::string& label);
+    const wgpu::Device& device, const std::string& label, bool homogeneousCellSize);
 
   /**
    * Get the name of the graphics pipeline type as a string.
    */
   static const char* GetGraphicsPipelineTypeAsString(GraphicsPipeline2DType graphicsPipelineType);
+
+  static bool IsPipelineForHomogeneousCellSize(GraphicsPipeline2DType graphicsPipelineType);
+
+  void ApplyShaderReplacements(GraphicsPipeline2DType pipelineType, std::string& vss,
+    std::string& fss, vtkWebGPURenderWindow* wgpuRenderWindow, vtkActor2D* actor);
+
+  void ReplaceShaderVertexOutputDef(std::string& vss, std::string& fss);
+  void ReplaceShaderMapperBindings(
+    std::string& vss, std::string& fss, vtkWebGPURenderWindow* wgpuRenderWindow, vtkActor2D* actor);
+
+  void ReplaceVertexShaderConstantsDef(GraphicsPipeline2DType pipelineType, std::string& vss);
+  void ReplaceVertexShaderMapper2DStateDef(std::string& vss);
+  void ReplaceVertexShaderMeshArraysDescriptorDef(std::string& vss);
+  void ReplaceVertexShaderTopologyBindings(std::string& vss);
+  void ReplaceVertexShaderVertexInputDef(std::string& vss);
+  void ReplaceVertexShaderUtilityMethodsDef(GraphicsPipeline2DType pipelineType, std::string& vss);
+  void ReplaceVertexShaderVertexMainStart(std::string& vss);
+  void ReplaceVertexShaderVertexIdImpl(GraphicsPipeline2DType pipelineType, std::string& vss);
+  void ReplaceVertexShaderPrimitiveIdImpl(GraphicsPipeline2DType pipelineType, std::string& vss);
+  void ReplaceVertexShaderCellIdImpl(GraphicsPipeline2DType pipelineType, std::string& vss);
+  void ReplaceVertexShaderPositionImpl(GraphicsPipeline2DType pipelineType, std::string& vss);
+  void ReplaceVertexShaderPickingImpl(std::string& vss);
+  void ReplaceVertexShaderColorsImpl(std::string& vss);
+  void ReplaceVertexShaderUVsImpl(std::string& vss);
+  void ReplaceVertexShaderVertexMainEnd(std::string& vss);
+
+  void ReplaceFragmentShaderFragmentOutputDef(std::string& fss);
+  void ReplaceFragmentShaderFragmentMainStart(std::string& fss);
+  void ReplaceFragmentShaderPickingImpl(std::string& fss);
+  void ReplaceFragmentShaderColorImpl(std::string& fss);
+  void ReplaceFragmentShaderFragmentMainEnd(std::string& fss);
 
 public:
   vtkWebGPUPolyDataMapper2DInternals();

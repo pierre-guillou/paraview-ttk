@@ -24,7 +24,8 @@
 #include "vtkViewport.h"
 #include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
-#include "vtkActorCollection.h"  // Needed for access in inline members
+#include "vtkActorCollection.h" // Needed for access in inline members
+#include "vtkMatrix3x3.h"
 #include "vtkVolumeCollection.h" // Needed for access in inline members
 
 #include <array> // To store matrices
@@ -387,8 +388,9 @@ public:
    * The camera will reposition itself to view the center point of the actors,
    * and move along its initial view plane normal (i.e., vector defined from
    * camera position to focal point) so that all of the actors can be seen.
+   * Returns true if camera position was actually reset in the process.
    */
-  virtual void ResetCamera();
+  virtual bool ResetCamera();
 
   /**
    * Automatically set up the camera based on a specified bounding box
@@ -413,8 +415,9 @@ public:
    *
    * OffsetRatio can be used to add a zoom offset.
    * Default value is 0.9, which means that the camera will be 10% further from the data
+   * Returns true if camera position was actually reset in the process.
    */
-  virtual void ResetCameraScreenSpace(double offsetRatio = 0.9);
+  virtual bool ResetCameraScreenSpace(double offsetRatio = 0.9);
 
   /**
    * Automatically set up the camera based on a specified bounding box
@@ -902,17 +905,42 @@ public:
   ///@{
   /**
    * Set/Get the environment up vector.
+   *
+   * GetEnvironmentUp returns a double* for retro-compatibility purposes only. If this is ever
+   * reworked, please return a std::array instead, and remove EnvironmentUp member which is only
+   * here to allow returning a double*
    */
-  vtkGetVector3Macro(EnvironmentUp, double);
-  vtkSetVector3Macro(EnvironmentUp, double);
+  virtual double* GetEnvironmentUp();
+  virtual void GetEnvironmentUp(double& vectorUpX, double& vectorUpY, double& vectorUpZ);
+  virtual void GetEnvironmentUp(double vectorUp[3]);
+  virtual void SetEnvironmentUp(double vectorUpX, double vectorUpY, double vectorUpZ);
+  virtual void SetEnvironmentUp(double vectorUp[3]);
   ///@}
 
   ///@{
   /**
    * Set/Get the environment right vector.
+   *
+   * GetEnvironmentRight returns a double* for retro-compatibility purposes only. If this is ever
+   * reworked, please return a std::array instead, and remove EnvironmentRight member which is only
+   * here to allow returning a double*
    */
-  vtkGetVector3Macro(EnvironmentRight, double);
-  vtkSetVector3Macro(EnvironmentRight, double);
+  virtual double* GetEnvironmentRight();
+  virtual void GetEnvironmentRight(
+    double& vectorRightX, double& vectorRightY, double& vectorRightZ);
+  virtual void GetEnvironmentRight(double vectorRight[3]);
+  virtual void SetEnvironmentRight(double vectorRightX, double vectorRightY, double vectorRightZ);
+  virtual void SetEnvironmentRight(double vectorRight[3]);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the environment rotation matrix.
+   *
+   * Default is identity matrix. The setter avoids modifying the renderer MTime.
+   */
+  vtkGetSmartPointerMacro(EnvironmentRotationMatrix, vtkMatrix3x3);
+  void SetEnvironmentRotationMatrix(vtkMatrix3x3* matrix);
   ///@}
 
   ///@{
@@ -1206,10 +1234,12 @@ protected:
   bool UseImageBasedLighting;
   vtkTexture* EnvironmentTexture;
 
-  double EnvironmentUp[3];
-  double EnvironmentRight[3];
-
 private:
+  /**
+   * Compute and set the forward vector of the environment rotation matrix.
+   */
+  void ComputeRotationMatrixForwardVector();
+
   /**
    * Cache of CompositeProjectionTransformationMatrix.
    */
@@ -1254,6 +1284,18 @@ private:
    * If this flag affect GetZ. See Get/Set macro for more information.
    */
   bool SafeGetZ = false;
+
+  /**
+   * Rotation matrix of the environment.
+   */
+  vtkSmartPointer<vtkMatrix3x3> EnvironmentRotationMatrix;
+
+  /**
+   * Tmp members to allow returning double* in GetEnvironmentUp/Right methods.
+   * Can be removed if someday GetEnvironmentUp/Right returns a std::array.
+   */
+  double EnvironmentUp[3] = { 0.0, 1.0, 0.0 };
+  double EnvironmentRight[3] = { 1.0, 0.0, 0.0 };
 
   vtkRenderer(const vtkRenderer&) = delete;
   void operator=(const vtkRenderer&) = delete;

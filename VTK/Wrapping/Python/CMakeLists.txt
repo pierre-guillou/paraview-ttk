@@ -126,6 +126,7 @@ set(python_files
   vtkmodules/numpy_interface/algorithms.py
   vtkmodules/numpy_interface/dataset_adapter.py
   vtkmodules/numpy_interface/internal_algorithms.py
+  vtkmodules/numpy_interface/numpy_algorithms.py
   vtkmodules/qt/QVTKRenderWindowInteractor.py
   vtkmodules/qt/__init__.py
   vtkmodules/test/BlackBox.py
@@ -169,6 +170,12 @@ set(_vtk_python_depends_args)
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
   list(APPEND _vtk_python_depends_args
     DEPENDS_EXPLICIT_ONLY)
+endif ()
+
+# used by vtkLoadPythonTkWidgets.py.in
+set(_renderingtk_output_name "vtkRenderingTk")
+if (TARGET VTK::RenderingTk)
+  get_target_property(_renderingtk_output_name VTK::RenderingTk OUTPUT_NAME)
 endif ()
 
 set(python_copied_modules)

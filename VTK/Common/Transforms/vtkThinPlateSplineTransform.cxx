@@ -6,6 +6,8 @@
 #include "vtkObjectFactory.h"
 #include "vtkPoints.h"
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkThinPlateSplineTransform);
 
@@ -167,18 +169,12 @@ vtkMTimeType vtkThinPlateSplineTransform::GetMTime()
   if (this->SourceLandmarks)
   {
     mtime = this->SourceLandmarks->GetMTime();
-    if (mtime > result)
-    {
-      result = mtime;
-    }
+    result = std::max(mtime, result);
   }
   if (this->TargetLandmarks)
   {
     mtime = this->TargetLandmarks->GetMTime();
-    if (mtime > result)
-    {
-      result = mtime;
-    }
+    result = std::max(mtime, result);
   }
   return result;
 }
@@ -204,7 +200,7 @@ void vtkThinPlateSplineTransform::InternalUpdate()
   }
 
   const vtkIdType N = this->SourceLandmarks->GetNumberOfPoints();
-  const int D = 3; // dimensions
+  constexpr int D = 3; // dimensions
 
   // the output weights matrix
   double** W = vtkNewMatrix(N + D + 1, D);
@@ -281,10 +277,7 @@ void vtkThinPlateSplineTransform::InternalUpdate()
     for (i = 0; i < N + D + 1; i++)
     {
       double tmp = fabs(values[i]);
-      if (tmp > maxValue)
-      {
-        maxValue = tmp;
-      }
+      maxValue = std::max(tmp, maxValue);
     }
 
     for (i = 0; i < N + D + 1; i++)
@@ -477,12 +470,12 @@ void vtkThinPlateSplineTransform::InternalUpdate()
 
   // left in for debug purposes
   /*
-  cerr << "W =\n";
+  std::cerr << "W =\n";
   for (int i = 0; i < N+1+D; i++)
     {
-    cerr << W[i][0] << ' ' << W[i][1] << ' ' << W[i][2] << '\n';
+    std::cerr << W[i][0] << ' ' << W[i][1] << ' ' << W[i][2] << '\n';
     }
-  cerr << "\n";
+  std::cerr << "\n";
   */
 
   if (this->MatrixW)

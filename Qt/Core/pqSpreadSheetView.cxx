@@ -146,7 +146,7 @@ void pqSpreadSheetView::updateRepresentationVisibility(pqRepresentation* repr, b
 //-----------------------------------------------------------------------------
 void pqSpreadSheetView::onEndRender()
 {
-  // cout << "Render" << endl;
+  // std::cout << "Render" << endl;
   // this->Internal->Model.forceUpdate();
   // this->Internal->Model->update();
   this->Internal->Table->viewport()->update();
@@ -198,8 +198,8 @@ void pqSpreadSheetView::onSelectionOnly()
 //-----------------------------------------------------------------------------
 void pqSpreadSheetView::onFontSizeChanged()
 {
-  int cellFontSize = vtkSMPropertyHelper(this->getProxy(), "CellFontSize", 9).GetAsInt();
-  int headerFontSize = vtkSMPropertyHelper(this->getProxy(), "HeaderFontSize", 9).GetAsInt();
+  int cellFontSize = vtkSMPropertyHelper(this->getProxy(), "CellFontSize", true).GetAsInt();
+  int headerFontSize = vtkSMPropertyHelper(this->getProxy(), "HeaderFontSize", true).GetAsInt();
 
   // Setting header fonts directly does not work consistently, so we
   // set a stylesheet instead.

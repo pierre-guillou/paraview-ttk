@@ -16,6 +16,7 @@
 #include "vtkType.h"
 #include "vtkUndirectedGraph.h"
 
+#include <iostream>
 #include <unordered_map>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -138,12 +139,13 @@ public:
   {
     if (idx < 1 || idx > this->_array->GetNumberOfTuples())
     {
-      cerr << "Write Number of tuples = " << this->_array->GetNumberOfTuples() << endl;
-      cerr << "Array index out out bounds in tableVert operator [], index: " << idx << endl;
-      return (static_cast<int*>(this->_array->GetVoidPointer(0))[0]);
+      std::cerr << "Write Number of tuples = " << this->_array->GetNumberOfTuples() << std::endl;
+      std::cerr << "Array index out out bounds in tableVert operator [], index: " << idx
+                << std::endl;
+      return this->_array->GetPointer(0)[0];
     }
 
-    return (static_cast<int*>(this->_array->GetVoidPointer(0))[idx - 1]);
+    return this->_array->GetPointer(0)[idx - 1];
   }
 
 private:
@@ -188,12 +190,13 @@ public:
   {
     if (idx < 0 || idx >= this->_array->GetNumberOfTuples())
     {
-      cerr << "Read Number of tuples = " << this->_array->GetNumberOfTuples() << endl;
-      cerr << "Array index out out bounds in tableDeg operator [], index: " << idx << endl;
-      return (static_cast<int*>(this->_array->GetVoidPointer(0))[0]);
+      std::cerr << "Read Number of tuples = " << this->_array->GetNumberOfTuples() << std::endl;
+      std::cerr << "Array index out out bounds in tableDeg operator [], index: " << idx
+                << std::endl;
+      return this->_array->GetPointer(0)[0];
     }
 
-    return (static_cast<int*>(this->_array->GetVoidPointer(0))[idx]);
+    return this->_array->GetPointer(0)[idx];
   }
 
 private:
@@ -253,10 +256,7 @@ void vtkKCoreDecomposition::Cores(vtkGraph* g, vtkIntArray* KCoreNumbers)
       neighborVertices.Next();
     }
     deg[v] = d;
-    if (d > md)
-    {
-      md = d;
-    }
+    md = std::max(d, md);
   }
 
   if (md > bin.getArraySize())
@@ -442,9 +442,11 @@ void vtkKCoreDecomposition::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
 
   os << indent << "OutputArrayName: " << (this->OutputArrayName ? this->OutputArrayName : "(none)")
-     << endl;
-  os << indent << "UseInDegreeNeighbors: " << (this->UseInDegreeNeighbors ? "on" : "off") << endl;
-  os << indent << "UseOutDegreeNeighbors: " << (this->UseOutDegreeNeighbors ? "on" : "off") << endl;
-  os << indent << "CheckInputGraph: " << (this->CheckInputGraph ? "on" : "off") << endl;
+     << std::endl;
+  os << indent << "UseInDegreeNeighbors: " << (this->UseInDegreeNeighbors ? "on" : "off")
+     << std::endl;
+  os << indent << "UseOutDegreeNeighbors: " << (this->UseOutDegreeNeighbors ? "on" : "off")
+     << std::endl;
+  os << indent << "CheckInputGraph: " << (this->CheckInputGraph ? "on" : "off") << std::endl;
 }
 VTK_ABI_NAMESPACE_END

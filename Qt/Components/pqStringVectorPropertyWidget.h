@@ -21,7 +21,7 @@ public:
 
   /**
    * Factory method to instantiate a hard-coded type of pqPropertyWidget
-   * subclass for t he vtkSMStringVectorProperty.
+   * subclass for the vtkSMStringVectorProperty.
    */
   static pqPropertyWidget* createWidget(
     vtkSMStringVectorProperty* smproperty, vtkSMProxy* smproxy, QWidget* parent = nullptr);
@@ -48,6 +48,7 @@ private: // NOLINT(readability-redundant-access-specifiers)
   vtkPVXMLElement* WidgetHint = nullptr;
   vtkPVXMLElement* WarnOnChangeHint = nullptr;
   bool WarningTriggered = false;
+  QScopedPointer<QStyle> ComboBoxStyle;
 };
 
 #endif // pqStringVectorPropertyWidget_h

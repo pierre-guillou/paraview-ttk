@@ -62,6 +62,13 @@ struct TypeList
 
 //------------------------------------------------------------------------------
 /**
+ * Get the Size of the TypeList TList.
+ */
+template <typename TList>
+struct Size;
+
+//------------------------------------------------------------------------------
+/**
  * Sets Result to T if Exp is true, or F if Exp is false.
  */
 template <bool Exp, typename T, typename F>
@@ -142,9 +149,10 @@ struct DerivedToFront;
 
 //------------------------------------------------------------------------------
 /**
- * Appends type T to TypeList TList and stores the result in Result.
+ * Appends types/TypeLists to TypeList TList and stores the result in Result.
+ * Supports appending 2 or more arguments using variadic templates.
  */
-template <typename TList, typename T>
+template <typename TList, typename T, typename... Rest>
 struct Append;
 
 VTK_ABI_NAMESPACE_END

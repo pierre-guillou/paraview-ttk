@@ -12,7 +12,6 @@
 #include "vtkVector.h"
 
 #include <cctype>  // for std::tolower/std::toupper
-#include <cstdlib> // for strtol
 #include <sstream> // for basisName
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -165,12 +164,34 @@ vtkSmartPointer<vtkCellAttributeCalculator> vtkDGAttributeInformation::PrepareFo
           switch (cellTypeInfo.Basis.GetId())
           {
             case "F"_hash: // "F"ull basis
-              numberOfBasisFunctions = (order == 2 ? 19 : (order == 1 ? 5 : 1));
+              if (order == 2)
+              {
+                numberOfBasisFunctions = 19;
+              }
+              else if (order == 1)
+              {
+                numberOfBasisFunctions = 5;
+              }
+              else
+              {
+                numberOfBasisFunctions = 1;
+              }
               integrationScheme = 'f';
               break;
             default:
             case "C"_hash: // "C"omplete basis
-              numberOfBasisFunctions = (order == 2 ? 18 : (order == 1 ? 5 : 1));
+              if (order == 2)
+              {
+                numberOfBasisFunctions = 18;
+              }
+              else if (order == 1)
+              {
+                numberOfBasisFunctions = 5;
+              }
+              else
+              {
+                numberOfBasisFunctions = 1;
+              }
               integrationScheme = 'c';
               break;
           }

@@ -8,6 +8,7 @@
 #include "vtkHyperTreeGridNonOrientedUnlimitedMooreSuperCursor.h"
 #include "vtkHyperTreeGridNonOrientedVonNeumannSuperCursor.h"
 #include "vtkHyperTreeGridOrientedCursor.h"
+#include "vtkLogger.h"
 #include "vtkUniformHyperTreeGrid.h"
 
 #include <array>
@@ -257,13 +258,17 @@ int TestTreeDeletion()
 {
   // Setup a HTG with a few trees at given ids
   vtkNew<vtkHyperTreeGrid> htg;
-  vtkHyperTree* tree = vtkHyperTree::CreateInstance(2, 2);
+  vtkNew<vtkHyperTree> tree;
+  if (!tree->Initialize(2, 3))
+  {
+    vtkLog(ERROR, "Failed to initialize tree.");
+    return 1;
+  }
   std::array<vtkIdType, 6> ids{ 0, 1, 3, 5, 8, 12 };
   for (auto id : ids)
   {
     htg->SetTree(id, tree);
   }
-  tree->Delete();
 
   // Delete some trees
   vtkIdType totalTreesRemoved = 0;
@@ -323,7 +328,7 @@ int TestHyperTreeGridCursors(int, char*[])
     vtkNew<vtkUniformHyperTreeGrid> uhtg0;
     initSingleCellTreeHTG(uhtg0);
 
-    const int expectedResult = 1;
+    constexpr int expectedResult = 1;
 
     vtkNew<vtkHyperTreeGridNonOrientedMooreSuperCursor> mooreSC;
     uhtg0->InitializeNonOrientedMooreSuperCursor(mooreSC, 0);
@@ -365,7 +370,7 @@ int TestHyperTreeGridCursors(int, char*[])
     vtkNew<vtkUniformHyperTreeGrid> uhtg1;
     initQuadTreeHTG(uhtg1);
 
-    const int expectedResult = 25;
+    constexpr int expectedResult = 25;
 
     vtkNew<vtkHyperTreeGridNonOrientedMooreSuperCursor> mooreSC;
     uhtg1->InitializeNonOrientedMooreSuperCursor(mooreSC, 1);
@@ -407,7 +412,7 @@ int TestHyperTreeGridCursors(int, char*[])
     vtkNew<vtkUniformHyperTreeGrid> uhtg2;
     initOctreeHTG(uhtg2);
 
-    const int expectedResult = 25;
+    constexpr int expectedResult = 25;
 
     vtkNew<vtkHyperTreeGridNonOrientedMooreSuperCursor> mooreSC;
     uhtg2->InitializeNonOrientedMooreSuperCursor(mooreSC, 0);

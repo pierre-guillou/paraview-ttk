@@ -3,10 +3,12 @@
 #include "vtkMapper.h"
 
 #include "vtkAbstractArray.h"
+#include "vtkArrayDispatch.h"
 #include "vtkCellData.h"
 #include "vtkColorSeries.h"
 #include "vtkCompositeDataSet.h"
 #include "vtkDataArray.h"
+#include "vtkDataArrayRange.h"
 #include "vtkDataObjectTreeIterator.h"
 #include "vtkDataSet.h"
 #include "vtkDataSetAttributes.h"
@@ -730,8 +732,10 @@ namespace
 //------------------------------------------------------------------------------
 template <class T>
 void ScalarToTextureCoordinate(T scalar_value, // Input scalar
-  double range_min,                            // range[0]
-  double inv_range_width,                      // 1/(range[1]-range[0])
+  double texel_width,                          // Width of a texel for this color map
+  double scalar_range[2],                      // Color map range of scalar values
+  double padded_range[2],                      // Range padded to account for above/below colors
+  double inv_padded_range_width,               // 1/(padded_range[1]-padded_range[0])
   float& tex_coord_s,                          // 1st tex coord
   float& tex_coord_t)                          // 2nd tex coord
 {
@@ -751,8 +755,39 @@ void ScalarToTextureCoordinate(T scalar_value, // Input scalar
     // the NaN value.
     tex_coord_t = 0.49;
 
-    double ranged_scalar = (scalar_value - range_min) * inv_range_width;
-    tex_coord_s = static_cast<float>(ranged_scalar);
+    double texture_scalar = (scalar_value - padded_range[0]) * inv_padded_range_width;
+    double texture_range_min = texel_width;
+    double texture_range_max = 1.0 - texel_width;
+    constexpr double epsilon = 1e-6;
+
+    // Create an epsilon-sized "bubble" around the range min and range max texture coordinates
+    if (scalar_value >= scalar_range[0] && scalar_value <= scalar_range[1])
+    {
+      if (texture_scalar < texture_range_min + epsilon)
+      {
+        // Nudge up the texture_scalar a bit to get above the below-range color (first texel).
+        texture_scalar = texture_range_min + epsilon;
+      }
+      else if (texture_scalar > texture_range_max - epsilon)
+      {
+        // Nudge down the texture_scalar a bit to get below the above-range color (last texel).
+        texture_scalar = texture_range_max - epsilon;
+      }
+    }
+    else if (scalar_value < scalar_range[0])
+    {
+      // Ensure the texture_scalar is at or below the scalar range. We don't set it to 0.0
+      // because we want the texture map to be interpolated accurately.
+      texture_scalar = std::min(texture_scalar, texture_range_min - epsilon);
+    }
+    else if (scalar_value > scalar_range[1])
+    {
+      // Ensure the texture_scalar is at or above the scalar range. We don't set it to 1.0
+      // because we want the texture map to be interpolated accurately.
+      texture_scalar = std::max(texture_scalar, texture_range_max + epsilon);
+    }
+
+    tex_coord_s = texture_scalar;
   }
 
   // Some implementations apparently don't handle relatively large
@@ -773,58 +808,61 @@ void ScalarToTextureCoordinate(T scalar_value, // Input scalar
 }
 
 //------------------------------------------------------------------------------
-template <class T>
-void CreateColorTextureCoordinates(T* input, float* output, vtkIdType numScalars, int numComps,
-  int component, double* range, const double* table_range, int tableNumberOfColors,
-  bool use_log_scale)
+struct CreateColorTextureCoordinatesFunctor
 {
-  // We have to change the range used for computing texture
-  // coordinates slightly to accommodate the special above- and
-  // below-range colors that are the first and last texels,
-  // respectively.
-  double scalar_texel_width = (range[1] - range[0]) / static_cast<double>(tableNumberOfColors);
-  double padded_range[2];
-  padded_range[0] = range[0] - scalar_texel_width;
-  padded_range[1] = range[1] + scalar_texel_width;
-  double inv_range_width = 1.0 / (padded_range[1] - padded_range[0]);
+  template <class TArray>
+  void operator()(TArray* array, float* output, vtkIdType numScalars, int numComps, int component,
+    double* range, const double* table_range, int tableNumberOfColors, bool use_log_scale)
+  {
+    // We have to change the range used for computing texture
+    // coordinates slightly to accommodate the special above- and
+    // below-range colors that are the first and last texels,
+    // respectively.
+    double scalar_texel_width = (range[1] - range[0]) / static_cast<double>(tableNumberOfColors);
+    double padded_range[2];
+    padded_range[0] = range[0] - scalar_texel_width;
+    padded_range[1] = range[1] + scalar_texel_width;
+    double texel_width = 1.0 / static_cast<double>(tableNumberOfColors + 2);
+    double inv_padded_range_width = 1.0 / (padded_range[1] - padded_range[0]);
+    auto input = vtk::DataArrayValueRange(array).begin();
 
-  if (component < 0 || component >= numComps)
-  {
-    for (vtkIdType scalarIdx = 0; scalarIdx < numScalars; ++scalarIdx)
+    if (component < 0 || component >= numComps)
     {
-      double sum = 0;
-      for (int compIdx = 0; compIdx < numComps; ++compIdx)
+      for (vtkIdType scalarIdx = 0; scalarIdx < numScalars; ++scalarIdx)
       {
-        double tmp = static_cast<double>(*input);
-        sum += (tmp * tmp);
-        ++input;
+        double sum = 0;
+        for (int compIdx = 0; compIdx < numComps; ++compIdx, ++input)
+        {
+          double tmp = static_cast<double>(*input);
+          sum += (tmp * tmp);
+        }
+        double magnitude = sqrt(sum);
+        if (use_log_scale)
+        {
+          magnitude = vtkLookupTable::ApplyLogScale(magnitude, table_range, range);
+        }
+        ScalarToTextureCoordinate(magnitude, texel_width, range, padded_range,
+          inv_padded_range_width, output[0], output[1]);
+        output += 2;
       }
-      double magnitude = sqrt(sum);
-      if (use_log_scale)
+    }
+    else
+    {
+      input += component;
+      for (vtkIdType scalarIdx = 0; scalarIdx < numScalars; ++scalarIdx, input += numComps)
       {
-        magnitude = vtkLookupTable::ApplyLogScale(magnitude, table_range, range);
+        double input_value = static_cast<double>(*input);
+        if (use_log_scale)
+        {
+          input_value = vtkLookupTable::ApplyLogScale(input_value, table_range, range);
+        }
+        ScalarToTextureCoordinate(input_value, texel_width, range, padded_range,
+          inv_padded_range_width, output[0], output[1]);
+        output += 2;
       }
-      ScalarToTextureCoordinate(magnitude, padded_range[0], inv_range_width, output[0], output[1]);
-      output += 2;
     }
   }
-  else
-  {
-    input += component;
-    for (vtkIdType scalarIdx = 0; scalarIdx < numScalars; ++scalarIdx)
-    {
-      double input_value = static_cast<double>(*input);
-      if (use_log_scale)
-      {
-        input_value = vtkLookupTable::ApplyLogScale(input_value, table_range, range);
-      }
-      ScalarToTextureCoordinate(
-        input_value, padded_range[0], inv_range_width, output[0], output[1]);
-      output += 2;
-      input = input + numComps;
-    }
-  }
-}
+};
 
 } // end anonymous namespace
 
@@ -944,7 +982,6 @@ void vtkMapper::MapScalarsToTexture(vtkAbstractArray* scalars, double alpha)
 
     // Now create the color texture coordinates.
     int numComps = scalars->GetNumberOfComponents();
-    void* input = scalars->GetVoidPointer(0);
     vtkIdType num = scalars->GetNumberOfTuples();
     this->ColorCoordinates = vtkFloatArray::New();
     this->ColorCoordinates->SetNumberOfComponents(2);
@@ -962,17 +999,20 @@ void vtkMapper::MapScalarsToTexture(vtkAbstractArray* scalars, double alpha)
     {
       scalarComponent = this->LookupTable->GetVectorComponent();
     }
-    switch (scalars->GetDataType())
+    auto scalarsDA = vtkDataArray::SafeDownCast(scalars);
+    if (!scalarsDA)
     {
-      vtkTemplateMacro(CreateColorTextureCoordinates(static_cast<VTK_TT*>(input), output, num,
-        numComps, scalarComponent, range, this->LookupTable->GetRange(),
-        this->LookupTable->GetNumberOfAvailableColors(), use_log_scale));
-      case VTK_BIT:
-        vtkErrorMacro("Cannot color by bit array.");
-        break;
-      default:
-        vtkErrorMacro(<< "Unknown input ScalarType");
-        return;
+      vtkErrorMacro("Cannot handle array of type " << scalars->GetClassName());
+      return;
+    }
+    CreateColorTextureCoordinatesFunctor functor;
+    if (!vtkArrayDispatch::Dispatch::Execute(scalarsDA, functor, output, num, numComps,
+          scalarComponent, range, this->LookupTable->GetRange(),
+          this->LookupTable->GetNumberOfAvailableColors(), use_log_scale))
+    {
+      functor(scalarsDA, output, num, numComps, scalarComponent, range,
+        this->LookupTable->GetRange(), this->LookupTable->GetNumberOfAvailableColors(),
+        use_log_scale);
     }
   }
 }

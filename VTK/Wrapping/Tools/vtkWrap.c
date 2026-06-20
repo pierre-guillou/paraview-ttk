@@ -6,11 +6,14 @@
 #include "vtkParseExtras.h"
 #include "vtkParseMain.h"
 #include "vtkParseMerge.h"
+#include "vtkParseProperties.h"
 #include "vtkParseString.h"
 
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+
+// NOLINTBEGIN(bugprone-unsafe-functions)
 
 /* -------------------------------------------------------------------- */
 /* Common types. */
@@ -84,6 +87,12 @@ int vtkWrap_IsStdMap(const ValueInfo* val)
 {
   return ((val->Type & VTK_PARSE_BASE_TYPE) == VTK_PARSE_UNKNOWN && val->Class &&
     strncmp(val->Class, "std::map<", 9) == 0);
+}
+
+int vtkWrap_IsStdUnorderedMap(const ValueInfo* val)
+{
+  return ((val->Type & VTK_PARSE_BASE_TYPE) == VTK_PARSE_UNKNOWN && val->Class &&
+    strncmp(val->Class, "std::unordered_map<", 19) == 0);
 }
 
 int vtkWrap_IsVTKObject(const ValueInfo* val)
@@ -284,6 +293,25 @@ int vtkWrap_IsRef(const ValueInfo* val)
 int vtkWrap_IsConst(const ValueInfo* val)
 {
   return ((val->Type & VTK_PARSE_CONST) != 0);
+}
+
+/* -------------------------------------------------------------------- */
+/* Check if a vtkNew variable has the same name as the property */
+int vtkWrap_IsVTKNew(const ClassInfo* data, const PropertyInfo* property)
+{
+  int i;
+  for (i = 0; i < data->NumberOfVariables; ++i)
+  {
+    const ValueInfo* var = data->Variables[i];
+    if (var->Class && !strncmp(var->Class, "vtkNew<", 7) && property->ClassName &&
+      strlen(var->Class) - 8 == strlen(property->ClassName) &&
+      !strncmp(var->Class + 7, property->ClassName, strlen(property->ClassName)) &&
+      !strcmp(var->Name, property->Name))
+    {
+      return 1;
+    }
+  }
+  return 0;
 }
 
 /* -------------------------------------------------------------------- */
@@ -1325,3 +1353,5 @@ void vtkWrap_WarnEmpty(const OptionInfo* options)
     fprintf(stderr, "warning: did not wrap anything from %s [-Wempty]\n", options->InputFileName);
   }
 }
+
+// NOLINTEND(bugprone-unsafe-functions)

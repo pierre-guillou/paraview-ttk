@@ -6,7 +6,7 @@
 #include "vtkCellArray.h"
 #include "vtkCellArrayIterator.h"
 #include "vtkCellData.h"
-#include "vtkCellTypes.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkCharArray.h"
 #include "vtkDoubleArray.h"
 #include "vtkGenericCell.h"
@@ -20,7 +20,6 @@
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 #include "vtkStringArray.h"
-#include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkUnstructuredGridGeometryFilter.h"
 
@@ -160,11 +159,10 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
   {
     // Check to see if the data actually has nonlinear cells.  Handling
     // nonlinear cells adds unnecessary work if we only have linear cells.
-    vtkIdType numCells = input->GetNumberOfCells();
-    unsigned char* cellTypes = input->GetCellTypesArray()->GetPointer(0);
-    for (vtkIdType i = 0; i < numCells; i++)
+    auto distinctCellTypesArray = input->GetDistinctCellTypesArray();
+    for (vtkIdType i = 0; i < distinctCellTypesArray->GetNumberOfValues(); i++)
     {
-      if (!vtkCellTypes::IsLinear(cellTypes[i]))
+      if (!vtkCellTypeUtilities::IsLinear(distinctCellTypesArray->GetValue(i)))
       {
         handleSubdivision = true;
         break;
@@ -212,7 +210,6 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
   vtkPointData* outputPD = output->GetPointData();
   vtkCellData* outputCD = output->GetCellData();
   vtkFastGeomQuad* q;
-  unsigned char* cellTypes = input->GetCellTypesArray()->GetPointer(0);
 
   // These are for the default case/
   vtkIdList* pts;
@@ -277,7 +274,7 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
     const vtkIdType cellId = cellIter->GetCurrentCellId();
     cellIter->GetCurrentCell(numCellPts, ids);
 
-    cellType = cellTypes[cellId];
+    cellType = input->GetCellType(cellId);
 
     // A couple of common cases to see if things go faster.
     if (cellType == VTK_VERTEX || cellType == VTK_POLY_VERTEX)
@@ -319,7 +316,7 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
     progressCount++;
 
     cellIter->GetCurrentCell(numCellPts, ids);
-    cellType = cellTypes[cellId];
+    cellType = input->GetCellType(cellId);
 
     // A couple of common cases to see if things go faster.
     if (cellType == VTK_VERTEX || cellType == VTK_POLY_VERTEX || cellType == VTK_EMPTY_CELL)
@@ -952,7 +949,7 @@ void vtkDataSetRegionSurfaceFilter::InsertQuadInHash(
   // assign the face id to ptArray[5], and the region id to ptArray[4],
   // but using pointer math, so that we don't generate a warning about accessing
   // ptArray out of bounds
-  const int quadRealNumPts(4);
+  constexpr int quadRealNumPts(4);
   vtkIdType* quadsRegionId = (quad->ptArray + quadRealNumPts);
   vtkIdType* quadsFaceId = (quad->ptArray + quadRealNumPts + 1);
   *quadsRegionId = regionId;
@@ -1029,7 +1026,7 @@ void vtkDataSetRegionSurfaceFilter::InsertTriInHash(
   // assign the face id to ptArray[4], but using pointer math,
   // so that we don't generate a warning about accessing ptArray
   // out of bounds
-  const int quadRealNumPts(3);
+  constexpr int quadRealNumPts(3);
   vtkIdType* quadsFaceId = (quad->ptArray + quadRealNumPts + 1);
   *quadsFaceId = faceId;
   quad->numPts = quadRealNumPts;

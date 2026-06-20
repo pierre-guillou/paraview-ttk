@@ -618,7 +618,7 @@ void vtkRectilinearGridConnectivity::AddVolumeArrayName(char* arayName)
   }
 
   this->Internal->VolumeFractionArraysType = 0;
-  this->Internal->VolumeFractionArrayNames.push_back(arayName);
+  this->Internal->VolumeFractionArrayNames.emplace_back(arayName);
   this->Modified();
 }
 
@@ -636,7 +636,7 @@ void vtkRectilinearGridConnectivity::AddDoubleVolumeArrayName(char* arayName)
     this->Internal->VolumeFractionArraysType = VTK_DOUBLE;
   }
 
-  this->Internal->VolumeFractionArrayNames.push_back(arayName);
+  this->Internal->VolumeFractionArrayNames.emplace_back(arayName);
   this->Modified();
 }
 
@@ -654,7 +654,7 @@ void vtkRectilinearGridConnectivity::AddFloatVolumeArrayName(char* arayName)
     this->Internal->VolumeFractionArraysType = VTK_FLOAT;
   }
 
-  this->Internal->VolumeFractionArrayNames.push_back(arayName);
+  this->Internal->VolumeFractionArrayNames.emplace_back(arayName);
   this->Modified();
 }
 
@@ -672,7 +672,7 @@ void vtkRectilinearGridConnectivity::AddUnsignedCharVolumeArrayName(char* arayNa
     this->Internal->VolumeFractionArraysType = VTK_UNSIGNED_CHAR;
   }
 
-  this->Internal->VolumeFractionArrayNames.push_back(arayName);
+  this->Internal->VolumeFractionArrayNames.emplace_back(arayName);
   this->Modified();
 }
 
@@ -872,11 +872,11 @@ int vtkRectilinearGridConnectivity::CheckVolumeDataArrays(
       if (strcmp(aryNames[i], vtkDataSetAttributes::GhostArrayName()) != 0)
       {
         // note that the ghost array is a hidden data array
-        this->Internal->VolumeDataAttributeNames.push_back(aryNames[i]);
+        this->Internal->VolumeDataAttributeNames.emplace_back(aryNames[i]);
 
         if (!strstr(aryNames[i], "raction") && !this->IsVolumeFractionArray(aryNames[i]))
         {
-          this->Internal->IntegrableAttributeNames.push_back(aryNames[i]);
+          this->Internal->IntegrableAttributeNames.emplace_back(aryNames[i]);
         }
       }
     }
@@ -1733,7 +1733,7 @@ void vtkRectilinearGridConnectivity::ExtractFragmentPolyhedra(
 
   // create a vtkCellArray for the surfaces of greater-than-isovalue sub-volumes
   surfaces = vtkCellArray::New();
-  surfaces->Allocate(estiSize, estiSize >> 1);
+  surfaces->AllocateEstimate(estiSize >> 1, /*quad*/ 4);
 
   // Create a vtkIdTypeArray for the global volume Ids assigned to the surfaces.
   // In fact the volume Ids might not necessarily be global since their ultimate
@@ -2695,7 +2695,7 @@ void vtkRectilinearGridConnectivity::ExtractFragmentPolygons(int blockIdx, int& 
 
   // the polygons / cells of the output vtkPolyData (with exterior faces only)
   plyCells = vtkCellArray::New();
-  plyCells->Allocate(numFaces, numFaces >> 4);
+  plyCells->AllocateEstimate(numFaces >> 4, /*quad*/ 4);
 
   // array of fragment Ids (one per constituent polygon)
   // here the fragment Ids are unnecessarily global since they are used for
@@ -3416,7 +3416,7 @@ void vtkRectilinearGridConnectivity::CreateInterProcessPolygons(vtkPolyData* fra
 
   // allocate an array of cells
   polygons = vtkCellArray::New();
-  polygons->Allocate(numCells);
+  polygons->AllocateEstimate(numCells, /*quad*/ 4);
 
   // allocate five arrays of data attributes
   uniPIdxs = vtkIdTypeArray::New();

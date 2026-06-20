@@ -24,6 +24,10 @@
 #include "vtkTexture.h"
 #include "vtksys/SystemTools.hxx"
 
+#include <iostream>
+
+namespace
+{
 void AddActors(vtkRenderer* renderer, vtkMultiBlockDataSet* mb, const char* fname)
 {
   vtkSmartPointer<vtkCompositeDataIterator> it;
@@ -59,6 +63,7 @@ void AddActors(vtkRenderer* renderer, vtkMultiBlockDataSet* mb, const char* fnam
     }
   }
 }
+}
 
 int TestCityGMLReader(int argc, char* argv[])
 {
@@ -80,7 +85,7 @@ int TestCityGMLReader(int argc, char* argv[])
   reader->Update();
   vtkMultiBlockDataSet* mb = reader->GetOutput();
 
-  AddActors(renderer, mb, fname);
+  ::AddActors(renderer, mb, fname);
 
   renderer->ResetCamera();
   renderer->GetActiveCamera()->Azimuth(90);

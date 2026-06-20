@@ -17,13 +17,13 @@ vtkStandardNewMacro(vtkPlanesIntersection);
 
 #define VTK_SMALL_DOUBLE (10e-5)
 
-const int Inside = 0;
-const int Outside = 1;
-const int Straddle = 2;
+constexpr int Inside = 0;
+constexpr int Outside = 1;
+constexpr int Straddle = 2;
 
-const int Xdim = 0; // don't change these three values
-const int Ydim = 1;
-const int Zdim = 2;
+constexpr int Xdim = 0; // don't change these three values
+constexpr int Ydim = 1;
+constexpr int Zdim = 2;
 
 vtkPlanesIntersection::vtkPlanesIntersection()
 {
@@ -95,10 +95,7 @@ int vtkPlanesIntersection::GetRegionVertices(double* v, int nvertices)
 
   int npts = this->RegionPts->GetNumberOfPoints();
 
-  if (npts > nvertices)
-  {
-    npts = nvertices;
-  }
+  npts = std::min(npts, nvertices);
 
   for (i = 0; i < npts; i++)
   {

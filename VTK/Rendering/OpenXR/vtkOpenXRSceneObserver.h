@@ -34,7 +34,7 @@ class vtkOpenXRSceneComponent;
  * @see `vtkOpenXRRenderWindow::GetSceneObserver`
  * @see `vtkOpenXRSceneComponent`
  *
- * @example
+ * Example:
  * ```cpp
  * void OnNewComponent(vtkObject* object, unsigned long, void* calldata) {
  *   auto* component = static_cast<vtkOpenXRSceneComponent*>(calldata);
@@ -163,7 +163,7 @@ private:
 
   bool CreateMSFTSceneObserver();
 
-  std::unique_ptr<vtkInternals> Impl{};
+  std::unique_ptr<vtkInternals> Impl;
 
   double MinimumInterval{ 2.0 };
   double ClippingRadius{ 2.0 };

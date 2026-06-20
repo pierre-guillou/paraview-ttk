@@ -2175,7 +2175,7 @@
       </IntVectorProperty>
       <StringVectorProperty animateable="0"
                             command="SetLabelFormat"
-                            default_values="%-#6.3g"
+                            default_values="{:&lt;#6.3g}"
                             name="LabelFormat"
                             number_of_elements="1">
         <Hints>
@@ -2244,7 +2244,7 @@
       <StringVectorProperty animateable="0"
                             command="SetRangeLabelFormat"
                             number_of_elements="1"
-                            default_values="%-#6.1e"
+                            default_values="{:&lt;#6.1e}"
                             name="RangeLabelFormat"
                             label="Range Label Format">
         <Hints>
@@ -2260,7 +2260,7 @@
       <StringVectorProperty animateable="0"
                             command="SetDataRangeLabelFormat"
                             number_of_elements="1"
-                            default_values="%-#6.1e"
+                            default_values="{:&lt;#6.1e}"
                             name="DataRangeLabelFormat"
                             label="Data Range Label Format">
         <Hints>
@@ -2769,6 +2769,17 @@
         <Documentation>
           Turn off to not render the tick marks.
         </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty command="InvertDisplayTransformScaleForTickLabels"
+                         name="IgnoreDisplayTransformScale"
+                         default_values="0"
+                         panel_visibility="advanced"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          By default the scale specified in the display option will affect the tick values of the grid axes and show the dimensions after scaling.
+          When enabling this option, the grid axes will keep the bounds of the object after scale but will show the tick values of the non-scaled data.</Documentation>
       </IntVectorProperty>
 
       <IntVectorProperty name="AxesToLabel"
@@ -3774,23 +3785,6 @@
         </Documentation>
       </IntVectorProperty>
 
-      <IntVectorProperty name="EmbedParaViewState"
-                         label="Embed ParaView State"
-                         number_of_elements="1"
-                         default_values="0">
-        <BooleanDomain name="bool"/>
-        <Documentation>
-          Set whether to embed the ParaView state in the image as metadata. This option is only available for PNG.
-        </Documentation>
-        <Hints>
-          <PropertyWidgetDecorator type="GenericDecorator"
-                                   mode="visibility"
-                                   property="Format"
-                                   value="PNG">
-          </PropertyWidgetDecorator>
-        </Hints>
-      </IntVectorProperty>
-
       <PropertyGroup label="Size and Scaling">
         <Property name="SaveAllViews"/>
         <Property name="ImageResolution"/>
@@ -3810,10 +3804,6 @@
 
       <PropertyGroup label="Image Options">
         <Property name="Format"/>
-      </PropertyGroup>
-
-      <PropertyGroup label="Metadata">
-        <Property name="EmbedParaViewState"/>
       </PropertyGroup>
     </SaveScreenshotProxy>
 
@@ -3873,6 +3863,19 @@
           PNG file in the form of text key/value pairs.
         </Documentation>
       </StringVectorProperty>
+      <IntVectorProperty name="EmbedParaViewState"
+                         label="Embed ParaView State"
+                         number_of_elements="1"
+                         default_values="0">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set whether to embed the ParaView state in the image as metadata. This option is only available for PNG.
+        </Documentation>
+      </IntVectorProperty>
+      <PropertyGroup label="Metadata">
+        <Property name="MetaData"/>
+        <Property name="EmbedParaViewState"/>
+      </PropertyGroup>
       <Hints>
         <FormatOptions extensions="png"
                        file_description="PNG images"/>

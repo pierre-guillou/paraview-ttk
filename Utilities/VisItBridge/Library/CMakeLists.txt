@@ -1,3 +1,7 @@
+if (WIN32)
+  add_definitions(-DNOMINMAX)
+endif ()
+
 vtk_module_third_party_internal(
   SPDX_LICENSE_IDENTIFIER
     "BSD-3-Clause"

@@ -7,7 +7,6 @@
 #include "vtkBoundingBox.h"
 #include "vtkCamera.h"
 #include "vtkCoordinate.h"
-#include "vtkFollower.h"
 #include "vtkFrustumSource.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
@@ -15,6 +14,7 @@
 #include "vtkProp3DAxisFollower.h"
 #include "vtkProperty.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextProperty.h"
 #include "vtkViewport.h"
 
@@ -147,18 +147,24 @@ vtkCubeAxesActor::vtkCubeAxesActor()
   }
 
   this->XTitle = new char[7];
-  snprintf(this->XTitle, 7, "%s", "X-Axis");
+  auto result = vtk::format_to_n(this->XTitle, 7, "{:s}", "X-Axis");
+  *result.out = '\0';
   this->YTitle = new char[7];
-  snprintf(this->YTitle, 7, "%s", "Y-Axis");
+  result = vtk::format_to_n(this->YTitle, 7, "{:s}", "Y-Axis");
+  *result.out = '\0';
   this->ZTitle = new char[7];
-  snprintf(this->ZTitle, 7, "%s", "Z-Axis");
+  result = vtk::format_to_n(this->ZTitle, 7, "{:s}", "Z-Axis");
+  *result.out = '\0';
 
-  this->XLabelFormat = new char[8];
-  snprintf(this->XLabelFormat, 8, "%s", "%-#6.3g");
-  this->YLabelFormat = new char[8];
-  snprintf(this->YLabelFormat, 8, "%s", "%-#6.3g");
-  this->ZLabelFormat = new char[8];
-  snprintf(this->ZLabelFormat, 8, "%s", "%-#6.3g");
+  this->XLabelFormat = new char[10];
+  result = vtk::format_to_n(this->XLabelFormat, 10, "{:s}", "{:<#6.3g}");
+  *result.out = '\0';
+  this->YLabelFormat = new char[10];
+  result = vtk::format_to_n(this->YLabelFormat, 10, "{:s}", "{:<#6.3g}");
+  *result.out = '\0';
+  this->ZLabelFormat = new char[10];
+  result = vtk::format_to_n(this->ZLabelFormat, 10, "{:s}", "{:<#6.3g}");
+  *result.out = '\0';
 }
 
 //------------------------------------------------------------------------------
@@ -978,7 +984,8 @@ void vtkCubeAxesActor::AdjustRange(const double ranges[6])
   if (xAxisDigits != this->LastXAxisDigits)
   {
     char format[16];
-    snprintf(format, sizeof(format), "%%.%df", xAxisDigits);
+    auto result = vtk::format_to_n(format, sizeof(format), "{{:.{:d}f}}", xAxisDigits);
+    *result.out = '\0';
     this->SetXLabelFormat(format);
     this->LastXAxisDigits = xAxisDigits;
   }
@@ -987,7 +994,8 @@ void vtkCubeAxesActor::AdjustRange(const double ranges[6])
   if (yAxisDigits != this->LastYAxisDigits)
   {
     char format[16];
-    snprintf(format, sizeof(format), "%%.%df", yAxisDigits);
+    auto result = vtk::format_to_n(format, sizeof(format), "{{:.{:d}f}}", yAxisDigits);
+    *result.out = '\0';
     this->SetYLabelFormat(format);
     this->LastYAxisDigits = yAxisDigits;
   }
@@ -996,7 +1004,8 @@ void vtkCubeAxesActor::AdjustRange(const double ranges[6])
   if (zAxisDigits != this->LastZAxisDigits)
   {
     char format[16];
-    snprintf(format, sizeof(format), "%%.%df", zAxisDigits);
+    auto result = vtk::format_to_n(format, sizeof(format), "{{:.{:d}f}}", zAxisDigits);
+    *result.out = '\0';
     this->SetZLabelFormat(format);
     this->LastZAxisDigits = zAxisDigits;
   }
@@ -1043,10 +1052,7 @@ int vtkCubeAxesActor::Digits(double min, double max)
       // Anything more than 5 is just noise.  (and probably 5 is noise with
       // doubling point if the part before the decimal is big).
 
-      if (digitsPastDecimal > 5)
-      {
-        digitsPastDecimal = 5;
-      }
+      digitsPastDecimal = std::min<long>(digitsPastDecimal, 5);
     }
   }
 
@@ -1076,8 +1082,8 @@ int vtkCubeAxesActor::LabelExponent(double min, double max)
   double range = (fabs(min) > fabs(max) ? fabs(min) : fabs(max));
   double pow10 = log10(range);
 
-  const double eformat_cut_min = -1.5;
-  const double eformat_cut_max = 3.0;
+  constexpr double eformat_cut_min = -1.5;
+  constexpr double eformat_cut_max = 3.0;
   const /*expr*/ double cut_min = pow(10., eformat_cut_min);
   const /*expr*/ double cut_max = pow(10., eformat_cut_max);
   double ipow10;
@@ -1526,7 +1532,7 @@ void vtkCubeAxesActor::DetermineRenderAxes(vtkViewport* viewport)
   }
 
   // Take into account the inertia. Process only so often.
-  if (this->RenderCount++ == 0 || !(this->RenderCount % this->Inertia))
+  if (this->RenderCount == 0 || !((this->RenderCount + 1) % this->Inertia))
   {
     if (this->FlyMode == VTK_FLY_CLOSEST_TRIAD)
     {
@@ -1556,6 +1562,7 @@ void vtkCubeAxesActor::DetermineRenderAxes(vtkViewport* viewport)
     yloc = this->InertiaLocs[1];
     zloc = this->InertiaLocs[2];
   }
+  ++this->RenderCount;
 
   // Set axes to be rendered
   this->RenderAxesX[0] = xloc % NUMBER_OF_ALIGNED_AXIS;
@@ -1859,7 +1866,7 @@ void vtkCubeAxesActor::BuildLabels(vtkAxisActor* axes[NUMBER_OF_ALIGNED_AXIS])
   vtkStringArray* customizedLabels = nullptr;
 
   vtkStringArray* labels = vtkStringArray::New();
-  const char* format = "%s";
+  std::string format("{:s}");
   switch (axes[0]->GetAxisType())
   {
     case vtkAxisActor::VTK_AXIS_TYPE_X:
@@ -1881,6 +1888,7 @@ void vtkCubeAxesActor::BuildLabels(vtkAxisActor* axes[NUMBER_OF_ALIGNED_AXIS])
       lastPow = this->LastZPow;
       break;
   }
+  format = vtk::to_std_format(format);
   customizedLabels = this->AxisLabels[axisIndex];
   // figure out how many labels we need:
   if (extents == 0)
@@ -1923,11 +1931,14 @@ void vtkCubeAxesActor::BuildLabels(vtkAxisActor* axes[NUMBER_OF_ALIGNED_AXIS])
       }
       if (mustAdjustValue)
       {
-        snprintf(label, sizeof(label), format, val * scaleFactor);
+        VTK_FORMAT_IF_ERROR_RETURN(
+          auto result = vtk::format_to_n(label, sizeof(label), format, val * scaleFactor);
+          *result.out = '\0', );
       }
       else
       {
-        snprintf(label, sizeof(label), format, val);
+        VTK_FORMAT_IF_ERROR_RETURN(
+          auto result = vtk::format_to_n(label, sizeof(label), format, val); *result.out = '\0', );
       }
       if (fabs(val) < tol)
       {
@@ -1935,27 +1946,33 @@ void vtkCubeAxesActor::BuildLabels(vtkAxisActor* axes[NUMBER_OF_ALIGNED_AXIS])
         // The maximum number of digits that we allow past the decimal is 5.
         if (strcmp(label, "-0") == 0)
         {
-          snprintf(label, sizeof(label), "0");
+          auto result = vtk::format_to_n(label, sizeof(label), "0");
+          *result.out = '\0';
         }
         else if (strcmp(label, "-0.0") == 0)
         {
-          snprintf(label, sizeof(label), "0.0");
+          auto result = vtk::format_to_n(label, sizeof(label), "0.0");
+          *result.out = '\0';
         }
         else if (strcmp(label, "-0.00") == 0)
         {
-          snprintf(label, sizeof(label), "0.00");
+          auto result = vtk::format_to_n(label, sizeof(label), "0.00");
+          *result.out = '\0';
         }
         else if (strcmp(label, "-0.000") == 0)
         {
-          snprintf(label, sizeof(label), "0.000");
+          auto result = vtk::format_to_n(label, sizeof(label), "0.000");
+          *result.out = '\0';
         }
         else if (strcmp(label, "-0.0000") == 0)
         {
-          snprintf(label, sizeof(label), "0.0000");
+          auto result = vtk::format_to_n(label, sizeof(label), "0.0000");
+          *result.out = '\0';
         }
         else if (strcmp(label, "-0.00000") == 0)
         {
-          snprintf(label, sizeof(label), "0.00000");
+          auto result = vtk::format_to_n(label, sizeof(label), "0.00000");
+          *result.out = '\0';
         }
       }
       labels->SetValue(i, label);
@@ -2430,6 +2447,7 @@ void vtkCubeAxesActor::FindBoundaryEdge(int& xloc, int& yloc, int& zloc, double 
 
   // Find the final point by determining which global x-y-z axes have not
   // been represented, and then determine the point closest to the viewer.
+  // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
   zAxes = (xAxes != 0 && yAxes != 0 ? 0 : (xAxes != 1 && yAxes != 1 ? 1 : 2));
   if (pts[vtkCubeAxesActorConn[xIdx][zAxes]][2] < pts[vtkCubeAxesActorConn[yIdx][zAxes]][2])
   {

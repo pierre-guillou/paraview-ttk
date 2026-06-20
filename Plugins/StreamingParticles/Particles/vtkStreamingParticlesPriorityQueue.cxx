@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <map>
 #include <queue>
 #include <set>
@@ -240,10 +241,7 @@ void vtkStreamingParticlesPriorityQueue::UpdatePriorities(const double view_plan
     //    if (item.Distance + item.Refinement <= 0 || item.Refinement < 1)
     double diagonal = item.Bounds.GetDiagonalLength();
     // avoid division by 0
-    if (diagonal < 1e-10)
-    {
-      diagonal = 1e-10;
-    }
+    diagonal = std::max(diagonal, 1e-10);
     double factor = item.Refinement == 0 ? 0 : this->DetailLevelToLoad / item.Refinement;
     bool detailMethodNeedsBlock =
       (item.Refinement <= 0 || (item.Distance / diagonal < factor && item.ScreenCoverage > 0));
@@ -335,10 +333,10 @@ void vtkStreamingParticlesPriorityQueue::UpdatePriorities(const double view_plan
     this->Internals->BlocksRequested.insert(itr->second);
   }
 
-  cout << "Update information  : " << endl
-       << "  To request        : " << this->Internals->BlocksToRequest.size() << endl
-       << "  Already requested : " << this->Internals->BlocksRequested.size() << endl
-       << "  To purge          : " << this->Internals->BlocksToPurge.size() << endl;
+  std::cout << "Update information  : " << endl
+            << "  To request        : " << this->Internals->BlocksToRequest.size() << endl
+            << "  Already requested : " << this->Internals->BlocksRequested.size() << endl
+            << "  To purge          : " << this->Internals->BlocksToPurge.size() << endl;
 }
 
 //----------------------------------------------------------------------------

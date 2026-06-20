@@ -26,7 +26,7 @@
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 #include "vtkUniformGridAMR.h"
-#include "vtkUniformGridAMRDataIterator.h"
+#include "vtkUniformGridAMRIterator.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkValueSelector.h"
 #include "vtkVariantArray.h"
@@ -246,7 +246,7 @@ int vtkConvertSelection::ConvertToBlockSelection(
     {
       // convert hierarchical index to composite index.
       vtkUniformGridAMR* hbox = vtkUniformGridAMR::SafeDownCast(data);
-      indices.insert(hbox->GetCompositeIndex(
+      indices.insert(hbox->GetAbsoluteBlockIndex(
         static_cast<unsigned int>(properties->Get(vtkSelectionNode::HIERARCHICAL_LEVEL())),
         static_cast<unsigned int>(properties->Get(vtkSelectionNode::HIERARCHICAL_INDEX()))));
     }
@@ -371,7 +371,7 @@ int vtkConvertSelection::ConvertCompositeDataSet(
     vtkSmartPointer<vtkCompositeDataIterator> iter;
     iter.TakeReference(data->NewIterator());
 
-    vtkUniformGridAMRDataIterator* hierIter = vtkUniformGridAMRDataIterator::SafeDownCast(iter);
+    vtkUniformGridAMRIterator* hierIter = vtkUniformGridAMRIterator::SafeDownCast(iter);
 
     for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
     {
@@ -443,7 +443,7 @@ int vtkConvertSelection::ConvertFromQueryAndBlockSelectionNodeCompositeDataSet(
     vtkSmartPointer<vtkCompositeDataIterator> iter;
     iter.TakeReference(cds->NewIterator());
 
-    vtkUniformGridAMRDataIterator* hierIter = vtkUniformGridAMRDataIterator::SafeDownCast(iter);
+    vtkUniformGridAMRIterator* hierIter = vtkUniformGridAMRIterator::SafeDownCast(iter);
 
     for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
     {

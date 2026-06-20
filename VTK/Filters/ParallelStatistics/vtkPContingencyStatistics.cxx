@@ -8,9 +8,9 @@
 #include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
+#include "vtkStatisticalModel.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 #include "vtkVariantArray.h"
@@ -24,6 +24,9 @@
 
 #if DEBUG_PARALLEL_CONTINGENCY_STATISTICS
 #include "vtkTimerLog.h"
+
+#include <iostream>
+
 #endif // DEBUG_PARALLEL_CONTINGENCY_STATISTICS
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -121,7 +124,7 @@ static void StringBufferToStringVector(
 
 //------------------------------------------------------------------------------
 void vtkPContingencyStatistics::Learn(
-  vtkTable* inData, vtkTable* inParameters, vtkMultiBlockDataSet* outMeta)
+  vtkTable* inData, vtkTable* inParameters, vtkStatisticalModel* outMeta)
 {
 #if DEBUG_PARALLEL_CONTINGENCY_STATISTICS
   vtkTimerLog* timer = vtkTimerLog::New();
@@ -146,15 +149,15 @@ void vtkPContingencyStatistics::Learn(
 #if DEBUG_PARALLEL_CONTINGENCY_STATISTICS
   timers->StopTimer();
 
-  cout << "## Process " << this->Controller->GetCommunicator()->GetLocalProcessId()
-       << " serial engine executed in " << timers->GetElapsedTime() << " seconds."
-       << "\n";
+  std::cout << "## Process " << this->Controller->GetCommunicator()->GetLocalProcessId()
+            << " serial engine executed in " << timers->GetElapsedTime() << " seconds."
+            << "\n";
 
   timers->Delete();
 #endif // DEBUG_PARALLEL_CONTINGENCY_STATISTICS
 
   // Get a hold of the summary table
-  vtkTable* summaryTab = vtkTable::SafeDownCast(outMeta->GetBlock(0));
+  vtkTable* summaryTab = outMeta->GetTable(vtkStatisticalModel::Learned, 0);
   if (!summaryTab)
   {
 #if DEBUG_PARALLEL_CONTINGENCY_STATISTICS
@@ -177,7 +180,7 @@ void vtkPContingencyStatistics::Learn(
   }
 
   // Get a hold of the contingency table
-  vtkTable* contingencyTab = vtkTable::SafeDownCast(outMeta->GetBlock(1));
+  vtkTable* contingencyTab = outMeta->GetTable(vtkStatisticalModel::Learned, 1);
   if (!contingencyTab)
   {
 #if DEBUG_PARALLEL_CONTINGENCY_STATISTICS
@@ -325,8 +328,9 @@ void vtkPContingencyStatistics::Learn(
 #if DEBUG_PARALLEL_CONTINGENCY_STATISTICS
   timerB->StopTimer();
 
-  cout << "## Process " << myRank << " broadcasted in " << timerB->GetElapsedTime() << " seconds."
-       << "\n";
+  std::cout << "## Process " << myRank << " broadcasted in " << timerB->GetElapsedTime()
+            << " seconds."
+            << "\n";
 
   timerB->Delete();
 #endif // DEBUG_PARALLEL_CONTINGENCY_STATISTICS
@@ -376,9 +380,9 @@ void vtkPContingencyStatistics::Learn(
 #if DEBUG_PARALLEL_CONTINGENCY_STATISTICS
   timer->StopTimer();
 
-  cout << "## Process " << myRank << " parallel Learn took " << timer->GetElapsedTime()
-       << " seconds."
-       << "\n";
+  std::cout << "## Process " << myRank << " parallel Learn took " << timer->GetElapsedTime()
+            << " seconds."
+            << "\n";
 
   timer->Delete();
 #endif // DEBUG_PARALLEL_CONTINGENCY_STATISTICS

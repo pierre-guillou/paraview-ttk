@@ -35,6 +35,8 @@
 #include <list>
 #include <vector>
 
+#include <iostream>
+
 // do not remove the following line:
 // #define BACK_TO_FRONT
 
@@ -1642,7 +1644,7 @@ protected:
   vtkPixelListEntry* Last;
 };
 
-const vtkIdType VTK_PIXEL_BLOCK_SIZE = 64;
+constexpr vtkIdType VTK_PIXEL_BLOCK_SIZE = 64;
 
 class vtkPixelListEntryMemory
 {
@@ -1751,7 +1753,7 @@ public:
         // overlapping fragments. (Note that if you start to see "speckling"
         // in the image from filled spaces, we may need to add adjust the
         // tolerance to this calculation.)
-        const double tolerance = 1.0e-8;
+        constexpr double tolerance = 1.0e-8;
         if (p->GetExitFace())
         {
 #ifdef BACK_TO_FRONT
@@ -3187,13 +3189,10 @@ void vtkUnstructuredGridVolumeZSweepMapper::MainLoop(vtkRenderWindow* renWin)
           {
             double z = this->Vertices->Vector[vids[i]].GetZview();
 #ifdef BACK_TO_FRONT
-            if (z < zTarget)
+            zTarget = std::min(z, zTarget);
 #else
-            if (z > zTarget)
+            zTarget = std::max(z, zTarget);
 #endif
-            {
-              zTarget = z;
-            }
             ++i;
           }
           ++it;
@@ -3225,13 +3224,10 @@ void vtkUnstructuredGridVolumeZSweepMapper::MainLoop(vtkRenderWindow* renWin)
           {
             double z = this->Vertices->Vector[vids[i]].GetZview();
 #ifdef BACK_TO_FRONT
-            if (z < zTarget)
+            zTarget = std::min(z, zTarget);
 #else
-            if (z > zTarget)
+            zTarget = std::max(z, zTarget);
 #endif
-            {
-              zTarget = z;
-            }
             ++i;
           }
           ++it;
@@ -3292,7 +3288,7 @@ void vtkUnstructuredGridVolumeZSweepMapper::MainLoop(vtkRenderWindow* renWin)
       {
 //        if(face->GetRendered())
 //          {
-//          cout<<"FACE ALREADY RENDERED!!!!"<<endl;
+//          std::cout<<"FACE ALREADY RENDERED!!!!"<<endl;
 //          }
         this->RasterizeFace(vids);
 //        face->SetRendered(1);
@@ -4203,10 +4199,7 @@ void vtkUnstructuredGridVolumeZSweepMapper::CompositeFunction(double zTarget)
         }
         else
         {
-          if (x > newXBounds[1])
-          {
-            newXBounds[1] = x;
-          }
+          newXBounds[1] = std::max(x, newXBounds[1]);
         }
         if (y < newYBounds[0])
         {
@@ -4214,10 +4207,7 @@ void vtkUnstructuredGridVolumeZSweepMapper::CompositeFunction(double zTarget)
         }
         else
         {
-          if (y > newYBounds[1])
-          {
-            newYBounds[1] = y;
-          }
+          newYBounds[1] = std::max(y, newYBounds[1]);
         }
       }
 
@@ -4254,10 +4244,7 @@ unsigned char vtkUnstructuredGridVolumeZSweepMapper::ColorComponentRealToByte(fl
   }
   else
   {
-    if (val < 0)
-    {
-      val = 0;
-    }
+    val = std::max(val, 0);
   }
   return static_cast<unsigned char>(val);
 }

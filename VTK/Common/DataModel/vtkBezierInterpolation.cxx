@@ -15,6 +15,8 @@
 #include "vtkVector.h"
 #include <numeric> // std::accumulate
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBezierInterpolation);
 
@@ -45,8 +47,7 @@ static vtkIdType BinomialCoefficient(int n, int k)
   }
   else
   {
-    if (k > n - k)
-      k = n - k;
+    k = std::min(k, n - k);
     int num = 1;
     int den = 1;
 
@@ -96,8 +97,9 @@ static vtkVector3i unflattenTetrahedron(int deg, vtkIdType flat)
       n_before_this_level += n_on_this_level;
     }
   }
-  // cout << "deg " << deg << " level " << level << " flat " << flat <<  " deg - level " << ( deg -
-  // level ) << " f  lat - n_before_this_level " << ( flat - n_before_this_level ) << std::endl;
+  // std::cout << "deg " << deg << " level " << level << " flat " << flat <<  " deg - level " << (
+  // deg - level ) << " f  lat - n_before_this_level " << ( flat - n_before_this_level ) <<
+  // std::endl;
   const auto cv_tri = unflattenTri(deg - level, flat - n_before_this_level);
   return { cv_tri[0], cv_tri[1], level };
 }
@@ -178,7 +180,7 @@ void vtkBezierInterpolation::DeCasteljauSimplex(
     ? std::array<double, 4>{ 1 - pcoords[0] - pcoords[1], pcoords[0], pcoords[1], 0 }
     : std::array<double, 4>{ 1 - pcoords[0] - pcoords[1] - pcoords[2], pcoords[0], pcoords[1],
         pcoords[2] };
-  const int lin_degree = 1;
+  constexpr int lin_degree = 1;
   const int sub_degree_length_max = NumberOfSimplexFunctions(dim, deg - 1);
   const int shape_func_length = NumberOfSimplexFunctions(dim, lin_degree);
 

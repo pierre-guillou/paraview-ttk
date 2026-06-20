@@ -157,6 +157,8 @@ void vtkCellSizeFilter::ExecuteBlock(vtkDataSet* input, vtkDataSet* output, doub
       break;
 
       case VTK_TRIANGLE:
+      case VTK_QUADRATIC_TRIANGLE:
+      case VTK_BIQUADRATIC_TRIANGLE:
       {
         if (this->ComputeArea)
         {
@@ -217,6 +219,8 @@ void vtkCellSizeFilter::ExecuteBlock(vtkDataSet* input, vtkDataSet* output, doub
       break;
 
       case VTK_QUAD:
+      case VTK_QUADRATIC_QUAD:
+      case VTK_BIQUADRATIC_QUAD:
       {
         if (this->ComputeArea)
         {
@@ -247,11 +251,59 @@ void vtkCellSizeFilter::ExecuteBlock(vtkDataSet* input, vtkDataSet* output, doub
       break;
 
       case VTK_TETRA:
+      case VTK_QUADRATIC_TETRA:
       {
         if (this->ComputeVolume)
         {
           input->GetCell(cellId, cell);
           value = vtkMeshQuality::TetVolume(cell);
+          cellDimension = 3;
+        }
+        else
+        {
+          value = 0;
+        }
+      }
+      break;
+
+      case VTK_WEDGE:
+      {
+        if (this->ComputeVolume)
+        {
+          input->GetCell(cellId, cell);
+          value = vtkMeshQuality::WedgeVolume(cell);
+          cellDimension = 3;
+        }
+        else
+        {
+          value = 0;
+        }
+      }
+      break;
+
+      case VTK_PYRAMID:
+      {
+        if (this->ComputeVolume)
+        {
+          input->GetCell(cellId, cell);
+          value = vtkMeshQuality::PyramidVolume(cell);
+          cellDimension = 3;
+        }
+        else
+        {
+          value = 0;
+        }
+      }
+      break;
+
+      case VTK_HEXAHEDRON:
+      case VTK_QUADRATIC_HEXAHEDRON:
+      case VTK_TRIQUADRATIC_HEXAHEDRON:
+      {
+        if (this->ComputeVolume)
+        {
+          input->GetCell(cellId, cell);
+          value = vtkMeshQuality::HexVolume(cell);
           cellDimension = 3;
         }
         else
@@ -701,9 +753,8 @@ double vtkCellSizeFilter::IntegrateGeneral3DCell(vtkPointSet* input, vtkIdList* 
     tetPtIds[1] = ptIds->GetId(tetIdx++);
     tetPtIds[2] = ptIds->GetId(tetIdx++);
     tetPtIds[3] = ptIds->GetId(tetIdx++);
-    vtkNew<vtkTetra> tet;
-    tet->Initialize(4, tetPtIds, input->GetPoints());
-    sum += vtkMeshQuality::TetVolume(tet);
+    this->LocalTetCell->Initialize(4, tetPtIds, input->GetPoints());
+    sum += vtkMeshQuality::TetVolume(this->LocalTetCell);
   }
   return sum;
 }

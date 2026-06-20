@@ -18,21 +18,27 @@
 
 #include "XrConnectionExtensions.h" // Provides holographic remoting extensions
 
+#include <chrono>
 #include <thread> // used to sleep after connection
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenXRManagerRemoteConnection);
+
+static bool vtkOpenXRManagerRemoteConnectionInitializeSymbol()
+{
+  return true;
+}
 
 //------------------------------------------------------------------------------
 bool vtkOpenXRManagerRemoteConnection::Initialize()
 {
   // Get the path for the library
   std::string libPath =
-    vtkResourceFileLocator::GetLibraryPathForSymbolWin32("vtkOpenXRManagerRemoteConnection");
+    vtkGetLibraryPathForSymbol(vtkOpenXRManagerRemoteConnectionInitializeSymbol);
   std::string libDir = vtksys::SystemTools::GetFilenamePath(libPath);
 
   // Get the path for the current executable
-  std::string exePath = vtkResourceFileLocator::GetLibraryPathForSymbolWin32(nullptr);
+  std::string exePath = vtkResourceFileLocator::GetCurrentExecutablePath();
   std::string exeDir = vtksys::SystemTools::GetFilenamePath(exePath);
 
   // Look for the RemotingXR.json file provided by the microsoft.holographic.remoting.openxr
@@ -126,8 +132,7 @@ bool vtkOpenXRManagerRemoteConnection::ConnectToRemote(XrInstance instance, XrSy
   }
 
   // Make sure the connection is established before the event loop gets started
-  using namespace std::chrono_literals;
-  std::this_thread::sleep_for(2500ms);
+  std::this_thread::sleep_for(std::chrono::milliseconds(2500));
 
   return true;
 }

@@ -15,8 +15,10 @@
 #include "vtkObjectFactory.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
+#include "vtkPropCollection.h"
 #include "vtkProperty.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextProperty.h"
 #include "vtkViewport.h"
 
@@ -275,11 +277,13 @@ vtkPolarAxesActor::vtkPolarAxesActor()
   this->ArcTickActor->SetMapper(this->ArcTickPolyDataMapper);
   this->ArcMinorTickActor->SetMapper(this->ArcMinorTickPolyDataMapper);
 
-  this->PolarLabelFormat = new char[8];
-  snprintf(this->PolarLabelFormat, 8, "%s", "%-#6.3g");
+  this->PolarLabelFormat = new char[10];
+  auto result = vtk::format_to_n(this->PolarLabelFormat, 10, "{:s}", "{:<#6.3g}");
+  *result.out = '\0';
 
-  this->RadialAngleFormat = new char[8];
-  snprintf(this->RadialAngleFormat, 8, "%s", "%-#3.1f");
+  this->RadialAngleFormat = new char[10];
+  result = vtk::format_to_n(this->RadialAngleFormat, 10, "{:s}", "{:<#3.1f}");
+  *result.out = '\0';
 }
 
 //------------------------------------------------------------------------------
@@ -295,68 +299,111 @@ vtkPolarAxesActor::~vtkPolarAxesActor()
 }
 
 //------------------------------------------------------------------------------
-int vtkPolarAxesActor::RenderOpaqueGeometry(vtkViewport* viewport)
+void vtkPolarAxesActor::GetRendered3DProps(vtkPropCollection* collection, bool translucent)
 {
-  // Initialization
-  int renderedSomething = 0;
-  if (!this->Camera)
-  {
-    vtkErrorMacro(<< "No camera!");
-    return renderedSomething;
-  }
-
-  this->BuildAxes(viewport);
-
-  // Render the polar axis
   if (this->PolarAxisVisibility)
   {
-    renderedSomething += this->PolarAxis->RenderOpaqueGeometry(viewport);
+    collection->AddItem(this->PolarAxis);
   }
 
-  // Render the radial axes
   if (this->RadialAxesVisibility)
   {
-    bool isInnerAxis, isAxisVisible;
     for (int i = 0; i < this->NumberOfRadialAxes; ++i)
     {
-      isInnerAxis = (i != this->NumberOfRadialAxes - 1) ||
-        (vtkMathUtilities::FuzzyCompare(MaximumAngle, MinimumAngle));
-      isAxisVisible = !isInnerAxis || this->DrawRadialGridlines;
+      bool isInnerAxis = (i != this->NumberOfRadialAxes - 1) ||
+        (vtkMathUtilities::FuzzyCompare(this->MaximumAngle, this->MinimumAngle));
+      bool isAxisVisible = !isInnerAxis || this->DrawRadialGridlines;
       if (this->RadialAxesVisibility && isAxisVisible)
       {
-        renderedSomething += this->RadialAxes[i]->RenderOpaqueGeometry(viewport);
+        collection->AddItem(this->RadialAxes[i]);
       }
     }
   }
 
-  // Render the polar arcs
-  if (this->PolarArcsVisibility)
+  if (this->PolarArcsVisibility && !translucent)
   {
-    renderedSomething += this->PolarArcsActor->RenderOpaqueGeometry(viewport);
-    renderedSomething += this->SecondaryPolarArcsActor->RenderOpaqueGeometry(viewport);
-
+    collection->AddItem(this->PolarArcsActor);
+    collection->AddItem(this->SecondaryPolarArcsActor);
     if (this->PolarTickVisibility)
     {
       if (this->ArcTickVisibility)
       {
-        renderedSomething += this->ArcTickActor->RenderOpaqueGeometry(viewport);
+        collection->AddItem(this->ArcTickActor);
       }
       if (this->ArcMinorTickVisibility)
       {
-        renderedSomething += this->ArcMinorTickActor->RenderOpaqueGeometry(viewport);
+        collection->AddItem(this->ArcMinorTickActor);
       }
     }
   }
-  return renderedSomething;
 }
 
+//------------------------------------------------------------------------------
+vtkTypeBool vtkPolarAxesActor::HasTranslucentPolygonalGeometry()
+{
+  vtkNew<vtkPropCollection> renderedProps;
+  this->GetRendered3DProps(renderedProps, true);
+  renderedProps->InitTraversal();
+  for (int idx = 0; idx < renderedProps->GetNumberOfItems(); idx++)
+  {
+    vtkProp* prop = renderedProps->GetNextProp();
+    if (prop->HasTranslucentPolygonalGeometry())
+    {
+      return 1;
+    }
+  }
+
+  return Superclass::HasTranslucentPolygonalGeometry();
+}
+
+//------------------------------------------------------------------------------
+int vtkPolarAxesActor::RenderTranslucentPolygonalGeometry(vtkViewport* viewport)
+{
+  int numberOfRenderedProps = 0;
+
+  vtkNew<vtkPropCollection> renderedProps;
+  this->GetRendered3DProps(renderedProps, true);
+  renderedProps->InitTraversal();
+  for (int idx = 0; idx < renderedProps->GetNumberOfItems(); idx++)
+  {
+    vtkProp* prop = renderedProps->GetNextProp();
+    prop->SetPropertyKeys(this->GetPropertyKeys());
+    numberOfRenderedProps += prop->RenderTranslucentPolygonalGeometry(viewport);
+  }
+
+  return numberOfRenderedProps;
+}
+
+//------------------------------------------------------------------------------
+int vtkPolarAxesActor::RenderOpaqueGeometry(vtkViewport* viewport)
+{
+  // Initialization
+  int numberOfRenderedProps = 0;
+
+  this->BuildAxes(viewport);
+
+  vtkNew<vtkPropCollection> renderedProps;
+  this->GetRendered3DProps(renderedProps, false);
+  renderedProps->InitTraversal();
+  for (int idx = 0; idx < renderedProps->GetNumberOfItems(); idx++)
+  {
+    vtkProp* prop = renderedProps->GetNextProp();
+    prop->SetPropertyKeys(this->GetPropertyKeys());
+    numberOfRenderedProps += prop->RenderOpaqueGeometry(viewport);
+  }
+
+  return numberOfRenderedProps;
+}
+
+//------------------------------------------------------------------------------
 int vtkPolarAxesActor::RenderOverlay(vtkViewport* viewport)
 {
-  int renderedSomething = 0;
+  int numberOfRenderedProps = 0;
 
   if (this->PolarAxisVisibility && this->PolarAxis->GetUse2DMode())
   {
-    renderedSomething += this->PolarAxis->RenderOverlay(viewport);
+    this->PolarAxis->SetPropertyKeys(this->GetPropertyKeys());
+    numberOfRenderedProps += this->PolarAxis->RenderOverlay(viewport);
   }
 
   if (this->RadialAxesVisibility)
@@ -365,11 +412,12 @@ int vtkPolarAxesActor::RenderOverlay(vtkViewport* viewport)
     {
       if (this->RadialAxes[i]->GetUse2DMode())
       {
-        renderedSomething += this->RadialAxes[i]->RenderOverlay(viewport);
+        this->RadialAxes[i]->SetPropertyKeys(this->GetPropertyKeys());
+        numberOfRenderedProps += this->RadialAxes[i]->RenderOverlay(viewport);
       }
     }
   }
-  return renderedSomething;
+  return numberOfRenderedProps;
 }
 
 //------------------------------------------------------------------------------
@@ -666,6 +714,12 @@ bool vtkPolarAxesActor::CheckMembersConsistency()
 //------------------------------------------------------------------------------
 void vtkPolarAxesActor::BuildAxes(vtkViewport* viewport)
 {
+  if (!this->Camera)
+  {
+    vtkWarningMacro("vtkPolarAxesActor requires a Camera to be built.");
+    return;
+  }
+
   if (this->GetMTime() < this->BuildTime.GetMTime())
   {
     this->AutoScale(viewport);
@@ -737,10 +791,7 @@ void vtkPolarAxesActor::BuildAxes(vtkViewport* viewport)
   // Polar Axis
   this->PolarAxis->GetAxisMajorTicksProperty()->SetLineWidth(this->PolarAxisMajorTickThickness);
   double minorThickness = this->PolarAxisTickRatioThickness * this->PolarAxisMajorTickThickness;
-  if (minorThickness < 1.0)
-  {
-    minorThickness = 1.0;
-  }
+  minorThickness = std::max(minorThickness, 1.0);
   this->PolarAxis->GetAxisMinorTicksProperty()->SetLineWidth(minorThickness);
 
   // Last arc
@@ -946,6 +997,7 @@ void vtkPolarAxesActor::CreateRadialAxes(int axisCount)
     axis->SetAxisTypeToX();
     axis->SetLabelVisibility(false);
     axis->SetUse2DMode(this->PolarAxis->GetUse2DMode());
+    axis->SetUseTextActor3D(this->PolarAxis->GetUseTextActor3D());
     axis->LastMajorTickPointCorrectionOn();
   }
 }
@@ -1107,7 +1159,11 @@ void vtkPolarAxesActor::BuildRadialAxes(vtkViewport* viewport)
       axis->SetTitleVisibility(this->RadialTitleVisibility);
       std::ostringstream title;
       title.setf(std::ios::fixed, std::ios::floatfield);
-      snprintf(titleValue, sizeof(titleValue), this->RadialAngleFormat, actualAngle);
+      std::string radialAngleFormat =
+        this->RadialAngleFormat ? vtk::to_std_format(this->RadialAngleFormat) : "";
+      VTK_FORMAT_IF_ERROR_RETURN(auto result = vtk::format_to_n(
+                                   titleValue, sizeof(titleValue), radialAngleFormat, actualAngle);
+                                 *result.out = '\0', );
       title << titleValue << (this->RadialUnits ? " deg" : "");
       axis->SetTitle(title.str());
 
@@ -1148,10 +1204,7 @@ void vtkPolarAxesActor::BuildRadialAxes(vtkViewport* viewport)
 
       axis->GetAxisMajorTicksProperty()->SetLineWidth(this->LastRadialAxisMajorTickThickness);
       minorThickness = this->LastRadialAxisMajorTickThickness * LastAxisTickRatioThickness;
-      if (minorThickness < 1.0)
-      {
-        minorThickness = 1.0;
-      }
+      minorThickness = std::max(minorThickness, 1.0);
       axis->GetAxisMinorTicksProperty()->SetLineWidth(minorThickness);
     }
     else
@@ -1537,10 +1590,14 @@ void vtkPolarAxesActor::BuildPolarAxisLabelsArcs()
 
     std::list<double>::iterator itList;
     vtkIdType i = 0;
+    std::string polarLabelFormat =
+      this->PolarLabelFormat ? vtk::to_std_format(this->PolarLabelFormat) : "";
     for (itList = labelValList.begin(); itList != labelValList.end(); ++i, ++itList)
     {
       char label[64];
-      snprintf(label, sizeof(label), this->PolarLabelFormat, *itList);
+      VTK_FORMAT_IF_ERROR_RETURN(
+        auto result = vtk::format_to_n(label, sizeof(label), polarLabelFormat, *itList);
+        *result.out = '\0', );
       labels->SetValue(i, label);
     }
   }
@@ -1630,15 +1687,9 @@ void vtkPolarAxesActor::BuildPolarArcsLog()
       continue;
     }
 
-    if (tickRangeVal < axis->GetRange()[0])
-    {
-      tickRangeVal = axis->GetRange()[0];
-    }
+    tickRangeVal = std::max(tickRangeVal, axis->GetRange()[0]);
 
-    if (tickRangeVal > axis->GetRange()[1])
-    {
-      tickRangeVal = axis->GetRange()[1];
-    }
+    tickRangeVal = std::min(tickRangeVal, axis->GetRange()[1]);
 
     // conversion range value to world value
     tickVal = (log10(tickRangeVal) - log10Range0) * rangeScaleLog;
@@ -1779,7 +1830,9 @@ void vtkPolarAxesActor::BuildLabelsLog()
     for (itList = labelValList.begin(); itList != labelValList.end(); ++i, ++itList)
     {
       char label[64];
-      snprintf(label, sizeof(label), this->PolarLabelFormat, *itList);
+      VTK_FORMAT_IF_ERROR_RETURN(
+        auto result = vtk::format_to_n(label, sizeof(label), this->PolarLabelFormat, *itList);
+        *result.out = '\0', );
       labels->SetValue(i, label);
     }
   }
@@ -1915,7 +1968,9 @@ void vtkPolarAxesActor::GetSignificantPartFromValues(
     char label[64];
     if (this->ExponentLocation == VTK_EXPONENT_LABELS)
     {
-      snprintf(label, sizeof(label), this->PolarLabelFormat, *itList);
+      VTK_FORMAT_IF_ERROR_RETURN(
+        auto result = vtk::format_to_n(label, sizeof(label), this->PolarLabelFormat, *itList);
+        *result.out = '\0', );
       valuesStr->SetValue(i, label);
     }
     else
@@ -2054,6 +2109,18 @@ void vtkPolarAxesActor::SetMaximumAngle(double a)
 }
 
 //------------------------------------------------------------------------------
+void vtkPolarAxesActor::SetUseTextActor3D(bool enable)
+{
+  for (int i = 0; i < this->NumberOfRadialAxes; ++i)
+  {
+    this->RadialAxes[i]->SetUseTextActor3D(enable);
+  }
+
+  this->PolarAxis->SetUseTextActor3D(enable);
+  this->Modified();
+}
+
+//------------------------------------------------------------------------------
 void vtkPolarAxesActor::SetUse2DMode(bool enable)
 {
   for (int i = 0; i < this->NumberOfRadialAxes; ++i)
@@ -2062,6 +2129,7 @@ void vtkPolarAxesActor::SetUse2DMode(bool enable)
   }
 
   this->PolarAxis->SetUse2DMode(enable);
+  this->Modified();
 }
 
 //------------------------------------------------------------------------------

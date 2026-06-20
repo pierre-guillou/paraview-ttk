@@ -58,7 +58,7 @@ public:
    * format the file number. FileNumberRange is used to generate file
    * numbers. I was thinking of having an arbitrary list of file
    * numbers. This may happen in the future. (That is why there is no
-   * GetFileNumberRange method.
+   * GetFileNumberRange method. The pattern is a std::format style format.
    */
   vtkSetFilePathMacro(FilePattern);
   vtkGetFilePathMacro(FilePattern);

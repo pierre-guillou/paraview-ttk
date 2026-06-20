@@ -11,7 +11,6 @@
 #include "vtkDataObject.h"
 #include "vtkDataSet.h"
 #include "vtkDoubleArray.h"
-#include "vtkExecutive.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkLagrangianBasicIntegrationModel.h"
@@ -20,6 +19,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringScanner.h"
 
 #include <vector>
 
@@ -308,14 +308,12 @@ void vtkLagrangianSeedHelper::SetArrayToGenerate(int index, const char* arrayNam
   if (flowOrConstant == vtkLagrangianSeedHelper::CONSTANT)
   {
     arrayVal.Constants.resize(numberOfComponents, 0);
-    this->ParseDoubleValues(arrayValues, numberOfComponents, &arrayVal.Constants[0]);
+    this->ParseDoubleValues(arrayValues, numberOfComponents, arrayVal.Constants.data());
   }
   else
   {
-    char* tmp;
-    arrayVal.FlowFieldAssociation = static_cast<int>(strtol(arrayValues, &tmp, 10));
-    tmp++;
-    arrayVal.FlowArray = tmp;
+    auto result = vtk::from_chars(arrayValues, arrayVal.FlowFieldAssociation);
+    arrayVal.FlowArray = result.ptr + 1;
   }
 
   this->Internals->ArraysToGenerate[index] = arrayVal;

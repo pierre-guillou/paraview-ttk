@@ -1,6 +1,10 @@
 #get same cmake config as visitlib itself does
 include(${CMAKE_CURRENT_SOURCE_DIR}/../Library/VisItLib/CMake/VisItCommon.cmake)
 
+if (WIN32)
+  add_definitions(-DNOMINMAX)
+endif ()
+
 macro(VISIT_INCLUDE_READER_SOURCE name state)
 option(VISIT_BUILD_READER_${name} "Build VisIt Reader ${name}" ${state})
 if (VISIT_BUILD_READER_${name})

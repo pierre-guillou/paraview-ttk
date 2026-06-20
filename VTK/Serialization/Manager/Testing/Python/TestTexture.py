@@ -46,7 +46,7 @@ class TestObjectManagerTexture(vtkPyTesting.vtkTest):
 
         states = map(manager.GetState, active_ids)
         hash_to_blob_map = {blob_hash: manager.GetBlob(
-            blob_hash) for blob_hash in manager.GetBlobHashes(active_ids)}
+            blob_hash, True) for blob_hash in manager.GetBlobHashes(active_ids)}
         return states, hash_to_blob_map
 
     def deserialize(self, states, hash_to_blob_map):
@@ -59,7 +59,6 @@ class TestObjectManagerTexture(vtkPyTesting.vtkTest):
             manager.RegisterBlob(hash_text, blob)
 
         manager.UpdateObjectsFromStates()
-        active_ids = manager.GetAllDependencies(0)
         self.deserialized_image = manager.GetObjectAtId(self.id_image)
 
     def test(self):

@@ -4,15 +4,15 @@
 // .SECTION Description
 //
 #include "vtkAMREnzoReader.h"
-#include "vtkAMRInformation.h"
 #include "vtkCompositeDataReader.h"
 #include "vtkCompositeDataWriter.h"
 #include "vtkNew.h"
 #include "vtkOverlappingAMR.h"
-#include "vtkSetGet.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include "vtkSmartPointer.h"
 #include "vtkTestUtilities.h"
-#include "vtkUniformGrid.h"
+
+#include <iostream>
 
 namespace
 {
@@ -35,7 +35,12 @@ vtkSmartPointer<vtkOverlappingAMR> CreateTestAMR(int argc, char* argv[])
 int TestAMRReadWrite(int argc, char* argv[])
 {
   vtkSmartPointer<vtkOverlappingAMR> amr = CreateTestAMR(argc, argv);
-  amr->Audit();
+  if (!amr->CheckValidity())
+  {
+    std::cerr << "Origin AMR is invalid" << std::endl;
+    return EXIT_FAILURE;
+  }
+
   vtkNew<vtkCompositeDataWriter> writer;
   writer->SetInputData(amr);
   writer->SetFileName("testamr");
@@ -47,7 +52,17 @@ int TestAMRReadWrite(int argc, char* argv[])
 
   vtkSmartPointer<vtkOverlappingAMR> amr1 =
     vtkOverlappingAMR::SafeDownCast(reader->GetOutputDataObject(0));
-  amr1->Audit();
+  if (!amr1->CheckValidity())
+  {
+    std::cerr << "Read AMR is invalid" << std::endl;
+    return EXIT_FAILURE;
+  }
 
-  return (*amr1->GetAMRInfo() == *amr->GetAMRInfo()) ? EXIT_SUCCESS : EXIT_FAILURE;
+  if (*amr1->GetOverlappingAMRMetaData() != *amr->GetOverlappingAMRMetaData())
+  {
+    std::cerr << "AMRs metadatas are not equal" << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  return EXIT_SUCCESS;
 }

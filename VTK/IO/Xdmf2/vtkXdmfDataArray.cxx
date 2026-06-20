@@ -19,6 +19,8 @@
 #include "vtk_xdmf2.h"
 #include VTKXDMF2_HEADER(XdmfArray.h)
 
+#include <iostream>
+
 using namespace xdmf2;
 
 //------------------------------------------------------------------------------
@@ -130,8 +132,8 @@ vtkDataArray* vtkXdmfDataArray::FromXdmfArray(
     /// this breaks
     components = Components;
     tuples = array->GetNumberOfElements() / components;
-    // cout << "Tuples: " << tuples << " components: " << components << endl;
-    // cout << "Rank: " << rank << endl;
+    // std::cout << "Tuples: " << tuples << " components: " << components << endl;
+    // std::cout << "Rank: " << rank << endl;
     this->vtkArray->SetNumberOfComponents(components);
     if (MakeCopy)
       this->vtkArray->SetNumberOfTuples(tuples);
@@ -142,54 +144,63 @@ vtkDataArray* vtkXdmfDataArray::FromXdmfArray(
     if (MakeCopy)
       this->vtkArray->SetNumberOfTuples(array->GetNumberOfElements());
   }
-  // cout << "Number type: " << array->GetNumberType() << endl;
+  // std::cout << "Number type: " << array->GetNumberType() << endl;
   if (MakeCopy)
   {
     switch (array->GetNumberType())
     {
       case XDMF_INT8_TYPE:
-        array->GetValues(
-          0, (XDMF_8_INT*)this->vtkArray->GetVoidPointer(0), array->GetNumberOfElements());
+        array->GetValues(0,
+          vtkAOSDataArrayTemplate<XDMF_8_INT>::FastDownCast(this->vtkArray)->GetPointer(0),
+          array->GetNumberOfElements());
         break;
       case XDMF_UINT8_TYPE:
-        array->GetValues(
-          0, (XDMF_8_U_INT*)this->vtkArray->GetVoidPointer(0), array->GetNumberOfElements());
+        array->GetValues(0,
+          vtkAOSDataArrayTemplate<XDMF_8_U_INT>::FastDownCast(this->vtkArray)->GetPointer(0),
+          array->GetNumberOfElements());
         break;
       case XDMF_INT16_TYPE:
-        array->GetValues(
-          0, (XDMF_16_INT*)this->vtkArray->GetVoidPointer(0), array->GetNumberOfElements());
+        array->GetValues(0,
+          vtkAOSDataArrayTemplate<XDMF_16_INT>::FastDownCast(this->vtkArray)->GetPointer(0),
+          array->GetNumberOfElements());
         break;
       case XDMF_UINT16_TYPE:
-        array->GetValues(
-          0, (XDMF_16_U_INT*)this->vtkArray->GetVoidPointer(0), array->GetNumberOfElements());
+        array->GetValues(0,
+          vtkAOSDataArrayTemplate<XDMF_16_U_INT>::FastDownCast(this->vtkArray)->GetPointer(0),
+          array->GetNumberOfElements());
         break;
       case XDMF_INT32_TYPE:
-        array->GetValues(
-          0, (XDMF_32_INT*)this->vtkArray->GetVoidPointer(0), array->GetNumberOfElements());
+        array->GetValues(0,
+          vtkAOSDataArrayTemplate<XDMF_32_INT>::FastDownCast(this->vtkArray)->GetPointer(0),
+          array->GetNumberOfElements());
         break;
       case XDMF_UINT32_TYPE:
-        array->GetValues(
-          0, (XDMF_32_U_INT*)this->vtkArray->GetVoidPointer(0), array->GetNumberOfElements());
+        array->GetValues(0,
+          vtkAOSDataArrayTemplate<XDMF_32_U_INT>::FastDownCast(this->vtkArray)->GetPointer(0),
+          array->GetNumberOfElements());
         break;
       case XDMF_INT64_TYPE:
-        array->GetValues(
-          0, (XDMF_64_INT*)this->vtkArray->GetVoidPointer(0), array->GetNumberOfElements());
+        array->GetValues(0,
+          vtkAOSDataArrayTemplate<XDMF_64_INT>::FastDownCast(this->vtkArray)->GetPointer(0),
+          array->GetNumberOfElements());
         break;
       case XDMF_FLOAT32_TYPE:
-        array->GetValues(
-          0, (float*)this->vtkArray->GetVoidPointer(0), array->GetNumberOfElements());
+        array->GetValues(0,
+          vtkAOSDataArrayTemplate<float>::FastDownCast(this->vtkArray)->GetPointer(0),
+          array->GetNumberOfElements());
         break;
       case XDMF_FLOAT64_TYPE:
-        array->GetValues(
-          0, (double*)this->vtkArray->GetVoidPointer(0), array->GetNumberOfElements());
+        array->GetValues(0,
+          vtkAOSDataArrayTemplate<double>::FastDownCast(this->vtkArray)->GetPointer(0),
+          array->GetNumberOfElements());
         break;
       default:
         if (array->GetNumberOfElements() > 0)
         {
-          // cout << "Manual idx" << endl;
-          // cout << "Tuples: " << vtkArray->GetNumberOfTuples() << endl;
-          // cout << "Components: " << vtkArray->GetNumberOfComponents() << endl;
-          // cout << "Elements: " << array->GetNumberOfElements() << endl;
+          // std::cout << "Manual idx" << endl;
+          // std::cout << "Tuples: " << vtkArray->GetNumberOfTuples() << endl;
+          // std::cout << "Components: " << vtkArray->GetNumberOfComponents() << endl;
+          // std::cout << "Elements: " << array->GetNumberOfElements() << endl;
           vtkIdType jj, kk;
           vtkIdType idx = 0;
           for (jj = 0; jj < vtkArray->GetNumberOfTuples(); jj++)
@@ -197,7 +208,7 @@ vtkDataArray* vtkXdmfDataArray::FromXdmfArray(
             for (kk = 0; kk < vtkArray->GetNumberOfComponents(); kk++)
             {
               double val = array->GetValueAsFloat64(idx);
-              // cout << "Value: " << val << endl;
+              // std::cout << "Value: " << val << endl;
               vtkArray->SetComponent(jj, kk, val);
               idx++;
             }
@@ -337,16 +348,25 @@ char* vtkXdmfDataArray::ToXdmfArray(vtkDataArray* DataArray, int CopyShape)
     switch (DataArray->GetDataType())
     {
       case VTK_CHAR:
-      case VTK_UNSIGNED_CHAR:
         this->Array->SetNumberType(XDMF_INT8_TYPE);
         break;
+      case VTK_UNSIGNED_CHAR:
+        this->Array->SetNumberType(XDMF_UINT8_TYPE);
+        break;
       case VTK_SHORT:
+        this->Array->SetNumberType(XDMF_INT16_TYPE);
+        break;
       case VTK_UNSIGNED_SHORT:
+        this->Array->SetNumberType(XDMF_UINT16_TYPE);
+        break;
       case VTK_INT:
-      case VTK_UNSIGNED_INT:
-      case VTK_LONG:
-      case VTK_UNSIGNED_LONG:
         this->Array->SetNumberType(XDMF_INT32_TYPE);
+        break;
+      case VTK_UNSIGNED_INT:
+        this->Array->SetNumberType(XDMF_UINT32_TYPE);
+        break;
+      case VTK_LONG:
+        this->Array->SetNumberType(XDMF_INT64_TYPE);
         break;
       case VTK_FLOAT:
         this->Array->SetNumberType(XDMF_FLOAT32_TYPE);
@@ -375,22 +395,42 @@ char* vtkXdmfDataArray::ToXdmfArray(vtkDataArray* DataArray, int CopyShape)
       array->SetShape(2, Shape);
     }
   }
+  auto aos = DataArray->ToAOSDataArray();
+#define XDMF2_ARRAY_COPY(type, xdmfarr, vtkarr)                                                    \
+  xdmfarr->SetValues(0, vtkAOSDataArrayTemplate<type>::FastDownCast(vtkarr)->GetPointer(0),        \
+    xdmfarr->GetNumberOfElements());
   switch (array->GetNumberType())
   {
     case XDMF_INT8_TYPE:
-      array->SetValues(
-        0, (unsigned char*)DataArray->GetVoidPointer(0), array->GetNumberOfElements());
+      XDMF2_ARRAY_COPY(XDMF_8_INT, array, aos);
+      break;
+    case XDMF_UINT8_TYPE:
+      XDMF2_ARRAY_COPY(XDMF_8_U_INT, array, aos);
+      break;
+    case XDMF_INT16_TYPE:
+      XDMF2_ARRAY_COPY(XDMF_16_INT, array, aos);
+      break;
+    case XDMF_UINT16_TYPE:
+      XDMF2_ARRAY_COPY(XDMF_16_U_INT, array, aos);
       break;
     case XDMF_INT32_TYPE:
+      XDMF2_ARRAY_COPY(XDMF_32_INT, array, aos);
+      break;
+    case XDMF_UINT32_TYPE:
+      XDMF2_ARRAY_COPY(XDMF_32_U_INT, array, aos);
+      break;
     case XDMF_INT64_TYPE:
-      array->SetValues(0, (int*)DataArray->GetVoidPointer(0), array->GetNumberOfElements());
+      XDMF2_ARRAY_COPY(XDMF_64_INT, array, aos);
       break;
     case XDMF_FLOAT32_TYPE:
-      array->SetValues(0, (float*)DataArray->GetVoidPointer(0), array->GetNumberOfElements());
+      XDMF2_ARRAY_COPY(XDMF_FLOAT, array, aos);
+      break;
+    case XDMF_FLOAT64_TYPE:
+      XDMF2_ARRAY_COPY(XDMF_DOUBLE, array, aos);
       break;
     default:
-      array->SetValues(0, (double*)DataArray->GetVoidPointer(0), array->GetNumberOfElements());
-      break;
+      XdmfErrorMessage("Can't handle number type");
+      return nullptr;
   }
   return (array->GetTagName());
 }

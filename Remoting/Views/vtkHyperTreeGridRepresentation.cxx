@@ -643,11 +643,11 @@ void vtkHyperTreeGridRepresentation::SetSpecularPower(double val)
 void vtkHyperTreeGridRepresentation::SetFlipTextures(bool flip)
 {
   vtkInformation* info = this->Actor->GetPropertyKeys();
-  info->Remove(vtkProp::GeneralTextureTransform());
+  info->Remove(vtkProp::GENERAL_TEXTURE_TRANSFORM());
   if (flip)
   {
     double mat[] = { 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-    info->Set(vtkProp::GeneralTextureTransform(), mat, 16);
+    info->Set(vtkProp::GENERAL_TEXTURE_TRANSFORM(), mat, 16);
   }
   this->Actor->Modified();
 }
@@ -944,7 +944,7 @@ void vtkHyperTreeGridRepresentation::UpdateShaderReplacements()
       return;
     }
     std::string replacement = repl["replacement"].asString();
-    replacements.push_back(std::make_tuple(shaderType, original, replacement));
+    replacements.emplace_back(shaderType, original, replacement);
   }
 
   for (const auto& r : replacements)

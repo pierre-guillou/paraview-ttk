@@ -119,7 +119,7 @@ vtkOverlappingAMR* GetAMRDataSet()
   double globalOrigin[3] = { -2.0, -2.0, -2.0 };
   data->Initialize(2, blocksPerLevel);
   data->SetOrigin(globalOrigin);
-  data->SetGridDescription(VTK_XYZ_GRID);
+  data->SetGridDescription(vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
 
   double origin[3];
   double h[3];
@@ -184,8 +184,6 @@ vtkOverlappingAMR* GetAMRDataSet()
   data->SetDataSet(level, blockId, grid3);
 
   vtkAMRUtilities::BlankCells(data);
-
-  data->Audit();
 
   return (data);
 }

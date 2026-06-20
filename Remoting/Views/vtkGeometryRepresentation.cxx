@@ -1259,26 +1259,6 @@ void vtkGeometryRepresentation::SetSelection(vtkSelection* selection)
 }
 
 //----------------------------------------------------------------------------
-void vtkGeometryRepresentation::SetFlipTextures(bool flip)
-{
-  if (this->TextureTransform)
-  {
-    if (flip)
-    {
-      static constexpr double mat[] = { 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-      this->TextureTransform->SetMatrix(mat);
-      this->TextureTransform->Modified();
-    }
-    else
-    {
-      static constexpr double mat[] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-      this->TextureTransform->SetMatrix(mat);
-      this->TextureTransform->Modified();
-    }
-  }
-}
-
-//----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetTexture(vtkTexture* val)
 {
   this->Actor->SetTexture(val);
@@ -1309,8 +1289,8 @@ void vtkGeometryRepresentation::UpdateGeneralTextureTransform()
   if (this->Actor && this->Actor->GetPropertyKeys())
   {
     vtkInformation* info = this->Actor->GetPropertyKeys();
-    info->Remove(vtkProp::GeneralTextureTransform());
-    info->Set(vtkProp::GeneralTextureTransform(),
+    info->Remove(vtkProp::GENERAL_TEXTURE_TRANSFORM());
+    info->Set(vtkProp::GENERAL_TEXTURE_TRANSFORM(),
       &(this->TextureTransform->GetMatrix()->Element[0][0]), 16);
     this->Actor->Modified();
   }
@@ -1500,7 +1480,7 @@ void vtkGeometryRepresentation::AddBlockSelector(const char* selector)
     std::find(this->BlockSelectors.begin(), this->BlockSelectors.end(), selector) ==
       this->BlockSelectors.end())
   {
-    this->BlockSelectors.push_back(selector);
+    this->BlockSelectors.emplace_back(selector);
     this->BlockAttrChanged = true;
   }
 }
@@ -2081,7 +2061,7 @@ void vtkGeometryRepresentation::UpdateShaderReplacements()
       return;
     }
     std::string replacement = repl["replacement"].asString();
-    replacements.push_back(std::make_tuple(shaderType, original, replacement));
+    replacements.emplace_back(shaderType, original, replacement);
   }
 
   for (const auto& r : replacements)

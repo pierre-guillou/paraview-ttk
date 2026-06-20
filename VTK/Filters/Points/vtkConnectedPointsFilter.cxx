@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+#include <algorithm>
+
 #include "vtkConnectedPointsFilter.h"
 
 #include "vtkCellData.h"
@@ -115,7 +117,7 @@ int vtkConnectedPointsFilter::RequestData(vtkInformation* vtkNotUsed(request),
   float* n = nullptr;
   if (normals && this->AlignedNormals)
   {
-    n = static_cast<float*>(normals->GetVoidPointer(0));
+    n = normals->GetPointer(0);
     this->NormalThreshold = cos(vtkMath::RadiansFromDegrees(this->NormalAngle));
   }
 
@@ -137,10 +139,7 @@ int vtkConnectedPointsFilter::RequestData(vtkInformation* vtkNotUsed(request),
   }
   else
   {
-    if (this->ScalarRange[1] < this->ScalarRange[0])
-    {
-      this->ScalarRange[1] = this->ScalarRange[0];
-    }
+    this->ScalarRange[1] = std::max(this->ScalarRange[1], this->ScalarRange[0]);
   }
 
   // Initialize.  Keep track of points and cells visited.
@@ -149,7 +148,7 @@ int vtkConnectedPointsFilter::RequestData(vtkInformation* vtkNotUsed(request),
   this->RegionLabels = vtkIdTypeArray::New();
   this->RegionLabels->SetName("RegionLabels");
   this->RegionLabels->SetNumberOfTuples(numPts);
-  vtkIdType* labels = static_cast<vtkIdType*>(this->RegionLabels->GetVoidPointer(0));
+  vtkIdType* labels = this->RegionLabels->GetPointer(0);
   std::fill_n(labels, numPts, -1);
 
   // This is an incremental (propagating wave) traversal of the points. The

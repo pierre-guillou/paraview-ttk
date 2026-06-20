@@ -3,16 +3,15 @@
 #include "vtkOSPRayAMRVolumeMapperNode.h"
 
 #include "vtkAMRBox.h"
-#include "vtkAMRInformation.h"
 #include "vtkDataArray.h"
+#include "vtkFloatArray.h"
 #include "vtkImageData.h"
-#include "vtkOSPRayCache.h"
 #include "vtkOSPRayRendererNode.h"
 #include "vtkObjectFactory.h"
 #include "vtkOverlappingAMR.h"
-#include "vtkRenderer.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include "vtkSmartPointer.h"
-#include "vtkUniformGridAMRDataIterator.h"
+#include "vtkUniformGridAMRIterator.h"
 #include "vtkVolume.h"
 #include "vtkVolumeMapper.h"
 #include "vtkVolumeNode.h"
@@ -21,6 +20,8 @@
 #include "RTWrapper/RTWrapper.h"
 
 #include <cassert>
+
+#include <iostream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOSPRayAMRVolumeMapperNode);
@@ -102,9 +103,8 @@ void vtkOSPRayAMRVolumeMapperNode::Render(bool prepass)
       std::vector<ospcommon::box3i> blockBoundsArray;
       std::vector<int> blockLevelArray;
 
-      vtkAMRInformation* amrInfo = amr->GetAMRInfo();
-      vtkSmartPointer<vtkUniformGridAMRDataIterator> iter;
-      iter.TakeReference(vtkUniformGridAMRDataIterator::SafeDownCast(amr->NewIterator()));
+      vtkSmartPointer<vtkUniformGridAMRIterator> iter;
+      iter.TakeReference(vtkUniformGridAMRIterator::SafeDownCast(amr->NewIterator()));
       for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
       {
         unsigned int level = iter->GetCurrentLevel();
@@ -124,7 +124,7 @@ void vtkOSPRayAMRVolumeMapperNode::Render(bool prepass)
         }
         int dim[3];
 
-        const vtkAMRBox& box = amrInfo->GetAMRBox(level, index);
+        const vtkAMRBox& box = amr->GetAMRBox(level, index);
         const int* lo = box.GetLoCorner();
         const int* hi = box.GetHiCorner();
         ospcommon::vec3i lo_v = { lo[0], lo[1], lo[2] };
@@ -143,22 +143,11 @@ void vtkOSPRayAMRVolumeMapperNode::Render(bool prepass)
         }
 
         OSPData odata;
-        if (cellArray->GetDataType() != VTK_FLOAT)
-        {
-          std::vector<float> fdata(dim[0] * dim[1] * dim[2]);
-          for (int i = 0; i < dim[0] * dim[1] * dim[2]; i++)
-          {
-            fdata[i] = static_cast<float>(cellArray->GetTuple(i)[0]);
-          }
-          odata = ospNewCopyData1D(fdata.data(), OSP_FLOAT, dim[0] * dim[1] * dim[2]);
-          ospCommit(odata);
-        }
-        else
-        {
-          odata = ospNewSharedData1D(reinterpret_cast<float*>(cellArray->GetVoidPointer(0)),
-            OSP_FLOAT, dim[0] * dim[1] * dim[2]);
-          ospCommit(odata);
-        }
+        vtkNew<vtkFloatArray> floatCellArray;
+        floatCellArray->ShallowCopy(cellArray); // convert if needed
+        odata =
+          ospNewSharedData1D(floatCellArray->GetPointer(0), OSP_FLOAT, dim[0] * dim[1] * dim[2]);
+        ospCommit(odata);
 
         brickDataArray.push_back(odata);
         blockLevelArray.push_back(level);
@@ -170,13 +159,13 @@ void vtkOSPRayAMRVolumeMapperNode::Render(bool prepass)
       ospSetVec3f(this->OSPRayVolume, "gridOrigin", static_cast<float>(bds[0]),
         static_cast<float>(bds[2]), static_cast<float>(bds[4]));
       double spacing[3] = { 1.0, 1.0, 1.0 };
-      amr->GetAMRInfo()->GetSpacing(0, spacing);
+      amr->GetSpacing(0, spacing);
       ospSetVec3f(this->OSPRayVolume, "gridSpacing", static_cast<float>(spacing[0]),
         static_cast<float>(spacing[1]), static_cast<float>(spacing[2]));
 
-      for (unsigned int i = 0; i < amrInfo->GetNumberOfLevels(); ++i)
+      for (unsigned int i = 0; i < amr->GetNumberOfLevels(); ++i)
       {
-        amrInfo->GetSpacing(i, spacing);
+        amr->GetSpacing(i, spacing);
         cellWidthArray.push_back(spacing[0]); // TODO - must OSP cells be cubes?
       }
       OSPData cellWidthData =

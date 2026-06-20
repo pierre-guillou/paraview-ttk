@@ -105,12 +105,6 @@
 #define VTK_OPENFOAM_OUTPUT_BUFFER_SIZE (4194304)
 #define VTK_OPENFOAM_INCLUDE_STACK_SIZE (10)
 
-#if defined(_MSC_VER)
-#define _CRT_SECURE_NO_WARNINGS 1
-// No strtoll on msvc:
-#define strtoll _strtoi64
-#endif
-
 #if VTK_FOAMFILE_OMIT_CRCCHECK
 #define ZLIB_INTERNAL
 #endif
@@ -145,13 +139,28 @@
   } while (false)
 #endif // VTK_FOAMFILE_DEBUG
 
+#define VTK_OPENFOAM_FROM_CHARS_RESULT_IF_ERROR_COMMAND(from_chars_result, string, value, command) \
+  switch (from_chars_result.ec)                                                                    \
+  {                                                                                                \
+    case std::errc::invalid_argument:                                                              \
+    {                                                                                              \
+      vtkLogF(ERROR, "The given argument was invalid, failed to get the converted " #value ".");   \
+      command;                                                                                     \
+    }                                                                                              \
+    case std::errc::result_out_of_range:                                                           \
+    {                                                                                              \
+      value = string[0] == '-' ? -std::numeric_limits<decltype(value)>::infinity()                 \
+                               : std::numeric_limits<decltype(value)>::infinity();                 \
+      break;                                                                                       \
+    }                                                                                              \
+    default:                                                                                       \
+    {                                                                                              \
+    }                                                                                              \
+  }
+
 //------------------------------------------------------------------------------
 
 #include "vtkOpenFOAMReader.h"
-
-#include "vtk_zlib.h"
-#include "vtksys/RegularExpression.hxx"
-#include "vtksys/SystemTools.hxx"
 
 #include "vtkAssume.h"
 #include "vtkCellArray.h"
@@ -182,13 +191,17 @@
 #include "vtkSortDataArray.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
+#include "vtkStringScanner.h"
 #include "vtkTable.h"
 #include "vtkTypeInt32Array.h"
 #include "vtkTypeInt64Array.h"
 #include "vtkTypeInt8Array.h"
 #include "vtkTypeTraits.h"
 #include "vtkUnstructuredGrid.h"
-#include "vtkValueFromString.h"
+
+#include "vtk_zlib.h"
+#include "vtksys/RegularExpression.hxx"
+#include "vtksys/SystemTools.hxx"
 
 #if !(defined(_WIN32) && !defined(__CYGWIN__) || defined(__LIBCATAMOUNT__))
 #include <pwd.h> // For getpwnam(), getpwuid()
@@ -208,6 +221,8 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include <iostream>
 
 #if VTK_FOAMFILE_OMIT_CRCCHECK
 VTK_ABI_NAMESPACE_BEGIN
@@ -1439,16 +1454,18 @@ public:
   float ToFloat() const noexcept
   {
     return this->Type == LABEL ? static_cast<float>(this->Int)
-      : this->Type == SCALAR   ? static_cast<float>(this->Double)
-                               : 0.0F;
+      // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
+      : this->Type == SCALAR ? static_cast<float>(this->Double)
+                             : 0.0F;
   }
 
   // Mostly the same as To<double>, with additional check
   double ToDouble() const noexcept
   {
     return this->Type == LABEL ? static_cast<double>(this->Int)
-      : this->Type == SCALAR   ? this->Double
-                               : 0.0;
+      // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
+      : this->Type == SCALAR ? this->Double
+                             : 0.0;
   }
 
   std::string ToString() const { return *this->StringPtr; }
@@ -1673,11 +1690,11 @@ protected:
 
     if (auto inputBufferSize = vtksys::SystemTools::GetEnv("VTK_OPENFOAM_INPUT_BUFFER_SIZE"))
     {
-      this->InputBufferSize = std::atoi(inputBufferSize);
+      VTK_FROM_CHARS_IF_ERROR_BREAK(inputBufferSize, this->InputBufferSize);
     }
     if (auto outputBufferSize = vtksys::SystemTools::GetEnv("VTK_OPENFOAM_OUTPUT_BUFFER_SIZE"))
     {
-      this->OutputBufferSize = std::atoi(outputBufferSize);
+      VTK_FROM_CHARS_IF_ERROR_BREAK(outputBufferSize, this->OutputBufferSize);
     }
   }
 
@@ -1784,7 +1801,8 @@ public:
       {
         this->IsCompressed = false;
       }
-      rewind(this->File);
+      clearerr(this->File);           // clear error and EOF flags
+      fseek(this->File, 0, SEEK_SET); // move to beginning
 #if VTK_OPENFOAM_TIME_PROFILING
       auto end = std::chrono::high_resolution_clock::now();
       this->TimeInMicroseconds =
@@ -2081,9 +2099,10 @@ public:
         case '$': // $-variable expansion
         {
           std::string variable;
-          while (++charI < nChars && (isalnum(pathIn[charI]) || pathIn[charI] == '_'))
+          ++charI; // skip the '$'
+          while (charI < nChars && (isalnum(pathIn[charI]) || pathIn[charI] == '_'))
           {
-            variable += pathIn[charI];
+            variable += pathIn[charI++];
           }
           if (variable == "FOAM_CASE") // discard path until the variable
           {
@@ -2124,10 +2143,11 @@ public:
           if (wasPathSeparator)
           {
             std::string userName;
-            while (++charI < nChars && (pathIn[charI] != '/' && pathIn[charI] != '\\') &&
+            ++charI; // skip the '~'
+            while (charI < nChars && (pathIn[charI] != '/' && pathIn[charI] != '\\') &&
               pathIn[charI] != '$')
             {
-              userName += pathIn[charI];
+              userName += pathIn[charI++];
             }
 
             std::string homeDir;
@@ -2199,7 +2219,7 @@ public:
             isExpanded = true;
             break;
           }
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         default:
           wasPathSeparator = (c == '/' || c == '\\');
           expandedPath += c;
@@ -2293,16 +2313,22 @@ public:
           buf[charI] = '\0';
           if (use64BitLabels)
           {
-            token = static_cast<vtkTypeInt64>(strtoll(buf, nullptr, 10));
+            vtkTypeInt64 val;
+            auto result = vtk::from_chars(buf, val);
+            VTK_OPENFOAM_FROM_CHARS_RESULT_IF_ERROR_COMMAND(result, buf, val, return false);
+            token = val;
           }
           else
           {
-            token = static_cast<vtkTypeInt32>(strtol(buf, nullptr, 10));
+            vtkTypeInt32 val;
+            auto result = vtk::from_chars(buf, val);
+            VTK_OPENFOAM_FROM_CHARS_RESULT_IF_ERROR_COMMAND(result, buf, val, return false);
+            token = val;
           }
           this->PutBack(c);
           return true;
         }
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case '.':
         // scalar token
         if (c == '.' && charI < MAXLEN)
@@ -2335,9 +2361,14 @@ public:
           this->PutBack(c);
           return true;
         }
-        buf[charI] = '\0';
-        token = strtod(buf, nullptr);
-        this->PutBack(c);
+        {
+          buf[charI] = '\0';
+          double val;
+          auto result = vtk::from_chars(buf, val);
+          VTK_OPENFOAM_FROM_CHARS_RESULT_IF_ERROR_COMMAND(result, buf, val, return false);
+          token = val;
+          this->PutBack(c);
+        }
         break;
       case ';':
       case '{':
@@ -2825,11 +2856,11 @@ double vtkFoamFile::ReadDoubleValue()
 
   // Convert the token string to a double using vtkValueFromString
   double value;
-  auto result = vtkValueFromString(buffer.data(), buffer.data() + size, value);
-  if (result != size)
+  auto result = vtk::from_chars(buffer.data(), buffer.data() + size, value);
+  if (result.ec != std::errc{})
   {
     // If conversion fails, handle the error appropriately.
-    this->ThrowUnexpectedNondigitException(*(buffer.data() + result));
+    this->ThrowUnexpectedNondigitException(*result.ptr);
   }
 
   return value;
@@ -3302,12 +3333,11 @@ struct vtkFoamRead
       }
       else
       {
-        auto* fileData = vtkDataArray::CreateDataArray(vtkTypeTraits<primitiveT>::VTKTypeID());
+        vtkNew<vtkAOSDataArrayTemplate<primitiveT>> fileData;
         // nComponents == 1
         fileData->SetNumberOfTuples(nTuples);
-        io.Read(reinterpret_cast<unsigned char*>(fileData->GetVoidPointer(0)), nbytes);
+        io.Read(reinterpret_cast<unsigned char*>(fileData->GetPointer(0)), nbytes);
         this->Ptr->DeepCopy(fileData);
-        fileData->Delete();
       }
     }
   };
@@ -3878,12 +3908,12 @@ void vtkFoamEntryValue::ReadLabelListList(vtkFoamIOobject& io)
         void* sublist;
         if (this->Superclass::LabelListListPtr->IsStorage64Bit())
         {
-          sublist = this->Superclass::LabelListListPtr->GetConnectivityArray64()->WritePointer(
+          sublist = this->Superclass::LabelListListPtr->GetConnectivityAOSArray64()->WritePointer(
             nTotalElems, sublistLen);
         }
         else
         {
-          sublist = this->Superclass::LabelListListPtr->GetConnectivityArray32()->WritePointer(
+          sublist = this->Superclass::LabelListListPtr->GetConnectivityAOSArray32()->WritePointer(
             nTotalElems, sublistLen);
         }
 
@@ -3920,12 +3950,12 @@ void vtkFoamEntryValue::ReadLabelListList(vtkFoamIOobject& io)
           }
           if (this->Superclass::LabelListListPtr->IsStorage64Bit())
           {
-            this->Superclass::LabelListListPtr->GetConnectivityArray64()->InsertValue(
+            this->Superclass::LabelListListPtr->GetConnectivityAOSArray64()->InsertValue(
               nTotalElems++, currToken.To<int>());
           }
           else
           {
-            this->Superclass::LabelListListPtr->GetConnectivityArray32()->InsertValue(
+            this->Superclass::LabelListListPtr->GetConnectivityAOSArray32()->InsertValue(
               nTotalElems++, currToken.To<int>());
           }
           ++nTotalElems;
@@ -3998,8 +4028,19 @@ void vtkFoamEntryValue::ReadCompactLabelListList(vtkFoamIOobject& io)
         // Non-empty (binary) list - only read parentheses only when size > 0
 
         io.ReadExpecting('('); // Begin list
-        io.Read(reinterpret_cast<unsigned char*>(array->GetVoidPointer(0)),
-          static_cast<vtkTypeInt64>(listLen * array->GetDataTypeSize()));
+        if (use64BitLabels)
+        {
+          io.Read(reinterpret_cast<unsigned char*>(
+                    vtkAOSDataArrayTemplate<vtkTypeInt64>::FastDownCast(array)->GetPointer(0)),
+            static_cast<vtkTypeInt64>(listLen * array->GetDataTypeSize()));
+        }
+        else
+        {
+          io.Read(reinterpret_cast<unsigned char*>(
+                    vtkAOSDataArrayTemplate<vtkTypeInt32>::FastDownCast(array)->GetPointer(0)),
+            static_cast<vtkTypeInt64>(listLen * array->GetDataTypeSize()));
+        }
+
         io.ReadExpecting(')'); // End list
       }
     }
@@ -4018,7 +4059,7 @@ void vtkFoamEntryValue::ReadCompactLabelListList(vtkFoamIOobject& io)
 //   and we silently skip these
 void vtkFoamEntryValue::ReadDimensionSet(vtkFoamIOobject& io)
 {
-  const int nDimensions = 7; // There are 7 base dimensions
+  constexpr int nDimensions = 7; // There are 7 base dimensions
   this->MakeScalarList(nDimensions, 0.0);
   vtkFloatArray& dims = *(this->Superclass::ScalarListPtr);
 
@@ -5931,6 +5972,7 @@ bool vtkFoamBoundaries::update(const vtkFoamDict& dict)
         if (subentry && subentry->GetType() == vtkFoamToken::STRINGLIST)
         {
           // Yes this is really needed, VTK constness is a bit odd
+          // NOLINTNEXTLINE(readability-redundant-casting)
           vtkStringArray& groupNames = const_cast<vtkStringArray&>(subentry->StringList());
           const vtkIdType nGroups = groupNames.GetNumberOfValues();
 
@@ -6472,11 +6514,10 @@ bool vtkOpenFOAMReaderPrivate::ListTimeDirectoriesByInstances()
     if (isNumber)
     {
       // Convert to a number
-      char* endptr = nullptr;
-      const double timeValue = std::strtod(timeName, &endptr);
-
+      double timeValue;
+      auto result = vtk::from_chars(timeName, timeValue);
       // Check for good parse of entire string, and filestat that it is a directory
-      if (timeName != endptr && *endptr == '\0' && dir->FileIsDirectory(timeName))
+      if (timeName != result.ptr && *(result.ptr) == '\0' && dir->FileIsDirectory(timeName))
       {
         this->TimeNames->InsertNextValue(timeName);
         this->TimeValues->InsertNextValue(timeValue);
@@ -6574,6 +6615,7 @@ namespace
 // - No change and first instance: it is "constant" time instance
 inline void UpdateTimeInstance(std::vector<vtkIdType>& list, vtkIdType i, bool changed)
 {
+  // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
   list[i] = changed ? i : (i == 0) ? TIMEINDEX_CONSTANT : list[i - 1];
 }
 
@@ -7103,11 +7145,11 @@ vtkSmartPointer<vtkCellArray> vtkOpenFOAMReaderPrivate::CreateCellFaces()
       tmpAddr->SetOffset(celli, next + 1);
       if (meshCells->IsStorage64Bit())
       {
-        meshCells->GetConnectivityArray64()->SetValue(next, facei);
+        meshCells->GetConnectivityAOSArray64()->SetValue(next, facei);
       }
       else
       {
-        meshCells->GetConnectivityArray32()->SetValue(next, facei);
+        meshCells->GetConnectivityAOSArray32()->SetValue(next, facei);
       }
     }
     // neighbour
@@ -7117,11 +7159,11 @@ vtkSmartPointer<vtkCellArray> vtkOpenFOAMReaderPrivate::CreateCellFaces()
       tmpAddr->SetOffset(celli, next + 1);
       if (meshCells->IsStorage64Bit())
       {
-        meshCells->GetConnectivityArray64()->SetValue(next, facei);
+        meshCells->GetConnectivityAOSArray64()->SetValue(next, facei);
       }
       else
       {
-        meshCells->GetConnectivityArray32()->SetValue(next, facei);
+        meshCells->GetConnectivityAOSArray32()->SetValue(next, facei);
       }
     }
   }
@@ -7135,11 +7177,11 @@ vtkSmartPointer<vtkCellArray> vtkOpenFOAMReaderPrivate::CreateCellFaces()
       tmpAddr->SetOffset(celli, next + 1);
       if (meshCells->IsStorage64Bit())
       {
-        meshCells->GetConnectivityArray64()->SetValue(next, facei);
+        meshCells->GetConnectivityAOSArray64()->SetValue(next, facei);
       }
       else
       {
-        meshCells->GetConnectivityArray32()->SetValue(next, facei);
+        meshCells->GetConnectivityAOSArray32()->SetValue(next, facei);
       }
     }
   }
@@ -8159,8 +8201,9 @@ void vtkOpenFOAMReaderPrivate::InsertFacesToGrid(vtkPolyData* boundaryMesh,
     }
 
     const int vtkFaceType = (nFacePoints == 3 ? VTK_TRIANGLE
-        : nFacePoints == 4                    ? VTK_QUAD
-                                              : VTK_POLYGON);
+        // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
+        : nFacePoints == 4 ? VTK_QUAD
+                           : VTK_POLYGON);
     boundaryMesh->InsertNextCell(vtkFaceType, nFacePoints, facePointIds.data());
   }
 }
@@ -8612,6 +8655,7 @@ void vtkOpenFOAMReaderPrivate::InterpolateCellToPoint(vtkFloatArray* pData, vtkF
           {
             *it = (*volIt > 0
                 ? *volIt
+                // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
                 : (*areaIt > 0 ? *areaIt : (*lenIt > 0 ? *lenIt : (*vcIt > 0 ? *vcIt : -1.0))));
           }
         });
@@ -8810,7 +8854,7 @@ vtkSmartPointer<vtkFloatArray> vtkOpenFOAMReaderPrivate::FillField(vtkFoamEntry&
       else if (entry.FirstValue().GetType() == vtkFoamToken::SCALARLIST)
       {
         vtkFloatArray& sl = entry.ScalarList();
-        nComponents = static_cast<int>(sl.GetSize());
+        nComponents = static_cast<int>(sl.GetNumberOfValues());
         tuple = sl.GetPointer(0);
       }
       else
@@ -8882,7 +8926,7 @@ vtkSmartPointer<vtkFloatArray> vtkOpenFOAMReaderPrivate::FillField(vtkFoamEntry&
 // Convert OpenFOAM dimension array to string representation
 std::string vtkOpenFOAMReaderPrivate::ConstructDimensions(const vtkFoamDict& dict) const
 {
-  const int nDimensions = 7; // There are 7 base dimensions
+  constexpr int nDimensions = 7; // There are 7 base dimensions
   static const char* units[7] = { "kg", "m", "s", "K", "mol", "A", "cd" };
 
   if (!this->Parent->GetAddDimensionsToArrayNames())
@@ -9123,7 +9167,7 @@ void vtkOpenFOAMReaderPrivate::GetVolFieldAtTimeStep(
 #endif
     return;
   }
-  else if (iData->GetSize() == 0)
+  else if (iData->GetNumberOfTuples() == 0)
   {
 #if VTK_OPENFOAM_TIME_PROFILING
     this->RequestDataTimeInMicroseconds += io.TimeInMicroseconds;
@@ -9656,7 +9700,7 @@ void vtkOpenFOAMReaderPrivate::GetPointFieldAtTimeStep(const std::string& varNam
 #endif
     return;
   }
-  else if (iData->GetSize() == 0)
+  else if (iData->GetNumberOfTuples() == 0)
   {
 #if VTK_OPENFOAM_TIME_PROFILING
     this->RequestDataTimeInMicroseconds += io.TimeInMicroseconds;
@@ -9914,7 +9958,12 @@ vtkMultiBlockDataSet* vtkOpenFOAMReaderPrivate::MakeLagrangianMesh()
     const std::string displayName(selection->GetArrayName(itemi));
 
     auto slash = displayName.rfind('/');
-    if (slash == std::string::npos || displayName.compare(0, ++slash, regionCloudPrefix) != 0)
+    if (slash == std::string::npos)
+    {
+      continue;
+    }
+    ++slash;
+    if (displayName.compare(0, slash, regionCloudPrefix) != 0)
     {
       continue;
     }

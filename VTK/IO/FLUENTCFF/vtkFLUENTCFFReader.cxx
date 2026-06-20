@@ -12,42 +12,31 @@
 
 #include "vtkFLUENTCFFReader.h"
 
-#include "vtkByteSwap.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkDataArraySelection.h"
 #include "vtkDoubleArray.h"
-#include "vtkEndian.h"
-#include "vtkErrorCode.h"
 #include "vtkFieldData.h"
-#include "vtkFloatArray.h"
 #include "vtkHexahedron.h"
 #include "vtkIdList.h"
-#include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkIntArray.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkObjectFactory.h"
-#include "vtkPointData.h"
 #include "vtkPoints.h"
 #include "vtkPyramid.h"
 #include "vtkQuad.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringFormatter.h"
 #include "vtkTetra.h"
 #include "vtkTriangle.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkWedge.h"
+
 #include "vtk_hdf5.h"
-#include "vtksys/Encoding.hxx"
-#include "vtksys/FStream.hxx"
 
 #include <algorithm>
 #include <cctype>
-#include <fstream>
-#include <map>
-#include <set>
-#include <sstream>
 #include <string>
 #include <sys/stat.h>
 #include <vector>
@@ -55,7 +44,7 @@
 #define CHECK_HDF(fct)                                                                             \
   if (fct < 0)                                                                                     \
   throw std::runtime_error("HDF5 error in vtkFLUENTCFFReader: " + std::string(__func__) + " at " + \
-    std::to_string(__LINE__))
+    vtk::to_string(__LINE__))
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFLUENTCFFReader);
@@ -121,8 +110,7 @@ int vtkFLUENTCFFReader::RequestData(vtkInformation* vtkNotUsed(request),
     return 0;
   }
 
-  this->NumberOfScalars = 0;
-  this->NumberOfVectors = 0;
+  this->NumberOfArrays = 0;
   if (this->FileState == DataState::AVAILABLE)
   {
     int flagData = 0;
@@ -168,7 +156,7 @@ int vtkFLUENTCFFReader::RequestData(vtkInformation* vtkNotUsed(request),
 
   for (auto& cell : this->Cells)
   {
-    size_t location = std::find(this->CellZones.begin(), this->CellZones.end(), cell.zone) -
+    std::size_t location = std::find(this->CellZones.begin(), this->CellZones.end(), cell.zone) -
       this->CellZones.begin();
 
     if (cell.type == 1)
@@ -226,7 +214,7 @@ int vtkFLUENTCFFReader::RequestData(vtkInformation* vtkNotUsed(request),
       nodes->SetArray(cell.nodes.data(), cell.nodes.size(), 1);
       nodesOffset->SetArray(cell.nodesOffset.data(), cell.nodesOffset.size(), 1);
       faces->SetData(nodesOffset, nodes);
-      for (size_t j = 0; j < cell.nodes.size(); j++)
+      for (std::size_t j = 0; j < cell.nodes.size(); j++)
       {
         pointIds->InsertUniqueId(static_cast<vtkIdType>(cell.nodes[j]));
       }
@@ -235,60 +223,44 @@ int vtkFLUENTCFFReader::RequestData(vtkInformation* vtkNotUsed(request),
     }
   }
 
-  // Scalar Data
-  for (const auto& scalarDataChunk : this->ScalarDataChunks)
+  for (const auto& dataChunk : DataChunks)
   {
-    if (this->CellDataArraySelection->ArrayIsEnabled(scalarDataChunk.variableName.c_str()))
+    if (!this->CellDataArraySelection->ArrayIsEnabled(dataChunk.variableName.c_str()))
     {
-      for (size_t location = 0; location < this->CellZones.size(); location++)
-      {
-        vtkNew<vtkDoubleArray> v;
-        unsigned int i = 0;
-        for (size_t m = 0; m < scalarDataChunk.scalarData.size(); m++)
-        {
-          if (this->Cells[m].zone == this->CellZones[location])
-          {
-            v->InsertValue(static_cast<vtkIdType>(i), scalarDataChunk.scalarData[m]);
-            i++;
-          }
-        }
-        v->SetName(scalarDataChunk.variableName.c_str());
-        grid[location]->GetCellData()->AddArray(v);
-      }
+      continue;
     }
-  }
-  this->ScalarDataChunks.clear();
-
-  // Vector Data
-  for (const auto& vectorDataChunk : VectorDataChunks)
-  {
-    if (this->CellDataArraySelection->ArrayIsEnabled(vectorDataChunk.variableName.c_str()))
+    if (dataChunk.variableName.find("UDM") != std::string::npos)
     {
-      for (size_t location = 0; location < this->CellZones.size(); location++)
+      this->ParseUDMData(grid, dataChunk);
+    }
+    else
+    {
+      for (std::size_t location = 0; location < this->CellZones.size(); location++)
       {
-        vtkNew<vtkDoubleArray> v;
-        v->SetNumberOfComponents(static_cast<int>(vectorDataChunk.dim));
-        for (size_t k = 0; k < vectorDataChunk.dim; k++)
+        vtkNew<vtkDoubleArray> doubleArray;
+        doubleArray->SetNumberOfComponents(static_cast<int>(dataChunk.dim));
+        for (std::size_t dim = 0; dim < dataChunk.dim; dim++)
         {
-          unsigned int i = 0;
-          for (size_t m = 0; m < vectorDataChunk.vectorData.size() / vectorDataChunk.dim; m++)
+          unsigned int currentCellIdx = 0;
+          for (std::size_t idxCell = 0; idxCell < dataChunk.dataVector.size() / dataChunk.dim;
+               idxCell++)
           {
-            if (this->Cells[m].zone == this->CellZones[location])
+            if (this->Cells[idxCell].zone == this->CellZones[location])
             {
-              v->InsertComponent(static_cast<vtkIdType>(i), static_cast<int>(k),
-                vectorDataChunk.vectorData[k + vectorDataChunk.dim * m]);
-              i++;
+              doubleArray->InsertComponent(static_cast<vtkIdType>(currentCellIdx),
+                static_cast<int>(dim), dataChunk.dataVector[dim + dataChunk.dim * idxCell]);
+              currentCellIdx++;
             }
           }
         }
-        v->SetName(vectorDataChunk.variableName.c_str());
-        grid[location]->GetCellData()->AddArray(v);
+        doubleArray->SetName(dataChunk.variableName.c_str());
+        grid[location]->GetCellData()->AddArray(doubleArray);
       }
     }
   }
-  this->VectorDataChunks.clear();
+  this->DataChunks.clear();
 
-  for (size_t location = 0; location < this->CellZones.size(); location++)
+  for (std::size_t location = 0; location < this->CellZones.size(); location++)
   {
     grid[location]->SetPoints(this->Points);
     output->SetBlock(static_cast<unsigned int>(location), grid[location]);
@@ -301,6 +273,34 @@ int vtkFLUENTCFFReader::RequestData(vtkInformation* vtkNotUsed(request),
 }
 
 //------------------------------------------------------------------------------
+void vtkFLUENTCFFReader::ParseUDMData(
+  std::vector<vtkSmartPointer<vtkUnstructuredGrid>>& grid, const DataChunk& dataChunk)
+{
+  for (std::size_t location = 0; location < this->CellZones.size(); location++)
+  {
+    for (std::size_t dim = 0; dim < dataChunk.dim; dim++)
+    {
+      vtkNew<vtkDoubleArray> doubleArray;
+      doubleArray->SetNumberOfComponents(1);
+
+      unsigned int currentCellIdx = 0;
+      for (std::size_t idxCell = 0; idxCell < dataChunk.dataVector.size() / dataChunk.dim;
+           idxCell++)
+      {
+        if (this->Cells[idxCell].zone == this->CellZones[location])
+        {
+          doubleArray->InsertTuple1(static_cast<vtkIdType>(currentCellIdx),
+            dataChunk.dataVector[dim + dataChunk.dim * idxCell]);
+          currentCellIdx++;
+        }
+      }
+      doubleArray->SetName((dataChunk.variableName + "_" + vtk::to_string(dim)).c_str());
+      grid[location]->GetCellData()->AddArray(doubleArray);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 void vtkFLUENTCFFReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -309,23 +309,13 @@ void vtkFLUENTCFFReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Number Of cell Zone: " << this->CellZones.size() << endl;
   if (this->FileState != DataState::NOT_LOADED)
   {
-    os << indent << "List Of Scalar Value : " << this->ScalarDataChunks.size() << endl;
-    if (!this->ScalarDataChunks.empty())
+    os << indent << "List Of Value : " << this->DataChunks.size() << endl;
+    if (!this->DataChunks.empty())
     {
       os << indent;
-      for (const auto& DataChunk : this->ScalarDataChunks)
+      for (const auto& dataChunk : this->DataChunks)
       {
-        os << DataChunk.variableName;
-      }
-      os << endl;
-    }
-    os << indent << "List Of Vector Value : " << this->VectorDataChunks.size() << endl;
-    if (!this->VectorDataChunks.empty())
-    {
-      os << indent;
-      for (const auto& DataChunk : this->VectorDataChunks)
-      {
-        os << DataChunk.variableName;
+        os << dataChunk.variableName;
       }
       os << endl;
     }
@@ -383,11 +373,7 @@ int vtkFLUENTCFFReader::RequestInformation(vtkInformation* vtkNotUsed(request),
       return 0;
     }
     // Create CellDataArraySelection from pre-read variable name
-    for (const auto& variableName : this->PreReadScalarData)
-    {
-      this->CellDataArraySelection->AddArray(variableName.c_str());
-    }
-    for (const auto& variableName : this->PreReadVectorData)
+    for (const auto& variableName : this->PreReadData)
     {
       this->CellDataArraySelection->AddArray(variableName.c_str());
     }
@@ -682,7 +668,7 @@ void vtkFLUENTCFFReader::GetNodes()
     {
       throw std::runtime_error("Unable to open HDF group (GetNodes coords).");
     }
-    dset_coords = H5Dopen(group_coords, std::to_string(Id[iZone]).c_str(), H5P_DEFAULT);
+    dset_coords = H5Dopen(group_coords, vtk::to_string(Id[iZone]).c_str(), H5P_DEFAULT);
     if (dset_coords < 0)
     {
       throw std::runtime_error("Unable to open HDF group (GetNodes coords).");
@@ -879,7 +865,7 @@ void vtkFLUENTCFFReader::GetCells()
       {
         int16_t ctype_elementType;
         std::string groupname =
-          std::string("/meshes/1/cells/ctype/" + std::to_string(iSection + 1));
+          std::string("/meshes/1/cells/ctype/" + vtk::to_string(iSection + 1));
         group_ctype = H5Gopen(this->HDFImpl->FluentCaseFile, groupname.c_str(), H5P_DEFAULT);
         if (group_ctype < 0)
         {
@@ -1125,7 +1111,7 @@ void vtkFLUENTCFFReader::GetFaces()
   for (uint64_t iSection = 0; iSection < nSections; iSection++)
   {
     uint64_t minId_fnodes, maxId_fnodes, nodes_size;
-    std::string groupname = std::string("/meshes/1/faces/nodes/" + std::to_string(iSection + 1));
+    std::string groupname = std::string("/meshes/1/faces/nodes/" + vtk::to_string(iSection + 1));
     group = H5Gopen(this->HDFImpl->FluentCaseFile, groupname.c_str(), H5P_DEFAULT);
     if (group < 0)
     {
@@ -1211,7 +1197,7 @@ void vtkFLUENTCFFReader::GetFaces()
   {
     uint64_t minc0, maxc0;
 
-    dset = H5Dopen(group, std::to_string(iSection + 1).c_str(), H5P_DEFAULT);
+    dset = H5Dopen(group, vtk::to_string(iSection + 1).c_str(), H5P_DEFAULT);
     if (dset < 0)
     {
       throw std::runtime_error("Unable to open HDF dataset (GetFaces c0 iSection).");
@@ -1259,7 +1245,7 @@ void vtkFLUENTCFFReader::GetFaces()
   }
   CHECK_HDF(H5Aread(attr, H5T_NATIVE_UINT64, &nSections));
   CHECK_HDF(H5Aclose(attr));
-  for (size_t i = 0; i < this->Faces.size(); i++)
+  for (std::size_t i = 0; i < this->Faces.size(); i++)
   {
     this->Faces[i].c1 = -1;
   }
@@ -1267,7 +1253,7 @@ void vtkFLUENTCFFReader::GetFaces()
   {
     uint64_t minc1, maxc1;
 
-    dset = H5Dopen(group, std::to_string(iSection + 1).c_str(), H5P_DEFAULT);
+    dset = H5Dopen(group, vtk::to_string(iSection + 1).c_str(), H5P_DEFAULT);
     if (dset < 0)
     {
       throw std::runtime_error("Unable to open HDF dataset (GetFaces c1 iSection).");
@@ -1352,7 +1338,7 @@ topology.data()); CHECK_HDF(H5Dclose(dset));
 
     for (int iSection = 0; iSection < nSections; iSection++)
     {
-      hid_t groupTopo = H5Gopen(group, std::to_string(topology[iSection]).c_str(), H5P_DEFAULT);
+      hid_t groupTopo = H5Gopen(group, vtk::to_string(topology[iSection]).c_str(), H5P_DEFAULT);
       if (groupTopo < 0)
       {
         throw std::runtime_error("Unable to open HDF group (GetCellOverset topology).");
@@ -1609,7 +1595,7 @@ void vtkFLUENTCFFReader::GetInterfaceFaceParents()
       int minId = static_cast<int>(nciTopology[iZone * nData + 1]);
       int maxId = static_cast<int>(nciTopology[iZone * nData + 2]);
 
-      hid_t group_int = H5Gopen(group, std::to_string(zoneId).c_str(), H5P_DEFAULT);
+      hid_t group_int = H5Gopen(group, vtk::to_string(zoneId).c_str(), H5P_DEFAULT);
       if (group_int < 0)
       {
         throw std::runtime_error("Unable to open HDF group (GetInterfaceFaceParents topology).");
@@ -1673,7 +1659,7 @@ void vtkFLUENTCFFReader::CleanCells()
 
       // Copy faces
       t.clear();
-      for (size_t j = 0; j < cell.faces.size(); j++)
+      for (std::size_t j = 0; j < cell.faces.size(); j++)
       {
         t.push_back(cell.faces[j]);
       }
@@ -1682,7 +1668,7 @@ void vtkFLUENTCFFReader::CleanCells()
       cell.faces.clear();
 
       // Copy the faces that are not flagged back into the cell
-      for (size_t j = 0; j < t.size(); j++)
+      for (std::size_t j = 0; j < t.size(); j++)
       {
         if ((this->Faces[t[j]].child == 0) && (this->Faces[t[j]].ncgChild == 0) &&
           (this->Faces[t[j]].interfaceFaceChild == 0))
@@ -1702,37 +1688,21 @@ void vtkFLUENTCFFReader::PopulateCellTree()
     // If cell is parent cell -> interpolate data from children
     if (cell.parent == 1)
     {
-      for (auto& scalarDataChunk : this->ScalarDataChunks)
+      for (auto& dataChunk : this->DataChunks)
       {
-        double data = 0.0;
-        int ncell = 0;
-        for (size_t j = 0; j < cell.childId.size(); j++)
-        {
-          if (this->Cells[cell.childId[j]].parent == 0)
-          {
-            data += scalarDataChunk.scalarData[cell.childId[j]];
-            ncell++;
-          }
-        }
-        scalarDataChunk.scalarData.emplace_back(
-          (ncell != 0 ? data / static_cast<double>(ncell) : 0.0));
-      }
-      for (auto& vectorDataChunk : this->VectorDataChunks)
-      {
-        for (size_t k = 0; k < vectorDataChunk.dim; k++)
+        for (std::size_t k = 0; k < dataChunk.dim; k++)
         {
           double data = 0.0;
           int ncell = 0;
-          for (size_t j = 0; j < cell.childId.size(); j++)
+          for (std::size_t j = 0; j < cell.childId.size(); j++)
           {
             if (this->Cells[cell.childId[j]].parent == 0)
             {
-              data += vectorDataChunk.vectorData[k + vectorDataChunk.dim * cell.childId[j]];
+              data += dataChunk.dataVector[k + dataChunk.dim * cell.childId[j]];
               ncell++;
             }
           }
-          vectorDataChunk.vectorData.emplace_back(
-            (ncell != 0 ? data / static_cast<double>(ncell) : 0.0));
+          dataChunk.dataVector.emplace_back((ncell != 0 ? data / static_cast<double>(ncell) : 0.0));
         }
       }
     }
@@ -1742,7 +1712,7 @@ void vtkFLUENTCFFReader::PopulateCellTree()
 //------------------------------------------------------------------------------
 void vtkFLUENTCFFReader::PopulateCellNodes()
 {
-  for (size_t i = 0; i < this->Cells.size(); i++)
+  for (std::size_t i = 0; i < this->Cells.size(); i++)
   {
     const vtkIdType id = static_cast<vtkIdType>(i);
     switch (this->Cells[i].type)
@@ -1931,7 +1901,7 @@ void vtkFLUENTCFFReader::PopulateHexahedronCell(int i)
   }
 
   //  Look for opposite face of hexahedron
-  for (size_t j = 1; j < this->Cells[i].faces.size(); j++)
+  for (std::size_t j = 1; j < this->Cells[i].faces.size(); j++)
   {
     int flag = 0;
     for (int k = 0; k < 4; k++)
@@ -1965,7 +1935,7 @@ void vtkFLUENTCFFReader::PopulateHexahedronCell(int i)
 
   //  Find the face with points 0 and 1 in them.
   int f01[4] = { -1, -1, -1, -1 };
-  for (size_t j = 1; j < this->Cells[i].faces.size(); j++)
+  for (std::size_t j = 1; j < this->Cells[i].faces.size(); j++)
   {
     int flag0 = 0;
     int flag1 = 0;
@@ -2001,7 +1971,7 @@ void vtkFLUENTCFFReader::PopulateHexahedronCell(int i)
 
   //  Find the face with points 0 and 3 in them.
   int f03[4] = { -1, -1, -1, -1 };
-  for (size_t j = 1; j < this->Cells[i].faces.size(); j++)
+  for (std::size_t j = 1; j < this->Cells[i].faces.size(); j++)
   {
     int flag0 = 0;
     int flag1 = 0;
@@ -2088,7 +2058,7 @@ void vtkFLUENTCFFReader::PopulatePyramidCell(int i)
 {
   this->Cells[i].nodes.resize(5);
   //  The quad face will be the base of the pyramid
-  for (size_t j = 0; j < this->Cells[i].faces.size(); j++)
+  for (std::size_t j = 0; j < this->Cells[i].faces.size(); j++)
   {
     if (this->Faces[this->Cells[i].faces[j]].nodes.size() == 4)
     {
@@ -2110,7 +2080,7 @@ void vtkFLUENTCFFReader::PopulatePyramidCell(int i)
   }
 
   // Just need to find point 4
-  for (size_t j = 0; j < this->Cells[i].faces.size(); j++)
+  for (std::size_t j = 0; j < this->Cells[i].faces.size(); j++)
   {
     if (this->Faces[this->Cells[i].faces[j]].nodes.size() == 3)
     {
@@ -2136,7 +2106,7 @@ void vtkFLUENTCFFReader::PopulateWedgeCell(int i)
   //  Find the first triangle face and make it the base.
   int base = 0;
   int first = 0;
-  for (size_t j = 0; j < this->Cells[i].faces.size(); j++)
+  for (std::size_t j = 0; j < this->Cells[i].faces.size(); j++)
   {
     if ((this->Faces[this->Cells[i].faces[j]].type == 3) && (first == 0))
     {
@@ -2148,7 +2118,7 @@ void vtkFLUENTCFFReader::PopulateWedgeCell(int i)
   //  Find the second triangle face and make it the top.
   int top = 0;
   int second = 0;
-  for (size_t j = 0; j < this->Cells[i].faces.size(); j++)
+  for (std::size_t j = 0; j < this->Cells[i].faces.size(); j++)
   {
     if ((this->Faces[this->Cells[i].faces[j]].type == 3) && (second == 0) &&
       (this->Cells[i].faces[j] != base))
@@ -2191,7 +2161,7 @@ void vtkFLUENTCFFReader::PopulateWedgeCell(int i)
 
   //  Find the quad face with points 0 and 1 in them.
   int w01[4] = { -1, -1, -1, -1 };
-  for (size_t j = 0; j < this->Cells[i].faces.size(); j++)
+  for (std::size_t j = 0; j < this->Cells[i].faces.size(); j++)
   {
     if (this->Cells[i].faces[j] != base && this->Cells[i].faces[j] != top)
     {
@@ -2220,7 +2190,7 @@ void vtkFLUENTCFFReader::PopulateWedgeCell(int i)
 
   //  Find the quad face with points 0 and 2 in them.
   int w02[4] = { -1, -1, -1, -1 };
-  for (size_t j = 0; j < this->Cells[i].faces.size(); j++)
+  for (std::size_t j = 0; j < this->Cells[i].faces.size(); j++)
   {
     if (this->Cells[i].faces[j] != base && this->Cells[i].faces[j] != top)
     {
@@ -2294,14 +2264,14 @@ void vtkFLUENTCFFReader::PopulatePolyhedronCell(int i)
   // nodes stores the nodeIds while nodesOffset stores the node Offset for each faces
   int currentOffset = 0;
   this->Cells[i].nodesOffset.push_back(currentOffset);
-  for (size_t j = 0; j < this->Cells[i].faces.size(); j++)
+  for (std::size_t j = 0; j < this->Cells[i].faces.size(); j++)
   {
-    size_t numFacePts = this->Faces[this->Cells[i].faces[j]].nodes.size();
+    std::size_t numFacePts = this->Faces[this->Cells[i].faces[j]].nodes.size();
     if (numFacePts != 0)
     {
       currentOffset += static_cast<int>(numFacePts);
       this->Cells[i].nodesOffset.push_back(currentOffset);
-      for (size_t k = 0; k < numFacePts; k++)
+      for (std::size_t k = 0; k < numFacePts; k++)
       {
         this->Cells[i].nodes.push_back(this->Faces[this->Cells[i].faces[j]].nodes[k]);
       }
@@ -2317,11 +2287,11 @@ int vtkFLUENTCFFReader::GetData()
     int iphase = 1;
     while (
       H5Gget_objinfo(this->HDFImpl->FluentDataFile,
-        std::string("/results/1/phase-" + std::to_string(iphase)).c_str(), false, nullptr) == 0)
+        std::string("/results/1/phase-" + vtk::to_string(iphase)).c_str(), false, nullptr) == 0)
     {
       hid_t group, attr, dset, groupcell, space, dataType;
       group = H5Gopen(this->HDFImpl->FluentDataFile,
-        std::string("/results/1/phase-" + std::to_string(iphase)).c_str(), H5P_DEFAULT);
+        std::string("/results/1/phase-" + vtk::to_string(iphase)).c_str(), H5P_DEFAULT);
       if (group < 0)
       {
         vtkErrorMacro("Unable to open HDF group (GetData).");
@@ -2338,7 +2308,7 @@ int vtkFLUENTCFFReader::GetData()
       dset = H5Dopen(groupcell, "fields", H5P_DEFAULT);
       space = H5Dget_space(dset);
       dataType = H5Dget_type(dset);
-      size_t stringLength = H5Tget_size(dataType);
+      std::size_t stringLength = H5Tget_size(dataType);
       strchar = new char[stringLength];
       CHECK_HDF(H5Dread(dset, dataType, H5S_ALL, H5S_ALL, H5P_DEFAULT, strchar));
       CHECK_HDF(H5Dclose(dset));
@@ -2347,7 +2317,7 @@ int vtkFLUENTCFFReader::GetData()
       std::string str(strchar);
       delete[] strchar;
       std::vector<std::string> v_str;
-      size_t npos = 0;
+      std::size_t npos = 0;
       while (npos < str.length())
       {
         v_str.push_back(str.substr(npos, str.find(';', npos) - npos));
@@ -2364,7 +2334,7 @@ int vtkFLUENTCFFReader::GetData()
         if (iphase > 1)
         {
           strSectionName =
-            std::string("phase_") + std::to_string(iphase - 1) + std::string("-") + strSectionName;
+            std::string("phase_") + vtk::to_string(iphase - 1) + std::string("-") + strSectionName;
         }
 
         if (this->CellDataArraySelection->ArrayIsEnabled(strSectionName.c_str()))
@@ -2380,7 +2350,7 @@ int vtkFLUENTCFFReader::GetData()
 
           for (uint64_t iSection = 0; iSection < nSections; iSection++)
           {
-            dset = H5Dopen(groupdata, std::to_string(iSection + 1).c_str(), H5P_DEFAULT);
+            dset = H5Dopen(groupdata, vtk::to_string(iSection + 1).c_str(), H5P_DEFAULT);
             if (dset < 0)
             {
               throw std::runtime_error("Unable to open HDF dataset (GetData dat iSection).");
@@ -2433,35 +2403,44 @@ int vtkFLUENTCFFReader::GetData()
               std::vector<float> dataf(total_dim);
               CHECK_HDF(
                 H5Dread(dset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dataf.data()));
-              for (size_t j = 0; j < total_dim; j++)
+              for (std::size_t j = 0; j < total_dim; j++)
               {
                 data[j] = static_cast<double>(dataf[j]);
               }
             }
 
-            if (ndims == 1)
+            if (ndims <= 3)
             {
-              this->NumberOfScalars++;
-              this->ScalarDataChunks.emplace_back();
-              this->ScalarDataChunks.back().variableName = strSectionName;
-              for (size_t j = minId; j <= maxId; j++)
+              int numberOfComponents = 1;
+
+              // If the array has more than one dimensions, it means its data has multipe components
+              if (ndims > 1)
               {
-                this->ScalarDataChunks.back().scalarData.push_back(data[j - 1]);
+                numberOfComponents = dims[1];
               }
-            }
-            else if (ndims <= 3) // Maximum number of component for vector (2 or 3)
-            {
-              this->NumberOfVectors++;
-              this->VectorDataChunks.emplace_back();
-              this->VectorDataChunks.back().dim = ndims;
-              this->VectorDataChunks.back().variableName = strSectionName;
-              for (size_t k = 0; k < static_cast<size_t>(ndims); k++)
+              if (numberOfComponents > 9)
               {
-                for (size_t j = minId; j <= maxId; j++)
+                vtkWarningMacro("The field " << strSectionName
+                                             << " has more than 9 components, it can't be parsed.");
+              }
+              else
+              {
+                this->NumberOfArrays++;
+                this->DataChunks.emplace_back();
+                this->DataChunks.back().dim = numberOfComponents;
+                this->DataChunks.back().variableName = strSectionName;
+                for (std::size_t k = 0; k < static_cast<std::size_t>(numberOfComponents); k++)
                 {
-                  this->VectorDataChunks.back().vectorData.push_back(data[dims[1] * (j - 1) + k]);
+                  for (std::size_t j = minId; j <= maxId; j++)
+                  {
+                    this->DataChunks.back().dataVector.push_back(data[k * maxId + (j - 1)]);
+                  }
                 }
               }
+            }
+            else
+            {
+              vtkWarningMacro("The field " << strSectionName << " has more than 3 dimensions");
             }
 
             CHECK_HDF(H5Sclose(space));
@@ -2488,11 +2467,11 @@ int vtkFLUENTCFFReader::GetMetaData()
     int iphase = 1;
     while (
       H5Gget_objinfo(this->HDFImpl->FluentDataFile,
-        std::string("/results/1/phase-" + std::to_string(iphase)).c_str(), false, nullptr) == 0)
+        std::string("/results/1/phase-" + vtk::to_string(iphase)).c_str(), false, nullptr) == 0)
     {
       hid_t group, attr, dset, groupcell, space, dataType;
       group = H5Gopen(this->HDFImpl->FluentDataFile,
-        std::string("/results/1/phase-" + std::to_string(iphase)).c_str(), H5P_DEFAULT);
+        std::string("/results/1/phase-" + vtk::to_string(iphase)).c_str(), H5P_DEFAULT);
       if (group < 0)
       {
         vtkErrorMacro("Unable to open HDF group (GetMetaData).");
@@ -2513,7 +2492,7 @@ int vtkFLUENTCFFReader::GetMetaData()
       }
       space = H5Dget_space(dset);
       dataType = H5Dget_type(dset);
-      size_t stringLength = H5Tget_size(dataType);
+      std::size_t stringLength = H5Tget_size(dataType);
       strchar = new char[stringLength];
       CHECK_HDF(H5Dread(dset, dataType, H5S_ALL, H5S_ALL, H5P_DEFAULT, strchar));
       CHECK_HDF(H5Dclose(dset));
@@ -2522,7 +2501,7 @@ int vtkFLUENTCFFReader::GetMetaData()
       std::string str(strchar);
       delete[] strchar;
       std::vector<std::string> v_str;
-      size_t npos = 0;
+      std::size_t npos = 0;
       while (npos < str.length())
       {
         v_str.push_back(str.substr(npos, str.find(';', npos) - npos));
@@ -2539,7 +2518,7 @@ int vtkFLUENTCFFReader::GetMetaData()
         if (iphase > 1)
         {
           strSectionName =
-            std::string("phase_") + std::to_string(iphase - 1) + std::string("-") + strSectionName;
+            std::string("phase_") + vtk::to_string(iphase - 1) + std::string("-") + strSectionName;
         }
 
         uint64_t nSections;
@@ -2553,24 +2532,13 @@ int vtkFLUENTCFFReader::GetMetaData()
 
         for (uint64_t iSection = 0; iSection < nSections; iSection++)
         {
-          dset = H5Dopen(groupdata, std::to_string(iSection + 1).c_str(), H5P_DEFAULT);
+          dset = H5Dopen(groupdata, vtk::to_string(iSection + 1).c_str(), H5P_DEFAULT);
           if (dset < 0)
           {
             throw std::runtime_error("Unable to open HDF dataset (GetMetaData data iSection).");
           }
-          space = H5Dget_space(dset);
-          hid_t ndims = H5Sget_simple_extent_ndims(space);
+          this->PreReadData.push_back(strSectionName);
 
-          if (ndims == 1)
-          {
-            this->PreReadScalarData.push_back(strSectionName);
-          }
-          else
-          {
-            this->PreReadVectorData.push_back(strSectionName);
-          }
-
-          CHECK_HDF(H5Sclose(space));
           CHECK_HDF(H5Dclose(dset));
         }
 

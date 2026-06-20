@@ -18,6 +18,7 @@
 #include "vtkVoronoiKernel.h"
 
 #include <cmath>
+#include <iostream>
 #include <sstream>
 #include <string>
 
@@ -31,7 +32,7 @@ int TestKernel(
 //------------------------------------------------------------------------------
 int UnitTestKernels(int, char*[])
 {
-  const vtkIdType numberOfPoints = 100000;
+  constexpr vtkIdType numberOfPoints = 100000;
   int status = 0;
   {
     vtkSmartPointer<vtkGaussianKernel> kernel = vtkSmartPointer<vtkGaussianKernel>::New();

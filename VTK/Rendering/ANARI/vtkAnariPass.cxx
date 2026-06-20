@@ -224,7 +224,10 @@ void vtkAnariPass::Render(const vtkRenderState* s)
 
   if (!ad->AnariInitialized())
   {
-    ad->SetupAnariDeviceFromLibrary("environment", "default", false);
+    if (!ad->SetupAnariDeviceFromLibrary("environment", "default", false))
+    {
+      return;
+    }
   }
 
   anari::Device device = ad->GetHandle();
@@ -287,7 +290,7 @@ vtkAnariPass::vtkAnariPass()
   this->CameraPass->SetDelegatePass(sequencePass);
 
   this->GetAnariDevice()->SetOnNewDeviceCallback(
-    [&](anari::Device d) { this->GetAnariRenderer()->SetAnariDevice(d); });
+    [&]() { this->GetAnariRenderer()->SetAnariDevice(this->GetAnariDevice()); });
 }
 
 // ----------------------------------------------------------------------------

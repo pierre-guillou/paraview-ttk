@@ -17,9 +17,12 @@
 #define vtkProp_h
 
 #include "vtkObject.h"
+
+#include "vtkDeprecation.h"         // for deprecation macro
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
-#include <vector>                   // for method args
+
+#include <vector> // for method args
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAssemblyPath;
@@ -152,7 +155,12 @@ public:
    * passes.
    * For instance, the user may mark a prop as a shadow caster for a
    * shadow mapping render pass. Keys are documented in render pass classes.
-   * Initial value is NULL.
+   *
+   * Initial value is nullptr.
+   *
+   * @note when delegating the rendering to other vtkProp subclasses,
+   * you probably want to pass the PropertyKeys to those vtkProps.
+   * This may be done as a preamble in the RenderXXX method.
    */
   vtkGetObjectMacro(PropertyKeys, vtkInformation);
   virtual void SetPropertyKeys(vtkInformation* keys);
@@ -164,6 +172,7 @@ public:
    */
   virtual bool HasKeys(vtkInformation* requiredKeys);
 
+  ///@{
   /**
    * Optional Key Indicating the texture unit for general texture mapping
    * Old OpenGL was a state machine where you would push or pop
@@ -172,9 +181,14 @@ public:
    * The new design wants explicit communication of when a texture
    * is being used.  This key can be used to pass that information
    * down to a mapper.
+   * \ingroup InformationKeys
    */
-  static vtkInformationIntegerKey* GeneralTextureUnit();
+  VTK_DEPRECATED_IN_9_6_0("Please use GENERAL_TEXTURE_UNIT() instead.")
+  static vtkInformationIntegerKey* GeneralTextureUnit() { return vtkProp::GENERAL_TEXTURE_UNIT(); }
+  static vtkInformationIntegerKey* GENERAL_TEXTURE_UNIT();
+  ///@}
 
+  ///@{
   /**
    * Optional Key Indicating the texture transform for general texture mapping
    * Old OpenGL was a state machine where you would push or pop
@@ -183,8 +197,15 @@ public:
    * The new design wants explicit communication of when a texture
    * is being used.  This key can be used to pass that information
    * down to a mapper.
+   * \ingroup InformationKeys
    */
-  static vtkInformationDoubleVectorKey* GeneralTextureTransform();
+  VTK_DEPRECATED_IN_9_6_0("Please use GENERAL_TEXTURE_TRANSFORM() instead.")
+  static vtkInformationDoubleVectorKey* GeneralTextureTransform()
+  {
+    return vtkProp::GENERAL_TEXTURE_TRANSFORM();
+  }
+  static vtkInformationDoubleVectorKey* GENERAL_TEXTURE_TRANSFORM();
+  ///@}
 
   /**
    * WARNING: INTERNAL METHOD - NOT INTENDED FOR GENERAL USE

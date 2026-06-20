@@ -46,15 +46,25 @@ public:
    * this representation. Note that methods are available for both
    * display and world coordinates.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual void GetPoint1WorldPosition(double pos[3]) VTK_FUTURE_CONST = 0;
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual void GetPoint2WorldPosition(double pos[3]) VTK_FUTURE_CONST = 0;
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual double* GetPoint1WorldPosition() VTK_SIZEHINT(3) = 0;
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual double* GetPoint2WorldPosition() VTK_SIZEHINT(3) = 0;
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual void SetPoint1DisplayPosition(double pos[3]) = 0;
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual void SetPoint2DisplayPosition(double pos[3]) = 0;
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual void GetPoint1DisplayPosition(double pos[3]) VTK_FUTURE_CONST = 0;
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual void GetPoint2DisplayPosition(double pos[3]) VTK_FUTURE_CONST = 0;
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual void SetPoint1WorldPosition(double pos[3]) = 0;
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual void SetPoint2WorldPosition(double pos[3]) = 0;
   ///@}
 
@@ -80,7 +90,10 @@ public:
    * properties appropriately.)
    */
   vtkGetObjectMacro(Point1Representation, vtkHandleRepresentation);
+  void SetPoint1Representation(vtkHandleRepresentation* obj);
   vtkGetObjectMacro(Point2Representation, vtkHandleRepresentation);
+  void SetPoint2Representation(vtkHandleRepresentation* obj);
+
   ///@}
 
   ///@{
@@ -95,9 +108,9 @@ public:
 
   ///@{
   /**
-   * Specify the format to use for labelling the distance. Note that an empty
-   * string results in no label, or a format string without a "%" character
-   * will not print the distance value.
+   * Specify the std::format or printf style format to use for labelling the distance. Note that an
+   * empty string results in no label, or a format string without a "{}" character will not print
+   * the distance value.
    */
   vtkSetStringMacro(LabelFormat);
   vtkGetStringMacro(LabelFormat);

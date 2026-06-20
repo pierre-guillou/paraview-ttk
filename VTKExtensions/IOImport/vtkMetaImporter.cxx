@@ -26,6 +26,7 @@
 #include "vtkProperty.h"
 #include "vtkRenderer.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringFormatter.h"
 #include "vtkTexture.h"
 
 #include <vtksys/SystemTools.hxx>
@@ -122,7 +123,7 @@ nlohmann::json to_json(vtkActor* actor, const std::string& name)
   if (actor->GetPropertyKeys())
   {
     // determine whether importer flipped the textures.
-    double* textureTransform = actor->GetPropertyKeys()->Get(vtkProp::GeneralTextureTransform());
+    double* textureTransform = actor->GetPropertyKeys()->Get(vtkProp::GENERAL_TEXTURE_TRANSFORM());
     const double mat[] = { 1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1 };
     for (int i = 0; i < 16; ++i)
     {
@@ -201,7 +202,7 @@ nlohmann::json to_json(vtkLightCollection* lights)
   int lightId = 0;
   while (auto light = vtkLight::SafeDownCast(lights->GetNextLight(pit)))
   {
-    const std::string name = "Light" + std::to_string(lightId++);
+    const std::string name = "Light" + vtk::to_string(lightId++);
     lightsJson.push_back(to_json(light, name));
   }
   return lightsJson;
@@ -388,7 +389,7 @@ public:
     if (iter == cache.end())
     {
       // Create new cache item.
-      const std::string key = userName;
+      const std::string& key = userName;
       cache.insert(std::make_pair(dobj, key));
       this->DataObjectCacheKeys.emplace_back(key);
       vtkDistributedTrivialProducer::SetGlobalOutput(key.c_str(), dobj);

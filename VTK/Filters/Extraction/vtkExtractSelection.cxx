@@ -30,6 +30,7 @@
 #include "vtkSignedCharArray.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkTable.h"
+#include "vtkUniformGridAMR.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkValueSelector.h"
@@ -113,9 +114,14 @@ int vtkExtractSelection::RequestDataObject(
     // when PreserveTopology is ON, we preserve input data type.
     outputType = inputType;
   }
+  else if (vtkUniformGridAMR::SafeDownCast(inputDO))
+  {
+    // For AMR, we create a vtkPartitionedDataSetCollection
+    outputType = VTK_PARTITIONED_DATA_SET_COLLECTION;
+  }
   else if (vtkDataObjectTree::SafeDownCast(inputDO))
   {
-    // For DataObjectTree, preserve the type.
+    // For other DataObjectTree, preserve the type.
     outputType = inputType;
   }
   else if (vtkCompositeDataSet::SafeDownCast(inputDO))
@@ -367,8 +373,6 @@ int vtkExtractSelection::RequestData(vtkInformation* vtkNotUsed(request),
     // Now iterate again over the composite dataset and evaluate the expression to
     // combine all the insidedness arrays and then extract the elements.
     bool globalEvaluationResult = true;
-    // we use the input iterator instead of the output one, because if inputCD is subclass of
-    // vtkUniformGridAMR, GetDataSet requires the iterator to be vtkUniformGridAMRDataIterator
     for (inIter->GoToFirstItem(); !inIter->IsDoneWithTraversal(); inIter->GoToNextItem())
     {
       if (this->CheckAbort())
@@ -1082,27 +1086,11 @@ void vtkExtractSelection::ExtractSelectedPoints(
         connectivity->SetValue(ptId, ptId);
       }
     });
-  // create offsets array
-  vtkNew<vtkIdTypeArray> offsets;
-  offsets->SetNumberOfValues(newNumPts + 1);
-  vtkSMPTools::For(0, newNumPts + 1,
-    [&](vtkIdType begin, vtkIdType end)
-    {
-      for (vtkIdType i = begin; i < end; i++)
-      {
-        offsets->SetValue(i, i);
-      }
-    });
   // create cell array
   vtkNew<vtkCellArray> cells;
-  cells->SetData(offsets, connectivity);
-  // create cell types
-  vtkNew<vtkUnsignedCharArray> cellTypes;
-  cellTypes->SetNumberOfValues(newNumPts);
-  static constexpr unsigned char cellType = VTK_VERTEX;
-  vtkSMPTools::Fill(cellTypes->GetPointer(0), cellTypes->GetPointer(newNumPts), cellType);
+  cells->SetData(1, connectivity);
   // set cells
-  output->SetCells(cellTypes, cells);
+  output->SetCells(VTK_VERTEX, cells);
 
   // Copy field data
   output->GetFieldData()->ShallowCopy(input->GetFieldData());

@@ -7,7 +7,7 @@
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkCellIterator.h"
-#include "vtkCellTypes.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkContourHelper.h"
 #include "vtkDataSet.h"
 #include "vtkDoubleArray.h"
@@ -443,44 +443,6 @@ int vtkCutter::RequestData(
 }
 
 //------------------------------------------------------------------------------
-void vtkCutter::GetCellTypeDimensions(unsigned char* cellTypeDimensions)
-{
-  // Assume most cells will be 3d.
-  memset(cellTypeDimensions, 3, VTK_NUMBER_OF_CELL_TYPES);
-  cellTypeDimensions[VTK_EMPTY_CELL] = 0;
-  cellTypeDimensions[VTK_VERTEX] = 0;
-  cellTypeDimensions[VTK_POLY_VERTEX] = 0;
-  cellTypeDimensions[VTK_LINE] = 1;
-  cellTypeDimensions[VTK_CUBIC_LINE] = 1;
-  cellTypeDimensions[VTK_POLY_LINE] = 1;
-  cellTypeDimensions[VTK_QUADRATIC_EDGE] = 1;
-  cellTypeDimensions[VTK_PARAMETRIC_CURVE] = 1;
-  cellTypeDimensions[VTK_HIGHER_ORDER_EDGE] = 1;
-  cellTypeDimensions[VTK_LAGRANGE_CURVE] = 1;
-  cellTypeDimensions[VTK_BEZIER_CURVE] = 1;
-  cellTypeDimensions[VTK_TRIANGLE] = 2;
-  cellTypeDimensions[VTK_TRIANGLE_STRIP] = 2;
-  cellTypeDimensions[VTK_POLYGON] = 2;
-  cellTypeDimensions[VTK_PIXEL] = 2;
-  cellTypeDimensions[VTK_QUAD] = 2;
-  cellTypeDimensions[VTK_QUADRATIC_TRIANGLE] = 2;
-  cellTypeDimensions[VTK_BIQUADRATIC_TRIANGLE] = 2;
-  cellTypeDimensions[VTK_QUADRATIC_QUAD] = 2;
-  cellTypeDimensions[VTK_QUADRATIC_LINEAR_QUAD] = 2;
-  cellTypeDimensions[VTK_BIQUADRATIC_QUAD] = 2;
-  cellTypeDimensions[VTK_PARAMETRIC_SURFACE] = 2;
-  cellTypeDimensions[VTK_PARAMETRIC_TRI_SURFACE] = 2;
-  cellTypeDimensions[VTK_PARAMETRIC_QUAD_SURFACE] = 2;
-  cellTypeDimensions[VTK_HIGHER_ORDER_TRIANGLE] = 2;
-  cellTypeDimensions[VTK_HIGHER_ORDER_QUAD] = 2;
-  cellTypeDimensions[VTK_HIGHER_ORDER_POLYGON] = 2;
-  cellTypeDimensions[VTK_LAGRANGE_TRIANGLE] = 2;
-  cellTypeDimensions[VTK_LAGRANGE_QUADRILATERAL] = 2;
-  cellTypeDimensions[VTK_BEZIER_TRIANGLE] = 2;
-  cellTypeDimensions[VTK_BEZIER_QUADRILATERAL] = 2;
-}
-
-//------------------------------------------------------------------------------
 void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
 {
   vtkIdType cellId;
@@ -506,10 +468,7 @@ void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
   //
   estimatedSize = static_cast<vtkIdType>(pow(static_cast<double>(numCells), .75)) * numContours;
   estimatedSize = estimatedSize / 1024 * 1024; // multiple of 1024
-  if (estimatedSize < 1024)
-  {
-    estimatedSize = 1024;
-  }
+  estimatedSize = std::max<vtkIdType>(estimatedSize, 1024);
 
   newPoints = vtkPoints::New();
   // set precision for the points in the output
@@ -662,7 +621,7 @@ void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
 
         // I assume that "GetCellType" is fast.
         cellType = static_cast<unsigned char>(input->GetCellType(cellId));
-        if (vtkCellTypes::GetDimension(cellType) != dimensionality)
+        if (vtkCellTypeUtilities::GetDimension(cellType) != dimensionality)
         {
           continue;
         }
@@ -755,10 +714,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
   //
   estimatedSize = static_cast<vtkIdType>(pow(static_cast<double>(numCells), .75)) * numContours;
   estimatedSize = estimatedSize / 1024 * 1024; // multiple of 1024
-  if (estimatedSize < 1024)
-  {
-    estimatedSize = 1024;
-  }
+  estimatedSize = std::max<vtkIdType>(estimatedSize, 1024);
 
   newPoints = vtkPoints::New();
   vtkPointSet* inputPointSet = vtkPointSet::SafeDownCast(input);
@@ -943,7 +899,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
         // Just fetch the cell type -- least expensive.
         cellType = static_cast<unsigned char>(cellIter->GetCellType());
         // Check if the type is valid for this pass
-        if (vtkCellTypes::GetDimension(cellType) != dimensionality)
+        if (vtkCellTypeUtilities::GetDimension(cellType) != dimensionality)
         {
           continue;
         }

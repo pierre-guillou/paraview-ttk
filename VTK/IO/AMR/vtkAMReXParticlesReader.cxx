@@ -16,8 +16,9 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
-#include "vtkSOADataArrayTemplate.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringFormatter.h"
+
 #include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
@@ -238,14 +239,6 @@ class vtkAMReXParticlesReader::AMReXParticleHeader
       pd->SetPoints(pts);
     }
 
-    //// Now build connectivity information.
-    // vtkNew<vtkCellArray> verts;
-    // verts->Allocate(verts->EstimateSize(count, 1));
-    // for (vtkIdType cc=0; cc < count; ++cc)
-    //{
-    //  verts->InsertNextCell(1, &cc);
-    //}
-    // pd->SetVerts(verts);
     return true;
   }
 
@@ -745,7 +738,7 @@ int vtkAMReXParticlesReader::RequestData(
     vtkNew<vtkMultiPieceDataSet> piece;
     output->SetBlock(cc, piece);
     output->GetMetaData(cc)->Set(
-      vtkCompositeDataSet::NAME(), (std::string("Level ") + std::to_string(cc)).c_str());
+      vtkCompositeDataSet::NAME(), (std::string("Level ") + vtk::to_string(cc)).c_str());
     this->ReadLevel(cc, piece, update_piece, update_num_pieces);
   }
 

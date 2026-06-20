@@ -4,19 +4,18 @@
 #include "vtkCellLocator.h"
 #include "vtkCellTreeLocator.h"
 #include "vtkDataSetTriangleFilter.h"
-#include "vtkDebugLeaks.h"
 #include "vtkLinearTransformCellLocator.h"
 #include "vtkModifiedBSPTree.h"
 #include "vtkNew.h"
 #include "vtkPointSet.h"
 #include "vtkPoints.h"
 #include "vtkRTAnalyticSource.h"
-#include "vtkSmartPointer.h"
 #include "vtkStaticCellLocator.h"
 #include "vtkTransform.h"
 #include "vtkTransformFilter.h"
 #include "vtkUnstructuredGrid.h"
 
+#include <iostream>
 #include <random>
 
 void GenerateRandomPoints(vtkIdType npts, vtkPoints* points, double bound)
@@ -108,10 +107,10 @@ bool TestCellLocators(vtkUnstructuredGrid* dataset, vtkPointSet* transformedData
 
 int TestCellLocatorsLinearTransform(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
 {
-  const double bound = 10;
-  const vtkIdType numberOfRandomPointsPoints = 100000;
+  constexpr double bound = 10;
+  constexpr vtkIdType numberOfRandomPointsPoints = 100000;
   // Generally the accuracy is around 99% except bsp tree
-  const double acceptableAccuracyPercentage = 90;
+  constexpr double acceptableAccuracyPercentage = 90;
 
   // create a dataset
   vtkNew<vtkRTAnalyticSource> wavelet;

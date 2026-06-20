@@ -18,6 +18,7 @@
 
 #include "vtkCommonSystemModule.h" // For export macro
 #include "vtkObject.h"
+#include "vtkStringFormatter.h" // For vtk::format_to_n
 
 #include <string> // STL Header
 
@@ -102,10 +103,24 @@ public:
 
   /**
    * Record a timing event.  The event is represented by a formatted
-   * string.  The internal buffer is 4096 bytes and will truncate anything longer.
+   * string in either printf or std::format style. The internal buffer is
+   * 4096 bytes and will truncate anything longer.
    */
 #ifndef __VTK_WRAP__
-  static void FormatAndMarkEvent(const char* format, ...) VTK_FORMAT_PRINTF(1, 2);
+  template <typename... T>
+  static void FormatAndMarkEvent(const char* formatArg, T&&... args)
+  {
+    if (!vtkTimerLog::Logging)
+    {
+      return;
+    }
+    std::string format = formatArg ? vtk::to_std_format(formatArg) : "";
+    static char event[4096];
+    VTK_FORMAT_IF_ERROR_RETURN(
+      auto result = vtk::format_to_n(event, sizeof(event), format, std::forward<T>(args)...);
+      *result.out = '\0', );
+    vtkTimerLog::MarkEventInternal(event, vtkTimerLogEntry::STANDALONE);
+  }
 #endif
 
   ///@{
@@ -273,8 +288,8 @@ private:
 //
 #define vtkTimerLogMacro(string)                                                                   \
   {                                                                                                \
-    vtkTimerLog::FormatAndMarkEvent(                                                               \
-      "Mark: In %s, line %d, class %s: %s", __FILE__, __LINE__, this->GetClassName(), string);     \
+    vtkTimerLog::FormatAndMarkEvent("Mark: In {:s}, line {:s}, class {:s}: {:s}", __FILE__,        \
+      __LINE__, this->GetClassName(), string);                                                     \
   }
 
 // Implementation detail for Schwarz counter idiom.

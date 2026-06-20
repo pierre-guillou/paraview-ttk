@@ -8,6 +8,7 @@
 #include "vtkDataSet.h"
 #include "vtkDataSetAttributes.h"
 #include "vtkExtentTranslator.h"
+#include "vtkHyperTreeGrid.h"
 #include "vtkInformation.h"
 #include "vtkInformationDoubleKey.h"
 #include "vtkInformationDoubleVectorKey.h"
@@ -246,15 +247,9 @@ vtkTypeBool vtkStreamingDemandDrivenPipeline ::ProcessRequest(
             for (int ii = 0; ii < 6; ii += 2)
             {
               newExtent[ii] = combinedExtent[ii];
-              if (updateExtent[ii] < newExtent[ii])
-              {
-                newExtent[ii] = updateExtent[ii];
-              }
+              newExtent[ii] = std::min(updateExtent[ii], newExtent[ii]);
               newExtent[ii + 1] = combinedExtent[ii + 1];
-              if (updateExtent[ii + 1] > newExtent[ii + 1])
-              {
-                newExtent[ii + 1] = updateExtent[ii + 1];
-              }
+              newExtent[ii + 1] = std::max(updateExtent[ii + 1], newExtent[ii + 1]);
             }
             outInfo->Set(COMBINED_UPDATE_EXTENT(), newExtent, 6);
             outInfo->Set(UPDATE_EXTENT(), newExtent, 6);
@@ -978,9 +973,11 @@ void vtkStreamingDemandDrivenPipeline ::ExecuteDataEnd(
         if (ghost > 0)
         {
           vtkDataSet* data = vtkDataSet::SafeDownCast(dobj);
-          if (data)
+          vtkHyperTreeGrid* htg = vtkHyperTreeGrid::SafeDownCast(dobj);
+          if (data || htg)
           {
-            int* uExt = data->GetInformation()->Get(vtkDataObject::ALL_PIECES_EXTENT());
+            int* uExt = data ? data->GetInformation()->Get(vtkDataObject::ALL_PIECES_EXTENT())
+                             : htg->GetInformation()->Get(vtkDataObject::ALL_PIECES_EXTENT());
 
             int piece = outInfo->Get(UPDATE_PIECE_NUMBER());
 
@@ -990,7 +987,14 @@ void vtkStreamingDemandDrivenPipeline ::ExecuteDataEnd(
               piece, numPieces, 0, uExt, zeroExt, vtkExtentTranslator::BLOCK_MODE, 0);
             et->Delete();
 
-            data->GenerateGhostArray(zeroExt);
+            if (data)
+            {
+              data->GenerateGhostArray(zeroExt);
+            }
+            else
+            {
+              htg->GenerateGhostArray(zeroExt);
+            }
           }
         }
 
@@ -1315,7 +1319,7 @@ int vtkStreamingDemandDrivenPipeline::NeedToExecuteBasedOnTime(
   // If this algorithm does not provide time information and another
   // algorithm upstream did not provide time information, we do not
   // re-execute even if the time request changed.
-  if (!outInfo->Has(TIME_RANGE()))
+  if (!outInfo->Has(TIME_RANGE()) || !outInfo->Has(UPDATE_TIME_STEP()))
   {
     return 0;
   }
@@ -1323,51 +1327,46 @@ int vtkStreamingDemandDrivenPipeline::NeedToExecuteBasedOnTime(
   vtkInformation* dataInfo = dataObject->GetInformation();
   // if we are requesting a particular update time index, check
   // if we have the desired time index.
-  if (outInfo->Has(UPDATE_TIME_STEP()))
+
+  if (!dataInfo->Has(vtkDataObject::DATA_TIME_STEP()))
   {
-    if (!dataInfo->Has(vtkDataObject::DATA_TIME_STEP()))
+    return 1;
+  }
+
+  int outputHasUpdateTime = outInfo->Has(UPDATE_TIME_STEP());
+  double outputTime = outInfo->Get(UPDATE_TIME_STEP());
+
+  // First check if time request is the same as previous time request.
+  // If the previous update request did not correspond to an existing
+  // time step and the reader chose a time step with it's own logic, the
+  // data time step will be different than the request. If the same time
+  // step is requested again, there is no need to re-execute the
+  // algorithm.  We know that it does not have this time step.
+  if (outInfo->Has(PREVIOUS_UPDATE_TIME_STEP()) && outputHasUpdateTime)
+  {
+    bool match = true;
+    double outputPreviousTime = outInfo->Get(PREVIOUS_UPDATE_TIME_STEP());
+    if (outputPreviousTime != outputTime)
     {
-      return 1;
+      match = false;
     }
-
-    double ustep = outInfo->Get(UPDATE_TIME_STEP());
-
-    // First check if time request is the same as previous time request.
-    // If the previous update request did not correspond to an existing
-    // time step and the reader chose a time step with it's own logic, the
-    // data time step will be different than the request. If the same time
-    // step is requested again, there is no need to re-execute the
-    // algorithm.  We know that it does not have this time step.
-    if (outInfo->Has(PREVIOUS_UPDATE_TIME_STEP()))
+    if (match)
     {
-      if (outInfo->Has(UPDATE_TIME_STEP()))
-      {
-        bool match = true;
-        double pstep = outInfo->Get(PREVIOUS_UPDATE_TIME_STEP());
-        if (pstep != ustep)
-        {
-          match = false;
-        }
-        if (match)
-        {
-          return 0;
-        }
-      }
-    }
-
-    int hasdsteps = dataInfo->Has(vtkDataObject::DATA_TIME_STEP());
-    int hasusteps = dataInfo->Has(UPDATE_TIME_STEP());
-
-    double dstep = dataInfo->Get(vtkDataObject::DATA_TIME_STEP());
-    if ((hasdsteps && !hasusteps) || (!hasdsteps && hasusteps))
-    {
-      return 1;
-    }
-    if (dstep != ustep)
-    {
-      return 1;
+      return 0;
     }
   }
+
+  int dataHasTime = dataInfo->Has(vtkDataObject::DATA_TIME_STEP());
+  double dataTime = dataInfo->Get(vtkDataObject::DATA_TIME_STEP());
+  if ((dataHasTime && !outputHasUpdateTime) || (!dataHasTime && outputHasUpdateTime))
+  {
+    return 1;
+  }
+  if (dataTime != outputTime)
+  {
+    return 1;
+  }
+
   return 0;
 }
 

@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAngleRepresentation.h"
 #include "vtkActor2D.h"
-#include "vtkCoordinate.h"
 #include "vtkHandleRepresentation.h"
 #include "vtkInteractorObserver.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
-#include "vtkPolyDataMapper2D.h"
-#include "vtkProperty2D.h"
 #include "vtkRenderer.h"
-#include "vtkTextProperty.h"
-#include "vtkWindow.h"
+#include "vtkStringFormatter.h"
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkAngleRepresentation, HandleRepresentation, vtkHandleRepresentation);
@@ -30,8 +26,9 @@ vtkAngleRepresentation::vtkAngleRepresentation()
   this->Ray2Visibility = 1;
   this->ArcVisibility = 1;
 
-  this->LabelFormat = new char[8];
-  snprintf(this->LabelFormat, 8, "%s", "%-#6.3g");
+  this->LabelFormat = new char[10];
+  auto result = vtk::format_to_n(this->LabelFormat, 10, "{}", "{:<#6.3g}");
+  *result.out = '\0';
 }
 
 //------------------------------------------------------------------------------

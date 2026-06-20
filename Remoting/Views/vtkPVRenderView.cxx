@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVRenderView.h"
 
-#include "vtk3DWidgetRepresentation.h"
 #include "vtkAbstractMapper.h"
 #include "vtkAlgorithmOutput.h"
 #include "vtkBoundingBox.h"
@@ -16,23 +15,23 @@
 #include "vtkCommunicator.h"
 #include "vtkCuller.h"
 #include "vtkDataRepresentation.h"
+#include "vtkDisplayConfiguration.h"
+#include "vtkDynamicProperties.h"
 #include "vtkFXAAOptions.h"
 #include "vtkFloatArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationDoubleKey.h"
 #include "vtkInformationDoubleVectorKey.h"
 #include "vtkInformationIntegerKey.h"
-#include "vtkInformationObjectBaseKey.h"
 #include "vtkInformationRequestKey.h"
-#include "vtkInformationStringKey.h"
 #include "vtkInformationVector.h"
 #include "vtkIntArray.h"
 #include "vtkInteractorStyleDrawPolygon.h"
 #include "vtkInteractorStyleRubberBand3D.h"
 #include "vtkInteractorStyleRubberBandZoom.h"
 #include "vtkLegendScaleActor.h"
-#include "vtkLight.h"
 #include "vtkLightKit.h"
+#include "vtkLogger.h"
 #include "vtkMPIMoveData.h"
 #include "vtkMath.h"
 #include "vtkMatrix4x4.h"
@@ -45,7 +44,6 @@
 #include "vtkPVAxesWidget.h"
 #include "vtkPVCameraCollection.h"
 #include "vtkPVCenterAxesActor.h"
-#include "vtkPVClientServerSynchronizedRenderers.h"
 #include "vtkPVCompositeRepresentation.h"
 #include "vtkPVDataRepresentation.h"
 #include "vtkPVGridAxes3DActor.h"
@@ -69,15 +67,17 @@
 #include "vtkPointData.h"
 #include "vtkPolarAxesActor2D.h"
 #include "vtkProcessModule.h"
+#include "vtkRemotingCoreConfiguration.h"
 #include "vtkRenderViewBase.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
 #include "vtkSelection.h"
 #include "vtkSelectionNode.h"
+#include "vtkSetGet.h"
 #include "vtkSkybox.h"
 #include "vtkSmartPointer.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringArray.h"
 #include "vtkTextActor.h"
 #include "vtkTextProperty.h"
 #include "vtkTextRepresentation.h"
@@ -85,11 +85,18 @@
 #include "vtkTimerLog.h"
 #include "vtkToneMappingPass.h"
 #include "vtkTrackballPan.h"
-#include "vtkTrivialProducer.h"
+#include "vtkTransform.h"
+#include "vtkType.h"
 #include "vtkValuePass.h"
 #include "vtkVector.h"
 #include "vtkWeakPointer.h"
 #include "vtkWindowToImageFilter.h"
+#include "vtk_jsoncpp.h"
+
+#include "vtk_scn.h"
+// clang-format off
+#include VTK_SCN(scn/scan.h)
+// clang-format on
 
 #if VTK_MODULE_ENABLE_ParaView_icet
 #include "vtkIceTSynchronizedRenderers.h"
@@ -100,6 +107,14 @@
 #include "vtkOSPRayMaterialLibrary.h"
 #include "vtkOSPRayPass.h"
 #include "vtkOSPRayRendererNode.h"
+#endif
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+#include "vtkAnariDevice.h"
+#include "vtkAnariLightNode.h"
+#include "vtkAnariPass.h"
+#include "vtkAnariRenderer.h"
+#include "vtkAnariSceneGraph.h"
+#include <anari/frontend/anari_enums.h>
 #endif
 
 #include <cassert>
@@ -116,6 +131,8 @@ struct ValuePassStateT
   bool AnnotationVisibility;
   bool CenterAxesVisibility;
 };
+const char* LIBRARY_KEY = "library";
+const char* RENDERER_KEY = "renderer";
 }
 
 class vtkPVRenderView::vtkInternals
@@ -125,6 +142,9 @@ class vtkPVRenderView::vtkInternals
 public:
 #if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
   vtkSmartPointer<vtkOSPRayPass> OSPRayPass = nullptr;
+#endif
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+  vtkSmartPointer<vtkAnariPass> AnariPass = nullptr;
 #endif
 
   vtkSmartPointer<vtkImageProcessingPass> SavedImageProcessingPass;
@@ -140,6 +160,11 @@ public:
   bool OSPRayShadows;
   bool OSPRayDenoise;
   int OSPRayCount;
+  bool Hide2DOverlays;
+
+  bool IsInAnari = false;
+  vtkNew<vtkStringArray> ANARIRendererNames;
+
   vtkNew<vtkFloatArray> ArrayHolder;
   vtkNew<vtkWindowToImageFilter> ZGrabber;
 
@@ -432,6 +457,7 @@ vtkPVRenderView::vtkPVRenderView()
   this->UseRenderViewSettingsForBackground = true;
   this->Background[0] = this->Background[1] = this->Background[2] = 0.0;
   this->Background2[0] = this->Background2[1] = this->Background2[2] = 0.0;
+  this->SkyboxRotation[0] = this->SkyboxRotation[1] = this->SkyboxRotation[2] = 0.0;
   this->UseTexturedEnvironmentalBG = false;
 
   auto window = this->GetRenderWindow();
@@ -441,11 +467,32 @@ vtkPVRenderView::vtkPVRenderView()
   this->RenderView = vtkRenderViewBase::New();
   this->RenderView->SetRenderWindow(window);
 
+  // The default is to always draw the NonCompositedRenderer
+  this->Internals->Hide2DOverlays = false;
+  vtkMultiProcessController* controller = vtkMultiProcessController::GetGlobalController();
+  int procId = controller->GetLocalProcessId();
+  vtkProcessModule::ProcessTypes procType = vtkProcessModule::GetProcessType();
+
+  // In cave mode, user can disable drawing the NonCompositedRenderer on any displays
+  if (procType == vtkProcessModule::PROCESS_RENDER_SERVER ||
+    procType == vtkProcessModule::PROCESS_SERVER)
+  {
+    if (this->InCaveDisplayMode())
+    {
+      auto displayConfig = vtkRemotingCoreConfiguration::GetInstance()->GetDisplayConfiguration();
+      if (displayConfig != nullptr)
+      {
+        this->Internals->Hide2DOverlays = !displayConfig->GetShow2DOverlays(procId);
+      }
+    }
+  }
+
   this->NonCompositedRenderer = vtkRenderer::New();
   this->NonCompositedRenderer->EraseOff();
   this->NonCompositedRenderer->InteractiveOff();
   this->NonCompositedRenderer->SetLayer(2);
   this->NonCompositedRenderer->SetActiveCamera(this->RenderView->GetRenderer()->GetActiveCamera());
+  this->NonCompositedRenderer->SetDraw(!this->Internals->Hide2DOverlays);
   window->AddRenderer(this->NonCompositedRenderer);
   window->SetNumberOfLayers(3);
   this->RenderView->GetRenderer()->GetActiveCamera()->ParallelProjectionOff();
@@ -458,7 +505,7 @@ vtkPVRenderView::vtkPVRenderView()
 
   this->UseHiddenLineRemoval = false;
   this->GetRenderer()->SetUseDepthPeeling(1);
-  this->GetRenderer()->SetUseDepthPeelingForVolumes(1);
+  this->GetRenderer()->SetUseDepthPeelingForVolumes(true);
   this->GetRenderer()->AddCuller(this->Culler);
 
   this->LightKit = vtkLightKit::New();
@@ -712,8 +759,9 @@ void vtkPVRenderView::SetupInteractor(vtkRenderWindowInteractor* iren)
     {
       this->Interactor->SetRenderWindow(this->GetRenderWindow());
 
-      // Enable camera manipulator
-      this->CameraOrientationWidget->On();
+      // Enable camera manipulator if the widget's representation is visible.
+      bool visibility = this->CameraOrientationWidget->GetRepresentation()->GetVisibility();
+      this->CameraOrientationWidget->SetEnabled(visibility);
 
       // this will set the interactor style.
       int mode = this->InteractionMode;
@@ -1137,17 +1185,17 @@ void vtkPVRenderView::SynchronizeGeometryBounds()
     // local process, all vtkWidgetRepresentations return wacky Z bounds which
     // screws up the renderer and we don't see any images. Hence we skip this on
     // non-rendering nodes.
-    this->CenterAxes->SetUseBounds(0);
+    this->CenterAxes->SetUseBounds(false);
     if (this->GridAxes3DActor)
     {
-      this->GridAxes3DActor->SetUseBounds(0);
+      this->GridAxes3DActor->SetUseBounds(false);
     }
     double prop_bounds[6];
     this->GetRenderer()->ComputeVisiblePropBounds(prop_bounds);
-    this->CenterAxes->SetUseBounds(1);
+    this->CenterAxes->SetUseBounds(true);
     if (this->GridAxes3DActor)
     {
-      this->GridAxes3DActor->SetUseBounds(1);
+      this->GridAxes3DActor->SetUseBounds(true);
     }
 
     bbox.AddBounds(prop_bounds);
@@ -1671,8 +1719,8 @@ void vtkPVRenderView::Render(bool interactive, bool skip_rendering)
 
   const bool use_ordered_compositing = this->GetUseOrderedCompositing();
 
-  vtkTimerLog::FormatAndMarkEvent("Render (use_lod: %d), (use_distributed_rendering: %d), "
-                                  "(use_ordered_compositing: %d)",
+  vtkTimerLog::FormatAndMarkEvent("Render (use_lod: {:d}), (use_distributed_rendering: {:d}), "
+                                  "(use_ordered_compositing: {:d})",
     use_lod_rendering, use_distributed_rendering, use_ordered_compositing);
 
   vtkVLogF(PARAVIEW_LOG_RENDERING_VERBOSITY(),
@@ -2255,7 +2303,7 @@ bool vtkPVRenderView::GetUseOrderedCompositing()
         // vtkIceTCompositePass uses that as indicator to not use z buffer.
         return true;
       }
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
     default:
       return false;
   }
@@ -2517,6 +2565,10 @@ void vtkPVRenderView::SetOrientationAxesZLabelText(const char* text)
 void vtkPVRenderView::SetCameraOrientationWidgetVisibility(bool visible)
 {
   this->CameraOrientationWidget->GetRepresentation()->SetVisibility(visible);
+  if (this->CameraOrientationWidget->GetInteractor())
+  {
+    this->CameraOrientationWidget->SetEnabled(visible);
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -2571,6 +2623,24 @@ void vtkPVRenderView::SetCameraOrientationWidgetAnchor(int anchor)
 void vtkPVRenderView::SetCenterAxesVisibility(bool v)
 {
   this->CenterAxes->SetVisibility(v);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetCenterAxesXColor(double r, double g, double b)
+{
+  this->CenterAxes->SetXAxisColor(r, g, b);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetCenterAxesYColor(double r, double g, double b)
+{
+  this->CenterAxes->SetYAxisColor(r, g, b);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetCenterAxesZColor(double r, double g, double b)
+{
+  this->CenterAxes->SetZAxisColor(r, g, b);
 }
 
 //*****************************************************************
@@ -2870,6 +2940,34 @@ void vtkPVRenderView::UpdateBackground(vtkRenderer* renderer /*=nullptr*/)
 }
 
 //----------------------------------------------------------------------------
+void vtkPVRenderView::SetSkyboxRotation(double x, double y, double z)
+{
+  if (this->SkyboxRotation[0] != x || this->SkyboxRotation[1] != y || this->SkyboxRotation[2] != z)
+  {
+    this->SkyboxRotation[0] = x;
+    this->SkyboxRotation[1] = y;
+    this->SkyboxRotation[2] = z;
+
+    vtkNew<vtkTransform> transform;
+    transform->Identity();
+    transform->RotateX(x);
+    transform->RotateY(y);
+    transform->RotateZ(z);
+
+    vtkMatrix4x4* mat4 = transform->GetMatrix();
+    vtkNew<vtkMatrix3x3> rotMat;
+    for (int i = 0; i < 3; ++i)
+    {
+      for (int j = 0; j < 3; ++j)
+      {
+        rotMat->SetElement(i, j, mat4->GetElement(i, j));
+      }
+    }
+    this->GetRenderer()->SetEnvironmentRotationMatrix(rotMat);
+  }
+}
+
+//----------------------------------------------------------------------------
 void vtkPVRenderView::SetBackgroundTexture(vtkTexture* texture)
 {
   this->GetRenderer()->SetBackgroundTexture(texture);
@@ -2903,7 +3001,7 @@ void vtkPVRenderView::SetupAndSetRenderer(vtkRenderer* ren)
   // the initial renderer in the constructor.
   ren->GetActiveCamera()->ParallelProjectionOff();
   ren->SetUseDepthPeeling(1);
-  ren->SetUseDepthPeelingForVolumes(1);
+  ren->SetUseDepthPeelingForVolumes(true);
   ren->SetAutomaticLightCreation(0);
 
   ren->AddCuller(this->Culler);
@@ -3150,7 +3248,7 @@ void vtkPVRenderView::SetParallelProjection(int mode)
     this->Modified();
   }
 
-  if (!mode)
+  if (mode == 0)
   {
     this->RemoveAnnotationFromView(this->LegendGridActor);
     this->RemoveAnnotationFromView(this->PolarAxesActor);
@@ -3529,6 +3627,327 @@ bool vtkPVRenderView::GetEnableSynchronizableActors()
 }
 
 //----------------------------------------------------------------------------
+void vtkPVRenderView::SetEnableANARI(bool v)
+{
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+  vtkRenderer* ren = this->GetRenderer();
+  if (v && !this->Internals->AnariPass)
+  {
+    this->Internals->AnariPass = vtkSmartPointer<vtkAnariPass>::New();
+    this->Internals->AnariPass->GetSceneGraph()->SetCompositeOnGL(ren, 1);
+  }
+  if (this->Internals->IsInAnari == v)
+  {
+    return;
+  }
+  this->Internals->IsInAnari = v;
+  if (v)
+  {
+    ren->SetUseShadows(this->Internals->OSPRayShadows);
+    this->Internals->SavedRenderPass = this->SynchronizedRenderers->GetRenderPass();
+    this->SynchronizedRenderers->SetRenderPass(this->Internals->AnariPass);
+    this->SynchronizedRenderers->SetEnableRayTracing(true);
+    // Proxy properties defaults
+    // These defaults are set before ANARI is enabled and then they are not
+    // set again, so we need to set them here.
+    if (std::string(this->GetANARILibrary()).empty())
+    {
+      // TODO: When switching ANARI libraries works, we should set visrtx as
+      // the default.
+      auto* envLibraryName = std::getenv("ANARI_LIBRARY");
+      if (envLibraryName)
+      {
+        this->SetANARILibrary("environment");
+      }
+      else
+      {
+#if defined(__APPLE__)
+        // Use "helide" on Apple platforms
+        this->SetANARILibrary("helide");
+#else
+        // Use "visrtx" on other platforms
+        this->SetANARILibrary("visrtx");
+#endif
+      }
+    }
+  }
+  else
+  {
+    ren->SetUseShadows(false);
+    this->SynchronizedRenderers->SetRenderPass(this->Internals->SavedRenderPass);
+    this->SynchronizedRenderers->SetEnableRayTracing(false);
+  }
+  this->Modified();
+#else
+  if (v)
+  {
+    vtkWarningMacro("Refusing to enable ANARI since either the client or "
+                    "server does not have it.");
+  }
+#endif
+}
+
+//----------------------------------------------------------------------------
+bool vtkPVRenderView::GetEnableANARI()
+{
+  return this->Internals->IsInAnari;
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetANARILibrary(std::string l [[maybe_unused]])
+{
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+  if (this->Internals->AnariPass)
+  {
+    vtkDebugMacro("SetANARILibrary: " << l);
+    this->Internals->AnariPass->GetAnariDevice()->SetupAnariDeviceFromLibrary(
+      l.c_str(), "default", false);
+    // Proxy properties defaults
+    // These defaults are set before ANARI is enabled and then they are not
+    // set again, so we need to set them here.
+    if (std::string(this->GetANARIRenderer()).empty())
+    {
+      this->SetANARIRenderer("default");
+    }
+  }
+#endif
+}
+
+//----------------------------------------------------------------------------
+const char* vtkPVRenderView::GetANARILibrary()
+{
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+  return this->Internals->AnariPass->GetAnariDevice()->GetAnariLibraryName().c_str();
+#else
+  return nullptr;
+#endif
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetANARIRenderer(std::string r [[maybe_unused]])
+{
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+  if (this->Internals->AnariPass)
+  {
+    vtkDebugMacro("SetANARIRenderer: " << r);
+    this->Internals->AnariPass->GetAnariRenderer()->SetSubtype(r.c_str());
+  }
+#endif
+}
+
+//----------------------------------------------------------------------------
+const char* vtkPVRenderView::GetANARIRenderer()
+{
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+  if (this->Internals->AnariPass)
+  {
+    return this->Internals->AnariPass->GetAnariRenderer()->GetSubtype();
+  }
+  return "";
+#else
+  return nullptr;
+#endif
+}
+
+//----------------------------------------------------------------------------
+vtkStringArray* vtkPVRenderView::GetANARIRendererNames()
+{
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+  if (!this->Internals->AnariPass)
+  {
+    this->Internals->ANARIRendererNames->Resize(0);
+    return this->Internals->ANARIRendererNames;
+  }
+  std::vector<std::string> rendererNames =
+    this->Internals->AnariPass->GetAnariDevice()->GetAnariRendererSubTypes();
+  this->Internals->ANARIRendererNames->SetNumberOfValues(rendererNames.size());
+  for (int i = 0; i < rendererNames.size(); ++i)
+  {
+    this->Internals->ANARIRendererNames->SetValue(i, rendererNames[i]);
+  }
+#endif
+  return this->Internals->ANARIRendererNames;
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetANARIRendererParameter(const std::string& key [[maybe_unused]],
+  int type [[maybe_unused]], const std::string& stringValue [[maybe_unused]])
+{
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+  if (this->Internals->AnariPass)
+  {
+    switch (type)
+    {
+      case vtkDynamicProperties::INT:
+        if (auto result = scn::scan<int>(stringValue, "{}"))
+        {
+          this->Internals->AnariPass->GetAnariRenderer()->SetParameteri(
+            key.c_str(), result->value());
+        }
+        else
+        {
+          vtkErrorMacro("Error converting ANARI_INT32 parameter: " << result.error().msg());
+          return;
+        }
+        break;
+      case vtkDynamicProperties::BOOL:
+        if (auto result = scn::scan<bool>(stringValue, "{}"))
+        {
+          this->Internals->AnariPass->GetAnariRenderer()->SetParameterb(
+            key.c_str(), result->value());
+        }
+        else
+        {
+          vtkErrorMacro("Error converting ANARI_BOOL parameter: " << result.error().msg());
+          return;
+        }
+        break;
+      case vtkDynamicProperties::DOUBLE:
+        if (auto result = scn::scan<double>(stringValue, "{}"))
+        {
+          this->Internals->AnariPass->GetAnariRenderer()->SetParameterf(
+            key.c_str(), result->value());
+        }
+        else
+        {
+          vtkErrorMacro("Expecting ANARI_FLOAT32 parameter, got: " << result.error().msg());
+          return;
+        }
+        break;
+      default:
+        vtkWarningMacro("vtkDynamicProperties::Type not handled: " << type);
+    }
+  }
+#endif
+}
+
+//----------------------------------------------------------------------------
+std::string vtkPVRenderView::GetANARIRendererParameters()
+{
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+  if (!this->Internals->AnariPass)
+  {
+    return "{}";
+  }
+  auto* ren = this->Internals->AnariPass->GetAnariRenderer();
+  const char* libraryName = this->GetANARILibrary();
+  Json::Value jsonAllParameters;
+  Json::Value jsonParameters(Json::arrayValue);
+  const std::string& rendererName = ren->GetSubtype();
+  std::map<int, int> anariToParameterType = {
+    { ANARI_BOOL, vtkDynamicProperties::BOOL },
+    { ANARI_INT32, vtkDynamicProperties::INT },
+    { ANARI_FLOAT32, vtkDynamicProperties::DOUBLE },
+    { ANARI_STRING, vtkDynamicProperties::INVALID_TYPE },
+    { ANARI_FLOAT32_VEC3, vtkDynamicProperties::INVALID_TYPE },
+    { ANARI_FLOAT32_VEC4, vtkDynamicProperties::INVALID_TYPE },
+    { ANARI_ARRAY2D, vtkDynamicProperties::INVALID_TYPE },
+  };
+  if (auto* ren = this->Internals->AnariPass->GetAnariRenderer())
+  {
+    auto rendererParameters = ren->GetRendererParameters();
+    for (auto pIter = rendererParameters.cbegin(); pIter != rendererParameters.cend(); ++pIter)
+    {
+      Json::Value jsonRendererParameters;
+      std::string description = ren->GetRendererParameterDescription(*pIter);
+      std::string name = pIter->first;
+      int type = pIter->second;
+      if (anariToParameterType.count(type) > 0)
+      {
+        jsonRendererParameters[vtkDynamicProperties::TYPE_KEY] = anariToParameterType[type];
+      }
+      else
+      {
+        vtkWarningMacro("There is not vtkDynamicParamters::Type association with: " << type);
+      }
+      const void* pDefault = ren->GetRendererParameterDefault(*pIter);
+      const void* pMin = ren->GetRendererParameterMinimum(*pIter);
+      const void* pMax = ren->GetRendererParameterMaximum(*pIter);
+      const void* pValue = ren->GetRendererParameterDefault(*pIter);
+      jsonRendererParameters[vtkDynamicProperties::NAME_KEY] = name;
+      jsonRendererParameters[vtkDynamicProperties::DESCRIPTION_KEY] = description;
+      switch (type)
+      {
+        case ANARI_INT32:
+        {
+          if (pMin)
+          {
+            int minVal = *(reinterpret_cast<const vtkTypeInt32*>(pMin));
+            jsonRendererParameters[vtkDynamicProperties::MIN_KEY] = minVal;
+          }
+          if (pMax)
+          {
+            int maxVal = *(reinterpret_cast<const vtkTypeInt32*>(pMax));
+            jsonRendererParameters[vtkDynamicProperties::MAX_KEY] = maxVal;
+          }
+          if (pDefault)
+          {
+            int defaultValue = *(reinterpret_cast<const vtkTypeInt32*>(pDefault));
+            jsonRendererParameters[vtkDynamicProperties::DEFAULT_KEY] = defaultValue;
+          }
+          if (pValue)
+          {
+            int value = *(reinterpret_cast<const vtkTypeInt32*>(pValue));
+            jsonRendererParameters[vtkDynamicProperties::VALUE_KEY] = value;
+          }
+          break;
+        }
+        case ANARI_BOOL:
+        {
+          if (pDefault)
+          {
+            bool defaultValue = *(reinterpret_cast<const bool*>(pDefault));
+            jsonRendererParameters[vtkDynamicProperties::DEFAULT_KEY] = defaultValue;
+          }
+          if (pValue)
+          {
+            int value = *(reinterpret_cast<const bool*>(pValue));
+            jsonRendererParameters[vtkDynamicProperties::VALUE_KEY] = value;
+          }
+          break;
+        }
+        case ANARI_FLOAT32:
+        {
+          if (pDefault)
+          {
+            double defaultValue = *(reinterpret_cast<const vtkTypeFloat32*>(pDefault));
+            jsonRendererParameters[vtkDynamicProperties::DEFAULT_KEY] = defaultValue;
+          }
+          if (pValue)
+          {
+            int value = *(reinterpret_cast<const vtkTypeFloat32*>(pValue));
+            jsonRendererParameters[vtkDynamicProperties::VALUE_KEY] = value;
+          }
+          if (pMin)
+          {
+            double minVal = *(reinterpret_cast<const vtkTypeFloat32*>(pMin));
+            jsonRendererParameters[vtkDynamicProperties::MIN_KEY] = minVal;
+          }
+          if (pMax)
+          {
+            double maxVal = *(reinterpret_cast<const vtkTypeFloat32*>(pMax));
+            jsonRendererParameters[vtkDynamicProperties::MAX_KEY] = maxVal;
+          }
+          break;
+        }
+      }
+      jsonParameters.append(jsonRendererParameters);
+    }
+    jsonAllParameters[LIBRARY_KEY] = libraryName;
+    jsonAllParameters[RENDERER_KEY] = rendererName;
+    jsonAllParameters[vtkDynamicProperties::VERSION_KEY] =
+      VTK_DYNAMIC_PROPERTIES_VERSION_NUMBER_QUICK;
+    jsonAllParameters[vtkDynamicProperties::PROPERTIES_KEY] = jsonParameters;
+  }
+  Json::StreamWriterBuilder builder;
+  std::string jsonString = Json::writeString(builder, jsonAllParameters);
+  return jsonString;
+#else
+  return "{}";
+#endif
+}
+
+//----------------------------------------------------------------------------
 void vtkPVRenderView::SetEnableOSPRay(bool v)
 {
 #if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
@@ -3609,16 +4028,12 @@ void vtkPVRenderView::SetOSPRayRendererType(std::string name)
 //----------------------------------------------------------------------------
 void vtkPVRenderView::SetShadows(bool v)
 {
-#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
   this->Internals->OSPRayShadows = v;
   vtkRenderer* ren = this->GetRenderer();
   if (this->Internals->IsInOSPRay)
   {
     ren->SetUseShadows(v);
   }
-#else
-  (void)v;
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -3701,9 +4116,17 @@ int vtkPVRenderView::GetSamplesPerPixel()
 //----------------------------------------------------------------------------
 void vtkPVRenderView::SetMaxFrames(int v)
 {
-#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
+#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing || VTK_MODULE_ENABLE_VTK_RenderingAnari
   vtkRenderer* ren = this->GetRenderer();
+#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
   vtkOSPRayRendererNode::SetMaxFrames(v, ren);
+#endif
+#if VTK_MODULE_ENABLE_VTK_RenderingAnari
+  if (this->Internals->AnariPass)
+  {
+    this->Internals->AnariPass->GetSceneGraph()->SetAccumulationCount(ren, v);
+  }
+#endif
   static bool warned_once = false;
   if (!warned_once && v > 1 && vtkPVView::GetEnableStreaming() == false)
   {

@@ -6,17 +6,15 @@
 //  Serial test for structured AMR grid connectivity/nesting
 
 // VTK includes
-#include "vtkAMRInformation.h"
 #include "vtkCell.h"
 #include "vtkDoubleArray.h"
 #include "vtkIntArray.h"
 #include "vtkOverlappingAMR.h"
+#include "vtkStringScanner.h"
 #include "vtkStructuredAMRGridConnectivity.h"
 #include "vtkStructuredData.h"
 #include "vtkStructuredExtent.h"
 #include "vtkUniformGrid.h"
-#include "vtkUnsignedCharArray.h"
-#include "vtkXMLImageDataWriter.h"
 
 // C++ includes
 #include <cassert>
@@ -43,11 +41,11 @@ namespace
 //------------------------------------------------------------------------------
 //  GLOBAL DATA
 //------------------------------------------------------------------------------
-const int NumPatches = 4;
+constexpr int NumPatches = 4;
 
-const int NumLevels = 2;
+constexpr int NumLevels = 2;
 
-const int BlocksPerLevel[2] = { 2, 2 };
+const std::vector<unsigned int> BlocksPerLevel{ 2, 2 };
 
 // AMR patches are defined as a 7-tuple consisting of the following:
 // (level,imin,imax,jmin,jmax,kmin,kmax)
@@ -58,13 +56,13 @@ int Patches[4][7] = { { 0, 0, 2, 0, 5, 0, 5 }, { 0, 2, 5, 0, 5, 0, 5 }, { 1, 1, 
 
 // Define the number of dimensions for the root level virtual grid
 // The domain is assumed to be square [NDIM x NDIM x NDIM]
-const int NDIM = 6;
+constexpr int NDIM = 6;
 
 // Define uniform grid spacing at level 0
-const double h0 = 1.0;
+constexpr double h0 = 1.0;
 
 // Global origin
-const double origin[3] = { 0.0, 0.0, 0.0 };
+constexpr double origin[3] = { 0.0, 0.0, 0.0 };
 
 #ifdef ENABLE_IO
 //------------------------------------------------------------------------------
@@ -133,7 +131,7 @@ void WriteAMR(vtkOverlappingAMR* amr, const std::string& prefix)
   for (; levelIdx < amr->GetNumberOfLevels(); ++levelIdx)
   {
     unsigned int dataIdx = 0;
-    for (; dataIdx < amr->GetNumberOfDataSets(levelIdx); ++dataIdx)
+    for (; dataIdx < amr->GetNumberOfBlocks(levelIdx); ++dataIdx)
     {
       oss.str("");
       oss << prefix << "-L" << levelIdx << "-G" << dataIdx;
@@ -317,7 +315,7 @@ void Get2DAMRData(vtkOverlappingAMR* amrData, int ratio)
   assert("pre: input AMR Data is nullptr" && (amrData != nullptr));
   assert("pre: input AMR Data is nullptr" && (ratio >= 2));
 
-  amrData->Initialize(NumLevels, const_cast<int*>(BlocksPerLevel));
+  amrData->Initialize(::BlocksPerLevel);
 
   // Root virtual block at level 0
   double h[3] = { h0, h0, h0 };
@@ -347,7 +345,7 @@ void Get3DAMRData(vtkOverlappingAMR* amrData, int ratio)
   assert("pre: input AMR Data is nullptr" && (amrData != nullptr));
   assert("pre: input AMR Data is nullptr" && (ratio >= 2));
 
-  amrData->Initialize(NumLevels, const_cast<int*>(BlocksPerLevel));
+  amrData->Initialize(::BlocksPerLevel);
 
   // Root virtual block at level 0
   double h[3] = { h0, h0, h0 };
@@ -382,17 +380,17 @@ void RegisterGrids(
 
   gridConnectivity->SetNodeCentered(false);
   gridConnectivity->SetCellCentered(true);
-  gridConnectivity->Initialize(amr->GetNumberOfLevels(), amr->GetTotalNumberOfBlocks(), ratio);
+  gridConnectivity->Initialize(amr->GetNumberOfLevels(), amr->GetNumberOfBlocks(), ratio);
 
   unsigned int levelIdx = 0;
   int ext[6];
   for (; levelIdx < amr->GetNumberOfLevels(); ++levelIdx)
   {
     unsigned int dataIdx = 0;
-    for (; dataIdx < amr->GetNumberOfDataSets(levelIdx); ++dataIdx)
+    for (; dataIdx < amr->GetNumberOfBlocks(levelIdx); ++dataIdx)
     {
-      int idx = amr->GetCompositeIndex(levelIdx, dataIdx);
-      vtkUniformGrid* grid = amr->GetDataSet(levelIdx, dataIdx);
+      int idx = amr->GetAbsoluteBlockIndex(levelIdx, dataIdx);
+      vtkImageData* grid = amr->GetDataSetAsImageData(levelIdx, dataIdx);
       if (grid != nullptr)
       {
         GetGridExtent(idx, dim, ratio, ext);
@@ -411,21 +409,22 @@ void GetGhostedAMRData(vtkOverlappingAMR* amr, vtkStructuredAMRGridConnectivity*
   assert("pre: AMR is nullptr" && (amr != nullptr));
   assert("pre: AMR grid connectivity is nullptr" && (amrConnectivity != nullptr));
   assert("pre: Ghosted AMR is nullptr" && (ghostedAMR != nullptr));
-  std::vector<int> blocksPerLevel;
+  std::vector<unsigned int> blocksPerLevel;
+  blocksPerLevel.reserve(amr->GetNumberOfLevels());
   for (unsigned int i = 0; i < amr->GetNumberOfLevels(); i++)
   {
-    blocksPerLevel.push_back(amr->GetNumberOfDataSets(i));
+    blocksPerLevel.push_back(amr->GetNumberOfBlocks(i));
   }
-  ghostedAMR->Initialize(static_cast<int>(blocksPerLevel.size()), blocksPerLevel.data());
+  ghostedAMR->Initialize(blocksPerLevel);
 
   unsigned int levelIdx = 0;
   for (; levelIdx < amr->GetNumberOfLevels(); ++levelIdx)
   {
     unsigned int dataIdx = 0;
-    for (; dataIdx < amr->GetNumberOfDataSets(levelIdx); ++dataIdx)
+    for (; dataIdx < amr->GetNumberOfBlocks(levelIdx); ++dataIdx)
     {
-      int linearIdx = amr->GetCompositeIndex(levelIdx, dataIdx);
-      vtkUniformGrid* grid = amr->GetDataSet(levelIdx, dataIdx);
+      int linearIdx = amr->GetAbsoluteBlockIndex(levelIdx, dataIdx);
+      vtkImageData* grid = amr->GetDataSetAsImageData(levelIdx, dataIdx);
 
       if (grid != nullptr)
       {
@@ -471,7 +470,7 @@ int Test2DAMR(const int ratio)
   vtkOverlappingAMR* amr = vtkOverlappingAMR::New();
   Get2DAMRData(amr, ratio);
   assert("post Total number of blocks mismatch!" &&
-    (static_cast<int>(amr->GetTotalNumberOfBlocks()) == NumPatches));
+    (static_cast<int>(amr->GetNumberOfBlocks()) == NumPatches));
   WriteAMR(amr, "AMR2D-INITIAL");
 
   // STEP 1: Register grids
@@ -515,7 +514,7 @@ int Test3DAMR(const int ratio)
   vtkOverlappingAMR* amr = vtkOverlappingAMR::New();
   Get3DAMRData(amr, ratio);
   assert("post Total number of blocks mismatch!" &&
-    (static_cast<int>(amr->GetTotalNumberOfBlocks()) == NumPatches));
+    (static_cast<int>(amr->GetNumberOfBlocks()) == NumPatches));
   WriteAMR(amr, "AMR3D-INITIAL");
 
   // STEP 1: Register grids
@@ -570,9 +569,9 @@ int TestStructuredAMRGridConnectivity_internal(int argc, char* argv[])
 //------------------------------------------------------------------------------
 int TestSimpleAMRGridConnectivity(int vtkNotUsed(argc), char* argv[])
 {
-  int rc = 0;
-  int dim = atoi(argv[1]);
-  int ratio = atoi(argv[2]);
+  int rc = 0, dim, ratio;
+  VTK_FROM_CHARS_IF_ERROR_RETURN(argv[1], dim, EXIT_FAILURE);
+  VTK_FROM_CHARS_IF_ERROR_RETURN(argv[2], ratio, EXIT_FAILURE);
 
   switch (dim)
   {

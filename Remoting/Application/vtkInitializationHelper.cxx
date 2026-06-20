@@ -30,6 +30,7 @@
 #include "vtksys/SystemTools.hxx"
 
 #include <cassert>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -142,7 +143,7 @@ bool vtkInitializationHelper::Initialize(const char* executable, int type)
   std::vector<char*> argv;
   argv.push_back(vtksys::SystemTools::DuplicateString(executable));
   argv.push_back(nullptr);
-  return vtkInitializationHelper::Initialize(static_cast<int>(argv.size()) - 1, &argv[0], type);
+  return vtkInitializationHelper::Initialize(static_cast<int>(argv.size()) - 1, argv.data(), type);
 }
 
 //----------------------------------------------------------------------------
@@ -154,7 +155,7 @@ bool vtkInitializationHelper::Initialize(vtkStringList* slist, int type)
     argv.push_back(const_cast<char*>(slist->GetString(cc)));
   }
   argv.push_back(nullptr);
-  return vtkInitializationHelper::Initialize(static_cast<int>(argv.size()) - 1, &argv[0], type);
+  return vtkInitializationHelper::Initialize(static_cast<int>(argv.size()) - 1, argv.data(), type);
 }
 
 //----------------------------------------------------------------------------
@@ -397,14 +398,6 @@ elif not os.path.exists(VENV_BASE):
 }
 
 //----------------------------------------------------------------------------
-bool vtkInitializationHelper::InitializeMiscellaneous(int type)
-{
-  bool status = vtkInitializationHelper::InitializeSettings(type, false);
-  status &= vtkInitializationHelper::InitializeOthers();
-  return status;
-}
-
-//----------------------------------------------------------------------------
 bool vtkInitializationHelper::InitializeSettings(int type, bool defaultCoreConfig)
 {
   auto coreConfig = vtkRemotingCoreConfiguration::GetInstance();
@@ -536,7 +529,7 @@ bool vtkInitializationHelper::InitializeOthers()
   // smTestDriver
   if (vtksys::SystemTools::HasEnv("PARAVIEW_SMTESTDRIVER"))
   {
-    cout << "Process started" << endl;
+    std::cout << "Process started" << endl;
   }
 
   // This checks if the environment has VTK_DEFAULT_OPENGL_WINDOW set. If it is not set,
@@ -663,18 +656,6 @@ void vtkInitializationHelper::LoadSettings()
   settings->DistributeSettings();
 
   vtkInitializationHelper::SaveUserSettingsFileDuringFinalization = true;
-}
-
-//----------------------------------------------------------------------------
-std::string vtkInitializationHelper::GetUserSettingsDirectory()
-{
-  return vtkPVStandardPaths::GetUserSettingsDirectory();
-}
-
-//----------------------------------------------------------------------------
-std::string vtkInitializationHelper::GetUserSettingsFilePath()
-{
-  return vtkPVStandardPaths::GetUserSettingsFilePath();
 }
 
 //----------------------------------------------------------------------------

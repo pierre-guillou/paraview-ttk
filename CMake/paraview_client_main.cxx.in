@@ -9,6 +9,7 @@
 
 #include "pq@_paraview_client_NAME@Initializer.h"
 #include "pqQtWidgetsConfig.h"
+#include "vtkLogger.h"
 
 #if PARAVIEW_USE_QTWEBENGINE
 #include <QWebEngineUrlScheme>
@@ -95,23 +96,6 @@ int main(int argc, char* argv[])
   // instance.
   QSurfaceFormat::setDefaultFormat(QVTKRenderWindowAdapter::defaultFormat(/*stereo_capable=*/false));
 
-#if !defined(__APPLE__) && !defined(_WIN32)
-  // On non-Apple and non-Windows platforms, ParaView only works with X11, so
-  // prefer it to Wayland on those platforms.
-  std::string platform_args_data[] = { "-platform", "xcb" };
-  char* platform_args[] = {
-    // XXX(c++17): platform_args_data[n].data()
-    &platform_args_data[0].front(),
-    &platform_args_data[1].front(),
-  };
-  std::vector<char*> new_argc(argc + 2 + 1);
-  std::memcpy(new_argc.data(), argv, argc * sizeof(char*));
-  new_argc[argc] = platform_args[0];
-  new_argc[argc + 1] = platform_args[1];
-  new_argc[argc + 2] = nullptr;
-  argc += 2;
-  argv = new_argc.data();
-#endif
   QApplication qtapp(argc, argv);
   // QApplication docs suggest resetting to "C" after the QApplication is
   // initialized.
@@ -131,6 +115,34 @@ int main(int argc, char* argv[])
     case InitializerT::ExitFailure:
       return EXIT_FAILURE;
     case InitializerT::RunApplication:
-      return QApplication::exec();
+      {
+        // On Wayland, we prefer EGL based rendering over GLX.
+        // This is to ensure that we use the same GL implementation in VTK as Qt.
+        // Mixing GLX and EGL in the same application leads to crashes.
+        if (QGuiApplication::platformName().compare("wayland", Qt::CaseInsensitive) == 0)
+        {
+          vtkLogF(WARNING,
+            "ParaView is not fully tested on Wayland. You may experience issues. "
+            "To work around crashes, you may wish to 'export QT_QPA_PLATFORM=xcb' in "
+            "a shell and run the paraview executable from there. "
+            "Please report issues on the issue tracker: "
+            "https://gitlab.kitware.com/paraview/paraview/-/issues/23124");
+          if (vtksys::SystemTools::HasEnv("VTK_DEFAULT_OPENGL_WINDOW"))
+          {
+            if (const char* currentValue = vtksys::SystemTools::GetEnv("VTK_DEFAULT_OPENGL_WINDOW"))
+            {
+              if (strcmp(currentValue, "vtkEGLRenderWindow") != 0)
+              {
+                vtkLogF(WARNING,
+                  "VTK_DEFAULT_OPENGL_WINDOW is set to '%s' but should be vtkEGLRenderWindow on "
+                  "Wayland. Overriding.",
+                  currentValue);
+              }
+            }
+          }
+          vtksys::SystemTools::PutEnv("VTK_DEFAULT_OPENGL_WINDOW=vtkEGLRenderWindow");
+        }
+        return QApplication::exec();
+      }
   }
 }

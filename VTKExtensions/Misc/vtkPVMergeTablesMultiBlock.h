@@ -22,9 +22,10 @@
 
 #include "vtkMultiBlockDataSetAlgorithm.h"
 #include "vtkPVVTKExtensionsMiscModule.h" // needed for export macro
+#include "vtkParaViewDeprecation.h"       // for PARAVIEW_DEPRECATED
 
-class VTKPVVTKEXTENSIONSMISC_EXPORT vtkPVMergeTablesMultiBlock
-  : public vtkMultiBlockDataSetAlgorithm
+class PARAVIEW_DEPRECATED_IN_6_1_0("Please use the `vtkPVMergeTablesComposite` instead.")
+  VTKPVVTKEXTENSIONSMISC_EXPORT vtkPVMergeTablesMultiBlock : public vtkMultiBlockDataSetAlgorithm
 {
 public:
   static vtkPVMergeTablesMultiBlock* New();

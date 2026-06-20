@@ -9,15 +9,12 @@
 #include "vtkImageData.h"
 #include "vtkJPEGReader.h"
 #include "vtkLogger.h"
+#include "vtkMemoryResourceStream.h"
 #include "vtkNew.h"
-#include "vtkObjectFactory.h"
-#include "vtkOpenGLActor.h"
 #include "vtkOpenGLBufferObject.h"
 #include "vtkOpenGLCamera.h"
 #include "vtkOpenGLError.h"
 #include "vtkOpenGLFramebufferObject.h"
-#include "vtkOpenGLLight.h"
-#include "vtkOpenGLProperty.h"
 #include "vtkOpenGLQuadHelper.h"
 #include "vtkOpenGLRenderUtilities.h"
 #include "vtkOpenGLRenderer.h"
@@ -25,16 +22,14 @@
 #include "vtkOpenGLShaderCache.h"
 #include "vtkOpenGLState.h"
 #include "vtkOpenGLVertexArrayObject.h"
-#include "vtkOpenGLVertexBufferObjectCache.h"
 #include "vtkOutputWindow.h"
-#include "vtkPerlinNoise.h"
 #include "vtkRenderTimerLog.h"
 #include "vtkRendererCollection.h"
 #include "vtkRenderingOpenGLConfigure.h"
 #include "vtkShaderProgram.h"
 #include "vtkStringOutputWindow.h"
+#include "vtkStringScanner.h"
 #include "vtkTextureObject.h"
-#include "vtkTextureUnitManager.h"
 #include "vtkTimerLog.h"
 #include "vtkUnsignedCharArray.h"
 
@@ -51,6 +46,7 @@
 #endif
 #include "vtkOSOpenGLRenderWindow.h"
 
+#include "vtksys/DynamicLoader.hxx"
 #include "vtksys/SystemTools.hxx"
 
 #include "BlueNoiseTexture64x64.h"
@@ -86,7 +82,7 @@ struct vtkOpenGLRenderWindowDriverInfo
   const char* Version;
   const char* Renderer;
 };
-static const vtkOpenGLRenderWindowDriverInfo vtkOpenGLRenderWindowMSAATextureBug[] = {
+static constexpr vtkOpenGLRenderWindowDriverInfo vtkOpenGLRenderWindowMSAATextureBug[] = {
   // OpenGL Vendor: Intel
   // OpenGL Version: 4.6 (Core Profile) Mesa 20.1.3
   // OpenGL Renderer: Mesa Intel® HD Graphics 630 (KBL GT2)
@@ -911,32 +907,28 @@ void vtkOpenGLRenderWindow::OpenGLInitContext()
 #if defined(GLAD_GL)
     if (this->SymbolLoader.LoadFunction != nullptr)
     {
-      if (gladLoadGLUserPtr(this->SymbolLoader.LoadFunction, this->SymbolLoader.UserData) > 0)
-      {
-        this->Initialized = true;
-      }
-      else
-      {
-        vtkWarningMacro(<< "Failed to initialize OpenGL functions!");
-      }
+      this->Initialized =
+        gladLoadGLUserPtr(this->SymbolLoader.LoadFunction, this->SymbolLoader.UserData) > 0;
     }
     else
     {
-      if (gladLoaderLoadGL() > 0)
-      {
-        this->Initialized = true;
-      }
-      else
-      {
-        vtkWarningMacro(<< "Failed to initialize OpenGL functions!");
-      }
+      this->Initialized = gladLoaderLoadGL() > 0;
     }
-#else // gles
-    this->Initialized = true;
-#endif
     if (!this->Initialized)
     {
+      vtkWarningMacro(<< "Failed to initialize OpenGL functions!");
+      return;
+    }
+    int major = 0;
+    int minor = 0;
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
+    // Require at least OpenGL 3.2
+    if (major < 3 || (major == 3 && minor < 2))
+    {
       vtkWarningMacro(<< "Unable to find a valid OpenGL 3.2 or later implementation. "
+                      << "(" << major << "." << minor
+                      << " found). "
                          "Please update your video card driver to the latest version. "
                          "If you are using Mesa please make sure you have version 11.2 or "
                          "later and make sure your driver in Mesa supports OpenGL 3.2 such "
@@ -946,7 +938,9 @@ void vtkOpenGLRenderWindow::OpenGLInitContext()
                          "to avoid this issue.");
       return;
     }
-
+#else // gles
+    this->Initialized = true;
+#endif
     // Enable debug output if OpenGL version supports attaching debug callbacks.
 #if defined(VTK_REPORT_OPENGL_ERRORS) && defined(GLAD_GL)
     if (GLAD_GL_ARB_debug_output)
@@ -980,13 +974,22 @@ void vtkOpenGLRenderWindow::OpenGLInitContext()
       }
     }
 #endif
-  }
+  } // end if not initialized
 }
 
 //------------------------------------------------------------------------------
 void vtkOpenGLRenderWindow::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
+  os << indent << "OpenGL State: " << '\n';
+  if (this->State)
+  {
+    this->State->PrintSelf(os, indent.GetNextIndent());
+  }
+  else
+  {
+    os << indent.GetNextIndent() << "Not available" << '\n';
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1485,6 +1488,35 @@ void vtkOpenGLRenderWindow::SetOpenGLSymbolLoader(VTKOpenGLLoaderFunction loader
   this->SymbolLoader.UserData = userData;
 }
 
+void vtkOpenGLRenderWindow::SetOpenGLSymbolLoader2(
+  long long toolGetProcAddressFunc, long long glLibHandle)
+{
+  static_assert(sizeof(long long) >= sizeof(void*)); // ensure binary compatibility
+  FuncResolverState.resolveFunc = (VTKOpenGLGetProcAddress)toolGetProcAddressFunc;
+  FuncResolverState.libHandle = (void*)glLibHandle;
+
+  auto loadFunc = [](void* userptr, const char* name) -> VTKOpenGLAPIProc
+  {
+    GLFuncResolverState* state = reinterpret_cast<GLFuncResolverState*>(userptr);
+    if (!name || !state)
+    {
+      return nullptr;
+    }
+    VTKOpenGLAPIProc p = nullptr;
+    if (state->resolveFunc)
+    {
+      p = state->resolveFunc(name);
+    }
+    if (!p && state->libHandle)
+    {
+      p = (VTKOpenGLAPIProc)vtksys::DynamicLoader::GetSymbolAddress(
+        (vtksys::DynamicLoader::LibraryHandle)state->libHandle, name);
+    }
+    return p;
+  };
+  this->SetOpenGLSymbolLoader(loadFunc, &FuncResolverState);
+}
+
 void vtkOpenGLRenderWindow::TextureDepthBlit(vtkTextureObject* source, int srcX, int srcY,
   int srcX2, int srcY2, int destX, int destY, int destX2, int destY2)
 {
@@ -1646,7 +1678,13 @@ bool vtkOpenGLRenderWindow::ResolveFlipRenderFramebuffer()
     const char* useMSAAEnv = std::getenv("VTK_FORCE_MSAA");
     if (useMSAAEnv)
     {
-      useTexture = strlen(useMSAAEnv) ? (std::atoi(useMSAAEnv) == 1) : true;
+      auto str = std::string_view(useMSAAEnv);
+      if (!str.empty())
+      {
+        int useTextureInt = 0;
+        VTK_FROM_CHARS_IF_ERROR_BREAK(useMSAAEnv, useTextureInt);
+        useTexture = useTextureInt == 1;
+      }
     }
     else
     {
@@ -2764,10 +2802,7 @@ int vtkOpenGLRenderWindow::CreateFramebuffers(int width, int height)
 #ifdef GL_MAX_SAMPLES
       int msamples = 0;
       this->GetState()->vtkglGetIntegerv(GL_MAX_SAMPLES, &msamples);
-      if (this->MultiSamples > msamples)
-      {
-        this->MultiSamples = msamples;
-      }
+      this->MultiSamples = std::min(this->MultiSamples, msamples);
       if (this->MultiSamples == 1)
       {
         this->MultiSamples = 0;
@@ -3010,12 +3045,13 @@ int vtkOpenGLRenderWindow::GetNoiseTextureUnit()
   {
     vtkNew<vtkJPEGReader> imgReader;
 
-    imgReader->SetMemoryBuffer(BlueNoiseTexture64x64);
-    imgReader->SetMemoryBufferLength(sizeof(BlueNoiseTexture64x64));
+    vtkNew<vtkMemoryResourceStream> stream;
+    stream->SetBuffer(BlueNoiseTexture64x64, sizeof(BlueNoiseTexture64x64));
+    imgReader->SetStream(stream);
     imgReader->Update();
     vtkImageData* textureReader = imgReader->GetOutput();
 
-    int const bufferSize = 64 * 64;
+    constexpr int bufferSize = 64 * 64;
     float* noiseTextureData = new float[bufferSize];
     for (int i = 0; i < bufferSize; i++)
     {

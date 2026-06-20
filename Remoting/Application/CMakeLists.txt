@@ -207,6 +207,10 @@ _paraview_remoting_application_optional_xml(
   FILES   Resources/proxies_alembic.xml)
 
 _paraview_remoting_application_optional_xml(
+  TARGETS VTK::IOUSD
+  FILES   Resources/proxies_usd.xml)
+
+_paraview_remoting_application_optional_xml(
   TARGETS VTK::IONetCDF
   FILES   Resources/readers_ionetcdf.xml)
 
@@ -403,8 +407,20 @@ if (TARGET _have_vtk_pythoninterpreter)
 endif ()
 
 if (PARAVIEW_USE_PYTHON)
+  include(ParaViewFindPythonModules)
+  find_python_module(openpmd_api openpmd_api_found)
+  if (openpmd_api_found)
+    list(APPEND xml_files
+      Resources/readers_openpmd.xml)
+  endif()
+  find_python_module(netCDF4 netCDF4_found)
+  if (netCDF4_found)
+    list(APPEND xml_files
+      Resources/readers_atmosphere.xml)
+    list(APPEND xml_files
+      Resources/filters_atmosphere.xml)
+  endif()
   list(APPEND xml_files
-    Resources/readers_openpmd.xml
     Resources/readers_savg.xml)
   list(APPEND xml_files
     Resources/extractors_python.xml)

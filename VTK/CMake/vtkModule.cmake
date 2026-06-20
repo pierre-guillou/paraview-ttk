@@ -2468,6 +2468,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/vtkModuleTesting.cmake")
       [LICENSE_COMPONENT  <component>]
 
       [UTILITY_TARGET     <target>]
+      [PLATFORM_TARGET    <target>]
 
       [TEST_DIRECTORY_NAME        <name>]
       [TEST_DATA_TARGET           <target>]
@@ -2529,6 +2530,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/vtkModuleTesting.cmake")
   * ``UTILITY_TARGET``: If specified, all libraries and executables made by the
     VTK Module API will privately link to this target. This may be used to
     provide things such as project-wide compilation flags or similar.
+  * ``PLATFORM_TARGET``: If specified, all libraries made by the
+    VTK Module API will "public" link to this target. This may be used to
+    provide things such as platform-specific flags that will be propagated to
+    consumers of the module.
   * ``TARGET_NAMESPACE``: ``Defaults to ``\<AUTO\>``) The namespace for installed
     targets. All targets must have the same namespace. If set to ``\<AUTO\>``,
     the namespace will be detected automatically.
@@ -2595,6 +2600,7 @@ function (vtk_module_build)
     SPDX_COMPONENT
     TARGET_NAMESPACE
     UTILITY_TARGET
+    PLATFORM_TARGET
 
     # Destinations
     ARCHIVE_DESTINATION
@@ -2987,6 +2993,12 @@ function (vtk_module_build)
         target_link_libraries("${_vtk_build_target_name}"
           PRIVATE
             "${_vtk_build_UTILITY_TARGET}")
+      endif ()
+
+      if (_vtk_build_PLATFORM_TARGET)
+        target_link_libraries("${_vtk_build_target_name}"
+          PUBLIC
+            "${_vtk_build_PLATFORM_TARGET}")
       endif ()
 
       get_property(_vtk_build_kit_library_name GLOBAL
@@ -4341,6 +4353,12 @@ function (vtk_module_add_module name)
           "${_vtk_build_UTILITY_TARGET}")
     endif ()
 
+    if (_vtk_build_PLATFORM_TARGET)
+      target_link_libraries("${_vtk_add_module_real_target}"
+        PUBLIC
+          "${_vtk_build_PLATFORM_TARGET}")
+    endif ()
+
     set_property(TARGET "${_vtk_add_module_real_target}"
       PROPERTY
         POSITION_INDEPENDENT_CODE ON)
@@ -4642,6 +4660,25 @@ VTK_MODULE_AUTOINIT(${_vtk_add_module_library_name})
 
     string(APPEND _vtk_add_module_module_content
       "${_vtk_add_module_autoinit_content}")
+  endif ()
+
+  if (_vtk_build_ENABLE_SERIALIZATION AND _vtk_add_module_include_marshal)
+    string(APPEND _vtk_add_module_module_content
+      "
+VTK_ABI_NAMESPACE_BEGIN
+${_vtk_add_module_EXPORT_MACRO_PREFIX}_EXPORT void AddRegistrar_${_vtk_add_module_library_name}();
+VTK_ABI_NAMESPACE_END
+namespace
+{
+  struct ${_vtk_add_module_library_name}_SerDesRegistrar
+  {
+    ${_vtk_add_module_library_name}_SerDesRegistrar()
+    {
+      AddRegistrar_${_vtk_add_module_library_name}();
+    }
+  } ${_vtk_add_module_library_name}_SerDesRegistrar_Instance;
+}
+")
   endif ()
 
   if (NOT _vtk_add_module_HEADER_ONLY AND NOT _vtk_add_module_third_party)
@@ -5195,9 +5232,15 @@ function (vtk_module_add_executable name)
       _vtk_module_optional_dependency_exists("${_vtk_add_executable_optional_depend}"
         SATISFIED_VAR _vtk_add_executable_optional_depend_exists)
       string(REPLACE "::" "_" _vtk_add_executable_optional_depend_safe "${_vtk_add_executable_optional_depend}")
+      if (_vtk_add_executable_optional_depend_exists)
+        set(_vtk_add_executable_optional_depend_link "${_vtk_add_executable_optional_depend}")
+        target_link_libraries("${_vtk_add_executable_target_name}"
+          PRIVATE
+            "${_vtk_add_executable_optional_depend_link}")
+      endif ()
       target_compile_definitions("${_vtk_add_executable_target_name}"
         PRIVATE
-          "VTK_MODULE_ENABLE_${_vtk_add_executable_optional_depend_safe}=$<BOOL:{_vtk_add_executable_optional_depend_exists}>")
+          "VTK_MODULE_ENABLE_${_vtk_add_executable_optional_depend_safe}=$<BOOL:${_vtk_add_executable_optional_depend_exists}>")
     endforeach ()
 
     if (_vtk_module_warnings)

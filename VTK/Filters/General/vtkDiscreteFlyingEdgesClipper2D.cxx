@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDiscreteFlyingEdgesClipper2D.h"
 
+#include "vtkArrayComponents.h"
+#include "vtkArrayDispatch.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkFloatArray.h"
@@ -16,9 +18,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 
 #include <algorithm>
-#include <cmath>
 #include <limits>
-#include <set>
 #include <vector>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -32,7 +32,7 @@ namespace
 // scalar type T. vtkDiscreteFlyingEdgesClipper2D populates the information
 // in this class and then invokes ContourImage() to actually initiate
 // executions.
-template <class T>
+template <class TArray>
 class vtkDiscreteClipperAlgorithm
 {
 public:
@@ -74,21 +74,24 @@ public:
   int Max1;
   int Inc1;
   int Axis2;
-  vtkLabelMapLookup<T>* LMap;
 
   // Output data. Threads write to partitioned memory.
-  T* Scalars;
+  using TPtr = typename vtk::detail::ValueRange<TArray, 1>::iterator;
+  using T = vtk::GetAPIType<TArray>;
+  vtkLabelMapLookup<T>* LMap;
+  TPtr Scalars;
   vtkCellArray* NewPolys;
   float* NewPoints;
-  T* NewScalars; // cell scalars if requested
+  bool HasNewScalars = false;
+  TPtr NewScalars; // cell scalars if requested
 
   // Instantiate and initialize key data members.
   vtkDiscreteClipperAlgorithm();
 
   // The three threaded passes of the algorithm.
-  void ClassifyXEdges(T* inPtr, vtkIdType row); // PASS 1
-  void ClassifyYEdges(T* inPtr, vtkIdType row); // PASS 2
-  void GenerateOutput(T* inPtr, vtkIdType row); // PASS 4
+  void ClassifyXEdges(TPtr inPtr, vtkIdType row); // PASS 1
+  void ClassifyYEdges(TPtr inPtr, vtkIdType row); // PASS 2
+  void GenerateOutput(TPtr inPtr, vtkIdType row); // PASS 4
 
   // Place holder for now in case fancy bit fiddling is needed later.
   void SetDyadClassification(unsigned char* dPtr, unsigned char vertCase) { *dPtr = vertCase; }
@@ -121,42 +124,43 @@ public:
   unsigned char* GetVertUses(unsigned char dCase) { return this->VertUses[dCase]; }
 
   // Produce the primitives for this pixel cell.
-  struct GeneratePolysImpl
+  struct GeneratePolysImpl : public vtkCellArray::DispatchUtilities
   {
-    template <typename CellStateT>
-    void operator()(CellStateT& state, const unsigned char* verts, int numPolys,
-      const vtkIdType ptIds[9], vtkIdType& cellOffsetBegin, vtkIdType& cellConnBegin)
+    template <class OffsetsT, class ConnectivityT>
+    void operator()(OffsetsT* offsets, ConnectivityT* conn, const unsigned char* verts,
+      int numPolys, const vtkIdType ptIds[9], vtkIdType& cellOffsetBegin, vtkIdType& cellConnBegin)
     {
-      using ValueType = typename CellStateT::ValueType;
-      auto* offsets = state.GetOffsets();
-      auto* conn = state.GetConnectivity();
+      using ValueType = GetAPIType<OffsetsT>;
 
+      auto offsetsRange = GetRange(offsets);
+      auto connRange = GetRange(conn);
       size_t vid{ 0 };
       while (numPolys-- > 0)
       {
         int nPts = static_cast<int>(*verts++);
-        offsets->SetValue(cellOffsetBegin++, static_cast<ValueType>(cellConnBegin));
+        offsetsRange[cellOffsetBegin++] = static_cast<ValueType>(cellConnBegin);
         while (nPts-- > 0)
         {
           // Can't just do vtkCellArray::AppendLegacyFormat bc of this funky
           // conversion:
           vid = static_cast<size_t>(*verts++);
+          // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
           vid = (vid <= 3 ? vid : (vid <= 13 ? (vid - 6) : 8));
-          conn->SetValue(cellConnBegin++, static_cast<ValueType>(ptIds[vid]));
+          connRange[cellConnBegin++] = static_cast<ValueType>(ptIds[vid]);
         }
       }
     }
   };
   // Finalize the polygons cell array: after all the polys are inserted,
   // the last offset has to be added to complete the offsets array.
-  struct FinalizePolysImpl
+  struct FinalizePolysImpl : public vtkCellArray::DispatchUtilities
   {
-    template <typename CellStateT>
-    void operator()(CellStateT& state, vtkIdType numPolys, vtkIdType connSize)
+    template <class OffsetsT, class ConnectivityT>
+    void operator()(
+      OffsetsT* offsets, ConnectivityT* vtkNotUsed(conn), vtkIdType numPolys, vtkIdType connSize)
     {
-      using ValueType = typename CellStateT::ValueType;
-      auto* offsets = state.GetOffsets();
-      auto offsetRange = vtk::DataArrayValueRange<1>(offsets);
+      using ValueType = GetAPIType<OffsetsT>;
+      auto offsetRange = GetRange(offsets);
       auto offsetIter = offsetRange.begin() + numPolys;
       *offsetIter = static_cast<ValueType>(connSize);
     }
@@ -165,7 +169,7 @@ public:
     vtkIdType& cellOffsetBegin, vtkIdType& cellConnBegin)
   {
     const unsigned char* verts = this->VertCases[dCase] + 3;
-    this->NewPolys->Visit(
+    this->NewPolys->Dispatch(
       GeneratePolysImpl{}, verts, numPolys, ptIds, cellOffsetBegin, cellConnBegin);
   }
 
@@ -178,7 +182,7 @@ public:
   void GenerateOriginDyadPoint(int ijk[3], unsigned char vCase, vtkIdType* eIds);
 
   // Generate cell scalar values if requested
-  void GenerateScalars(T* s, unsigned char dCase, vtkIdType& polyNum);
+  void GenerateScalars(TPtr s, unsigned char dCase, vtkIdType& polyNum);
 
   // Helper function to set up the point ids on pixel vertices including the
   // mid-edge vertices and possible interior vertex.
@@ -213,20 +217,19 @@ public:
   }
 
   // Threading integration via SMPTools
-  template <class TT>
   class Pass1
   {
   public:
-    Pass1(vtkDiscreteClipperAlgorithm<TT>* algo, vtkDiscreteFlyingEdgesClipper2D* filter)
+    Pass1(vtkDiscreteClipperAlgorithm* algo, vtkDiscreteFlyingEdgesClipper2D* filter)
     {
       this->Algo = algo;
       this->Filter = filter;
     }
-    vtkDiscreteClipperAlgorithm<TT>* Algo;
+    vtkDiscreteClipperAlgorithm* Algo;
     vtkDiscreteFlyingEdgesClipper2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
-      TT* rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
+      TPtr rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
       bool isFirst = vtkSMPTools::GetSingleThread();
       for (; row < end; ++row)
       {
@@ -243,20 +246,19 @@ public:
       } // for all rows in this batch
     }
   };
-  template <class TT>
   class Pass2
   {
   public:
-    Pass2(vtkDiscreteClipperAlgorithm<TT>* algo, vtkDiscreteFlyingEdgesClipper2D* filter)
+    Pass2(vtkDiscreteClipperAlgorithm* algo, vtkDiscreteFlyingEdgesClipper2D* filter)
     {
       this->Algo = algo;
       this->Filter = filter;
     }
-    vtkDiscreteClipperAlgorithm<TT>* Algo;
+    vtkDiscreteClipperAlgorithm* Algo;
     vtkDiscreteFlyingEdgesClipper2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
-      TT* rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
+      TPtr rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
       bool isFirst = vtkSMPTools::GetSingleThread();
       for (; row < end; ++row)
       {
@@ -273,20 +275,19 @@ public:
       } // for all rows in this batch
     }
   };
-  template <class TT>
   class Pass4
   {
   public:
-    Pass4(vtkDiscreteClipperAlgorithm<TT>* algo, vtkDiscreteFlyingEdgesClipper2D* filter)
+    Pass4(vtkDiscreteClipperAlgorithm* algo, vtkDiscreteFlyingEdgesClipper2D* filter)
     {
       this->Algo = algo;
       this->Filter = filter;
     }
-    vtkDiscreteClipperAlgorithm<TT>* Algo;
+    vtkDiscreteClipperAlgorithm* Algo;
     vtkDiscreteFlyingEdgesClipper2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
-      T* rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
+      TPtr rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
       bool isFirst = vtkSMPTools::GetSingleThread();
       for (; row < end; ++row)
       {
@@ -305,8 +306,9 @@ public:
   };
 
   // Interface between VTK and templated functions
-  static void ContourImage(vtkDiscreteFlyingEdgesClipper2D* self, T* scalars, vtkPoints* newPts,
-    vtkDataArray* newScalars, vtkCellArray* newPolys, vtkImageData* input, int* updateExt);
+  static void ContourImage(vtkDiscreteFlyingEdgesClipper2D* self, TArray* scalars,
+    vtkPoints* newPts, vtkDataArray* newScalars, vtkCellArray* newPolys, vtkImageData* input,
+    int* updateExt);
 };
 
 // The case table is formatted: (numPolys, connectityLen, centerPoint,
@@ -318,8 +320,8 @@ public:
 // IS NOT A MARCHING CUBES-TYPE CASE TABLE. Note also that for every polygon,
 // the first point is always an image corner point (which is useful for obtaining
 // the cell data for the polygon).
-template <class T>
-const unsigned char vtkDiscreteClipperAlgorithm<T>::VertCases[256][23] = {
+template <class TArray>
+const unsigned char vtkDiscreteClipperAlgorithm<TArray>::VertCases[256][23] = {
   // case 0 (0,0,0,0) (0,0,0,0)
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   // case 1 (1,0,0,0) (0,0,0,0)
@@ -837,14 +839,12 @@ const unsigned char vtkDiscreteClipperAlgorithm<T>::VertCases[256][23] = {
 //------------------------------------------------------------------------------
 // Instantiate and initialize key data members. Mostly we build some
 // acceleration structures from the case table.
-template <class T>
-vtkDiscreteClipperAlgorithm<T>::vtkDiscreteClipperAlgorithm()
+template <class TArray>
+vtkDiscreteClipperAlgorithm<TArray>::vtkDiscreteClipperAlgorithm()
   : DyadCases(nullptr)
   , EdgeMetaData(nullptr)
-  , Scalars(nullptr)
   , NewPolys(nullptr)
   , NewPoints(nullptr)
-  , NewScalars(nullptr)
 {
   int j, v, dCase, numPolys, centerPoint, numVerts;
   const unsigned char* vertCase;
@@ -895,8 +895,8 @@ vtkDiscreteClipperAlgorithm<T>::vtkDiscreteClipperAlgorithm()
 
 //------------------------------------------------------------------------------
 // Generate the output points
-template <class T>
-void vtkDiscreteClipperAlgorithm<T>::GenerateDyadPoints(
+template <class TArray>
+void vtkDiscreteClipperAlgorithm<TArray>::GenerateDyadPoints(
   int ijk[3], unsigned char vertCase, vtkIdType* ids)
 {
   if (vertCase == 0)
@@ -943,8 +943,8 @@ void vtkDiscreteClipperAlgorithm<T>::GenerateDyadPoints(
 
 //------------------------------------------------------------------------------
 // Generate the output points along the upper edge of the image boundary.
-template <class T>
-void vtkDiscreteClipperAlgorithm<T>::GenerateXDyadPoints(
+template <class TArray>
+void vtkDiscreteClipperAlgorithm<TArray>::GenerateXDyadPoints(
   int ijk[3], unsigned char vertCase, vtkIdType* ids)
 {
   if (vertCase == 0)
@@ -976,8 +976,8 @@ void vtkDiscreteClipperAlgorithm<T>::GenerateXDyadPoints(
 
 //------------------------------------------------------------------------------
 // Generate the output points along the right edge of the image boundary.
-template <class T>
-void vtkDiscreteClipperAlgorithm<T>::GenerateYDyadPoints(
+template <class TArray>
+void vtkDiscreteClipperAlgorithm<TArray>::GenerateYDyadPoints(
   int ijk[3], unsigned char vertCase, vtkIdType* ids)
 {
   if (vertCase == 0)
@@ -1011,8 +1011,8 @@ void vtkDiscreteClipperAlgorithm<T>::GenerateYDyadPoints(
 // Generate the output point at the origin of the dyad. This method may be
 // invoked once per execution, and it is invoked by a pixel below and to the
 // left.
-template <class T>
-void vtkDiscreteClipperAlgorithm<T>::GenerateOriginDyadPoint(
+template <class TArray>
+void vtkDiscreteClipperAlgorithm<TArray>::GenerateOriginDyadPoint(
   int ijk[3], unsigned char vertCase, vtkIdType* ids)
 {
   // Generate points from the dyad at the upper right corner of the image.
@@ -1029,14 +1029,14 @@ void vtkDiscreteClipperAlgorithm<T>::GenerateOriginDyadPoint(
 // Cell scalars are produced. The pointer to the scalar field s is positioned
 // at the lower left corner of a pixel. The number of scalars to produce is
 // indicated by numPolys; the cellScalars
-template <class T>
-void vtkDiscreteClipperAlgorithm<T>::GenerateScalars(
-  T* sPtr, unsigned char dCase, vtkIdType& polyNum)
+template <class TArray>
+void vtkDiscreteClipperAlgorithm<TArray>::GenerateScalars(
+  TPtr sPtr, unsigned char dCase, vtkIdType& polyNum)
 {
   unsigned char numPolys = this->VertCases[dCase][0];
   const unsigned char* verts = this->VertCases[dCase] + 3;
   unsigned char nVerts, id;
-  T* s;
+  TPtr s;
 
   // Remember the first id is guaranteed to be on an image pixel
   for (int i = 0; i < numPolys; ++i)
@@ -1071,8 +1071,8 @@ void vtkDiscreteClipperAlgorithm<T>::GenerateScalars(
 // building cell contour case table, determine the number of intersections,
 // and trim intersections along the row. Note that dyads at the +x,y
 // boundaries are partial and must be treated appropriately.
-template <class T>
-void vtkDiscreteClipperAlgorithm<T>::ClassifyXEdges(T* inPtr, vtkIdType row)
+template <class TArray>
+void vtkDiscreteClipperAlgorithm<TArray>::ClassifyXEdges(TPtr inPtr, vtkIdType row)
 {
   vtkIdType nxcells = this->Dims[0];
   vtkIdType minInt = nxcells, maxInt = 0;
@@ -1138,8 +1138,8 @@ void vtkDiscreteClipperAlgorithm<T>::ClassifyXEdges(T* inPtr, vtkIdType row)
 //------------------------------------------------------------------------------
 // PASS 2: Classify the y-axis portion of the dyads along a single x-row.
 // Determine whether an interior point is needed for the tessellation.
-template <class T>
-void vtkDiscreteClipperAlgorithm<T>::ClassifyYEdges(T* inPtr0, vtkIdType row)
+template <class TArray>
+void vtkDiscreteClipperAlgorithm<TArray>::ClassifyYEdges(TPtr inPtr0, vtkIdType row)
 {
   // Edge metadata
   vtkIdType* eMD0 = this->EdgeMetaData + row * 6;
@@ -1165,9 +1165,9 @@ void vtkDiscreteClipperAlgorithm<T>::ClassifyYEdges(T* inPtr0, vtkIdType row)
 
   // Grab the dyad cases bounding this pixel. Remember this is trimmed.
   inPtr0 += xL;
-  T* inPtr1 = inPtr0 + this->Inc1;
-  T* inPtr0x = inPtr0 + 1;
-  T* inPtr1x = inPtr0x + this->Inc1;
+  TPtr inPtr1 = inPtr0 + this->Inc1;
+  TPtr inPtr0x = inPtr0 + 1;
+  TPtr inPtr1x = inPtr0x + this->Inc1;
 
   // The dyad cases surrounding this pixel
   unsigned char* dPtr0 = this->DyadCases + row * this->Dims[0] + xL;
@@ -1230,8 +1230,8 @@ void vtkDiscreteClipperAlgorithm<T>::ClassifyYEdges(T* inPtr0, vtkIdType row)
 // PASS 4: Process the x-row dyads to generate output primitives, including
 // point coordinates and polygon primitives. This is the fourth pass of the
 // algorithm.
-template <class T>
-void vtkDiscreteClipperAlgorithm<T>::GenerateOutput(T* rowPtr, vtkIdType row)
+template <class TArray>
+void vtkDiscreteClipperAlgorithm<TArray>::GenerateOutput(TPtr rowPtr, vtkIdType row)
 {
   vtkIdType* eMD0 = this->EdgeMetaData + row * 6;
   vtkIdType* eMD1 = this->EdgeMetaData + (row + 1) * 6;
@@ -1316,7 +1316,7 @@ void vtkDiscreteClipperAlgorithm<T>::GenerateOutput(T* rowPtr, vtkIdType row)
       this->GeneratePolys(dCase, numPolys, ids, cellOffsetBegin, cellConnBegin);
 
       // If requested, generate cell scalars for the polygons in this case
-      if (this->NewScalars)
+      if (this->HasNewScalars)
       {
         this->GenerateScalars(rowPtr + i, dCase, polyNum);
       }
@@ -1330,10 +1330,10 @@ void vtkDiscreteClipperAlgorithm<T>::GenerateOutput(T* rowPtr, vtkIdType row)
 // vtkDiscreteFlyingEdgesClipper2D class with the templated algorithm class. It also invokes
 // the three passes of the Flying Edges algorithm.
 //
-template <class T>
-void vtkDiscreteClipperAlgorithm<T>::ContourImage(vtkDiscreteFlyingEdgesClipper2D* self, T* scalars,
-  vtkPoints* newPts, vtkDataArray* newScalars, vtkCellArray* newPolys, vtkImageData* input,
-  int* updateExt)
+template <class TArray>
+void vtkDiscreteClipperAlgorithm<TArray>::ContourImage(vtkDiscreteFlyingEdgesClipper2D* self,
+  TArray* scalars, vtkPoints* newPts, vtkDataArray* newScalars, vtkCellArray* newPolys,
+  vtkImageData* input, int* updateExt)
 {
   double* values = self->GetValues();
   vtkIdType numContours = self->GetNumberOfContours();
@@ -1345,11 +1345,10 @@ void vtkDiscreteClipperAlgorithm<T>::ContourImage(vtkDiscreteFlyingEdgesClipper2
   // eliminated.
   vtkIdType incs[3];
   input->GetIncrements(incs);
-  int* ext = input->GetExtent();
 
   // Figure out which 2D plane the image lies in. Capture information for
   // subsequent processing.
-  vtkDiscreteClipperAlgorithm<T> algo;
+  vtkDiscreteClipperAlgorithm<TArray> algo;
   if (updateExt[4] == updateExt[5])
   { // z collapsed
     algo.Axis0 = 0;
@@ -1410,8 +1409,8 @@ void vtkDiscreteClipperAlgorithm<T>::ContourImage(vtkDiscreteFlyingEdgesClipper2
 
   // Compute the starting location for scalar data.  We may be operating
   // on a part of the image.
-  algo.Scalars = scalars + incs[0] * (updateExt[0] - ext[0]) + incs[1] * (updateExt[2] - ext[2]) +
-    incs[2] * (updateExt[4] - ext[4]) + self->GetArrayComponent();
+  algo.Scalars = vtk::DataArrayValueRange<1>(scalars).begin() +
+    input->GetValueIndexForExtent(scalars, updateExt);
 
   // This algorithm executes just once no matter how many contour values,
   // requiring a fast lookup as to whether a data value is a contour value.
@@ -1431,12 +1430,12 @@ void vtkDiscreteClipperAlgorithm<T>::ContourImage(vtkDiscreteFlyingEdgesClipper2
   // PASS 1: Traverse all rows identifying intersections and classifying the
   // dyads. Also accumulate information necessary for later allocation.  For
   // example the number of output points is computed.
-  Pass1<T> pass1(&algo, self);
+  Pass1 pass1(&algo, self);
   vtkSMPTools::For(0, algo.Dims[1], pass1);
 
   // PASS 2: Traverse all rows and process interior information. Continue building
   // dyad case table from this information.
-  Pass2<T> pass2(&algo, self);
+  Pass2 pass2(&algo, self);
   vtkSMPTools::For(0, algo.Dims[1] - 1, pass2);
 
   // PASS 3: Now allocate output. First we have to update the x-Edge meta
@@ -1475,19 +1474,20 @@ void vtkDiscreteClipperAlgorithm<T>::ContourImage(vtkDiscreteFlyingEdgesClipper2
   if (totalPts > 0)
   {
     newPts->GetData()->WriteVoidPointer(0, 3 * totalPts);
-    algo.NewPoints = static_cast<float*>(newPts->GetVoidPointer(0));
+    algo.NewPoints = vtkAOSDataArrayTemplate<float>::FastDownCast(newPts->GetData())->GetPointer(0);
     newPolys->ResizeExact(numOutPolys, outConnLen - numOutPolys);
-    newPolys->Visit(FinalizePolysImpl{}, numOutPolys, outConnLen - numOutPolys);
+    newPolys->Dispatch(FinalizePolysImpl{}, numOutPolys, outConnLen - numOutPolys);
     algo.NewPolys = newPolys;
     if (newScalars)
     {
+      algo.HasNewScalars = true;
       newScalars->WriteVoidPointer(0, numOutPolys);
-      algo.NewScalars = static_cast<T*>(newScalars->GetVoidPointer(0));
+      algo.NewScalars = vtk::DataArrayValueRange<1>(TArray::FastDownCast(newScalars)).begin();
     }
 
     // PASS 4: Now process each x-pixel-row and produce the output
     // primitives.
-    Pass4<T> pass4(&algo, self);
+    Pass4 pass4(&algo, self);
     vtkSMPTools::For(0, algo.Dims[1] - 1, pass4);
   } // if output generated
 
@@ -1497,6 +1497,16 @@ void vtkDiscreteClipperAlgorithm<T>::ContourImage(vtkDiscreteFlyingEdgesClipper2
   delete algo.LMap;
 }
 
+struct vtkDiscreteFlyingEdgesClipper2DWorker
+{
+  template <class TArray>
+  void operator()(TArray* array, vtkDiscreteFlyingEdgesClipper2D* filter, vtkPoints* newPts,
+    vtkDataArray* newScalars, vtkCellArray* newPolys, vtkImageData* input, int* updateExt)
+  {
+    vtkDiscreteClipperAlgorithm<TArray>::ContourImage(
+      filter, array, newPts, newScalars, newPolys, input, updateExt);
+  }
+};
 } // anonymous namespace
 
 //============================================================================
@@ -1554,7 +1564,7 @@ int vtkDiscreteFlyingEdgesClipper2D::RequestData(vtkInformation* vtkNotUsed(requ
   }
 
   int* ext = inInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT());
-  vtkDataArray* inScalars = this->GetInputArrayToProcess(0, inputVector);
+  vtkSmartPointer<vtkDataArray> inScalars = this->GetInputArrayToProcess(0, inputVector);
   if (inScalars == nullptr)
   {
     vtkErrorMacro(<< "Scalars must be defined for contouring");
@@ -1569,6 +1579,10 @@ int vtkDiscreteFlyingEdgesClipper2D::RequestData(vtkInformation* vtkNotUsed(requ
                                      "ArrayComponent must be smaller than "
                                   << numComps);
     return 1;
+  }
+  if (numComps > 1)
+  {
+    inScalars = vtk::ComponentOrNormAsDataArray(inScalars, this->ArrayComponent);
   }
 
   // Create necessary objects to hold output. We will defer the
@@ -1586,12 +1600,12 @@ int vtkDiscreteFlyingEdgesClipper2D::RequestData(vtkInformation* vtkNotUsed(requ
   }
 
   // Check data type and execute appropriate function
-  void* scalars = inScalars->GetVoidPointer(0);
-  switch (inScalars->GetDataType())
+  vtkDiscreteFlyingEdgesClipper2DWorker worker;
+  if (!vtkArrayDispatch::Dispatch::Execute(
+        inScalars.Get(), worker, this, newPts, newScalars, newPolys, input, ext))
   {
-    vtkTemplateMacro(vtkDiscreteClipperAlgorithm<VTK_TT>::ContourImage(
-      this, (VTK_TT*)scalars, newPts, newScalars, newPolys, input, ext));
-  } // switch
+    worker(inScalars.Get(), this, newPts, newScalars, newPolys, input, ext);
+  }
 
   vtkDebugMacro(<< "Created: " << newPts->GetNumberOfPoints() << " points, "
                 << newPolys->GetNumberOfCells() << " polygons");

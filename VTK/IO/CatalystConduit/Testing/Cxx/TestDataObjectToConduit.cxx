@@ -1,22 +1,68 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "vtkAOSDataArrayTemplate.h"
+#include "vtkCellData.h"
+#include "vtkCellType.h"
+#include "vtkDataAssembly.h"
 #include "vtkDataObjectToConduit.h"
+#include "vtkDoubleArray.h"
+#include "vtkGenericDataArray.txx"
+#include "vtkImageData.h"
+#include "vtkLogger.h"
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
+#include "vtkMPIController.h"
+#else
+#include "vtkDummyController.h"
+#endif
+#include "vtkNew.h"
+#include "vtkPartitionedDataSet.h"
+#include "vtkPartitionedDataSetCollection.h"
+#include "vtkPointData.h"
+#include "vtkPoints.h"
+#include "vtkPolyData.h"
+#include "vtkRectilinearGrid.h"
+#include "vtkSOADataArrayTemplate.h"
+#include "vtkStructuredGrid.h"
+#include "vtkTable.h"
+#include "vtkType.h"
+#include "vtkUnstructuredGrid.h"
 
 #include <catalyst_conduit.hpp>
 #include <catalyst_conduit_blueprint.hpp>
 
-#include <vtkCellData.h>
-#include <vtkDoubleArray.h>
-#include <vtkImageData.h>
-#include <vtkLogger.h>
-#include <vtkNew.h>
-#include <vtkPointData.h>
-#include <vtkPolyData.h>
-#include <vtkRectilinearGrid.h>
-#include <vtkStructuredGrid.h>
-#include <vtkTable.h>
-#include <vtkUnstructuredGrid.h>
+#include <iostream>
+
+namespace
+{
+constexpr int IMAGE_ID = 0, UG_ID = 1;
+
+//----------------------------------------------------------------------------
+void FillCoordsNode(conduit_cpp::Node& coords_node)
+{
+  coords_node["type"] = "explicit";
+  coords_node["values/x"] = std::vector<float>{ 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2 };
+  coords_node["values/y"] = std::vector<float>{ 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+  coords_node["values/z"] = std::vector<float>{ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3,
+    3, 4, 4, 4, 5, 5, 5, 6, 6, 6 };
+}
+
+//----------------------------------------------------------------------------
+void FillShapeMap(conduit_cpp::Node& shape_map)
+{
+  shape_map["hex"] = VTK_HEXAHEDRON;
+  shape_map["tet"] = VTK_TETRA;
+  shape_map["polygonal"] = VTK_POLYGON;
+  shape_map["quad"] = VTK_QUAD;
+  shape_map["tri"] = VTK_TRIANGLE;
+  shape_map["line"] = VTK_HEXAHEDRON;
+  shape_map["point"] = VTK_VERTEX;
+  shape_map["line"] = VTK_LINE;
+  shape_map["pyramid"] = VTK_PYRAMID;
+  shape_map["wedge"] = VTK_WEDGE;
+}
 
 //----------------------------------------------------------------------------
 bool TestNonDataSetObject()
@@ -114,9 +160,7 @@ bool TestImageData()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -185,9 +229,7 @@ bool TestRectilinearGrid()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -289,18 +331,16 @@ bool TestStructuredGrid()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
-static double unstructured_grid_points_coordinates[27][3] = { { 0, 0, 0 }, { 1, 0, 0 }, { 2, 0, 0 },
+double unstructured_grid_points_coordinates[27][3] = { { 0, 0, 0 }, { 1, 0, 0 }, { 2, 0, 0 },
   { 0, 1, 0 }, { 1, 1, 0 }, { 2, 1, 0 }, { 0, 0, 1 }, { 1, 0, 1 }, { 2, 0, 1 }, { 0, 1, 1 },
   { 1, 1, 1 }, { 2, 1, 1 }, { 0, 1, 2 }, { 1, 1, 2 }, { 2, 1, 2 }, { 0, 1, 3 }, { 1, 1, 3 },
   { 2, 1, 3 }, { 0, 1, 4 }, { 1, 1, 4 }, { 2, 1, 4 }, { 0, 1, 5 }, { 1, 1, 5 }, { 2, 1, 5 },
   { 0, 1, 6 }, { 1, 1, 6 }, { 2, 1, 6 } };
 
-static struct
+struct
 {
   VTKCellType cell_type;
   std::vector<vtkIdType> connectivity;
@@ -352,23 +392,16 @@ bool TestMixedShapedUnstructuredGrid()
 
   conduit_cpp::Node expected_node;
   auto coords_node = expected_node["coordsets/coords"];
-  coords_node["type"] = "explicit";
-  coords_node["values/x"] = std::vector<float>{ 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
-    2, 0, 1, 2, 0, 1, 2, 0, 1, 2 };
-  coords_node["values/y"] = std::vector<float>{ 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-  coords_node["values/z"] = std::vector<float>{ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3,
-    3, 4, 4, 4, 5, 5, 5, 6, 6, 6 };
+  ::FillCoordsNode(coords_node);
 
   auto topologies_node0 = expected_node["topologies/mesh"];
   topologies_node0["type"] = "unstructured";
   topologies_node0["coordset"] = "coords";
   topologies_node0["elements/shape"] = "mixed";
-  topologies_node0["elements/shape_map/hex"] = VTK_HEXAHEDRON;
-  topologies_node0["elements/shape_map/tet"] = VTK_TETRA;
-  topologies_node0["elements/shape_map/quad"] = VTK_QUAD;
-  topologies_node0["elements/shape_map/tri"] = VTK_TRIANGLE;
-  topologies_node0["elements/shape_map/polygonal"] = VTK_POLYGON;
+
+  auto shape_map = topologies_node0["elements/shape_map"];
+  ::FillShapeMap(shape_map);
+
   topologies_node0["elements/shapes"] = std::vector<conduit_uint8>{ 12, 10, 7, 9, 5 };
 
   if (unstructured_grid->GetCells()->IsStorage64Bit())
@@ -393,9 +426,7 @@ bool TestMixedShapedUnstructuredGrid()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -435,13 +466,7 @@ bool TestHexahedronUnstructuredGrid()
 
   conduit_cpp::Node expected_node;
   auto coords_node = expected_node["coordsets/coords"];
-  coords_node["type"] = "explicit";
-  coords_node["values/x"] = std::vector<float>{ 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
-    2, 0, 1, 2, 0, 1, 2, 0, 1, 2 };
-  coords_node["values/y"] = std::vector<float>{ 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-  coords_node["values/z"] = std::vector<float>{ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3,
-    3, 4, 4, 4, 5, 5, 5, 6, 6, 6 };
+  ::FillCoordsNode(coords_node);
 
   auto topologies_node0 = expected_node["topologies/mesh"];
   topologies_node0["type"] = "unstructured";
@@ -471,9 +496,7 @@ bool TestHexahedronUnstructuredGrid()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -513,13 +536,7 @@ bool TestTetrahedronUnstructuredGrid()
 
   conduit_cpp::Node expected_node;
   auto coords_node = expected_node["coordsets/coords"];
-  coords_node["type"] = "explicit";
-  coords_node["values/x"] = std::vector<float>{ 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
-    2, 0, 1, 2, 0, 1, 2, 0, 1, 2 };
-  coords_node["values/y"] = std::vector<float>{ 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-  coords_node["values/z"] = std::vector<float>{ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3,
-    3, 4, 4, 4, 5, 5, 5, 6, 6, 6 };
+  ::FillCoordsNode(coords_node);
 
   auto topologies_node = expected_node["topologies/mesh"];
   topologies_node["type"] = "unstructured";
@@ -549,9 +566,7 @@ bool TestTetrahedronUnstructuredGrid()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -564,7 +579,7 @@ bool TestPolygonalUnstructuredGrid()
     points->InsertPoint(i, unstructured_grid_points_coordinates[i]);
   }
   unstructured_grid->SetPoints(points);
-  unstructured_grid->Allocate(100);
+  unstructured_grid->Allocate(1);
   unstructured_grid->InsertNextCell(unstructured_grid_cell_connectivities[4].cell_type,
     unstructured_grid_cell_connectivities[4].connectivity.size(),
     unstructured_grid_cell_connectivities[4].connectivity.data());
@@ -581,13 +596,7 @@ bool TestPolygonalUnstructuredGrid()
 
   conduit_cpp::Node expected_node;
   auto coords_node = expected_node["coordsets/coords"];
-  coords_node["type"] = "explicit";
-  coords_node["values/x"] = std::vector<float>{ 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
-    2, 0, 1, 2, 0, 1, 2, 0, 1, 2 };
-  coords_node["values/y"] = std::vector<float>{ 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-  coords_node["values/z"] = std::vector<float>{ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3,
-    3, 4, 4, 4, 5, 5, 5, 6, 6, 6 };
+  ::FillCoordsNode(coords_node);
 
   auto topologies_node = expected_node["topologies/mesh"];
   topologies_node["type"] = "unstructured";
@@ -601,6 +610,8 @@ bool TestPolygonalUnstructuredGrid()
   {
     topologies_node["elements/connectivity"] = std::vector<conduit_int32>{ 16, 17, 14, 13, 12, 15 };
   }
+  topologies_node["elements/offsets"] = std::vector<conduit_int64>{ 0 };
+  topologies_node["elements/sizes"] = std::vector<conduit_int64>{ 6 };
 
   conduit_cpp::Node diff_info;
   bool are_nodes_different = node.diff(expected_node, diff_info, 1e-6);
@@ -609,9 +620,7 @@ bool TestPolygonalUnstructuredGrid()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -650,13 +659,7 @@ bool TestQuadUnstructuredGrid()
 
   conduit_cpp::Node expected_node;
   auto coords_node = expected_node["coordsets/coords"];
-  coords_node["type"] = "explicit";
-  coords_node["values/x"] = std::vector<float>{ 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
-    2, 0, 1, 2, 0, 1, 2, 0, 1, 2 };
-  coords_node["values/y"] = std::vector<float>{ 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-  coords_node["values/z"] = std::vector<float>{ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3,
-    3, 4, 4, 4, 5, 5, 5, 6, 6, 6 };
+  ::FillCoordsNode(coords_node);
 
   auto topologies_node = expected_node["topologies/mesh"];
   topologies_node["type"] = "unstructured";
@@ -684,9 +687,7 @@ bool TestQuadUnstructuredGrid()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -726,13 +727,7 @@ bool TestTriangleUnstructuredGrid()
 
   conduit_cpp::Node expected_node;
   auto coords_node = expected_node["coordsets/coords"];
-  coords_node["type"] = "explicit";
-  coords_node["values/x"] = std::vector<float>{ 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
-    2, 0, 1, 2, 0, 1, 2, 0, 1, 2 };
-  coords_node["values/y"] = std::vector<float>{ 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-  coords_node["values/z"] = std::vector<float>{ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3,
-    3, 4, 4, 4, 5, 5, 5, 6, 6, 6 };
+  ::FillCoordsNode(coords_node);
 
   auto topologies_node = expected_node["topologies/mesh"];
   topologies_node["type"] = "unstructured";
@@ -760,9 +755,7 @@ bool TestTriangleUnstructuredGrid()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -802,13 +795,7 @@ bool TestLineUnstructuredGrid()
 
   conduit_cpp::Node expected_node;
   auto coords_node = expected_node["coordsets/coords"];
-  coords_node["type"] = "explicit";
-  coords_node["values/x"] = std::vector<float>{ 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
-    2, 0, 1, 2, 0, 1, 2, 0, 1, 2 };
-  coords_node["values/y"] = std::vector<float>{ 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-  coords_node["values/z"] = std::vector<float>{ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3,
-    3, 4, 4, 4, 5, 5, 5, 6, 6, 6 };
+  ::FillCoordsNode(coords_node);
 
   auto topologies_node = expected_node["topologies/mesh"];
   topologies_node["type"] = "unstructured";
@@ -836,9 +823,7 @@ bool TestLineUnstructuredGrid()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -874,13 +859,7 @@ bool TestPointUnstructuredGrid()
 
   conduit_cpp::Node expected_node;
   auto coords_node = expected_node["coordsets/coords"];
-  coords_node["type"] = "explicit";
-  coords_node["values/x"] = std::vector<float>{ 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
-    2, 0, 1, 2, 0, 1, 2, 0, 1, 2 };
-  coords_node["values/y"] = std::vector<float>{ 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-  coords_node["values/z"] = std::vector<float>{ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3,
-    3, 4, 4, 4, 5, 5, 5, 6, 6, 6 };
+  ::FillCoordsNode(coords_node);
 
   auto topologies_node = expected_node["topologies/mesh"];
   topologies_node["type"] = "unstructured";
@@ -908,9 +887,7 @@ bool TestPointUnstructuredGrid()
     diff_info.print();
   }
 
-  is_success = !are_nodes_different;
-
-  return is_success;
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -1063,24 +1040,226 @@ bool TestMixedShapePolyData()
     points->InsertPoint(i, unstructured_grid_points_coordinates[i]);
   }
   poly_data->SetPoints(points);
-  poly_data->Allocate(100);
-  poly_data->InsertNextCell(unstructured_grid_cell_connectivities[10].cell_type,
-    unstructured_grid_cell_connectivities[10].connectivity.size(),
-    unstructured_grid_cell_connectivities[10].connectivity.data());
-  poly_data->InsertNextCell(unstructured_grid_cell_connectivities[11].cell_type,
-    unstructured_grid_cell_connectivities[11].connectivity.size(),
-    unstructured_grid_cell_connectivities[11].connectivity.data());
 
-  auto previous_verbosity = vtkLogger::GetCurrentVerbosityCutoff();
-  vtkLogger::SetStderrVerbosity(vtkLogger::VERBOSITY_OFF);
+  poly_data->Allocate(100);
+  struct
+  {
+    VTKCellType cell_type;
+    std::vector<vtkIdType> connectivity;
+  } pd_connectivities[] = {
+    { VTK_VERTEX, { 0 } },
+    { VTK_VERTEX, { 1 } },
+    { VTK_POLY_VERTEX, { 17, 18 } },
+    { VTK_LINE, { 2, 3 } },
+    { VTK_POLY_LINE, { 13, 14, 15, 16 } },
+    { VTK_TRIANGLE, { 4, 5, 6 } },
+    { VTK_POLYGON, { 7, 8, 9, 10, 11, 12 } },
+    { VTK_TRIANGLE_STRIP, { 21, 22, 23, 24, 25 } },
+  };
+
+  for (const auto& cell : pd_connectivities)
+  {
+    poly_data->InsertNextCell(cell.cell_type, cell.connectivity.size(), cell.connectivity.data());
+  }
+
+  vtkNew<vtkDoubleArray> cellData;
+  cellData->SetName("myField");
+  for (int i = 0; i < poly_data->GetNumberOfCells(); i++)
+  {
+    cellData->InsertNextTuple1(i);
+  }
+  poly_data->GetCellData()->AddArray(cellData);
 
   conduit_cpp::Node node;
   bool is_filling_success =
     vtkDataObjectToConduit::FillConduitNode(vtkDataObject::SafeDownCast(poly_data), node);
 
-  vtkLogger::SetStderrVerbosity(previous_verbosity);
+  if (!is_filling_success)
+  {
+    std::cerr << "FillConduitNode failed for TestMixedShapePolyData" << std::endl;
+    return is_filling_success;
+  }
 
-  return !is_filling_success;
+  conduit_cpp::Node expected_node;
+  auto coords_node = expected_node["coordsets/coords"];
+  ::FillCoordsNode(coords_node);
+
+  auto topologies_node = expected_node["topologies/mesh"];
+  topologies_node["type"] = "unstructured";
+  topologies_node["coordset"] = "coords";
+  topologies_node["elements/shape"] = "mixed";
+  auto shape_map = topologies_node["elements/shape_map"];
+  ::FillShapeMap(shape_map);
+  topologies_node["elements/shapes"] =
+    std::vector<conduit_uint8>{ 1, 1, 1, 1, 3, 3, 3, 3, 7, 7, 5, 5, 5 };
+  topologies_node["elements/offsets"] =
+    std::vector<conduit_int64>{ 0, 1, 2, 3, 4, 6, 8, 10, 12, 15, 21, 24, 27 };
+  topologies_node["elements/sizes"] =
+    std::vector<conduit_int64>{ 1, 1, 1, 1, 2, 2, 2, 2, 3, 6, 3, 3, 3 };
+
+  std::vector<conduit_int32> conn{ 0, 1, 17, 18, 2, 3, 13, 14, 14, 15, 15, 16, 4, 5, 6, 7, 8, 9, 10,
+    11, 12, 21, 22, 23, 22, 23, 24, 23, 24, 25 };
+
+  if (poly_data->GetVerts()->IsStorage64Bit())
+  {
+    topologies_node["elements/connectivity"] = std::vector<conduit_int64>(conn.begin(), conn.end());
+  }
+  else
+  {
+    topologies_node["elements/connectivity"] = conn;
+  }
+
+  auto field = expected_node["fields/myField"];
+  field["association"] = "element";
+  field["topology"] = "mesh";
+  field["volume_dependent"] = "false";
+  field["values"] =
+    std::vector<double>{ 0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 4.0, 4.0, 5.0, 6.0, 7.0, 7.0, 7.0 };
+
+  conduit_cpp::Node diff_info;
+  bool are_nodes_different = node.diff(expected_node, diff_info, 1e-6);
+  if (are_nodes_different)
+  {
+    diff_info.print();
+  }
+
+  return !are_nodes_different;
+}
+
+//----------------------------------------------------------------------------
+bool TestTriangleStripSingleShape()
+{
+  vtkNew<vtkPolyData> poly_data;
+  vtkNew<vtkPoints> points;
+  for (int i = 0; i < 27; i++)
+  {
+    points->InsertPoint(i, unstructured_grid_points_coordinates[i]);
+  }
+  poly_data->SetPoints(points);
+  poly_data->Allocate(4);
+  std::vector<vtkIdType> conn{ 1, 2, 3, 4, 5 };
+  poly_data->InsertNextCell(VTK_TRIANGLE_STRIP, conn.size(), conn.data());
+
+  vtkNew<vtkDoubleArray> cellData;
+  cellData->SetName("myField");
+  cellData->InsertNextTuple1(0.2);
+  poly_data->GetCellData()->AddArray(cellData);
+
+  conduit_cpp::Node node;
+  bool is_filling_success =
+    vtkDataObjectToConduit::FillConduitNode(vtkDataObject::SafeDownCast(poly_data), node);
+  if (!is_filling_success)
+  {
+    std::cerr << "FillConduitNode failed for TestTriangleStripSingleShape" << std::endl;
+    return is_filling_success;
+  }
+
+  conduit_cpp::Node expected_node;
+  auto coords_node = expected_node["coordsets/coords"];
+  ::FillCoordsNode(coords_node);
+
+  auto topologies_node = expected_node["topologies/mesh"];
+  topologies_node["type"] = "unstructured";
+  topologies_node["coordset"] = "coords";
+  topologies_node["elements/shape"] = "tri";
+
+  std::vector<vtkIdType> conduit_connectivity{ 1, 2, 3, 2, 3, 4, 3, 4, 5 };
+  if (poly_data->GetStrips()->IsStorage64Bit())
+  {
+    topologies_node["elements/connectivity"] =
+      std::vector<conduit_int64>(conduit_connectivity.begin(), conduit_connectivity.end());
+  }
+  else
+  {
+    topologies_node["elements/connectivity"] =
+      std::vector<conduit_int32>(conduit_connectivity.begin(), conduit_connectivity.end());
+  }
+
+  auto field = expected_node["fields/myField"];
+  field["association"] = "element";
+  field["topology"] = "mesh";
+  field["volume_dependent"] = "false";
+
+  // 4 triangles in a single strip cell should still give 4 values in the Conduit node
+  field["values"] = std::vector<double>{ 0.2, 0.2, 0.2 };
+
+  conduit_cpp::Node diff_info;
+  bool are_nodes_different = node.diff(expected_node, diff_info, 1e-6);
+  if (are_nodes_different)
+  {
+    diff_info.print();
+  }
+
+  return !are_nodes_different;
+}
+
+//----------------------------------------------------------------------------
+bool TestPolyDataPolygon()
+{
+  vtkNew<vtkPolyData> poly_data;
+  vtkNew<vtkPoints> points;
+  for (int i = 0; i < 27; i++)
+  {
+    points->InsertPoint(i, unstructured_grid_points_coordinates[i]);
+  }
+  poly_data->SetPoints(points);
+
+  std::vector<vtkIdType> conn{ 1, 2, 3, 2, 4, 5, 2, 6, 1 };
+  poly_data->Allocate(2);
+  poly_data->InsertNextCell(VTK_POLYGON, 3, conn.data());
+  poly_data->InsertNextCell(VTK_POLYGON, 6, conn.data() + 3);
+
+  vtkNew<vtkDoubleArray> cellData;
+  cellData->SetName("myField");
+  cellData->InsertNextTuple1(0.2);
+  cellData->InsertNextTuple1(0.3);
+  poly_data->GetCellData()->AddArray(cellData);
+
+  conduit_cpp::Node node;
+  bool is_filling_success =
+    vtkDataObjectToConduit::FillConduitNode(vtkDataObject::SafeDownCast(poly_data), node);
+  if (!is_filling_success)
+  {
+    std::cerr << "FillConduitNode failed for TestPolyDataPolygon" << std::endl;
+    return is_filling_success;
+  }
+
+  conduit_cpp::Node expected_node;
+  auto coords_node = expected_node["coordsets/coords"];
+  ::FillCoordsNode(coords_node);
+
+  auto topologies_node = expected_node["topologies/mesh"];
+  topologies_node["type"] = "unstructured";
+  topologies_node["coordset"] = "coords";
+  topologies_node["elements/shape"] = "polygonal";
+  topologies_node["elements/sizes"] = std::vector<conduit_int64>{ 3, 6 };
+  topologies_node["elements/offsets"] = std::vector<conduit_int64>{ 0, 3 };
+
+  if (poly_data->GetVerts()->IsStorage64Bit())
+  {
+    topologies_node["elements/connectivity"] = std::vector<conduit_int64>(conn.begin(), conn.end());
+  }
+  else
+  {
+    topologies_node["elements/connectivity"] = std::vector<conduit_int32>(conn.begin(), conn.end());
+    ;
+  }
+
+  auto field = expected_node["fields/myField"];
+  field["association"] = "element";
+  field["topology"] = "mesh";
+  field["volume_dependent"] = "false";
+
+  field["values"] = std::vector<double>{ 0.2, 0.3 };
+
+  conduit_cpp::Node diff_info;
+  bool are_nodes_different = node.diff(expected_node, diff_info, 1e-6);
+  if (are_nodes_different)
+  {
+    diff_info.print();
+  }
+
+  return !are_nodes_different;
 }
 
 //----------------------------------------------------------------------------
@@ -1125,13 +1304,7 @@ bool TestPointSet()
 
   conduit_cpp::Node expected_node;
   auto coords_node = expected_node["coordsets/coords"];
-  coords_node["type"] = "explicit";
-  coords_node["values/x"] = std::vector<float>{ 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
-    2, 0, 1, 2, 0, 1, 2, 0, 1, 2 };
-  coords_node["values/y"] = std::vector<float>{ 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-  coords_node["values/z"] = std::vector<float>{ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3,
-    3, 4, 4, 4, 5, 5, 5, 6, 6, 6 };
+  ::FillCoordsNode(coords_node);
 
   auto topologies_node = expected_node["topologies/mesh"];
   topologies_node["type"] = "points";
@@ -1158,17 +1331,198 @@ bool TestPointSet()
 }
 
 //----------------------------------------------------------------------------
-int TestDataObjectToConduit(int, char*[])
+bool TestComposite()
 {
+  vtkNew<vtkImageData> image;
+  image->SetDimensions(2, 3, 1);
+
+  vtkNew<vtkUnstructuredGrid> unstructured_grid;
+  vtkNew<vtkPoints> points;
+  for (int i = 0; i < 27; i++)
+  {
+    points->InsertPoint(i, unstructured_grid_points_coordinates[i]);
+  }
+  unstructured_grid->SetPoints(points);
+  unstructured_grid->Allocate(100);
+  unstructured_grid->InsertNextCell(unstructured_grid_cell_connectivities[6].cell_type,
+    unstructured_grid_cell_connectivities[6].connectivity.size(),
+    unstructured_grid_cell_connectivities[6].connectivity.data());
+
+  vtkNew<vtkPartitionedDataSet> pds1;
+  pds1->SetNumberOfPartitions(1);
+  pds1->SetPartition(IMAGE_ID, image);
+
+  vtkNew<vtkPartitionedDataSet> pds2;
+  pds1->SetNumberOfPartitions(2);
+  pds1->SetPartition(IMAGE_ID, unstructured_grid);
+  pds1->SetPartition(UG_ID, unstructured_grid);
+
+  vtkNew<vtkPartitionedDataSetCollection> pdc;
+  pdc->SetNumberOfPartitionedDataSets(2);
+  pdc->SetPartitionedDataSet(IMAGE_ID, pds1);
+  pdc->SetPartitionedDataSet(UG_ID, pds2);
+
+  conduit_cpp::Node node;
+  bool is_success = vtkDataObjectToConduit::FillConduitNode(pdc, node);
+
+  if (!is_success)
+  {
+    std::cerr << "FillConduitNode failed for TestComposite" << std::endl;
+    return is_success;
+  }
+
+  if (node.number_of_children() != 2)
+  {
+    std::cerr << "Expected 2 children but got " << node.number_of_children() << std::endl;
+    return false;
+  }
+  for (conduit_index_t datasetId = 0; datasetId < 2; ++datasetId)
+  {
+    const auto mesh_node = node.child(datasetId);
+    conduit_cpp::Node info;
+    int is_valid =
+      mesh_node.name() == "assembly" || conduit_cpp::Blueprint::verify("mesh", mesh_node, info);
+    if (!is_valid)
+    {
+      info.print();
+      is_success = false;
+    }
+  }
+  return is_success;
+}
+
+//----------------------------------------------------------------------------
+bool TestAssembly()
+{
+  // Test PDC Assembly
+  vtkNew<vtkPartitionedDataSetCollection> pdc;
+  vtkNew<vtkDataAssembly> assembly;
+  int imageId = assembly->AddNode("Image");
+  int ugId = assembly->AddNode("UG");
+  int sub = assembly->AddNode("subset");
+  int subsub = assembly->AddNode("subsub", sub);
+
+  assembly->AddDataSetIndex(imageId, IMAGE_ID);
+  assembly->AddDataSetIndex(ugId, UG_ID);
+  assembly->AddDataSetIndex(subsub, IMAGE_ID);
+  assembly->AddDataSetIndex(subsub, UG_ID);
+
+  vtkNew<vtkPartitionedDataSet> pds1;
+  pds1->SetNumberOfPartitions(1);
+
+  vtkNew<vtkPartitionedDataSet> pds2;
+  pds1->SetNumberOfPartitions(2);
+
+  pdc->SetPartitionedDataSet(IMAGE_ID, pds1);
+  pdc->SetPartitionedDataSet(UG_ID, pds2);
+
+  pdc->SetDataAssembly(assembly);
+
+  conduit_cpp::Node assembly_node;
+  vtkDataObjectToConduit::FillConduitNodeAssembly(pdc, assembly_node);
+
+  conduit_cpp::Node expected_assembly;
+  expected_assembly["Image"] = "partition0";
+  expected_assembly["UG"] = "partition1";
+  auto subsub0 = expected_assembly["subset/subsub"].append();
+  subsub0.set("partition0");
+  auto subsub1 = expected_assembly["subset/subsub"].append();
+  subsub1.set("partition1");
+
+  conduit_cpp::Node diff_info;
+  bool is_success = true;
+  bool are_nodes_different = assembly_node["assembly"].diff(expected_assembly, diff_info, 1e-6);
+  if (are_nodes_different)
+  {
+    diff_info.print();
+    is_success = false;
+  }
+
+  return is_success;
+}
+}
+//----------------------------------------------------------------------------
+bool TestSOAPoints()
+{
+  // Test that both AOS and SOA arrays conversion work properly
+
+  vtkNew<vtkAOSDataArrayTemplate<double>> ptsAOSarr;
+  ptsAOSarr->SetNumberOfComponents(3);
+
+  std::vector<std::array<double, 3>> rawPtsAOS{
+    { 1.0, 3.2, 2.1 },
+    { 4.0, 3.7, 2.4 },
+    { 5.3, 7.0, 2.3 },
+    { 6.0, 3.9, -5.1 },
+  };
+  for (const auto& pt : rawPtsAOS)
+  {
+    ptsAOSarr->InsertNextTuple(pt.data());
+  }
+
+  vtkNew<vtkSOADataArrayTemplate<double>> ptsSOAarr;
+  std::vector<std::array<double, 4>> rawPtsSOA{ { 1.0, 4.0, 5.3, 6.0 }, { 3.2, 3.7, 7.0, 3.9 },
+    { 2.1, 2.4, 2.3, -5.1 } };
+  ptsSOAarr->SetNumberOfComponents(3);
+  ptsSOAarr->SetNumberOfTuples(rawPtsSOA[0].size());
+  for (int i = 0; i < static_cast<int>(rawPtsSOA.size()); i++)
+  {
+    ptsSOAarr->SetArray(i, rawPtsSOA[i].data(), rawPtsSOA[i].size());
+  }
+  ptsSOAarr->SetArrayFreeFunction(nullptr);
+
+  vtkNew<vtkUnstructuredGrid> ugAOS, ugSOA;
+  vtkNew<vtkPoints> ptsAOS, ptsSOA;
+
+  ptsAOS->SetData(ptsAOSarr);
+  ugAOS->SetPoints(ptsAOS);
+
+  ptsSOA->SetData(ptsSOAarr);
+  ugSOA->SetPoints(ptsSOA);
+
+  conduit_cpp::Node nodeAOS, nodeSOA, diff_info;
+  bool is_success =
+    vtkDataObjectToConduit::FillConduitNode(vtkDataObject::SafeDownCast(ugAOS), nodeAOS);
+  is_success &=
+    vtkDataObjectToConduit::FillConduitNode(vtkDataObject::SafeDownCast(ugSOA), nodeSOA);
+
+  bool are_nodes_different = nodeAOS.diff(nodeSOA, diff_info, 1e-6);
+  if (are_nodes_different)
+  {
+    diff_info.print();
+    return false;
+  }
+
+  return is_success;
+}
+
+//----------------------------------------------------------------------------
+int TestDataObjectToConduit(int argc, char* argv[])
+{
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
+  vtkNew<vtkMPIController> controller;
+#else
+  vtkNew<vtkDummyController> controller;
+#endif
+  controller->Initialize(&argc, &argv, 0);
+  vtkMultiProcessController::SetGlobalController(controller);
+
   bool is_success = true;
 
-  is_success &= TestNonDataSetObject();
-  is_success &= TestImageData();
-  is_success &= TestRectilinearGrid();
-  is_success &= TestStructuredGrid();
-  is_success &= TestUnstructuredGrid();
-  is_success &= TestMixedShapePolyData();
-  is_success &= TestPointSet();
+  is_success &= ::TestNonDataSetObject();
+  is_success &= ::TestImageData();
+  is_success &= ::TestRectilinearGrid();
+  is_success &= ::TestStructuredGrid();
+  is_success &= ::TestUnstructuredGrid();
+  is_success &= ::TestMixedShapePolyData();
+  is_success &= ::TestTriangleStripSingleShape();
+  is_success &= ::TestPolyDataPolygon();
+  is_success &= ::TestPointSet();
+  is_success &= ::TestComposite();
+  is_success &= ::TestAssembly();
+  is_success &= ::TestSOAPoints();
+
+  controller->Finalize();
 
   return is_success ? EXIT_SUCCESS : EXIT_FAILURE;
 }

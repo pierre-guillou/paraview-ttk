@@ -9,17 +9,15 @@
 
 #include "vtkPOpenFOAMReader.h"
 
-#include "vtkCellData.h"
 #include "vtkCompositeDataSet.h"
-#include "vtkDataSetMapper.h"
 #include "vtkInformation.h"
 #include "vtkLogger.h"
 #include "vtkMultiBlockDataSet.h"
-#include "vtkPointData.h"
 #include "vtkPolyData.h"
-#include "vtkSmartPointer.h"
+#include "vtkStringFormatter.h"
 #include "vtkTestUtilities.h"
-#include "vtkUnstructuredGrid.h"
+
+#include <iostream>
 
 namespace
 {
@@ -55,7 +53,7 @@ int TestPOpenFOAMReaderLagrangianUncollated(int argc, char* argv[])
 #endif
   controller->Initialize(&argc, &argv);
   int rank = controller->GetLocalProcessId();
-  vtkLogger::SetThreadName("rank=" + std::to_string(rank));
+  vtkLogger::SetThreadName("rank=" + vtk::to_string(rank));
   vtkMultiProcessController::SetGlobalController(controller);
 
   // Read file name.
@@ -104,17 +102,21 @@ int TestPOpenFOAMReaderLagrangianUncollated(int argc, char* argv[])
       std::string displayName(reader->GetPatchArrayName(i));
       auto slash = displayName.rfind('/');
 
-      if (slash != std::string::npos && displayName.compare(0, ++slash, "lagrangian/") == 0)
+      if (slash != std::string::npos)
       {
-        hasLagrangian = 1;
-        std::string cloudName(displayName.substr(slash));
-        std::cout << "  Display " << displayName << " = Cloud <" << cloudName << ">" << std::endl;
-
-        auto* cloudData = findBlock<vtkPolyData>(lagrangianBlocks, cloudName.c_str());
-        if (cloudData)
+        ++slash;
+        if (displayName.compare(0, slash, "lagrangian/") == 0)
         {
-          ++nClouds;
-          nParticles += static_cast<long>(cloudData->GetNumberOfPoints());
+          hasLagrangian = 1;
+          std::string cloudName(displayName.substr(slash));
+          std::cout << "  Display " << displayName << " = Cloud <" << cloudName << ">" << std::endl;
+
+          auto* cloudData = findBlock<vtkPolyData>(lagrangianBlocks, cloudName.c_str());
+          if (cloudData)
+          {
+            ++nClouds;
+            nParticles += static_cast<long>(cloudData->GetNumberOfPoints());
+          }
         }
       }
     }

@@ -4,12 +4,16 @@
 
 #include "vtkCallbackCommand.h"
 #include "vtkDisplayConfiguration.h"
+#include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVRenderingCapabilitiesInformation.h"
 #include "vtkProcessModule.h"
 #include "vtkRemotingCoreConfiguration.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderer.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
+
 #include <vtksys/SystemTools.hxx>
 
 #include <algorithm>
@@ -19,10 +23,10 @@
 //============================================================================
 namespace
 {
-static vtkRenderWindow* ProcessWindowSingleton = nullptr;
-static bool ProcessWindowSingletonPrepared = false;
-static int PVProcessWindowSingletonCleanerNiftyCounter = 0;
-static void DeleteProcessWindowSingleton()
+vtkRenderWindow* ProcessWindowSingleton = nullptr;
+bool ProcessWindowSingletonPrepared = false;
+int PVProcessWindowSingletonCleanerNiftyCounter = 0;
+void DeleteProcessWindowSingleton()
 {
   if (::ProcessWindowSingleton != nullptr)
   {
@@ -80,7 +84,39 @@ void vtkPVProcessWindow::PrepareForRendering()
   {
     // calling Window::Initialize() should have done the trick, but it doesn't,
     // so we call render (see OSMesa errors reported here paraview/paraview#18938).
-    ::ProcessWindowSingleton->Render();
+    //
+    // On macOS, this Render() triggers glBlitFramebuffer -> Metal beginRenderPass ->
+    // BackgroundObjectProgramKey shader compilation, which requires flock(LOCK_EX)
+    // on the shared Metal shader cache (libCoreFSCache.dylib). When multiple MPI
+    // ranks hit this simultaneously on the first call, the rank holding the lock
+    // deadlocks: Metal's XPC compiler needs the main thread run loop to deliver
+    // the result, but the main thread is blocked in flock().
+    //
+    // Fix: serialize the singleton Render() across MPI ranks so only one rank
+    // compiles the Metal shader at a time. This function has no other MPI calls
+    // so the barrier loop is safe. After each rank renders once, the shader is
+    // in its process-local Metal cache and parallel rendering proceeds normally.
+    // ProcessWindowSingletonPrepared ensures this runs exactly once per process.
+#ifdef __APPLE__
+    auto* controller = vtkMultiProcessController::GetGlobalController();
+    if (controller && controller->GetNumberOfProcesses() > 1)
+    {
+      int numProcs = controller->GetNumberOfProcesses();
+      int myRank = controller->GetLocalProcessId();
+      for (int r = 0; r < numProcs; r++)
+      {
+        if (myRank == r)
+        {
+          ::ProcessWindowSingleton->Render();
+        }
+        controller->Barrier();
+      }
+    }
+    else
+#endif
+    {
+      ::ProcessWindowSingleton->Render();
+    }
     ::ProcessWindowSingletonPrepared = true;
   }
 }
@@ -155,12 +191,12 @@ vtkRenderWindow* vtkPVProcessWindow::NewWindow()
     case vtkProcessModule::PROCESS_SERVER:
     case vtkProcessModule::PROCESS_RENDER_SERVER:
       window->SetWindowName(
-        (std::string("ParaView Server #") + std::to_string(pm->GetPartitionId())).c_str());
+        (std::string("ParaView Server #") + vtk::to_string(pm->GetPartitionId())).c_str());
       break;
 
     case vtkProcessModule::PROCESS_BATCH:
       window->SetWindowName(
-        (std::string("ParaView Batch #") + std::to_string(pm->GetPartitionId())).c_str());
+        (std::string("ParaView Batch #") + vtk::to_string(pm->GetPartitionId())).c_str());
       break;
     default:
       break;
@@ -209,13 +245,18 @@ vtkRenderWindow* vtkPVProcessWindow::NewTileDisplayWindow()
     auto parts = vtksys::SystemTools::SplitString(pv_shared_window_size, 'x');
     if (parts.size() == 2)
     {
-      const int w = std::max(50, std::atoi(parts[0].c_str()));
-      const int h = std::max(50, std::atoi(parts[1].c_str()));
+      int w, h;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(parts[0], w);
+      VTK_FROM_CHARS_IF_ERROR_BREAK(parts[1], h);
+      w = std::max(50, w);
+      h = std::max(50, h);
       window->SetSize(w, h);
     }
     else
     {
-      const int sz = std::max(50, std::atoi(parts[0].c_str()));
+      int sz;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(parts[0], sz);
+      sz = std::max(50, sz);
       window->SetSize(sz, sz);
     }
   }
@@ -282,13 +323,16 @@ vtkRenderWindow* vtkPVProcessWindow::NewCAVEWindow()
     auto parts = vtksys::SystemTools::SplitString(pv_shared_window_size, 'x');
     if (parts.size() == 2)
     {
-      const int w = std::max(50, std::atoi(parts[0].c_str()));
-      const int h = std::max(50, std::atoi(parts[1].c_str()));
+      int w, h;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(parts[0], w);
+      VTK_FROM_CHARS_IF_ERROR_BREAK(parts[1], h);
       window->SetSize(w, h);
     }
     else
     {
-      const int sz = std::max(50, std::atoi(parts[0].c_str()));
+      int sz;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(parts[0], sz);
+      sz = std::max(50, sz);
       window->SetSize(sz, sz);
     }
     window->SetBorders(1);

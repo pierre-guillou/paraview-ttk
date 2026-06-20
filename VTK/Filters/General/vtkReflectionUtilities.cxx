@@ -66,10 +66,35 @@ void vtkReflectionUtilities::ReflectReflectableArrays(
   // Reflect reflectable arrays
   for (size_t iReflect = 0; iReflect < reflectableArrays.size(); iReflect++)
   {
-    vtkDataArray* inArray =
-      vtkDataArray::SafeDownCast(inData->GetAbstractArray(reflectableArrays[iReflect].first));
-    vtkDataArray* outArray =
-      vtkDataArray::SafeDownCast(outData->GetAbstractArray(reflectableArrays[iReflect].first));
+    vtkDataArray* inArray = nullptr;
+    vtkDataArray* outArray = nullptr;
+
+    const char* inArrayName = inData->GetArrayName(reflectableArrays[iReflect].first);
+
+    if (!inArrayName)
+    {
+      inArray =
+        vtkDataArray::SafeDownCast(inData->GetAbstractArray(reflectableArrays[iReflect].first));
+      outArray =
+        vtkDataArray::SafeDownCast(outData->GetAbstractArray(reflectableArrays[iReflect].first));
+    }
+    else if (outData->HasArray(inArrayName))
+    {
+      inArray = vtkDataArray::SafeDownCast(inData->GetAbstractArray(inArrayName));
+      outArray = vtkDataArray::SafeDownCast(outData->GetAbstractArray(inArrayName));
+    }
+    else
+    {
+      continue;
+    }
+
+    if (!outArray)
+    {
+      vtkWarningWithObjectMacro(outData,
+        "An error occured while copying the arrays and the results might be incorrect. Naming "
+        "arrays in the input may fix that issue.");
+      continue;
+    }
 
     double tuple[9];
     inArray->GetTuple(i, tuple);
@@ -259,6 +284,12 @@ vtkIdType vtkReflectionUtilities::ReflectNon3DCellInternal(vtkDataSet* input,
       }
       break;
     }
+    case VTK_POLY_LINE:
+      for (int j = 0; j != numCellPts; j++)
+      {
+        newCellPts[j] = cellPts->GetId(numCellPts - j - 1);
+      }
+      break;
     default:
     {
       if (input->GetCell(cellId)->IsA("vtkNonLinearCell") || cellType > VTK_POLYHEDRON)
@@ -308,7 +339,9 @@ void vtkReflectionUtilities::ProcessUnstructuredGrid(vtkDataSet* input, vtkUnstr
     output->Allocate(numCells);
   }
   outPD->CopyAllOn();
+  outPD->CopyGlobalIdsOff();
   outCD->CopyAllOn();
+  outCD->CopyGlobalIdsOff();
   outPD->CopyAllocate(inPD);
   outCD->CopyAllocate(inCD);
 

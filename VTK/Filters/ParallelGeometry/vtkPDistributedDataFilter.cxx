@@ -54,6 +54,8 @@ VTK_ABI_NAMESPACE_END
 #include <map>
 #include <set>
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
@@ -905,8 +907,7 @@ vtkDataSet* vtkPDistributedDataFilter::TestFixTooFewInputFiles(
   vtkIdType cellsPerNode = numTotalCells / nprocs;
 
   vtkIdList** sendCells = new vtkIdList*[nprocs];
-  // NOLINTNEXTLINE(bugprone-sizeof-expression)
-  memset(sendCells, 0, sizeof(*sendCells) * nprocs);
+  std::fill_n(sendCells, nprocs, nullptr);
 
   if (numConsumers == nprocs - 1)
   {
@@ -1090,7 +1091,7 @@ vtkDataSet* vtkPDistributedDataFilter::TestFixTooFewInputFiles(
       else if (nodeType[me] == Producer)
       {
         vtkIdType keepCells = numMyCells - numTransferCells;
-        vtkIdType startCellId = (vtkIdType)numTransferCells;
+        vtkIdType startCellId = numTransferCells;
         sendCells[me] = vtkIdList::New();
         sendCells[me]->SetNumberOfIds(keepCells);
         for (i = 0; i < keepCells; i++)
@@ -1390,7 +1391,7 @@ vtkFloatArray** vtkPDistributedDataFilter::ExchangeFloatArraysLean(
   // Exchange int arrays
 
   float** recvArrays = new float*[nprocs];
-  memset(recvArrays, 0, sizeof(float*) * nprocs);
+  std::fill_n(recvArrays, nprocs, nullptr);
 
   if (sendSize[me] > 0) // sent myself an array
   {
@@ -1514,7 +1515,7 @@ vtkIdTypeArray** vtkPDistributedDataFilter::ExchangeIdArraysLean(
   // Exchange int arrays
 
   vtkIdType** recvArrays = new vtkIdType*[nprocs];
-  memset(recvArrays, 0, sizeof(vtkIdType*) * nprocs);
+  std::fill_n(recvArrays, nprocs, nullptr);
 
   if (sendSize[me] > 0) // sent myself an array
   {
@@ -2908,12 +2909,10 @@ int vtkPDistributedDataFilter::AssignGlobalNodeIds(vtkUnstructuredGrid* grid)
   // global ID back?
 
   vtkFloatArray** ptarrayOut = new vtkFloatArray*[nprocs];
-  // NOLINTNEXTLINE(bugprone-sizeof-expression)
-  memset(ptarrayOut, 0, sizeof(*ptarrayOut) * nprocs);
+  std::fill_n(ptarrayOut, nprocs, nullptr);
 
   vtkIdTypeArray** localIds = new vtkIdTypeArray*[nprocs];
-  // NOLINTNEXTLINE(bugprone-sizeof-expression)
-  memset(localIds, 0, sizeof(*localIds) * nprocs);
+  std::fill_n(localIds, nprocs, nullptr);
 
   vtkIdType* next = new vtkIdType[nprocs];
   vtkIdType* next3 = new vtkIdType[nprocs];
@@ -3086,9 +3085,7 @@ vtkIdTypeArray** vtkPDistributedDataFilter::FindGlobalPointIds(vtkFloatArray** p
   if (grid->GetNumberOfCells() == 0)
   {
     // There are no cells in my assigned region
-
-    // NOLINTNEXTLINE(bugprone-sizeof-expression)
-    memset(gids, 0, sizeof(*gids) * nprocs);
+    std::fill_n(gids, nprocs, nullptr);
 
     return gids;
   }
@@ -3298,8 +3295,7 @@ vtkIdTypeArray** vtkPDistributedDataFilter::MakeProcessLists(
   std::multimap<int, int>::iterator mapIt;
 
   vtkIdTypeArray** processList = new vtkIdTypeArray*[nprocs];
-  // NOLINTNEXTLINE(bugprone-sizeof-expression)
-  memset(processList, 0, sizeof(*processList) * nprocs);
+  std::fill_n(processList, nprocs, nullptr);
 
   for (int i = 0; i < nprocs; i++)
   {
@@ -3390,8 +3386,7 @@ vtkIdTypeArray** vtkPDistributedDataFilter::GetGhostPointIds(
   vtkIdType numPoints = grid->GetNumberOfPoints();
 
   vtkIdTypeArray** ghostPtIds = new vtkIdTypeArray*[nprocs];
-  // NOLINTNEXTLINE(bugprone-sizeof-expression)
-  memset(ghostPtIds, 0, sizeof(*ghostPtIds) * nprocs);
+  std::fill_n(ghostPtIds, nprocs, nullptr);
 
   if (numPoints < 1)
   {

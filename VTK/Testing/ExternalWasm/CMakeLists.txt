@@ -7,6 +7,10 @@ if(VTK_SOURCE_DIR OR VTK_BINARY_DIR)
   message(FATAL_ERROR "This directory may build only outside VTK!")
 endif()
 
+# Set up our directory structure for output binaries
+include(GNUInstallDirs)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}")
+
 include(CTest)
 # Find the top of the main VTK source tree.
 get_filename_component(VTK_TOP_DIR "${VTKTestExternalWasm_SOURCE_DIR}/../.." ABSOLUTE)
@@ -28,7 +32,7 @@ list(APPEND CMAKE_MODULE_PATH "${VTK_TOP_DIR}/CMake")
 # wasm32/wasm64. Import the flag selection logic from VTK source tree.
 # For VTK_BUILD_TESTING, VTK_TESTING_WASM_ENGINE[,_ARGUMENTS]
 include("${VTK_SOURCE_DIR}/CMake/vtkTesting.cmake")
-# For VTK_WEBASSEMBLY_64_BIT, VTK_WEBASSEMBLY_THREADS and VTK_WEBASSEMBLY_EXCEPTIONS
+# For VTK_WEBASSEMBLY_64_BIT, VTK_WEBASSEMBLY_THREADS
 include("${VTK_SOURCE_DIR}/CMake/vtkEmscripten.cmake")
 # For -sMEMORY64=1, -pthread, etc.
 include("${VTK_SOURCE_DIR}/CMake/vtkCompilerPlatformFlags.cmake")

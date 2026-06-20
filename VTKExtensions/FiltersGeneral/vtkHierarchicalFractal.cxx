@@ -3,7 +3,6 @@
 #include "vtkHierarchicalFractal.h"
 
 #include "vtkAMRBox.h"
-#include "vtkAMRInformation.h"
 #include "vtkCellData.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataPipeline.h"
@@ -61,7 +60,7 @@ public:
     box.SetDimensions(ext[0], ext[2], ext[4], ext[1], ext[3], ext[5], this->GridDescription);
     for (int i = static_cast<int>(this->Boxes.size()); i <= index; i++)
     {
-      this->Boxes.push_back(vtkAMRBox());
+      this->Boxes.emplace_back();
     }
     this->Boxes[index] = box;
   }
@@ -91,7 +90,7 @@ public:
   }
   void CreateOutput(vtkOverlappingAMR* hbds)
   {
-    std::vector<int> blocksPerLevel;
+    std::vector<unsigned int> blocksPerLevel;
     double origin[3] = { DBL_MAX, DBL_MAX, DBL_MAX };
     for (size_t i = 0; i < this->Levels.size(); i++)
     {
@@ -114,7 +113,7 @@ public:
 
     std::vector<unsigned int> blockIds(
       blocksPerLevel.size(), 0); // keep track of the id at each level
-    hbds->Initialize(static_cast<int>(blocksPerLevel.size()), &blocksPerLevel[0]);
+    hbds->Initialize(blocksPerLevel);
     hbds->SetOrigin(origin);
     hbds->SetGridDescription(this->GridDescription);
     for (unsigned int level = 0; level < hbds->GetNumberOfLevels(); level++)
@@ -575,8 +574,9 @@ int vtkHierarchicalFractal::RequestData(vtkInformation* vtkNotUsed(request),
     xSize / this->Dimensions, ySize / this->Dimensions, zSize / this->Dimensions);
 
   this->OutputUtil = vtkSmartPointer<HierarchicalFractalOutputUtil>::New();
-  this->OutputUtil->Initialize(
-    this->TwoDimensional ? VTK_XY_PLANE : VTK_XYZ_GRID, this->TopLevelSpacing);
+  this->OutputUtil->Initialize(this->TwoDimensional ? vtkStructuredData::VTK_STRUCTURED_XY_PLANE
+                                                    : vtkStructuredData::VTK_STRUCTURED_XYZ_GRID,
+    this->TopLevelSpacing);
 
   int ext[6];
   ext[0] = ext[2] = ext[4] = 0;
@@ -1222,12 +1222,11 @@ void vtkHierarchicalFractal::AddDepthArray(vtkOverlappingAMR* output)
   int level = 0;
   while (level < levels)
   {
-    int blocks = output->GetNumberOfDataSets(level);
+    int blocks = output->GetNumberOfBlocks(level);
     int block = 0;
     while (block < blocks)
     {
-      vtkUniformGrid* grid;
-      grid = vtkUniformGrid::SafeDownCast(output->GetDataSet(level, block));
+      vtkCartesianGrid* grid = output->GetDataSetAsCartesianGrid(level, block);
       if (grid)
       {
         vtkIntArray* array = vtkIntArray::New();

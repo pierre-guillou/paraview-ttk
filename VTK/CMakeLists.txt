@@ -10,6 +10,10 @@ if (POLICY CMP0154)
   cmake_policy(SET CMP0154 NEW) # optimize custom commands in PRIVATE filesets
 endif ()
 
+if (POLICY CMP0174)
+  cmake_policy(SET CMP0174 NEW) # defines a variable for an empty string after a single-value keyword
+endif ()
+
 set(vtk_cmake_dir "${VTK_SOURCE_DIR}/CMake")
 list(INSERT CMAKE_MODULE_PATH 0 "${vtk_cmake_dir}")
 include(vtkCI)
@@ -66,6 +70,9 @@ include(GNUInstallDirs)
 
 add_library(vtkbuild INTERFACE)
 add_library(VTK::vtkbuild ALIAS vtkbuild)
+
+add_library(vtkplatform INTERFACE)
+add_library(VTK::vtkplatform ALIAS vtkplatform)
 
 # Some flags are really bad for caching. Replace them with better variants.
 if (vtk_replace_uncacheable_flags)
@@ -148,7 +155,7 @@ check_cxx_source_runs("${VTK_REQUIRE_LARGE_FILE_SUPPORT_FILE}"
 
 #-----------------------------------------------------------------------------
 # Provide compatibility options.
-option(VTK_LEGACY_REMOVE "Remove all legacy code completely." OFF)
+option(VTK_LEGACY_REMOVE "Remove all legacy code completely." ON)
 option(VTK_LEGACY_SILENT "Silence all legacy code messages." OFF)
 mark_as_advanced(VTK_LEGACY_REMOVE VTK_LEGACY_SILENT)
 
@@ -299,6 +306,10 @@ else ()
 endif ()
 set("_vtk_module_reason_VTK::Java"
   "via `VTK_WRAP_JAVA`")
+if (VTK_WRAP_JAVASCRIPT)
+  list(APPEND vtk_requested_modules
+    VTK::WrappingJavaScript)
+endif ()
 if (VTK_WRAP_SERIALIZATION)
   list(APPEND vtk_requested_modules
     VTK::SerializationManager)
@@ -310,12 +321,20 @@ if (VTK_WRAP_SERIALIZATION)
   "via `VTK_WRAP_SERIALIZATION` AND `VTK_BUILD_TESTING`")
   if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     list(APPEND vtk_requested_modules
-      VTK::WebAssembly)
+      VTK::WebAssemblySession
+      VTK::WebAssembly
+      VTK::WebAssemblyAsync)
   else ()
     list(APPEND vtk_rejected_modules
-      VTK::WebAssembly)
+      VTK::WebAssemblySession
+      VTK::WebAssembly
+      VTK::WebAssemblyAsync)
   endif ()
+  set("_vtk_module_reason_VTK::WebAssemblySession"
+  "via `VTK_WRAP_SERIALIZATION` AND `CMAKE_SYSTEM_NAME` STREQUAL Emscripten")
   set("_vtk_module_reason_VTK::WebAssembly"
+  "via `VTK_WRAP_SERIALIZATION` AND `CMAKE_SYSTEM_NAME` STREQUAL Emscripten")
+  set("_vtk_module_reason_VTK::WebAssemblyAsync"
   "via `VTK_WRAP_SERIALIZATION` AND `CMAKE_SYSTEM_NAME` STREQUAL Emscripten")
 else ()
   list(APPEND vtk_rejected_modules
@@ -557,6 +576,7 @@ if (NOT DEFINED vtk_cmake_destination)
   endif ()
 endif ()
 install(TARGETS vtkbuild EXPORT "${vtk_install_export}")
+install(TARGETS vtkplatform EXPORT "${vtk_install_export}")
 
 if (NOT DEFINED vtk_hierarchy_destination_args)
   set(vtk_hierarchy_destination_args
@@ -613,6 +633,7 @@ vtk_module_build(
   USE_EXTERNAL        "${VTK_USE_EXTERNAL}"
   ENABLE_WRAPPING     "${VTK_ENABLE_WRAPPING}"
   UTILITY_TARGET      "VTK::vtkbuild"
+  PLATFORM_TARGET     "VTK::vtkplatform"
   TARGET_SPECIFIC_COMPONENTS  "${VTK_TARGET_SPECIFIC_COMPONENTS}"
   TEST_INPUT_DATA_DIRECTORY   "${CMAKE_CURRENT_SOURCE_DIR}/Testing"
   TEST_OUTPUT_DATA_DIRECTORY  "${CMAKE_CURRENT_BINARY_DIR}/ExternalData/Testing"
@@ -739,6 +760,49 @@ if (VTK_WRAP_JAVA)
   add_subdirectory(Wrapping/Java)
 endif ()
 
+if (VTK_WRAP_JAVASCRIPT)
+  include (vtkModuleWrapJavaScript)
+  set(VTK_WASM_DEBUGINFO "NONE" CACHE STRING "Extent of debug information in webassembly binaries")
+  set_property(CACHE VTK_WASM_DEBUGINFO PROPERTY
+    STRINGS
+      NONE              # -g0
+      READABLE_JS       # -g1
+      PROFILE           # -g2
+      DEBUG_NATIVE      # -g3
+    )
+  set(VTK_WASM_OPTIMIZATION "SMALL" CACHE STRING "Optimization knobs for the webassembly binaries")
+  set_property(CACHE VTK_WASM_OPTIMIZATION PROPERTY
+    STRINGS
+      NO_OPTIMIZATION       # -O0
+      LITTLE                # -O1
+      MORE                  # -O2
+      BEST                  # -O3
+      SMALL                 # -Os
+      SMALLEST              # -Oz
+      SMALLEST_WITH_CLOSURE # -Oz --closure 1
+    )
+  vtk_module_wrap_javascript(
+    MODULES            ${vtk_modules}
+    TARGET_NAME        "vtkweb"
+    WRAPPED_MODULES    vtk_javascript_wrapped_modules
+    UTILITY_TARGET     "VTK::vtkbuild"
+    MODULE_EXPORT_NAME "VTKWebAssemblyModule"
+    INSTALL_EXPORT     VTKJavaScript
+    COMPONENT          "development"
+    DEBUG_INFO         "${VTK_WASM_DEBUGINFO}"
+    OPTIMIZATION       "${VTK_WASM_OPTIMIZATION}"
+    MEMORY64           "${VTK_WEBASSEMBLY_64_BIT}")
+
+  export(
+    EXPORT VTKJavaScript
+    FILE   "${CMAKE_BINARY_DIR}/${vtk_cmake_destination}/VTKJavaScript-targets.cmake")
+  install(
+    EXPORT      VTKJavaScript
+    FILE        VTKJavaScript-targets.cmake
+    DESTINATION "${vtk_cmake_destination}"
+    COMPONENT   "development")
+endif ()
+
 if (VTK_BUILD_TESTING)
   # Create target to download data from the VTKData group.  This must come after
   # all tests have been added that reference the group, so we put it last.
@@ -755,22 +819,26 @@ if (VTK_BUILD_TESTING)
   endif ()
 
   if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-    # EMSDK makes python available after the environment is initialized with emsdk_env.{sh, csh, bat, ps1}
-    find_package(Python3 COMPONENTS Interpreter)
-    # Unit tests are linked with special options which are stored in an interface target.
-    add_library(vtkWebAssemblyTestLinkOptions INTERFACE)
-    add_library(VTK::vtkWebAssemblyTestLinkOptions ALIAS vtkWebAssemblyTestLinkOptions)
-    target_link_options(vtkWebAssemblyTestLinkOptions INTERFACE
-      # O2 or higher make wasm-opt terribly slow.
-      # test executables take a minute to link.
-      "-O1"
-      # For stack trace to show human-readable function names
-      "--profiling-funcs"
-      # we need emscripten to emit code that handles exit code and atexit(s)
-      "-sEXIT_RUNTIME=1"
-      # tests dynamically allocate memory, can easily go over the preset limit.
-      "-sALLOW_MEMORY_GROWTH=1")
-    install(TARGETS vtkWebAssemblyTestLinkOptions EXPORT "${vtk_install_export}")
+    if (VTK_BUILD_TESTING)
+      # Unit tests are linked with special options which are made available with a common interface target.
+      add_library(vtkWebAssemblyTestLinkOptions INTERFACE)
+      add_library(VTK::vtkWebAssemblyTestLinkOptions ALIAS vtkWebAssemblyTestLinkOptions)
+      target_link_options(vtkWebAssemblyTestLinkOptions INTERFACE
+        "-sSINGLE_FILE=1"
+        # For stack trace to show human-readable function names
+        "--profiling-funcs"
+        # we need emscripten to emit code that handles exit code and atexit(s)
+        "-sEXIT_RUNTIME=1"
+        # ENV holds the environment variables accessible by C getenv
+        "-sEXPORTED_RUNTIME_METHODS=['ENV']"
+        # tests dynamically allocate memory, can easily go over the preset limit.
+        "-sALLOW_MEMORY_GROWTH=1")
+      if (VTK_WEBASSEMBLY_THREADS)
+        target_link_options(vtkWebAssemblyTestLinkOptions INTERFACE
+          "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency")
+      endif ()
+      install(TARGETS vtkWebAssemblyTestLinkOptions EXPORT "${vtk_install_export}")
+    endif ()
   endif ()
 endif ()
 
@@ -842,10 +910,10 @@ if (VTK_WHEEL_BUILD)
 endif ()
 
 # Some generated code has some warnings that we need to exclude for now.
-configure_file(
-  "${VTK_SOURCE_DIR}/.clang-tidy"
-  "${VTK_BINARY_DIR}/.clang-tidy"
-  COPYONLY)
+# Create a clang-tidy file for the build tree that excludes bugprone-unsafe-functions
+file(READ "${VTK_SOURCE_DIR}/.clang-tidy" CLANG_TIDY_CONTENTS)
+string(REPLACE "clang-analyzer-*," "-bugprone-unsafe-functions,\\\nclang-analyzer-*," CLANG_TIDY_CONTENTS "${CLANG_TIDY_CONTENTS}")
+file(WRITE "${VTK_BINARY_DIR}/.clang-tidy" "${CLANG_TIDY_CONTENTS}")
 
 #-----------------------------------------------------------------------------
 # Do this at the end so the all variables it uses are setup.

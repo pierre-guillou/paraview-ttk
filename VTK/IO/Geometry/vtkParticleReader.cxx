@@ -24,6 +24,8 @@
 #include <string>
 #include <vector>
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkParticleReader);
 
@@ -101,7 +103,7 @@ private:
 };
 
 // The number of times we output a progress message.
-int const quantum = 20;
+constexpr int quantum = 20;
 // The ratio of high ASCII characters to low ASCII characters.
 double hiToLowASCII = 0.1;
 
@@ -280,7 +282,7 @@ int vtkParticleReader::DetermineFileType()
   }
 
   size_t sampleSize = fileLength < 5000 ? fileLength : 5000;
-  // cout << "File length: " << fileLength << " Sample size: " << sampleSize << endl;
+  // std::cout << "File length: " << fileLength << " Sample size: " << sampleSize << endl;
   std::vector<unsigned char> s;
   for (size_t i = 0; i < sampleSize; ++i)
   {
@@ -293,7 +295,7 @@ int vtkParticleReader::DetermineFileType()
   // Assume that the file type is undetermined in this case.
   if (s.size() != sampleSize)
   {
-    // cout << "Premature termination" << endl;
+    // std::cout << "Premature termination" << endl;
     return FILE_TYPE_IS_UNKNOWN;
   }
 
@@ -636,10 +638,7 @@ int vtkParticleReader::ProduceOutputFromBinaryFileDouble(vtkInformationVector* o
     }
     cnt++;
     cellLength = 1000;
-    if (cellLength > length)
-    {
-      cellLength = length;
-    }
+    cellLength = std::min(cellLength, length);
     length = length - cellLength;
     verts->InsertNextCell((int)cellLength);
     for (cellPtIdx = 0; cellPtIdx < cellLength; ++cellPtIdx)
@@ -812,10 +811,7 @@ int vtkParticleReader::ProduceOutputFromBinaryFileFloat(vtkInformationVector* ou
     }
     cnt++;
     cellLength = 1000;
-    if (cellLength > length)
-    {
-      cellLength = length;
-    }
+    cellLength = std::min(cellLength, length);
     length = length - cellLength;
     verts->InsertNextCell((int)cellLength);
     for (cellPtIdx = 0; cellPtIdx < cellLength; ++cellPtIdx)

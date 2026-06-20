@@ -139,28 +139,29 @@ configure_file(vtkTypeListMacros.h.in vtkTypeListMacros.h)
 # And the ArrayDispatch array list header:
 option(VTK_DISPATCH_AOS_ARRAYS "Include array-of-structs vtkDataArray subclasses in dispatcher." ON)
 option(VTK_DISPATCH_SOA_ARRAYS "Include struct-of-arrays vtkDataArray subclasses in dispatcher." OFF)
-option(VTK_DISPATCH_TYPED_ARRAYS "Include vtkTypedDataArray subclasses (e.g. old mapped arrays) in dispatcher." OFF) # VTK_DEPRECATED_IN_9_5_0
+option(VTK_DISPATCH_SCALED_SOA_ARRAYS "Include scaled struct-of-arrays vtkDataArray subclasses in dispatcher." OFF)
 
 option(VTK_DISPATCH_AFFINE_ARRAYS "Include implicit vtkDataArray subclasses based on an affine function backend in dispatcher" OFF)
 option(VTK_DISPATCH_CONSTANT_ARRAYS "Include implicit vtkDataArray subclasses based on a constant backend in dispatcher" OFF)
 option(VTK_DISPATCH_STD_FUNCTION_ARRAYS "Include implicit vtkDataArray subclasses based on std::function in dispatcher" OFF)
-option(VTK_DISPATCH_STRUCTURED_POINT_ARRAYS "Include implicit vtkDataArray subclasses based on structured point backend dispatcher" ON)
+option(VTK_DISPATCH_STRIDED_ARRAYS "Include implicit vtkDataArray subclasses based on a strided backend in dispatcher" OFF)
+option(VTK_DISPATCH_STRUCTURED_POINT_ARRAYS "Include implicit vtkDataArray subclasses based on structured point backend dispatcher" OFF)
 
 option(VTK_WARN_ON_DISPATCH_FAILURE "If enabled, vtkArrayDispatch will print a warning when a dispatch fails." OFF)
 
 mark_as_advanced(
   VTK_DISPATCH_AOS_ARRAYS
   VTK_DISPATCH_SOA_ARRAYS
-  VTK_DISPATCH_TYPED_ARRAYS # VTK_DEPRECATED_IN_9_5_0
+  VTK_DISPATCH_SCALED_SOA_ARRAYS
 
   VTK_DISPATCH_AFFINE_ARRAYS
   VTK_DISPATCH_CONSTANT_ARRAYS
   VTK_DISPATCH_STD_FUNCTION_ARRAYS
+  VTK_DISPATCH_STRIDED_ARRAYS
   VTK_DISPATCH_STRUCTURED_POINT_ARRAYS
 
   VTK_WARN_ON_DISPATCH_FAILURE)
 
-option(VTK_BUILD_SCALED_SOA_ARRAYS "Include struct-of-arrays with scaled vtkDataArray implementation." OFF)
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/vtkVTK_DISPATCH_IMPLICIT_ARRAYS.h.in"
@@ -180,45 +181,70 @@ set(instantiation_sources)
 
 include(vtkTypeLists)
 
+foreach (type IN LISTS vtk_numeric_types)
+  string(REPLACE " " "_" _suffix "${type}")
+  list(APPEND instantiation_sources
+    "${CMAKE_CURRENT_BINARY_DIR}/vtkArrayBulkInstantiate_${_suffix}.cxx")
+
+  if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|AppleClang|Clang)$")
+    # This silences the following warning:
+    #     type attributes ignored after type is already defined [-Wattributes]
+    #     template class VTKCOMMONCORE_EXPORT vtkImplicitArray<vtkStructuredPointBackend<ValueType>>;
+    # This warning is caused by the vtkArrayDispatch instantiations,
+    # controlled by the VTK_DISPATCH_*_ARRAYS cmake variables.
+    # When ON, a vtkImplicitArray<vtk*Backend<ValueType>> will be indirectly instantiated
+    # by `vtkIndexedImplicitBackend::Internals` and `vtkCompositeImplicitBackend::Internals`
+    # causing the `__attribute__((visibility("default")))` to be ignored.
+    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/vtkArrayBulkInstantiate_${_suffix}.cxx"
+      PROPERTIES COMPILE_OPTIONS "-Wno-attributes")
+  endif()
+endforeach ()
+
 foreach (INSTANTIATION_VALUE_TYPE IN LISTS vtk_numeric_types)
-  # only instantiate fundamental types, not typedefs
+  # We never need to instantiate vtkIdType or because they are instantiated
+  # by the corresponding array for its native type.
   if (INSTANTIATION_VALUE_TYPE STREQUAL "vtkIdType")
     continue()
   endif ()
   # create a file suffix from the type
   string(REPLACE " " "_" _suffix "${INSTANTIATION_VALUE_TYPE}")
 
+  # Order of this list is important with bulk instantiation
   set(_list
-    vtkAffineArrayInstantiate
     vtkAffineImplicitBackendInstantiate
-    vtkCompositeArrayInstantiate
     vtkCompositeImplicitBackendInstantiate
-    vtkConstantArrayInstantiate
     vtkConstantImplicitBackendInstantiate
-    vtkIndexedArrayInstantiate
     vtkIndexedImplicitBackendInstantiate
+    vtkStridedImplicitBackendInstantiate
+    vtkStructuredPointBackendInstantiate
+    vtkAffineArrayInstantiate
+    vtkAOSDataArrayTemplateInstantiate
+    vtkCompositeArrayInstantiate
+    vtkConstantArrayInstantiate
+    vtkIndexedArrayInstantiate
+    vtkScaledSOADataArrayTemplateInstantiate
+    vtkStridedArrayInstantiate
     vtkSOADataArrayTemplateInstantiate
     vtkStdFunctionArrayInstantiate
-    vtkStructuredPointBackendInstantiate
     vtkStructuredPointArrayInstantiate
     vtkTypedDataArrayInstantiate)
-  if (VTK_BUILD_SCALED_SOA_ARRAYS)
-    list(APPEND _list "vtkScaledSOADataArrayTemplateInstantiate")
-  endif ()
 
   # see comments in vtkGenericDataArray.h for explanation
   if (INSTANTIATION_VALUE_TYPE MATCHES "(^| )long( |$)")
     list(APPEND _list "vtkGenericDataArrayValueRangeInstantiate")
   endif ()
 
+  # required for configure file
+  set("bulk_instantiation_sources_${_suffix}")
   # generate cxx file to instantiate template with this type
   foreach (_prefix IN LISTS _list)
     configure_file(
       "${CMAKE_CURRENT_SOURCE_DIR}/${_prefix}.cxx.in"
       "${CMAKE_CURRENT_BINARY_DIR}/${_prefix}_${_suffix}.cxx"
       @ONLY)
-    list(APPEND instantiation_sources
-      "${CMAKE_CURRENT_BINARY_DIR}/${_prefix}_${_suffix}.cxx")
+
+    list(APPEND "bulk_instantiation_sources_${_suffix}"
+      "#include \"${_prefix}_${_suffix}.cxx\"")
   endforeach ()
 endforeach ()
 
@@ -227,6 +253,7 @@ set(classes
   vtkAnimationCue
   vtkArchiver
   vtkArray
+  vtkArrayComponents
   vtkArrayCoordinates
   vtkArrayExtents
   vtkArrayExtentsList
@@ -354,6 +381,7 @@ set(template_classes
   vtkDenseArray
   vtkGenericDataArray
   vtkMappedDataArray
+  vtkScaledSOADataArrayTemplate
   vtkSOADataArrayTemplate
   vtkSparseArray
   vtkThreadedTaskQueue
@@ -364,6 +392,7 @@ set(nowrap_template_classes
   vtkCompositeImplicitBackend
   vtkImplicitArray
   vtkIndexedImplicitBackend
+  vtkStridedImplicitBackend
   vtkStructuredPointBackend
   vtkTypeList)
 
@@ -385,6 +414,7 @@ endif ()
 set(sources
   vtkArrayIteratorTemplateInstantiate.cxx
   vtkGenericDataArray.cxx
+  vtkStringFormatter.cxx
   vtkValueFromString.cxx
 
   vtkDataArray_CopyComponent.cxx
@@ -406,16 +436,31 @@ set(sources
   ${instantiation_sources}
   ${vtk_smp_sources})
 
-if (VTK_BUILD_SCALED_SOA_ARRAYS)
-  list (APPEND template_classes vtkScaledSOADataArrayTemplate)
-  set(VTK_USE_SCALED_SOA_ARRAYS 1)
-endif ()
+include(CheckCXXSourceCompiles)
+
+function(CHECK_CXX_EXPRESSION_COMPILES EXPRESSION FILES VARIABLE)
+  set(SOURCE "/* CHECK_CXX_EXPRESSION_COMPILES */\n")
+  foreach (FILE ${FILES})
+    string(APPEND SOURCE "#include <${FILE}>\n")
+  endforeach ()
+  string(APPEND SOURCE "\nint main()\n{\n")
+  string(APPEND SOURCE "  static_cast<void>(${EXPRESSION});\n\n")
+  string(APPEND SOURCE "  return 0;\n}\n")
+  check_cxx_source_compiles("${SOURCE}" "${VARIABLE}")
+endfunction()
+
+# Check C++ <charconv> next, where the C++17 standard says these must be.
+check_cxx_expression_compiles("std::chars_format()" "charconv" VTK_HAS_STD_CHARS_FORMAT)
+check_cxx_expression_compiles("std::from_chars_result()" "charconv" VTK_HAS_STD_FROM_CHARS_RESULT)
+check_cxx_expression_compiles("std::to_chars_result()" "charconv" VTK_HAS_STD_TO_CHARS_RESULT)
+
 configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/vtkVTK_USE_SCALED_SOA_ARRAYS.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/vtkVTK_USE_SCALED_SOA_ARRAYS.h")
+  "${CMAKE_CURRENT_SOURCE_DIR}/vtkCharConvCompatibility.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkCharConvCompatibility.h")
 
 set(headers
   vtkABI.h
+  vtkArrayDispatchDataSetArrayList.h
   vtkArrayIteratorIncludes.h
   vtkAssume.h
   vtkAutoInit.h
@@ -439,6 +484,8 @@ set(headers
   vtkRangeIterableTraits.h
   vtkSetGet.h
   vtkSmartPointer.h
+  vtkStringFormatter.h
+  vtkStringScanner.h
   vtkSystemIncludes.h
   vtkTemplateAliasMacro.h
   vtkTestDataArray.h
@@ -459,9 +506,9 @@ set(headers
   ${serialization_helper_headers}
   "${CMAKE_CURRENT_BINARY_DIR}/vtkABINamespace.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkArrayDispatchArrayList.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkCharConvCompatibility.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkMathConfigure.h"
-  "${CMAKE_CURRENT_BINARY_DIR}/vtkTypeListMacros.h"
-  "${CMAKE_CURRENT_BINARY_DIR}/vtkVTK_USE_SCALED_SOA_ARRAYS.h")
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkTypeListMacros.h")
 
 set(private_headers
   "${CMAKE_CURRENT_BINARY_DIR}/vtkFloatingPointExceptionsConfigure.h")
@@ -558,7 +605,7 @@ endforeach ()
 if (VTK_BUILD_VERSION LESS "20000101")
   set(VTK_EPOCH_VERSION "${VTK_BUILD_VERSION}")
 else ()
-  set(VTK_EPOCH_VERSION "20241009")
+  set(VTK_EPOCH_VERSION "20250514")
 endif ()
 
 set(nowrap_headers
@@ -578,6 +625,7 @@ set(nowrap_headers
   vtkIndexedArray.h
   vtkInherits.h
   vtkMathPrivate.hxx
+  vtkStridedArray.h
   vtkStdFunctionArray.h
   vtkStructuredPointArray.h
   vtkTypeName.h
@@ -598,6 +646,10 @@ set(generated_headers
   vtkVersionFull.h
   vtkVersionMacros.h
   vtkVersionQuick.h)
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  list(APPEND generated_headers
+    vtkSMPWebAssembly.h)
+endif()
 foreach (generated_header IN LISTS generated_headers)
   configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/${generated_header}.in"
@@ -609,20 +661,16 @@ endforeach ()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/vtkTypeArrays.cmake")
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/vtkImplicitArrays.cmake")
-
-include(CheckCXXSourceCompiles)
-
-macro(CHECK_CXX_EXPRESSION_COMPILES EXPRESSION FILES VARIABLE)
-  set(SOURCE "/* CHECK_CXX_EXPRESSION_COMPILES */\n")
-  foreach(FILE ${FILES})
-    set(SOURCE "${SOURCE}#include <${FILE}>\n")
-  endforeach()
-  set(SOURCE "${SOURCE}\nint main()\n{\n")
-  set(SOURCE "${SOURCE}  static_cast<void>(${EXPRESSION});\n\n")
-  set(SOURCE "${SOURCE}  return 0;\n}\n")
-  check_cxx_source_compiles("${SOURCE}" "${VARIABLE}")
-endmacro()
+foreach (type IN LISTS vtk_numeric_types)
+  # Referenced in vtkArrayBulkInstantiate.cxx.in
+  string(REPLACE " " "_" _suffix "${type}")
+  list(JOIN "bulk_instantiation_sources_${_suffix}" "\n" BULK_INSTANTIATION_SOURCES)
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/vtkArrayBulkInstantiate.cxx.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/vtkArrayBulkInstantiate_${_suffix}.cxx"
+    @ONLY)
+  unset(BULK_INSTANTIATION_SOURCES)
+endforeach()
 
 # Check C++ <cmath> first, where the C++11 standard says these must be.
 check_cxx_expression_compiles("std::isnan(0.0)" "cmath" VTK_HAS_STD_ISNAN)

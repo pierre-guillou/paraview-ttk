@@ -119,23 +119,37 @@ void vtkXMLPTableReader::SetupOutputData()
   // Allocate data in the arrays.
   if (this->PRowElement)
   {
+    std::vector<vtkXMLDataElement*> elementsToRemove;
     for (int i = 0; i < this->PRowElement->GetNumberOfNestedElements(); ++i)
     {
       vtkXMLDataElement* eNested = this->PRowElement->GetNestedElement(i);
+      const char* ename = eNested->GetAttribute("Name");
       if (this->ColumnIsEnabled(eNested))
       {
-        vtkAbstractArray* array = this->CreateArray(eNested);
-        if (array)
+        if (!rowData->HasArray(ename))
         {
-          array->SetNumberOfTuples(rowTuples);
-          rowData->AddArray(array);
-          array->Delete();
+          vtkAbstractArray* array = this->CreateArray(eNested);
+          if (array)
+          {
+            array->SetNumberOfTuples(rowTuples);
+            rowData->AddArray(array);
+            array->Delete();
+          }
+          else
+          {
+            this->DataError = 1;
+          }
         }
         else
         {
-          this->DataError = 1;
+          vtkWarningMacro("Another row data array named " << ename << " already exists. Ignoring.");
+          elementsToRemove.push_back(eNested);
         }
       }
+    }
+    for (const auto& elem : elementsToRemove)
+    {
+      this->PRowElement->RemoveNestedElement(elem);
     }
   }
 
@@ -455,10 +469,7 @@ void vtkXMLPTableReader::SetupUpdateExtent(int piece, int numberOfPieces)
 
   // If more pieces are requested than available, just return empty
   // pieces for the extra ones
-  if (this->UpdateNumberOfPieces > this->NumberOfPieces)
-  {
-    this->UpdateNumberOfPieces = this->NumberOfPieces;
-  }
+  this->UpdateNumberOfPieces = std::min(this->UpdateNumberOfPieces, this->NumberOfPieces);
 
   // Find the range of pieces to read.
   if (this->UpdatePieceId < this->UpdateNumberOfPieces)

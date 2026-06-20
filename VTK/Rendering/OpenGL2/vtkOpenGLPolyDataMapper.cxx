@@ -474,17 +474,7 @@ typedef std::pair<vtkTexture*, std::string> texinfo;
 //------------------------------------------------------------------------------
 unsigned int vtkOpenGLPolyDataMapper::GetNumberOfTextures(vtkActor* actor)
 {
-  unsigned int res = 0;
-  if (this->ColorTextureMap)
-  {
-    res++;
-  }
-  if (actor->GetTexture())
-  {
-    res++;
-  }
-  res += actor->GetProperty()->GetNumberOfTextures();
-  return res;
+  return static_cast<unsigned int>(this->GetTextures(actor).size());
 }
 
 //------------------------------------------------------------------------------
@@ -1119,6 +1109,29 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderLight(
     }
   }
 
+  if (actor->GetProperty()->GetInterpolation() == VTK_PBR && !isLightingUsed)
+  {
+    // disable default behavior with textures
+    vtkShaderProgram::Substitute(FSSource, "//VTK::TCoord::Impl", "");
+
+    // get color and material from textures
+    std::vector<texinfo> textures = this->GetTextures(actor);
+
+    for (auto& t : textures)
+    {
+      if (t.second == "albedoTex")
+      {
+        toString << "  diffuseColor *= texture(albedoTex, tcoordVCVSOutput).rgb;\n";
+      }
+    }
+
+    toString << "//VTK::Light::Impl\n";
+
+    vtkShaderProgram::Substitute(FSSource, "//VTK::Light::Impl", toString.str(), false);
+    toString.clear();
+    toString.str("");
+  }
+
   // get Standard Lighting Decls
   vtkShaderProgram::Substitute(
     FSSource, "//VTK::Light::Dec", static_cast<vtkOpenGLRenderer*>(ren)->GetLightingUniforms());
@@ -1422,42 +1435,60 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderLight(
       break;
   }
 
-  if (actor->GetProperty()->GetInterpolation() == VTK_PBR && isLightingUsed)
+  if (actor->GetProperty()->GetInterpolation() == VTK_PBR)
   {
     toString.clear();
     toString.str("");
 
-    toString << "  // In IBL, we assume that v=n, so the amount of light reflected is\n"
-                "  // the reflectance F0\n"
-                "  vec3 specularBrdf = F0 * brdf.r + F90 * brdf.g;\n"
-                "  vec3 iblSpecular = prefilteredSpecularColor * specularBrdf;\n"
-                // no diffuse for metals
-                "  vec3 iblDiffuse = (1.0 - F0) * (1.0 - metallic) * irradiance * albedo;\n"
-                "  vec3 color = iblDiffuse + iblSpecular;\n"
-                "\n";
-
-    if (hasClearCoat)
+    if (isLightingUsed)
     {
-      toString
-        << "  // Clear coat attenuation\n"
-           "  Fc = F_Schlick(coatF0, coatF90, coatNdV) * coatStrength;\n"
-           "  iblSpecular *= (1.0 - Fc);\n"
-           "  iblDiffuse *= (1.0 - Fc) * (1.0 - Fc);\n"
-           "  // Clear coat specular\n"
-           "  vec3 iblSpecularClearCoat = prefilteredSpecularCoatColor * (coatF0 * coatBrdf.r + "
-           "coatBrdf.g) * Fc;\n"
-           // Color absorption by the coat layer
-           "  color *= coatColorFactor;\n"
-           "  color += iblSpecularClearCoat;\n"
-           "\n";
+      if (hasIBL)
+      {
+        toString << "  // Multi-scatter approximation: see https://bruop.github.io/ibl/\n"
+                    "  diffuse = (1.0 - metallic) * (1.0 - 0.04) * albedo;\n"
+                    "  vec3 Fr = max(vec3(1 - roughness), F0) - F0;\n"
+                    "  vec3 k_S = F0 + Fr * pow(1.0 - NdV, 5.0);\n"
+                    "  vec3 FssEss = k_S * brdf.r + F90 * brdf.g;\n"
+                    "  float Ems = 1.0 - (brdf.r + brdf.g);\n"
+                    "  vec3 F_avg = F0 + (1.0 - F0) / 21.0;\n"
+                    "  vec3 FmsEms = Ems * FssEss * F_avg / max(1.0 - F_avg * Ems, vec3(1e-5));\n"
+                    "  vec3 k_D = diffuse * (1.0 - FssEss - FmsEms);\n"
+                    "  vec3 iblSpecular = FssEss * prefilteredSpecularColor;\n"
+                    "  vec3 iblDiffuse = (FmsEms + k_D) * irradiance;\n";
+      }
+      else
+      {
+        toString << "  vec3 iblSpecular = vec3(0.0);\n"
+                    "  vec3 iblDiffuse = vec3(0.0);\n";
+      }
+      toString << "  vec3 color = iblDiffuse + iblSpecular;\n"
+                  "\n";
+
+      if (hasClearCoat)
+      {
+        toString
+          << "  // Clear coat attenuation\n"
+             "  Fc = F_Schlick(coatF0, coatF90, coatNdV) * coatStrength;\n"
+             "  iblSpecular *= (1.0 - Fc);\n"
+             "  iblDiffuse *= (1.0 - Fc) * (1.0 - Fc);\n"
+             "  // Clear coat specular\n"
+             "  vec3 iblSpecularClearCoat = prefilteredSpecularCoatColor * (coatF0 * coatBrdf.r + "
+             "coatBrdf.g) * Fc;\n"
+             // Color absorption by the coat layer
+             "  color *= coatColorFactor;\n"
+             "  color += iblSpecularClearCoat;\n"
+             "\n";
+      }
+
+      toString << "  color += Lo;\n"
+                  "  color = mix(color, color * ao, aoStrengthUniform);\n" // ambient occlusion
+                  "  color += emissiveColor;\n"                            // emissive
+                  "  gl_FragData[0] = vec4(color, opacity);\n";
     }
 
-    toString << "  color += Lo;\n"
-                "  color = mix(color, color * ao, aoStrengthUniform);\n" // ambient occlusion
-                "  color += emissiveColor;\n"                            // emissive
-                "  color = pow(color, vec3(1.0/2.2));\n"                 // to sRGB color space
-                "  gl_FragData[0] = vec4(color, opacity);\n"
-                "  //VTK::Light::Impl";
+    toString
+      << "  gl_FragData[0].rgb = pow(gl_FragData[0].rgb, vec3(1.0/2.2));\n" // to sRGB color space
+         "  //VTK::Light::Impl";
 
     vtkShaderProgram::Substitute(FSSource, "//VTK::Light::Impl", toString.str(), false);
   }
@@ -1546,7 +1577,7 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderTCoord(
   // code for all texture coordinates.
   vtkInformation* info = actor->GetPropertyKeys();
   std::string vsimpl;
-  if (info && info->Has(vtkProp::GeneralTextureTransform()))
+  if (info && info->Has(vtkProp::GENERAL_TEXTURE_TRANSFORM()))
   {
     vtkShaderProgram::Substitute(VSSource, "//VTK::TCoord::Dec",
       "//VTK::TCoord::Dec\n"
@@ -1823,7 +1854,7 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderTCoord(
     tCoordImpFS += ss.str();
   }
 
-  if (nbTex2d > 0)
+  if (nbTex2d > 0 && !this->DrawingPoints(*this->LastBoundBO, actor))
   {
     vtkShaderProgram::Substitute(FSSource, "//VTK::TCoord::Impl",
       tCoordImpFS +
@@ -2114,10 +2145,13 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderNormal(
         "uniform mat3 normalMatrix;\n"
         "in vec3 normalVCVSOutput;");
 
-      toString << "vec3 normalVCVSOutput = normalize(normalVCVSOutput);\n"
-                  //  if (!gl_FrontFacing) does not work in intel hd4000 mac
-                  //  if (int(gl_FrontFacing) == 0) does not work on mesa
-                  "  if (gl_FrontFacing == false) { normalVCVSOutput = -normalVCVSOutput; }\n";
+      toString << "vec3 normalVCVSOutput = normalize(normalVCVSOutput);\n";
+      //  if (!gl_FrontFacing) does not work in intel hd4000 mac
+      //  if (int(gl_FrontFacing) == 0) does not work on mesa
+      if (!this->DrawingPoints(*this->LastBoundBO, actor))
+      {
+        toString << "  if (gl_FrontFacing == false) { normalVCVSOutput = -normalVCVSOutput; }\n";
+      }
       //"normalVC = normalVCVarying;";
       if (hasClearCoat)
       {
@@ -2265,16 +2299,18 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderNormal(
       {
         toString << "vec3 normalVCVSOutput = \n"
                     "    texelFetchBuffer(textureN, gl_PrimitiveID + PrimitiveIDOffset).xyz;\n"
-                    "normalVCVSOutput = normalize(normalMatrix * normalVCVSOutput);\n"
-                    "  if (gl_FrontFacing == false) { normalVCVSOutput = -normalVCVSOutput; }\n";
+                    "normalVCVSOutput = normalize(normalMatrix * normalVCVSOutput);\n";
       }
       else
       {
         toString << "vec3 normalVCVSOutput = \n"
                     "    texelFetchBuffer(textureN, gl_PrimitiveID + PrimitiveIDOffset).xyz;\n"
                     "normalVCVSOutput = normalVCVSOutput * 255.0/127.0 - 1.0;\n"
-                    "normalVCVSOutput = normalize(normalMatrix * normalVCVSOutput);\n"
-                    "  if (gl_FrontFacing == false) { normalVCVSOutput = -normalVCVSOutput; }\n";
+                    "normalVCVSOutput = normalize(normalMatrix * normalVCVSOutput);\n";
+      }
+      if (!this->DrawingPoints(*this->LastBoundBO, actor))
+      {
+        toString << "  if (gl_FrontFacing == false) { normalVCVSOutput = -normalVCVSOutput; }\n";
       }
 
       if (hasClearCoat)
@@ -2494,6 +2530,13 @@ bool vtkOpenGLPolyDataMapper::DrawingTubes(vtkOpenGLHelper& cellBO, vtkActor* ac
     actor->GetProperty()->GetLineWidth() > 1.0 &&
     this->GetOpenGLMode(actor->GetProperty()->GetRepresentation(), cellBO.PrimitiveType) ==
       GL_LINES);
+}
+
+//------------------------------------------------------------------------------
+bool vtkOpenGLPolyDataMapper::DrawingPoints(vtkOpenGLHelper& cellBO, vtkActor* actor)
+{
+  return (this->GetOpenGLMode(actor->GetProperty()->GetRepresentation(), cellBO.PrimitiveType) ==
+    GL_POINTS);
 }
 
 //------------------------------------------------------------------------------
@@ -2765,10 +2808,10 @@ void vtkOpenGLPolyDataMapper::SetMapperShaderParameters(
     // check for tcoord transform matrix
     vtkInformation* info = actor->GetPropertyKeys();
     vtkOpenGLCheckErrorMacro("failed after Render");
-    if (info && info->Has(vtkProp::GeneralTextureTransform()) &&
+    if (info && info->Has(vtkProp::GENERAL_TEXTURE_TRANSFORM()) &&
       cellBO.Program->IsUniformUsed("tcMatrix"))
     {
-      double* dmatrix = info->Get(vtkProp::GeneralTextureTransform());
+      double* dmatrix = info->Get(vtkProp::GENERAL_TEXTURE_TRANSFORM());
       float fmatrix[16];
       for (int i = 0; i < 4; i++)
       {
@@ -3006,23 +3049,6 @@ void vtkOpenGLPolyDataMapper::SetCameraShaderParameters(
     cellBO.Program->SetUniformf("cFactor", factor);
   }
 
-  vtkNew<vtkMatrix3x3> env;
-  if (program->IsUniformUsed("envMatrix"))
-  {
-    double up[3];
-    double right[3];
-    double front[3];
-    ren->GetEnvironmentUp(up);
-    ren->GetEnvironmentRight(right);
-    vtkMath::Cross(right, up, front);
-    for (int i = 0; i < 3; i++)
-    {
-      env->SetElement(i, 0, right[i]);
-      env->SetElement(i, 1, up[i]);
-      env->SetElement(i, 2, front[i]);
-    }
-  }
-
   // If the VBO coordinates were shifted and scaled, apply the inverse transform
   // to the model->view matrix:
   vtkOpenGLVertexBufferObject* vvbo = this->VBOs->GetVBO("vertexMC");
@@ -3116,7 +3142,8 @@ void vtkOpenGLPolyDataMapper::SetCameraShaderParameters(
   if (program->IsUniformUsed("envMatrix"))
   {
     vtkMatrix3x3::Invert(norms, this->TempMatrix3);
-    vtkMatrix3x3::Multiply3x3(this->TempMatrix3, env, this->TempMatrix3);
+    vtkMatrix3x3::Multiply3x3(
+      this->TempMatrix3, ren->GetEnvironmentRotationMatrix(), this->TempMatrix3);
     program->SetUniformMatrix("envMatrix", this->TempMatrix3);
   }
 
@@ -3193,7 +3220,7 @@ void vtkOpenGLPolyDataMapper::SetPropertyShaderParameters(
     {
       // Compute the reflectance of the coat layer and the exterior
       // Hard coded air environment (ior = 1.0)
-      const double environmentIOR = 1.0;
+      constexpr double environmentIOR = 1.0;
       program->SetUniformf("coatF0Uniform",
         static_cast<float>(
           vtkProperty::ComputeReflectanceFromIOR(ppty->GetCoatIOR(), environmentIOR)));
@@ -3364,6 +3391,7 @@ void vtkOpenGLPolyDataMapper::UpdateMaximumPointCellIds(vtkRenderer* ren, vtkAct
       {
         mode = GL_POINTS;
       }
+      // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
       unsigned int stride = (mode == GL_POINTS ? 1 : (mode == GL_LINES ? 2 : 3));
       vtkIdType strideMax = static_cast<vtkIdType>(this->Primitives[i].IBO->IndexCount / stride);
       maxCellId += strideMax;
@@ -4816,7 +4844,7 @@ void vtkOpenGLPolyDataMapper::ProcessSelectorPixelBuffers(
       : nullptr;
     unsigned char* chighdata = sel->GetPixelBuffer(vtkHardwareSelector::CELL_ID_HIGH24);
 
-    if (rawchighdata)
+    if (rawclowdata && rawchighdata)
     {
       this->CellCellMap->Update(prims, representation, poly->GetPoints());
 

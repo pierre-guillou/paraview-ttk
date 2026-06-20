@@ -24,10 +24,13 @@
 #include "vtkPointData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 #include "vtkThreshold.h"
 #include "vtkUnstructuredGrid.h"
 
 #include "vtk_exodusII.h"
+
 #include <cctype>
 #include <ctime>
 #include <map>
@@ -531,14 +534,12 @@ int vtkExodusIIWriter::CreateNewExodusFile()
     }
     else
     {
-      char* myFileName = new char[VTK_MAXPATH];
-      snprintf(myFileName, VTK_MAXPATH, "%s-s.%06d", this->FileName, this->CurrentTimeIndex);
-      this->fid = ex_create(myFileName, EX_CLOBBER, &compWordSize, &IOWordSize);
-      if (fid <= 0)
+      auto myFileName = vtk::format("{}-s.{:06d}", this->FileName, this->CurrentTimeIndex);
+      this->fid = ex_create(myFileName.c_str(), EX_CLOBBER, &compWordSize, &IOWordSize);
+      if (this->fid <= 0)
       {
         vtkErrorMacro(<< "vtkExodusIIWriter: CreateNewExodusFile can't create " << myFileName);
       }
-      delete[] myFileName;
     }
   }
   else
@@ -764,10 +765,7 @@ int vtkExodusIIWriter::CheckInputArrays()
       // computing the max known id in order to create unique fill in values below
       for (int j = 0; j < numCells; j++)
       {
-        if (this->BlockIdList[i]->GetValue(j) > this->MaxId)
-        {
-          this->MaxId = this->BlockIdList[i]->GetValue(j);
-        }
+        this->MaxId = std::max(this->BlockIdList[i]->GetValue(j), this->MaxId);
       }
     }
     else
@@ -1140,15 +1138,12 @@ int vtkExodusIIWriter::CreateDefaultMetadata()
 
   vtkModelMetadata* em = vtkModelMetadata::New();
 
-  char* title = new char[MAX_LINE_LENGTH + 1];
   time_t currentTime = time(nullptr);
   char* stime = ctime(&currentTime);
 
-  snprintf(title, MAX_LINE_LENGTH + 1, "Created by vtkExodusIIWriter, %s", stime);
+  auto title = vtk::format("Created by vtkExodusIIWriter, {}", stime);
 
-  em->SetTitle(title);
-
-  delete[] title;
+  em->SetTitle(title.c_str());
 
   char** dimNames = new char*[3];
   dimNames[0] = vtkExodusIIWriter::StrDupWithNew("X");
@@ -1429,7 +1424,7 @@ int vtkExodusIIWriter::CreateSetsMetadata(vtkModelMetadata* em)
         if (id_str != nullptr)
         {
           id_str += 3;
-          node_id = atoi(id_str);
+          VTK_FROM_CHARS_IF_ERROR_BREAK(id_str, node_id);
         }
         nodeSetIds->InsertNextTuple1(node_id);
 
@@ -1475,7 +1470,7 @@ int vtkExodusIIWriter::CreateSetsMetadata(vtkModelMetadata* em)
         if (id_str != nullptr)
         {
           id_str += 3;
-          side_id = atoi(id_str);
+          VTK_FROM_CHARS_IF_ERROR_BREAK(id_str, side_id);
         }
         sideSetIds->InsertNextTuple1(side_id);
         if (sideSetNames->GetNumberOfValues() <= side_id)
@@ -2292,8 +2287,7 @@ std::string vtkExodusIIWriter::CreateNameForScalarArray(
   {
     std::string s(root);
     // assume largest for 32 bit decimal representation
-    char n[12];
-    snprintf(n, sizeof(n), "%10d", component);
+    auto n = vtk::format("{:10d}", component);
     s.append(n);
     return s;
   }
@@ -3075,10 +3069,7 @@ unsigned int GetLongestFieldDataName(vtkFieldData* fd)
   for (int i = 0; i < fd->GetNumberOfArrays(); i++)
   {
     unsigned int length = static_cast<unsigned int>(strlen(fd->GetArrayName(i)));
-    if (length > maxName)
-    {
-      maxName = length;
-    }
+    maxName = std::max(length, maxName);
   }
   return maxName;
 }
@@ -3087,20 +3078,11 @@ unsigned int GetLongestDataSetName(vtkDataSet* ds)
 {
   unsigned int maxName = 32;
   unsigned int maxDataSetName = GetLongestFieldDataName(ds->GetPointData());
-  if (maxDataSetName > maxName)
-  {
-    maxName = maxDataSetName;
-  }
+  maxName = std::max(maxDataSetName, maxName);
   maxDataSetName = GetLongestFieldDataName(ds->GetCellData());
-  if (maxDataSetName > maxName)
-  {
-    maxName = maxDataSetName;
-  }
+  maxName = std::max(maxDataSetName, maxName);
   maxDataSetName = GetLongestFieldDataName(ds->GetFieldData());
-  if (maxDataSetName > maxName)
-  {
-    maxName = maxDataSetName;
-  }
+  maxName = std::max(maxDataSetName, maxName);
   return maxName;
 }
 }
@@ -3118,19 +3100,13 @@ unsigned int vtkExodusIIWriter::GetMaxNameLength()
       if (vtkDataSet* dataSet = vtkDataSet::SafeDownCast(iter->GetCurrentDataObject()))
       {
         unsigned int maxDataSetName = GetLongestDataSetName(dataSet);
-        if (maxDataSetName > maxName)
-        {
-          maxName = maxDataSetName;
-        }
+        maxName = std::max(maxDataSetName, maxName);
         if (vtkInformation* info = iter->GetCurrentMetaData())
         {
           if (const char* objectName = info->Get(vtkCompositeDataSet::NAME()))
           {
             maxDataSetName = static_cast<unsigned int>(strlen(objectName));
-            if (maxDataSetName > maxName)
-            {
-              maxName = maxDataSetName;
-            }
+            maxName = std::max(maxDataSetName, maxName);
           }
         }
       }

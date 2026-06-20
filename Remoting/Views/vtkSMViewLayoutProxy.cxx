@@ -167,7 +167,7 @@ public:
         vtkSMPropertyHelper(cell.ViewProxy, "ViewPosition").Set(pos, 2);
         cell.ViewProxy->UpdateProperty("ViewPosition");
       }
-      // cout << "View Position: " << cell.ViewProxy  << " = "
+      // std::cout << "View Position: " << cell.ViewProxy  << " = "
       //  << posx << "," << posy << endl;
     }
     else
@@ -978,7 +978,7 @@ bool vtkSMViewLayoutProxy::SetSplitFraction(int location, double val)
   if (val < 0.0 || val > 1.0)
   {
     vtkErrorMacro("Invalid fraction : " << val << ". Must be in the range [0, 1]");
-    return 0;
+    return false;
   }
 
   if (!this->IsSplitCell(location))
@@ -1139,7 +1139,7 @@ vtkImageData* vtkSMViewLayoutProxy::CaptureWindow(int magX, int magY)
       vtkImageData* image = iter->ViewProxy->CaptureWindow(magX, magY);
       if (image)
       {
-        images.push_back(image);
+        images.emplace_back(image);
         image->FastDelete();
       }
     }

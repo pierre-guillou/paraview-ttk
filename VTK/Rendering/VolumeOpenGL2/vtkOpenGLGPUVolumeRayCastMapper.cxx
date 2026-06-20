@@ -90,6 +90,8 @@
 #include <sstream>
 #include <string>
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLGPUVolumeRayCastMapper);
 
@@ -596,7 +598,7 @@ template <typename T, int SizeX, int SizeY>
 void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::CopyMatrixToVector(
   T* matrix, float* matrixVec, int offset)
 {
-  const int MatSize = SizeX * SizeY;
+  constexpr int MatSize = SizeX * SizeY;
   for (int j = 0; j < MatSize; j++)
   {
     matrixVec[offset + j] = matrix->Element[j / SizeX][j % SizeY];
@@ -808,7 +810,14 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::CaptureDepthTexture(vtkRender
     }
     else
     {
+      // For now, the format is set by default to GL_DEPTH_COMPONENT24.
+      // This should be configurable in the future
+      // See https://gitlab.kitware.com/vtk/vtk/-/issues/19823
+#ifdef GL_ES_VERSION_3_0
+      this->DepthTextureObject->AllocateDepth(this->WindowSize[0], this->WindowSize[1], 3);
+#else
       this->DepthTextureObject->AllocateDepth(this->WindowSize[0], this->WindowSize[1], 4);
+#endif
     }
   }
 
@@ -1311,7 +1320,7 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::SetCroppingRegions(
       static_cast<float>(croppingRegionPlanes[5]) };
 
     prog->SetUniform1fv("in_croppingPlanes", 6, cropPlanes);
-    const int numberOfRegions = 32;
+    constexpr int numberOfRegions = 32;
     int cropFlagsArray[numberOfRegions];
     cropFlagsArray[0] = 0;
     int i = 1;
@@ -1561,10 +1570,7 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::UpdateSamplingDistance(
 
       // We use fabs() in case the spacing is negative.
       double worldSpacing = fabs(cellSpacing[i] * sqrt(tmp2));
-      if (worldSpacing < minWorldSpacing)
-      {
-        minWorldSpacing = worldSpacing;
-      }
+      minWorldSpacing = std::min(worldSpacing, minWorldSpacing);
       ++i;
     }
 

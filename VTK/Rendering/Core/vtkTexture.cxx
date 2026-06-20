@@ -137,7 +137,7 @@ void vtkTexture::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 
-  const int WrapAsString[4] = { ClampToEdge, Repeat, MirroredRepeat, ClampToBorder };
+  constexpr int WrapAsString[4] = { ClampToEdge, Repeat, MirroredRepeat, ClampToBorder };
   os << indent << "MaximumAnisotropicFiltering: " << this->MaximumAnisotropicFiltering << "\n";
   os << indent << "Mipmap: " << (this->Mipmap ? "On\n" : "Off\n");
   os << indent << "Interpolate: " << (this->Interpolate ? "On\n" : "Off\n");
@@ -274,9 +274,7 @@ unsigned char* vtkTexture::MapScalarsToColors(vtkDataArray* scalars)
   // map the scalars to colors
   this->MappedScalars = this->LookupTable->MapScalars(scalars, this->ColorMode, -1);
 
-  return this->MappedScalars
-    ? reinterpret_cast<unsigned char*>(this->MappedScalars->GetVoidPointer(0))
-    : nullptr;
+  return this->MappedScalars ? this->MappedScalars->GetPointer(0) : nullptr;
 }
 
 //------------------------------------------------------------------------------

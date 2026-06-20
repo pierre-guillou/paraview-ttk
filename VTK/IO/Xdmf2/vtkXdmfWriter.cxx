@@ -26,8 +26,10 @@
 #include "vtkPolyData.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringScanner.h"
 #include "vtkStructuredGrid.h"
 #include "vtkTypeTraits.h"
+#include "vtkUniformGridAMRIterator.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtksys/SystemTools.hxx"
 
@@ -51,6 +53,8 @@
 
 #include "vtk_libxml2.h"
 #include VTKLIBXML2_HEADER(tree.h) // always after std::blah stuff
+
+#include <iostream>
 
 #ifdef VTK_USE_64BIT_IDS
 typedef XdmfInt64 vtkXdmfIdType;
@@ -376,8 +380,8 @@ int vtkXdmfWriter::RequestData(vtkInformation* request, vtkInformationVector** i
   {
     // I am assuming we are not given a temporal data object and getting just one time.
     this->CurrentTime = input->GetInformation()->Get(vtkDataObject::DATA_TIME_STEP());
-    // cerr << "Writing timestep" << this->CurrentTimeIndex << " (" << this->CurrentTime << ")" <<
-    // endl;
+    // std::cerr << "Writing timestep" << this->CurrentTimeIndex << " (" << this->CurrentTime << ")"
+    // << endl;
 
     XdmfTime* xT = grid->GetTime();
     xT->SetDeleteOnGridDelete(true);
@@ -432,7 +436,7 @@ int vtkXdmfWriter::WriteDataSet(vtkDataObject* dobj, xdmf2::XdmfGrid* grid)
 //------------------------------------------------------------------------------
 int vtkXdmfWriter::WriteCompositeDataSet(vtkCompositeDataSet* dobj, xdmf2::XdmfGrid* grid)
 {
-  // cerr << "internal node " << dobj << " is a " << dobj->GetClassName() << endl;
+  // std::cerr << "internal node " << dobj << " is a " << dobj->GetClassName() << endl;
   if (dobj->IsA("vtkMultiPieceDataSet"))
   {
     grid->SetGridType(XDMF_GRID_COLLECTION);
@@ -452,7 +456,8 @@ int vtkXdmfWriter::WriteCompositeDataSet(vtkCompositeDataSet* dobj, xdmf2::XdmfG
 
   vtkCompositeDataIterator* iter = dobj->NewIterator();
   vtkDataObjectTreeIterator* treeIter = vtkDataObjectTreeIterator::SafeDownCast(iter);
-  if (treeIter)
+  vtkUniformGridAMRIterator* amrIter = vtkUniformGridAMRIterator::SafeDownCast(iter);
+  if (treeIter && !amrIter)
   {
     treeIter->VisitOnlyLeavesOff();
     treeIter->TraverseSubTreeOff();
@@ -498,8 +503,6 @@ void vtkXdmfWriter::SetupDataArrayXML(XdmfElement* e, XdmfArray* a) const
 int vtkXdmfWriter::CreateTopology(vtkDataSet* ds, xdmf2::XdmfGrid* grid, vtkIdType PDims[3],
   vtkIdType CDims[3], vtkIdType& PRank, vtkIdType& CRank, void* staticdata)
 {
-  // cerr << "Writing " << dobj << " a " << dobj->GetClassName() << endl;
-
   grid->SetGridType(XDMF_GRID_UNIFORM);
 
   const char* heavyName = nullptr;
@@ -558,7 +561,9 @@ int vtkXdmfWriter::CreateTopology(vtkDataSet* ds, xdmf2::XdmfGrid* grid, vtkIdTy
       XdmfConstString topologyType = staticnode->DOM->Get(staticTopo, "TopologyType");
       //
       t->SetTopologyTypeFromString(topologyType);
-      t->SetNumberOfElements(atoi(dimensions));
+      int dim = 0;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(dimensions, dim);
+      t->SetNumberOfElements(dim);
       t->SetDataXml(xmltext);
       reusing_topology = true;
       // @TODO : t->SetNodesPerElement(ppCell);
@@ -696,7 +701,7 @@ int vtkXdmfWriter::CreateTopology(vtkDataSet* ds, xdmf2::XdmfGrid* grid, vtkIdTy
       // and the extra code path is bound to cause problems eventually.
       if (cellTypes.size() == 1)
       {
-        // cerr << "Homogeneous topology" << endl;
+        // std::cerr << "Homogeneous topology" << endl;
         t->SetNumberOfElements(ds->GetNumberOfCells());
         const vtkXdmfWriterInternal::CellType* ct = &cellTypes.begin()->first;
         vtkIdType ppCell = ct->NumPoints;
@@ -794,7 +799,7 @@ int vtkXdmfWriter::CreateTopology(vtkDataSet* ds, xdmf2::XdmfGrid* grid, vtkIdTy
       } // homogeneous
       else
       {
-        // cerr << "Nonhomogeneous topology" << endl;
+        // std::cerr << "Nonhomogeneous topology" << endl;
         // Non Homogeneous, used mixed topology type to dump them all
         t->SetTopologyType(XDMF_MIXED);
         vtkIdType numCells = ds->GetNumberOfCells();
@@ -1069,7 +1074,7 @@ int vtkXdmfWriter::CreateGeometry(vtkDataSet* ds, xdmf2::XdmfGrid* grid, void* s
 //------------------------------------------------------------------------------
 int vtkXdmfWriter::WriteAtomicDataSet(vtkDataObject* dobj, xdmf2::XdmfGrid* grid)
 {
-  // cerr << "Writing " << dobj << " a " << dobj->GetClassName() << endl;
+  // std::cerr << "Writing " << dobj << " a " << dobj->GetClassName() << endl;
   vtkDataSet* ds = vtkDataSet::SafeDownCast(dobj);
   if (!ds)
   {
@@ -1325,21 +1330,23 @@ void vtkXdmfWriter::ConvertVToXArray(vtkDataArray* vda, XdmfArray* xda, vtkIdTyp
 
   // TODO: if we can make xdmf write out immediately, then wouldn't have to keep around
   // arrays when working with temporal data
-  if ((allocStrategy == 0 && !this->TopTemporalGrid) || allocStrategy == 1)
+  if (vda->HasStandardMemoryLayout() &&
+    ((allocStrategy == 0 && !this->TopTemporalGrid) || allocStrategy == 1))
   {
     // Do not let xdmf allocate its own buffer. xdmf just borrows vtk's and doesn't double mem size.
     xda->SetAllowAllocate(0);
     xda->SetShape(lRank, lDims.data());
-    xda->SetDataPointer(vda->GetVoidPointer(0));
+    xda->SetDataPointer(vda->GetVoidPointer(0)); // NOLINT(bugprone-unsafe-functions)
   }
   else //(allocStrategy==0 && this->TopTemporalGrid) || allocStrategy==2)
   {
     // Unfortunately data doesn't stick around with temporal updates, which is exactly when you want
     // it most.
+    auto aos = vda->ToAOSDataArray();
     xda->SetAllowAllocate(1);
     xda->SetShape(lRank, lDims.data());
-    memcpy(xda->GetDataPointer(), vda->GetVoidPointer(0),
-      vda->GetNumberOfTuples() * vda->GetNumberOfComponents() * vda->GetElementComponentSize());
+    memcpy(xda->GetDataPointer(), aos->GetVoidPointer(0), // NOLINT(bugprone-unsafe-functions)
+      aos->GetNumberOfTuples() * aos->GetNumberOfComponents() * aos->GetElementComponentSize());
   }
 }
 VTK_ABI_NAMESPACE_END

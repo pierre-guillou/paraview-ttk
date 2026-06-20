@@ -11,18 +11,20 @@
 #include "VTXHelper.h"
 #include "VTXHelper.txx"
 
-#include <fstream>
-#include <numeric> //std::accumulate
-#include <sstream>
-
 #if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkMPI.h"
 #include "vtkMPICommunicator.h"
 #endif
 #include "vtkMultiProcessController.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 
 #include <vtksys/FStream.hxx>
 #include <vtksys/SystemTools.hxx>
+
+#include <fstream>
+#include <numeric> //std::accumulate
+#include <sstream>
 
 namespace vtx
 {
@@ -182,11 +184,7 @@ types::DataSet XMLInitDataSet(
     if (isSpecialName)
     {
       const std::string& specialName = *itSpecialName;
-      if (specialName == "connectivity")
-      {
-        dataArray.IsIdType = true;
-      }
-      else if (specialName == "vertices")
+      if (specialName == "vertices")
       {
         dataArray.HasTuples = true;
 
@@ -238,11 +236,12 @@ types::DataSet XMLInitDataSet(
 
     if (xmlNumberOfComponents)
     {
-      const size_t components = static_cast<size_t>(std::stoull(xmlNumberOfComponents.value()));
+      size_t components;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(xmlNumberOfComponents.value(), components);
       if (dataArray.VectorVariables.size() != components)
       {
-        throw std::runtime_error("ERROR: NumberOfComponents " + std::to_string(components) +
-          " and variable names found " + std::to_string(dataArray.VectorVariables.size()) +
+        throw std::runtime_error("ERROR: NumberOfComponents " + vtk::to_string(components) +
+          " and variable names found " + vtk::to_string(dataArray.VectorVariables.size()) +
           " inside DataArray node " + std::string(xmlName.name()) + " in ADIOS2 VTK XML schema");
       }
     }
@@ -317,11 +316,6 @@ size_t LinearizePoint(const adios2::Dims& shape, const adios2::Dims& point) noex
   const size_t Nz = shape[2];
 
   return i * Ny * Nz + j * Nz + k;
-}
-
-vtkSmartPointer<vtkIdTypeArray> NewDataArrayIdType()
-{
-  return vtkSmartPointer<vtkIdTypeArray>::New();
 }
 
 std::string GetFileName(const std::string& fileName) noexcept

@@ -14,6 +14,8 @@
 #include "vtkTetra.h"
 #include "vtkType.h"
 
+#include <algorithm>
+
 #define ENABLE_CACHING
 #define FIFTEEN_POINT_TETRA
 
@@ -444,7 +446,7 @@ int vtkHigherOrderTetra::CellBoundary(
     }
   }
 
-  const int closestFaceByAxis[4][3] = { { 0, 3, 2 }, { 0, 1, 3 }, { 0, 2, 1 }, { 1, 2, 3 } };
+  constexpr int closestFaceByAxis[4][3] = { { 0, 3, 2 }, { 0, 1, 3 }, { 0, 2, 1 }, { 1, 2, 3 } };
 
   pts->SetNumberOfIds(3);
   for (int ii = 0; ii < 3; ++ii)
@@ -844,10 +846,7 @@ double vtkHigherOrderTetra::GetParametricDistance(const double pcoords[3])
     {
       pDist = 0.0;
     }
-    if (pDist > pDistMax)
-    {
-      pDistMax = pDist;
-    }
+    pDistMax = std::max(pDist, pDistMax);
   }
 
   return pDistMax;
@@ -1036,7 +1035,7 @@ vtkIdType vtkHigherOrderTetra::Index(const vtkIdType* bindex, vtkIdType order)
   vtkIdType max = order;
   vtkIdType min = 0;
 
-  vtkIdType bmin = std::min(std::min(std::min(bindex[0], bindex[1]), bindex[2]), bindex[3]);
+  vtkIdType bmin = std::min({ bindex[0], bindex[1], bindex[2], bindex[3] });
 
   // scope into the correct tetra
   while (bmin > min)

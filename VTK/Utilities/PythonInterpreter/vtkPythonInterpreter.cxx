@@ -11,6 +11,7 @@
 #include "vtkOutputWindow.h"
 #include "vtkPythonStdStreamCaptureHelper.h"
 #include "vtkResourceFileLocator.h"
+#include "vtkStringFormatter.h"
 #include "vtkVersion.h"
 #include "vtkWeakPointer.h"
 #include "vtksys/Encoding.h"
@@ -21,6 +22,7 @@
 
 #include <algorithm>
 #include <csignal>
+#include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -453,9 +455,9 @@ bool vtkPythonInterpreter::InitializeWithArgs(
       OwnedWideString argCopy(vtk_Py_UTF8ToWide(argv[i]), CharDeleter());
       if (argCopy == nullptr)
       {
-        fprintf(stderr,
+        vtk::print(stderr,
           "Fatal vtkpython error: "
-          "unable to decode the command line argument #%i\n",
+          "unable to decode the command line argument #{:d}\n",
           i + 1);
         return false;
       }
@@ -608,7 +610,7 @@ void vtkPythonInterpreter::SetProgramName(const char* programname)
     }
     else
     {
-      fprintf(stderr,
+      vtk::print(stderr,
         "Fatal vtkpython error: "
         "unable to decode the program name\n");
       wchar_t* empty = (wchar_t*)PyMem_RawMalloc(sizeof(wchar_t));
@@ -623,7 +625,7 @@ void vtkPythonInterpreter::SetProgramName(const char* programname)
     wchar_t* argv0 = vtk_Py_UTF8ToWide(programname);
     if (argv0 == nullptr)
     {
-      fprintf(stderr,
+      vtk::print(stderr,
         "Fatal vtkpython error: "
         "unable to decode the program name\n");
       static wchar_t empty[1] = { 0 };
@@ -741,15 +743,15 @@ int vtkPythonInterpreter::PyMain(int argc, char** argv)
     {
       // print out VTK version and let argument pass to Py_RunMain(). At which
       // point, Python will print its version and exit.
-      cout << vtkVersion::GetVTKSourceVersion() << endl;
+      std::cout << vtkVersion::GetVTKSourceVersion() << std::endl;
     }
 
     OwnedCString argCopy(strdup(argv[i]), &std::free);
     if (argCopy == nullptr)
     {
-      fprintf(stderr,
+      vtk::print(stderr,
         "Fatal vtkpython error: "
-        "unable to copy the command line argument #%i\n",
+        "unable to copy the command line argument #{:d}\n",
         i + 1);
       return 1;
     }
@@ -821,9 +823,9 @@ int vtkPythonInterpreter::PyMain(int argc, char** argv)
     OwnedWideString argCopy(vtk_Py_UTF8ToWide(argvCleanup[i].get()), CharDeleter());
     if (argCopy == nullptr)
     {
-      fprintf(stderr,
+      vtk::print(stderr,
         "Fatal vtkpython error: "
-        "unable to decode the command line argument #%zu\n",
+        "unable to decode the command line argument #{:d}\n",
         i + 1);
       return 1;
     }
@@ -943,7 +945,7 @@ vtkStdString vtkPythonInterpreter::ReadStdin()
   if (!vtkPythonInterpreter::CaptureStdin)
   {
     vtkStdString string;
-    cin >> string;
+    std::cin >> string;
     return string;
   }
   vtkStdString string;

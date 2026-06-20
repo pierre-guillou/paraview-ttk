@@ -5,7 +5,6 @@
 #include "vtkCellArray.h"
 #include "vtkCommand.h"
 #include "vtkEvent.h"
-#include "vtkInteractorObserver.h"
 #include "vtkLine.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
@@ -14,12 +13,14 @@
 #include "vtkPolyDataMapper2D.h"
 #include "vtkProperty2D.h"
 #include "vtkRenderer.h"
-#include "vtkTextActor.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextMapper.h"
 #include "vtkTextProperty.h"
 #include "vtkTransform.h"
 #include "vtkTransformPolyDataFilter.h"
 #include "vtkWindow.h"
+
+#include <algorithm>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSliderRepresentation2D);
@@ -326,7 +327,7 @@ double vtkSliderRepresentation2D::ComputePickPosition(double eventPos[2])
   double scale = (2.0 * this->X - 2.0 * this->EndCapLength) /
     (2.0 * this->X - 2.0 * this->EndCapLength - this->SliderLength);
   this->PickedT = 0.5 + (this->PickedT - 0.5) * scale;
-  this->PickedT = (this->PickedT < 0 ? 0.0 : (this->PickedT > 1.0 ? 1.0 : this->PickedT));
+  this->PickedT = std::min(std::max(this->PickedT, 0.0), 1.0);
 
   return this->PickedT;
 }
@@ -415,9 +416,7 @@ void vtkSliderRepresentation2D::BuildRepresentation()
     // we have to take into account the text height and width.
     int titleSize[2];
     double textSize[2];
-    double maxY = (this->SliderWidth > this->TubeWidth
-        ? (this->SliderWidth > this->EndCapWidth ? this->SliderWidth : this->EndCapWidth)
-        : (this->TubeWidth > this->EndCapWidth ? this->TubeWidth : this->EndCapWidth));
+    double maxY = std::max({ this->SliderWidth, this->TubeWidth, this->EndCapWidth });
 
     if (!this->ShowSliderLabel)
     {
@@ -428,7 +427,11 @@ void vtkSliderRepresentation2D::BuildRepresentation()
       this->LabelActor->VisibilityOn();
       int labelSize[2];
       char label[256];
-      snprintf(label, sizeof(label), this->LabelFormat, this->Value);
+
+      std::string labelFormat = this->LabelFormat ? vtk::to_std_format(this->LabelFormat) : "";
+      VTK_FORMAT_IF_ERROR_RETURN(
+        auto result = vtk::format_to_n(label, sizeof(label), labelFormat, this->Value);
+        *result.out = '\0', );
       this->LabelMapper->SetInput(label);
       this->LabelProperty->SetFontSize(static_cast<int>(this->LabelHeight * size[1]));
       this->LabelMapper->GetSize(this->Renderer, labelSize);

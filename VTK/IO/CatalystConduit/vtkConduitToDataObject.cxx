@@ -10,6 +10,7 @@
 #include "vtkArrayDispatch.h"
 #include "vtkCellArrayIterator.h"
 #include "vtkConduitArrayUtilities.h"
+#include "vtkConstantUnsignedCharArray.h"
 #if VTK_MODULE_ENABLE_VTK_AcceleratorsVTKmDataModel
 #include "vtkConduitArrayUtilitiesDevice.h"
 #endif
@@ -26,6 +27,7 @@
 #include "vtkRectilinearGrid.h"
 #include "vtkSMPTools.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
 #include "vtkStructuredGrid.h"
 #include "vtkUniformGrid.h"
 #include "vtkUnstructuredGrid.h"
@@ -488,18 +490,18 @@ bool FillPartitionedDataSet(vtkPartitionedDataSet* output, const conduit_cpp::No
         {
           const std::string& attributeType = fieldMetadataNode["attribute_type"].as_string();
           // check if the attribute type is valid
-          if (FieldMetadata::GetDataSetAttributeType(attributeType) !=
+          bool validAttributeType = FieldMetadata::GetDataSetAttributeType(attributeType) !=
               vtkDataSetAttributes::AttributeTypes::NUM_ATTRIBUTES ||
-            FieldMetadata::IsGhostsAttributeType(attributeType))
-          {
-            fieldMetadata[name].AttributeType = attributeType;
-          }
-          else
+            FieldMetadata::IsGhostsAttributeType(attributeType);
+
+          if (!validAttributeType)
           {
             vtkLogF(
               ERROR, "invalid attribute type '%s' for '%s'.", attributeType.c_str(), name.c_str());
             return false;
           }
+
+          fieldMetadata[name].AttributeType = attributeType;
         }
       }
       catch (std::exception& e)
@@ -511,6 +513,7 @@ bool FillPartitionedDataSet(vtkPartitionedDataSet* output, const conduit_cpp::No
     }
   }
   auto fields = node["fields"];
+  std::set<std::tuple<std::string, int>> assignedAttributeTypes;
   for (conduit_index_t i = 0, nchildren = fields.number_of_children(); i < nchildren; ++i)
   {
     auto fieldNode = fields.child(i);
@@ -543,15 +546,39 @@ bool FillPartitionedDataSet(vtkPartitionedDataSet* output, const conduit_cpp::No
           dsa->AddArray(array);
           continue;
         }
+        std::string displayName;
+        if (fieldNode.has_child("display_name"))
+        {
+          displayName = fieldNode["display_name"].as_string();
+        }
+        else
+        {
+          displayName = fieldname;
+        }
         vtkSmartPointer<vtkDataArray> array =
-          vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(&values), fieldname);
+          vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(&values), displayName);
         if (array->GetNumberOfTuples() != dataset->GetNumberOfElements(vtk_association))
         {
+          vtkLog(ERROR, << "Array has " << array->GetNumberOfTuples() << " tuples but dataset has "
+                        << dataset->GetNumberOfElements(vtk_association) << " elements.");
           throw std::runtime_error("mismatched tuple count!");
         }
         if (fieldMetadata.find(fieldname) != fieldMetadata.end())
         {
           const auto& metadata = fieldMetadata[fieldname];
+          // check if attribute type is unique for this dataset
+          if (assignedAttributeTypes.find({ metadata.AttributeType, vtk_association }) !=
+            assignedAttributeTypes.end())
+          {
+            vtkLogF(WARNING,
+              "%s has attribute type %s for association %s, but this type is already assigned to "
+              "another field.",
+              fieldname.c_str(), metadata.AttributeType.c_str(),
+              fieldNode["association"].as_char8_str());
+            dsa->AddArray(array);
+            continue;
+          }
+          assignedAttributeTypes.insert({ metadata.AttributeType, vtk_association });
           // replace values if needed
           if (metadata.ValuesToReplace && metadata.ReplacementValues)
           {
@@ -865,17 +892,11 @@ vtkSmartPointer<vtkDataSet> CreateMonoShapedUnstructuredGrid(
 void SetMixedPolyhedralCells(
   vtkUnstructuredGrid* ug, vtkDataArray* shapes, vtkCellArray* elements, vtkCellArray* subelements)
 {
-  auto cellTypes = vtk::MakeSmartPointer(vtkUnsignedCharArray::SafeDownCast(shapes));
-  if (!cellTypes)
-  {
-    cellTypes = vtkSmartPointer<vtkUnsignedCharArray>::New();
-    cellTypes->DeepCopy(shapes);
-  }
   // if there are no subelements
   if (!subelements || subelements->GetNumberOfCells() == 0)
   {
     // This is a simple case where we have a mixed cell type, but no polyhedra.
-    ug->SetPolyhedralCells(cellTypes, elements, nullptr, nullptr);
+    ug->SetPolyhedralCells(shapes, elements, nullptr, nullptr);
     return;
   }
 
@@ -895,10 +916,10 @@ void SetMixedPolyhedralCells(
   const vtkIdType *cellGlobalFaceIDs, *facePointIDs, *cellPointIDs;
   std::set<vtkIdType> cellPointIDsSet;
   vtkIdType globalFaceId = 0;
-  auto cellTypesRange = vtk::DataArrayValueRange<1>(cellTypes);
+  auto cellTypes = vtk::DataArrayValueRange<1, unsigned char>(shapes);
   for (vtkIdType i = 0, numCells = elements->GetNumberOfCells(); i < numCells; ++i)
   {
-    const unsigned char& cellType = cellTypesRange[i];
+    const unsigned char& cellType = cellTypes[i];
     if (cellType == VTK_POLYHEDRON)
     {
       cellPointIDsSet.clear();
@@ -942,7 +963,7 @@ void SetMixedPolyhedralCells(
   faces->Squeeze();
   faceLocations->Squeeze();
 
-  ug->SetPolyhedralCells(cellTypes, connectivity, faceLocations, faces);
+  ug->SetPolyhedralCells(shapes, connectivity, faceLocations, faces);
 }
 
 //----------------------------------------------------------------------------
@@ -959,7 +980,7 @@ vtkSmartPointer<vtkDataSet> CreateMixedUnstructuredGrid(
     vtkConduitArrayUtilities::IsDevicePointer(connectivity.element_ptr(0), id, working);
   if (isDevicePointer && !working)
   {
-    throw std::runtime_error("Viskores does not support device" + std::to_string(id));
+    throw std::runtime_error("Viskores does not support device" + vtk::to_string(id));
   }
 
   // check presence of polyhedra
@@ -1029,7 +1050,7 @@ bool AddFieldData(vtkDataObject* output, const conduit_cpp::Node& stateFields, b
   for (conduit_index_t child_index = 0; child_index < number_of_children; ++child_index)
   {
     auto field_node = stateFields.child(child_index);
-    const auto& field_name = field_node.name();
+    const std::string& fieldName = field_node.name();
 
     try
     {
@@ -1052,12 +1073,12 @@ bool AddFieldData(vtkDataObject* output, const conduit_cpp::Node& stateFields, b
           stringArray->SetNumberOfTuples(1);
           stringArray->SetValue(0, field_node.as_string().c_str());
           dataArray = stringArray;
-          dataArray->SetName(field_name.c_str());
+          dataArray->SetName(fieldName.c_str());
         }
         else
         {
           dataArray = vtkConduitArrayUtilities::MCArrayToVTKArray(
-            conduit_cpp::c_node(&field_node), field_name);
+            conduit_cpp::c_node(&field_node), fieldName);
         }
 
         if (dataArray)
@@ -1075,7 +1096,7 @@ bool AddFieldData(vtkDataObject* output, const conduit_cpp::Node& stateFields, b
           }
         }
 
-        if ((field_name == "time" || field_name == "TimeValue") && field_node.dtype().is_number())
+        if ((fieldName == "time" || fieldName == "TimeValue") && field_node.dtype().is_number())
         {
           // let's also set DATA_TIME_STEP.
           output->GetInformation()->Set(vtkDataObject::DATA_TIME_STEP(), field_node.to_float64());
@@ -1084,7 +1105,7 @@ bool AddFieldData(vtkDataObject* output, const conduit_cpp::Node& stateFields, b
     }
     catch (std::exception& e)
     {
-      vtkLogF(ERROR, "failed to process '../state/fields/%s'.", field_name.c_str());
+      vtkLogF(ERROR, "failed to process '../state/fields/%s'.", fieldName.c_str());
       vtkLogF(ERROR, "ERROR: \n%s\n", e.what());
       return false;
     }
@@ -1124,9 +1145,9 @@ vtkSmartPointer<vtkPoints> CreatePoints(const conduit_cpp::Node& coords)
 void SetPolyhedralCells(
   vtkUnstructuredGrid* grid, vtkCellArray* elements, vtkCellArray* subelements)
 {
-  vtkNew<vtkUnsignedCharArray> cellTypes;
+  vtkNew<vtkConstantUnsignedCharArray> cellTypes;
   cellTypes->SetNumberOfTuples(elements->GetNumberOfCells());
-  cellTypes->FillValue(static_cast<unsigned char>(VTK_POLYHEDRON));
+  cellTypes->ConstructBackend(VTK_POLYHEDRON);
   SetMixedPolyhedralCells(grid, cellTypes, elements, subelements);
 }
 
@@ -1151,7 +1172,7 @@ vtkIdType GetNumberOfPointsInCellType(int vtk_cell_type)
     case VTK_HEXAHEDRON:
       return 8;
     default:
-      throw std::runtime_error("unsupported cell type " + std::to_string(vtk_cell_type));
+      throw std::runtime_error("unsupported cell type " + vtk::to_string(vtk_cell_type));
   }
 }
 

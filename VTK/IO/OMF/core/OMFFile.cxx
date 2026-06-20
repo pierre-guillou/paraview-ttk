@@ -8,6 +8,7 @@
 #include "vtkDataArray.h"
 #include "vtkDoubleArray.h"
 #include "vtkImageData.h"
+#include "vtkMemoryResourceStream.h"
 #include "vtkPNGReader.h"
 #include "vtkTypeInt64Array.h"
 #include "vtkUnsignedCharArray.h"
@@ -270,7 +271,7 @@ vtkSmartPointer<vtkDataArray> OMFFile::ReadArrayFromStream(
   this->Impl->ZStream.next_in = reinterpret_cast<unsigned char*>(compressedData);
   this->Impl->ZStream.avail_in = length;
 
-  vtkSmartPointer<vtkDataArray> array = nullptr;
+  vtkSmartPointer<vtkDataArray> array;
   // Looking through OMF code base, it seems these are the only possible data types
   if (dtype == "<f8")
   {
@@ -292,8 +293,8 @@ vtkSmartPointer<vtkDataArray> OMFFile::ReadArrayFromStream(
   }
 
   detail::DecompressToDataArrayWorker worker;
-  using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::AllTypes>;
-
+  using Dispatcher =
+    vtkArrayDispatch::DispatchByArray<vtkTypeList::Create<vtkDoubleArray, vtkTypeInt64Array>>;
   if (!Dispatcher::Execute(array, worker, &this->Impl->ZStream, numComponents))
   {
     vtkGenericWarningMacro(<< "ArrayDispatch failed");
@@ -336,17 +337,12 @@ vtkSmartPointer<vtkImageData> OMFFile::ReadPNGFromStream(const Json::Value& json
 
   vtkNew<vtkUnsignedCharArray> array;
   detail::DecompressToDataArrayWorker worker;
-  using arrayTypeList = vtkTypeList::Create<unsigned char>;
-  using Dispatcher = vtkArrayDispatch::DispatchByValueType<arrayTypeList>;
-
-  if (!Dispatcher::Execute(array, worker, &this->Impl->ZStream, 1))
-  {
-    vtkGenericWarningMacro(<< "ArrayDispatch failed");
-  }
+  worker(array.GetPointer(), &this->Impl->ZStream, 1);
 
   vtkNew<vtkPNGReader> reader;
-  reader->SetMemoryBuffer(array->GetVoidPointer(0));
-  reader->SetMemoryBufferLength(array->GetSize());
+  vtkNew<vtkMemoryResourceStream> stream;
+  stream->SetBuffer(array->GetPointer(0), array->GetDataSize());
+  reader->SetStream(stream);
   reader->Update();
   vtkNew<vtkImageData> data;
   data->ShallowCopy(reader->GetOutput());

@@ -521,10 +521,9 @@ def setattr(proxy, pname, value):
             raise NotSupportedException(
                 "'FlipTextures' is obsolete.  Use 'TextureTransform' property of representation instead.")
 
-
-    # 5.13 -> 6.0 HyperTreeGridAxisReflection replaced by AxisAlignedReflectionFilter
+    # 5.13 -> 6.0 HyperTreeGridAxisReflection replaced by AxisAlignedReflect
     # PlaneNormal and PlanePosition have been replaced by a vtkPlane 'ReflectionPlane'
-    if proxy.SMProxy and proxy.SMProxy.GetXMLName() in ("HyperTreeGridAxisReflection", "AxisAlignedReflectionFilter"):
+    if proxy.SMProxy and proxy.SMProxy.GetXMLName() in ("HyperTreeGridAxisReflection", "AxisAlignedReflect"):
         if pname == "PlaneNormal":
             if compatibility_version < (6, 0):
                 if type(value).__name__ == 'str':
@@ -549,9 +548,9 @@ def setattr(proxy, pname, value):
             else:
                 raise NotSupportedException("'PlanePosition' property has been removed in ParaView 6.0. Please use ReflectionPlane to define the plane instead.")
 
-    # 5.13 -> 6.0 Reflect replaced by AxisAlignedReflectionFilter
+    # 5.13 -> 6.0 Reflect replaced by AxisAlignedReflect
     # Plane and Center have been replaced by a vtkPlane 'ReflectionPlane'
-    if proxy.SMProxy and proxy.SMProxy.GetXMLName() in ("ReflectionFilter", "AxisAlignedReflectionFilter"):
+    if proxy.SMProxy and proxy.SMProxy.GetXMLName() in ("ReflectionFilter", "AxisAlignedReflect"):
         if pname == "Plane":
             if compatibility_version < (6, 0):
                 if type(value).__name__ == 'str':
@@ -597,6 +596,87 @@ def setattr(proxy, pname, value):
             else:
                 raise NotSupportedException("'FlipAllInputArrays' was renamed in 'ReflectAllInputArrays' since ParaView 6.0")
 
+    # 6.0 -> 6.1 vtkParticleTracerBase have been reworked
+    # Caching is now automated, DisableResetCache has been removed
+    # TerminationTime is not exposed anymore
+    if pname == "DisableResetCache" and proxy.SMProxy.GetXMLName() in ["LegacyStreakLine", "StreakLine"]:
+        if compatibility_version <= (6, 0):
+            return
+        else:
+            raise NotSupportedException(
+                "%s now automates caching, simply remove DisableResetCache usages." % proxy.SMProxy.GetXMLName())
+    if pname == "TerminationTime" and proxy.SMProxy.GetXMLName() == "ParticlePath":
+        if compatibility_version <= (6, 0):
+            return
+        else:
+            raise NotSupportedException(
+                "ParticlePath does not support setting TerminationTime anymore, simply remove it.")
+    # DataExtent has been replaced by Dimensions
+    if pname == "DataExtent" and proxy.SMProxy.GetXMLName() == "ImageReader":
+        if compatibility_version <= (6, 0):
+            if isinstance(value, (list, tuple)) and len(value) == 6:
+                minIdx = [value[0], value[2], value[4]]
+                dimensions = [value[1] - value[0] + 1, value[3] - value[2] + 1, 0]
+                if int(proxy.GetProperty("FileDimensionality").GetData()) > 2:
+                    dimensions[2] = value[5] - value[4] + 1
+                proxy.GetProperty("MinimumIndex").SetData(minIdx)
+                proxy.GetProperty("Dimensions").SetData(dimensions)
+                return Continue()
+            else:
+                raise RuntimeError("This property requires 6 values.")
+        else:
+            raise NotSupportedException("'DataExtent' has been removed in ParaView 6.1. Please use the "
+                                        "'Dimensions' property to define the sizes of each dimension in "
+                                        "the image data instead.")
+    # WholeExtent has been replaced by Dimensions
+    if pname == "WholeExtent" and proxy.SMProxy.GetXMLName() == "TableToStructuredGrid":
+        if compatibility_version <= (6, 0):
+            if isinstance(value, (list, tuple)) and len(value) == 6:
+                minIdx = [value[0], value[2], value[4]]
+                dimensions = [value[1] - value[0] + 1, value[3] - value[2] + 1, value[5] - value[4] + 1]
+                proxy.GetProperty("MinimumIndex").SetData(minIdx)
+                proxy.GetProperty("Dimensions").SetData(dimensions)
+                return Continue()
+            else:
+                raise RuntimeError("This property requires 6 values.")
+        else:
+            raise NotSupportedException("'WholeExtent' has been removed in ParaView 6.1. Please use the "
+                                        "'Dimensions' property to define the sizes of each dimension in "
+                                        "the grid data instead.")
+
+    chart_proxies = ["ImageChartRepresentation", "XYChartRepresentationBase", "XYChartRepresentation",
+                     "XYPointChartRepresentation", "XYBarChartRepresentation", "QuartileChartRepresentation",
+                     "ParallelCoordinatesRepresentation", "BoxChartRepresentation", "PlotMatrixRepresentation",
+                     "BagPlotMatrixRepresentation", "XYBagChartRepresentation", "XYFunctionalBagChartRepresentation"]
+    if pname == "CompositeDataSetIndex" and proxy.SMProxy.GetXMLName() in chart_proxies:
+        if compatibility_version <= (6, 0):
+            selectors = ["//*[@cid='%s']" % cid for cid in value]
+            return proxy.GetProperty("BlockSelectors").SetData(selectors)
+        else:
+            raise NotSupportedException("Since ParaView 6.1, chart representations no longer "
+                                        "supports 'CompositeDataSetIndex' and it has been replaced by "
+                                        "'BlockSelectors'.")
+
+    if pname == "ReadGlobalFields" and proxy.SMProxy.GetXMLName() in ["IOSSReader", "IOSSCellGridReader"]:
+        if compatibility_version <= (6, 0):
+            globalFields = proxy.GetProperty("GlobalFields")
+            newGlobalFieldValues = []
+            for i in range(0, len(globalFields), 2):
+                newGlobalFieldValues.append(globalFields[i])
+                newGlobalFieldValues.append(str(value))
+            return globalFields.SetData(newGlobalFieldValues)
+        else:
+            raise NotSupportedException("Since ParaView 6.1, IOSSReader no longer "
+                                        "supports 'ReadGlobalFields' and it has been replaced by "
+                                        "'GlobalFields'.")
+
+    if pname == "EmbedParaViewState" and proxy.SMProxy.GetXMLName() == "SaveScreenshot":
+        if compatibility_version <= (6, 0):
+            proxy.GetProperty("Format").GetProperty("EmbedParaViewState").SetData(value)
+        else:
+            raise NotSupportedException("Since ParaView 6.1, SaveScreenshot no longer "
+                                        "supports 'EmbedParaViewState' and it has been replaced by "
+                                        "'Format.EmbedParaViewState'.")
 
     if not hasattr(proxy, pname):
         raise AttributeError()
@@ -1173,9 +1253,9 @@ def getattr(proxy, pname):
             else:
                 raise NotSupportedException("'PolarTicksVisibility' was renamed in 'AllTicksVisibility' since ParaView 6.0")
 
-    # 5.13 -> 6.0 HyperTreeGridAxisReflection replaced by AxisAlignedReflectionFilter
+    # 5.13 -> 6.0 HyperTreeGridAxisReflection replaced by AxisAlignedReflect
     # PlaneNormal and PlanePosition have been replaced by a vtkPlane 'ReflectionPlane'
-    if proxy.SMProxy and proxy.SMProxy.GetXMLName() in ("HyperTreeGridAxisReflection", "AxisAlignedReflectionFilter"):
+    if proxy.SMProxy and proxy.SMProxy.GetXMLName() in ("HyperTreeGridAxisReflection", "AxisAlignedReflect"):
         if pname == "PlaneNormal":
             if compatibility_version < (6, 0):
                 normal = proxy.GetProperty("ReflectionPlane").GetData().Normal
@@ -1200,9 +1280,9 @@ def getattr(proxy, pname):
             else:
                 raise NotSupportedException("'PlanePosition' property has been removed in ParaView 6.0. Please use ReflectionPlane to define the plane instead.")
 
-    # 5.13 -> 6.0 Reflect replaced by AxisAlignedReflectionFilter
+    # 5.13 -> 6.0 Reflect replaced by AxisAlignedReflect
     # Plane and Center have been replaced by a vtkPlane 'ReflectionPlane'
-    if proxy.SMProxy and proxy.SMProxy.GetXMLName() in ("ReflectionFilter", "AxisAlignedReflectionFilter"):
+    if proxy.SMProxy and proxy.SMProxy.GetXMLName() in ("ReflectionFilter", "AxisAlignedReflect"):
         if pname == "Plane":
             if compatibility_version < (6, 0):
                 planeMode = proxy.PlaneMode
@@ -1236,6 +1316,67 @@ def getattr(proxy, pname):
                 return proxy.GetProperty("ReflectAllInputArrays").GetData()
             else:
                 raise NotSupportedException("'FlipAllInputArrays' was renamed in 'ReflectAllInputArrays' since ParaView 6.0")
+
+    # 6.0 -> 6.1 onwards chart representations cannot provide a value for CompositeDataSetIndex
+    chart_proxies = ["ImageChartRepresentation", "XYChartRepresentationBase", "XYChartRepresentation",
+                     "XYPointChartRepresentation", "XYBarChartRepresentation", "QuartileChartRepresentation",
+                     "ParallelCoordinatesRepresentation", "BoxChartRepresentation", "PlotMatrixRepresentation",
+                     "BagPlotMatrixRepresentation", "XYBagChartRepresentation", "XYFunctionalBagChartRepresentation"]
+    if pname == "CompositeDataSetIndex" and proxy.SMProxy.GetXMLName() in chart_proxies:
+        if compatibility_version < (6, 1):
+            return []
+        else:
+            raise NotSupportedException(
+                "Since ParaView 6.1, chart representations no longer "
+                "supports 'CompositeDataSetIndex' and it has been replaced by "
+                "'BlockSelectors'.")
+    # 6.0 -> 6.1 onwards DataExtent has been replaced by Dimensions
+    if pname == "DataExtent" and proxy.SMProxy.GetXMLName() == "ImageReader":
+        if compatibility_version < (6, 1):
+            dataSize = proxy.GetProperty("Dimensions").GetData()
+            minIdxs = proxy.GetProperty("MinimumIndex").GetData()
+            return [
+                minIdxs[0], minIdxs[0] + max(dataSize[0] - 1, 0),
+                minIdxs[1], minIdxs[1] + max(dataSize[1] - 1, 0),
+                minIdxs[2], minIdxs[2] + max(dataSize[2] - 1, 0)
+            ]
+        else:
+            raise NotSupportedException("'DataExtent' has been removed in ParaView 6.1. Please use the "
+                                        "'Dimensions' property to get the sizes of each dimension in "
+                                        "the image data instead.")
+    # 6.0 -> 6.1 onwards WholeExtent has been replaced by Dimensions
+    if pname == "WholeExtent" and proxy.SMProxy.GetXMLName() == "TableToStructuredGrid":
+        if compatibility_version < (6, 1):
+            dataSize = proxy.GetProperty("Dimensions").GetData()
+            minIdxs = proxy.GetProperty("MinimumIndex").GetData()
+            return [
+                minIdxs[0], minIdxs[0] + max(dataSize[0] - 1, 0),
+                minIdxs[1], minIdxs[1] + max(dataSize[1] - 1, 0),
+                minIdxs[2], minIdxs[2] + max(dataSize[2] - 1, 0)
+            ]
+        else:
+            raise NotSupportedException("'WholeExtent' has been removed in ParaView 6.1. Please use the "
+                                        "'Dimensions' property to get the sizes of each dimension in "
+                                        "the grid data instead.")
+
+    if pname == "ReadGlobalFields" and proxy.SMProxy.GetXMLName() in ["IOSSReader", "IOSSCellGridReader"]:
+        if compatibility_version < (6, 1):
+            globalFields = proxy.GetProperty("GlobalFields")
+            for i in range(1, len(globalFields), 2):
+                if globalFields[i] is not str(1):
+                    return 0
+            return 1
+        else:
+            raise NotSupportedException("'ReadGlobalFields' property has been removed in ParaView 6.1. Please use the "
+                                        "'GlobalFields' property to get/set the list of global fields to read instead.")
+
+    if pname == "EmbedParaViewState" and proxy.SMProxy.GetXMLName() == "SaveScreenshot":
+        if compatibility_version < (6, 1):
+            return proxy.GetProperty("Format").GetProperty("EmbedParaViewState").GetData()
+        else:
+            raise NotSupportedException(
+                "'EmbedParaViewState' property has been removed in ParaView 6.1. Please use the "
+                "'Format.EmbedParaViewState' property to get/set the EmbedParaViewState instead.")
 
     raise Continue()
 
@@ -1301,6 +1442,25 @@ def GetProxy(module, key, **kwargs):
             reader.Createcelltopointfiltereddata = 0
             return reader
 
+    if compatibility_version <= (6, 0):
+        chart_proxies = ["ImageChartRepresentation", "XYChartRepresentationBase", "XYChartRepresentation",
+                         "XYPointChartRepresentation", "XYBarChartRepresentation", "QuartileChartRepresentation",
+                         "ParallelCoordinatesRepresentation", "BoxChartRepresentation", "PlotMatrixRepresentation",
+                         "XYFunctionalBagChartRepresentation"]
+        if key in chart_proxies:
+            charRepresentation = builtins.getattr(module, key)(**kwargs)
+            if key == "XYFunctionalBagChartRepresentation":
+                charRepresentation.ArraySelectionMode = 1
+            else:
+                charRepresentation.ArraySelectionMode = 0
+            return charRepresentation
+        if key in ["IOSSReader", "IOSSCellGridReader"]:
+            # in PV 6.1 we changed the default for IOSSReader's ReadAllFilesToDetermineStructure
+            # property to 0 instead of 1.
+            ioss_reader = builtins.getattr(module, key)(**kwargs)
+            ioss_reader.ReadAllFilesToDetermineStructure = 1
+            return ioss_reader
+
     # deprecation case
     if type(key) == tuple and len(key) == 2:
         proxy = builtins.getattr(module, key[1])(**kwargs)
@@ -1343,9 +1503,9 @@ def get_deprecated_proxies(proxiesNS):
         proxies[proxiesNS.filters] += [("HyperTreeGridCellCenters", "CellCenters")]
         proxies[proxiesNS.filters] += [("HyperTreeGridFeatureEdgesFilter", "FeatureEdges")]
         proxies[proxiesNS.filters] += [("HyperTreeGridGhostCellsGenerator", "GhostCells")]
-        proxies[proxiesNS.filters] += [("HyperTreeGridAxisReflection", "AxisAlignedReflectionFilter")]
+        proxies[proxiesNS.filters] += [("HyperTreeGridAxisReflection", "AxisAlignedReflect")]
         proxies[proxiesNS.filters] += [("ProcessIdScalars", "ProcessIds")]
-        proxies[proxiesNS.filters] += [("Reflect", "AxisAlignedReflectionFilter")]
+        proxies[proxiesNS.filters] += [("Reflect", "AxisAlignedReflect")]
         proxies[proxiesNS.filters] += [("HyperTreeGridVisibleLeavesSize", "HyperTreeGridGenerateFields")]
 
     return proxies
@@ -1379,5 +1539,45 @@ def lookupTableUpdate(lutName):
             lutName = nameChanges[lutName]
         except:
             pass
+    if compatibility_version <= (6, 0):
+        # In 6.1, the string "(matplotlib)" was removed from some color preset names
+        nameChanges = {
+            "Inferno (matplotlib)": "Inferno",
+            "Viridis (matplotlib)": "Viridis",
+            "Magma (matplotlib)": "Magma",
+            "Plasma (matplotlib)": "Plasma"
+        }
+        try:
+            lutName = nameChanges[lutName]
+        except:
+            pass
 
     return lutName, reverseLut
+
+
+def handle_legacy_view_creation(view_xml_name, view, controller):
+    """
+    Provide backwards compatibility for view creation
+    """
+    if paraview.compatibility.GetVersion() <= (5, 6):
+        # older versions automatically assigned view to a
+        # layout.
+        controller.AssignViewToLayout(view)
+
+    if paraview.compatibility.GetVersion() <= (5, 9):
+        if hasattr(view, "UseColorPaletteForBackground"):
+            view.UseColorPaletteForBackground = 0
+
+    if paraview.compatibility.GetVersion() <= (6, 0):
+        # default font size of axis labels was changed from 18 to 14 in 6.1
+        chart_view_proxies = ["XYBagChartView", "XYFunctionalBagChartView", "XYChartViewBase",
+                              "XYChartViewBase4Axes", "XYChartView", "XYPointChartView",
+                              "QuartileChartView", "XYBarChartView", "XYHistogramChartView",
+                              "ImageChartView"]
+        if view_xml_name in chart_view_proxies:
+            view.LeftAxisTitleFontSize = 18
+            view.BottomAxisTitleFontSize = 18
+            view.RightAxisTitleFontSize = 18
+            view.TopAxisTitleFontSize = 18
+
+    return view

@@ -8,7 +8,6 @@
 #include "vtkCellPicker.h"
 #include "vtkConeSource.h"
 #include "vtkFollower.h"
-#include "vtkInteractorObserver.h"
 #include "vtkLine.h"
 #include "vtkLineSource.h"
 #include "vtkMath.h"
@@ -20,6 +19,7 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
 #include "vtkSphereSource.h"
+#include "vtkStringFormatter.h"
 #include "vtkVector.h"
 #include "vtkVectorText.h"
 #include "vtkWindow.h"
@@ -30,6 +30,13 @@ VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLineRepresentation);
 
 vtkCxxSetObjectMacro(vtkLineRepresentation, HandleRepresentation, vtkPointHandleRepresentation3D);
+
+vtkCxxSetObjectMacro(vtkLineRepresentation, EndPointProperty, vtkProperty);
+vtkCxxSetObjectMacro(vtkLineRepresentation, SelectedEndPointProperty, vtkProperty);
+vtkCxxSetObjectMacro(vtkLineRepresentation, EndPoint2Property, vtkProperty);
+vtkCxxSetObjectMacro(vtkLineRepresentation, SelectedEndPoint2Property, vtkProperty);
+vtkCxxSetObjectMacro(vtkLineRepresentation, LineProperty, vtkProperty);
+vtkCxxSetObjectMacro(vtkLineRepresentation, SelectedLineProperty, vtkProperty);
 
 //------------------------------------------------------------------------------
 vtkLineRepresentation::vtkLineRepresentation()
@@ -83,12 +90,7 @@ vtkLineRepresentation::vtkLineRepresentation()
   this->CreateDefaultProperties();
 
   // Pass the initial properties to the actors.
-  this->Handle[0]->SetProperty(this->EndPointProperty);
-  this->Point1Representation->SetProperty(this->EndPointProperty);
-  this->Handle[1]->SetProperty(this->EndPoint2Property);
-  this->Point2Representation->SetProperty(this->EndPoint2Property);
-  this->LineHandleRepresentation->SetProperty(this->EndPointProperty);
-  this->LineActor->SetProperty(this->LineProperty);
+  this->UpdatePointAndLineProperties();
 
   // Define the point coordinates
   double bounds[6];
@@ -103,8 +105,9 @@ vtkLineRepresentation::vtkLineRepresentation()
   // The distance text annotation
   this->DistanceAnnotationVisibility = 0;
   this->Distance = 0.0;
-  this->DistanceAnnotationFormat = new char[8];
-  snprintf(this->DistanceAnnotationFormat, 8, "%s", "%-#6.3g");
+  this->DistanceAnnotationFormat = new char[10];
+  auto result = vtk::format_to_n(this->DistanceAnnotationFormat, 10, "{:s}", "{:<#6.3g}");
+  *result.out = '\0';
   this->TextInput = vtkVectorText::New();
   this->TextInput->SetText("0");
   this->TextMapper = vtkPolyDataMapper::New();
@@ -606,37 +609,6 @@ void vtkLineRepresentation::SetRepresentationState(int state)
 
   this->RepresentationState = state;
   this->Modified();
-
-  if (state == vtkLineRepresentation::Outside)
-  {
-    this->HighlightPoint(0, 0);
-    this->HighlightPoint(1, 0);
-    this->HighlightLine(0);
-  }
-  else if (state == vtkLineRepresentation::OnP1)
-  {
-    this->HighlightPoint(0, 1);
-    this->HighlightPoint(1, 0);
-    this->HighlightLine(0);
-  }
-  else if (state == vtkLineRepresentation::OnP2)
-  {
-    this->HighlightPoint(0, 0);
-    this->HighlightPoint(1, 1);
-    this->HighlightLine(0);
-  }
-  else if (state == vtkLineRepresentation::OnLine)
-  {
-    this->HighlightPoint(0, 0);
-    this->HighlightPoint(1, 0);
-    this->HighlightLine(1);
-  }
-  else
-  {
-    this->HighlightPoint(0, 1);
-    this->HighlightPoint(1, 1);
-    this->HighlightLine(1);
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -699,6 +671,41 @@ void vtkLineRepresentation::SizeHandles()
 }
 
 //------------------------------------------------------------------------------
+void vtkLineRepresentation::UpdatePointAndLineProperties()
+{
+  if (this->RepresentationState == vtkLineRepresentation::Outside)
+  {
+    this->HighlightPoint(0, 0);
+    this->HighlightPoint(1, 0);
+    this->HighlightLine(0);
+  }
+  else if (this->RepresentationState == vtkLineRepresentation::OnP1)
+  {
+    this->HighlightPoint(0, 1);
+    this->HighlightPoint(1, 0);
+    this->HighlightLine(0);
+  }
+  else if (this->RepresentationState == vtkLineRepresentation::OnP2)
+  {
+    this->HighlightPoint(0, 0);
+    this->HighlightPoint(1, 1);
+    this->HighlightLine(0);
+  }
+  else if (this->RepresentationState == vtkLineRepresentation::OnLine)
+  {
+    this->HighlightPoint(0, 0);
+    this->HighlightPoint(1, 0);
+    this->HighlightLine(1);
+  }
+  else
+  {
+    this->HighlightPoint(0, 1);
+    this->HighlightPoint(1, 1);
+    this->HighlightLine(1);
+  }
+}
+
+//------------------------------------------------------------------------------
 void vtkLineRepresentation::BuildRepresentation()
 {
   // Rebuild only if necessary
@@ -710,6 +717,7 @@ void vtkLineRepresentation::BuildRepresentation()
       (this->Renderer->GetVTKWindow()->GetMTime() > this->BuildTime ||
         this->Renderer->GetActiveCamera()->GetMTime() > this->BuildTime)))
   {
+    this->UpdatePointAndLineProperties();
     if (!this->InitializedDisplayPosition && this->Renderer)
     {
       this->SetPoint1WorldPosition(this->LineSource->GetPoint1());
@@ -748,9 +756,11 @@ void vtkLineRepresentation::BuildRepresentation()
 
     // Place the DistanceAnnotation right in between the two points.
     double x[3] = { (x1[0] + x2[0]) / 2.0, (x1[1] + x2[1]) / 2.0, (x1[2] + x2[2]) / 2.0 };
-    char string[512];
-    snprintf(string, sizeof(string), this->DistanceAnnotationFormat, this->Distance);
-    this->TextInput->SetText(string);
+    std::string distanceAnnotationFormat =
+      this->DistanceAnnotationFormat ? vtk::to_std_format(this->DistanceAnnotationFormat) : "";
+    std::string string;
+    VTK_FORMAT_IF_ERROR_RETURN(string = vtk::format(distanceAnnotationFormat, this->Distance), );
+    this->TextInput->SetText(string.c_str());
     this->TextActor->SetPosition(x);
     if (this->Renderer)
     {
@@ -855,14 +865,8 @@ void vtkLineRepresentation::ClampPosition(double x[3])
 {
   for (int i = 0; i < 3; i++)
   {
-    if (x[i] < this->InitialBounds[2 * i])
-    {
-      x[i] = this->InitialBounds[2 * i];
-    }
-    if (x[i] > this->InitialBounds[2 * i + 1])
-    {
-      x[i] = this->InitialBounds[2 * i + 1];
-    }
+    x[i] = std::max(x[i], this->InitialBounds[2 * i]);
+    x[i] = std::min(x[i], this->InitialBounds[2 * i + 1]);
   }
 }
 

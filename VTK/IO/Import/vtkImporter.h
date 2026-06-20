@@ -34,7 +34,9 @@
 #define vtkImporter_h
 
 #include "vtkDataAssembly.h"   // for vtkDataAssembly
+#include "vtkDeprecation.h"    // For VTK_DEPRECATED_IN_9_6_0
 #include "vtkIOImportModule.h" // For export macro
+#include "vtkResourceStream.h" // For Stream
 #include "vtkSmartPointer.h"   // for vtkSmartPointer
 
 #include "vtkObject.h"
@@ -57,6 +59,24 @@ class VTKIOIMPORT_EXPORT vtkImporter : public vtkObject
 public:
   vtkTypeMacro(vtkImporter, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  ///@{
+  /**
+   * Specify file name of the file to read
+   */
+  vtkSetFilePathMacro(FileName);
+  vtkGetFilePathMacro(FileName);
+  ///@}
+
+  ///@{
+  /**
+   * Specify stream to read from
+   * When both `Stream` and `Filename` are set, it's left to the implementation to determine which
+   * one is used. If both are not set, importer outputs nothing.
+   */
+  vtkSetSmartPointerMacro(Stream, vtkResourceStream);
+  vtkGetSmartPointerMacro(Stream, vtkResourceStream);
+  ///@}
 
   ///@{
   /**
@@ -105,12 +125,6 @@ public:
    */
   VTK_UNBLOCKTHREADS
   bool Update();
-
-  /**
-   * Import the actors, cameras, lights and properties into a vtkRenderWindow
-   */
-  VTK_DEPRECATED_IN_9_4_0("This method is deprecated, please use Update instead")
-  void Read() { this->Update(); };
 
   /**
    * Recover a printable string that let importer implementation
@@ -181,6 +195,7 @@ public:
   virtual void SetCamera(vtkIdType vtkNotUsed(camIndex)) {}
 
   /**
+   * DEPRECATED, use the version without framerate
    * Get temporal information for the provided animationIndex and frameRate.
    * This implementation return false, but concrete class implementation
    * behavior is as follows.
@@ -190,25 +205,64 @@ public:
    * If animation is present and frameRate > 0, nbTimeSteps and timeSteps should also be set, return
    * true. If animation is not present, return false.
    */
+  VTK_DEPRECATED_IN_9_6_0("Use GetTemporalInformation without framerate parameter instead.")
   virtual bool GetTemporalInformation(vtkIdType animationIndex, double frameRate, int& nbTimeSteps,
     double timeRange[2], vtkDoubleArray* timeSteps);
 
   /**
-   * Import the actors, camera, lights and properties at a specific time value.
+   * Get temporal information for the provided animationIndex.
+   * This implementation return false, but concrete class implementation
+   * behavior is as follows.
+   * If animation is present in the dataset, timeRange should be set by this method and if this
+   * importer support time steps (aka KeyFrames), nbTimeSteps and timeSteps should also be set,
+   * return true. If animation is not present, return false.
    */
-  VTK_DEPRECATED_IN_9_4_0("This method is deprecated, please use UpdateAtTimeValue instead")
-  virtual void UpdateTimeStep(double timeValue);
+  virtual bool GetTemporalInformation(
+    vtkIdType animationIndex, double timeRange[2], int& nbTimeSteps, vtkDoubleArray* timeSteps);
 
   /**
    * Import the actors, camera, lights and properties at a specific time value.
    * Returns if successful or not.
-   * If not reimplemented, only call Update() and return its output.
+   * If not reimplemented, returns true.
    */
-  virtual bool UpdateAtTimeValue(double timeValue);
+  virtual bool UpdateAtTimeValue(double vtkNotUsed(timeValue)) { return true; };
+
+  enum class InterpolateAnimationSupportLevel : unsigned char
+  {
+    NEVER,
+    CAPABLE,
+    ALWAYS,
+  };
+
+  /**
+   * Get the level of animation interpolation support, this is coming either
+   * from the file format or as a limitation of the implementation.
+   * NEVER: There is no support for interpolation, updating at a time which is not a timestep will
+   * just provide previous time step CAPABLE: This importer can interpolate between time steps,
+   * using InterpolateBetweenTimeSteps to control the behavior ALWAYS: This importer always
+   * interpolate between time steps because this format doesn't define time steps
+   *
+   * In this base implementation, this method returns NEVER.
+   */
+  virtual InterpolateAnimationSupportLevel GetInterpolateAnimationSupportLevel()
+  {
+    return InterpolateAnimationSupportLevel::NEVER;
+  }
+
+  ///@{
+  /**
+   * Enable/Disable time steps interpolation.
+   * Default is true.
+   */
+  vtkSetMacro(InterpolateBetweenTimeSteps, bool);
+  vtkGetMacro(InterpolateBetweenTimeSteps, bool);
+  vtkBooleanMacro(InterpolateBetweenTimeSteps, bool);
+  ///@}
 
   ///@{
   /**
    * Enable/Disable armature actors import if supported.
+   * Default is false.
    */
   vtkSetMacro(ImportArmature, bool);
   vtkGetMacro(ImportArmature, bool);
@@ -268,8 +322,12 @@ private:
 
   bool SetAndCheckUpdateStatus();
 
+  char* FileName = nullptr;
+  vtkSmartPointer<vtkResourceStream> Stream;
+
   UpdateStatusEnum UpdateStatus = UpdateStatusEnum::SUCCESS;
   bool ImportArmature = false;
+  bool InterpolateBetweenTimeSteps = true;
 };
 
 VTK_ABI_NAMESPACE_END

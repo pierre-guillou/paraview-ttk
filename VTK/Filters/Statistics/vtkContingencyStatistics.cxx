@@ -11,16 +11,16 @@
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkLongArray.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkObjectFactory.h"
+#include "vtkStatisticalModel.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 #include "vtkVariantArray.h"
 
+#include <iostream>
 #include <map>
-#include <vector>
-
 #include <sstream>
+#include <vector>
 
 typedef std::map<std::string, vtkIdType> StringCounts;
 typedef std::map<vtkIdType, double> Entropies;
@@ -240,13 +240,13 @@ public:
 
       if (key < 0 || key >= nRowSumm)
       {
-        cerr << "Inconsistent input: dictionary does not have a row " << key
-             << ". Cannot derive model." << endl;
+        std::cerr << "Inconsistent input: dictionary does not have a row " << key
+                  << ". Cannot derive model.\n";
         return;
       }
 
-      std::string c1 = varX->GetValue(key);
-      std::string c2 = varY->GetValue(key);
+      const auto& c1 = varX->GetValue(key);
+      const auto& c2 = varY->GetValue(key);
 
       if (marginalToPair.find(c1) == marginalToPair.end())
       {
@@ -296,8 +296,8 @@ public:
     {
       if (iit->second != n)
       {
-        cerr << "Inconsistent input: variable pairs do not have equal cardinalities: " << iit->first
-             << " != " << n << ". Cannot derive model." << endl;
+        std::cerr << "Inconsistent input: variable pairs do not have equal cardinalities: "
+                  << iit->first << " != " << n << ". Cannot derive model.\n";
         return;
       }
     }
@@ -307,12 +307,14 @@ public:
   }
 
   // ----------------------------------------------------------------------
-  void ComputePDFs(vtkMultiBlockDataSet* inMeta, vtkTable* contingencyTab)
+  void ComputePDFs(
+    vtkStatisticalModel* inMeta, vtkTable* contingencyTab, vtkContingencyStatistics* self)
   {
+    (void)self;
     // Resize output meta so marginal PDF tables can be appended
-    unsigned int nBlocks = inMeta->GetNumberOfBlocks();
-    inMeta->SetNumberOfBlocks(nBlocks + static_cast<unsigned int>(marginalCounts.size()));
-
+    int nParts = inMeta->GetNumberOfTables(vtkStatisticalModel::Derived);
+    inMeta->SetNumberOfTables(
+      vtkStatisticalModel::Derived, nParts + static_cast<int>(marginalCounts.size()));
     // Rows of the marginal PDF tables contain:
     // 0: variable value
     // 1: marginal cardinality
@@ -321,15 +323,15 @@ public:
     row->SetNumberOfValues(3);
     vtkType* array = vtkType::New();
 
-    // Add marginal PDF tables as new blocks to the meta output starting at block nBlock
-    // NB: block nBlock is kept for information entropy
+    // Add marginal PDF tables as new partitions to the meta output starting at partition nParts
+    // NB: partition nParts is kept for information entropy
     double n = contingencyTab->GetValueByName(0, "Cardinality").ToDouble();
     double inv_n = 1. / n;
 
     marginalPDFs.clear();
 
     for (typename std::map<std::string, Counts>::iterator sit = marginalCounts.begin();
-         sit != marginalCounts.end(); ++sit, ++nBlocks)
+         sit != marginalCounts.end(); ++sit, ++nParts)
     {
       vtkTable* marginalTab = vtkTable::New();
 
@@ -368,9 +370,8 @@ public:
         marginalTab->InsertNextRow(row);
       }
 
-      // Add marginal PDF block
-      inMeta->GetMetaData(nBlocks)->Set(vtkCompositeDataSet::NAME(), sit->first.c_str());
-      inMeta->SetBlock(nBlocks, marginalTab);
+      // Add marginal PDF partition
+      inMeta->SetTable(vtkStatisticalModel::Derived, nParts, marginalTab, sit->first);
 
       // Clean up
       marginalTab->Delete();
@@ -406,8 +407,8 @@ public:
       vtkIdType key = keys->GetValue(r);
 
       // Get values
-      std::string c1 = varX->GetValue(key);
-      std::string c2 = varY->GetValue(key);
+      const auto& c1 = varX->GetValue(key);
+      const auto& c2 = varY->GetValue(key);
 
       // Get primary statistics for (c1,c2) pair
       Tuple x(dataX->GetNumberOfComponents());
@@ -619,13 +620,13 @@ public:
 
       if (key < 0 || key >= nRowSumm)
       {
-        cerr << "Inconsistent input: dictionary does not have a row " << key
-             << ". Cannot derive model." << endl;
+        std::cerr << "Inconsistent input: dictionary does not have a row " << key
+                  << ". Cannot derive model.\n";
         return;
       }
 
-      std::string c1 = varX->GetValue(key);
-      std::string c2 = varY->GetValue(key);
+      const auto& c1 = varX->GetValue(key);
+      const auto& c2 = varY->GetValue(key);
 
       if (marginalToPair.find(c1) == marginalToPair.end())
       {
@@ -665,8 +666,8 @@ public:
     {
       if (iit->second != n)
       {
-        cerr << "Inconsistent input: variable pairs do not have equal cardinalities: " << iit->first
-             << " != " << n << ". Cannot derive model." << endl;
+        std::cerr << "Inconsistent input: variable pairs do not have equal cardinalities: "
+                  << iit->first << " != " << n << ". Cannot derive model.\n";
         return;
       }
     }
@@ -676,11 +677,14 @@ public:
   }
 
   // ----------------------------------------------------------------------
-  void ComputePDFs(vtkMultiBlockDataSet* inMeta, vtkTable* contingencyTab)
+  void ComputePDFs(
+    vtkStatisticalModel* inMeta, vtkTable* contingencyTab, vtkContingencyStatistics* self)
   {
+    (void)self;
     // Resize output meta so marginal PDF tables can be appended
-    unsigned int nBlocks = inMeta->GetNumberOfBlocks();
-    inMeta->SetNumberOfBlocks(nBlocks + static_cast<unsigned int>(marginalCounts.size()));
+    int nParts = inMeta->GetNumberOfTables(vtkStatisticalModel::Derived);
+    inMeta->SetNumberOfTables(
+      vtkStatisticalModel::Derived, nParts + static_cast<int>(marginalCounts.size()));
 
     // Rows of the marginal PDF tables contain:
     // 0: variable value
@@ -689,15 +693,15 @@ public:
     vtkVariantArray* row = vtkVariantArray::New();
     row->SetNumberOfValues(3);
 
-    // Add marginal PDF tables as new blocks to the meta output starting at block nBlock
-    // NB: block nBlock is kept for information entropy
+    // Add marginal PDF tables as new partitions to the meta output starting at partition nParts
+    // NB: partition nParts is kept for information entropy
     double n = contingencyTab->GetValueByName(0, "Cardinality").ToDouble();
     double inv_n = 1. / n;
 
     marginalPDFs.clear();
 
     for (std::map<vtkStdString, Counts>::iterator sit = marginalCounts.begin();
-         sit != marginalCounts.end(); ++sit, ++nBlocks)
+         sit != marginalCounts.end(); ++sit, ++nParts)
     {
       vtkTable* marginalTab = vtkTable::New();
 
@@ -730,9 +734,12 @@ public:
         marginalTab->InsertNextRow(row);
       }
 
-      // Add marginal PDF block
-      inMeta->GetMetaData(nBlocks)->Set(vtkCompositeDataSet::NAME(), sit->first.c_str());
-      inMeta->SetBlock(nBlocks, marginalTab);
+      // Add marginal PDF partition
+      inMeta->SetTable(vtkStatisticalModel::Derived, nParts, marginalTab, sit->first);
+      /*
+      self->InsertOrReplaceModelTable(inMeta, "statistics", "contingency", "learned", nParts,
+        {{ "type", "marginal"}, { "variable", sit->first }});
+        */
 
       // Clean up
       marginalTab->Delete();
@@ -767,8 +774,8 @@ public:
       vtkIdType key = keys->GetValue(r);
 
       // Get values
-      std::string c1 = varX->GetValue(key);
-      std::string c2 = varY->GetValue(key);
+      const auto& c1 = varX->GetValue(key);
+      const auto& c2 = varY->GetValue(key);
 
       // Get primary statistics for (c1,c2) pair
       Tuple x = dataX->GetValue(r);
@@ -913,7 +920,7 @@ void vtkContingencyStatistics::PrintSelf(ostream& os, vtkIndent indent)
 
 //------------------------------------------------------------------------------
 void vtkContingencyStatistics::Learn(
-  vtkTable* inData, vtkTable* vtkNotUsed(inParameters), vtkMultiBlockDataSet* outMeta)
+  vtkTable* inData, vtkTable* vtkNotUsed(inParameters), vtkStatisticalModel* outMeta)
 {
   if (!inData)
   {
@@ -924,6 +931,9 @@ void vtkContingencyStatistics::Learn(
   {
     return;
   }
+
+  outMeta->Initialize();
+  outMeta->SetAlgorithmParameters(this->GetAlgorithmParameters());
 
   typedef enum
   {
@@ -1104,13 +1114,13 @@ void vtkContingencyStatistics::Learn(
     }
   }
 
-  // Finally set blocks of the output meta port
-  outMeta->SetNumberOfBlocks(2);
-  outMeta->GetMetaData(static_cast<unsigned>(0))->Set(vtkCompositeDataSet::NAME(), "Summary");
-  outMeta->SetBlock(0, summaryTab);
-  outMeta->GetMetaData(static_cast<unsigned>(1))
-    ->Set(vtkCompositeDataSet::NAME(), "Contingency Table");
-  outMeta->SetBlock(1, contingencyTab);
+  // Finally set partitions of the output meta port
+  outMeta->SetNumberOfTables(vtkStatisticalModel::Learned, 2);
+  outMeta->SetTable(vtkStatisticalModel::Learned, 0, summaryTab, "Summary");
+  // {{ "name", "Summary" }, { "type", "summary" }});
+  outMeta->SetTable(vtkStatisticalModel::Learned, 1, contingencyTab, "Contingency Table");
+  // {{ "name", "Contingency Table" }, { "type", "contingency_table" }});
+  outMeta->SetAlgorithmParameters(this->GetAlgorithmParameters());
 
   // Clean up
   summaryTab->Delete();
@@ -1119,21 +1129,16 @@ void vtkContingencyStatistics::Learn(
 }
 
 //------------------------------------------------------------------------------
-void vtkContingencyStatistics::Derive(vtkMultiBlockDataSet* inMeta)
+void vtkContingencyStatistics::Derive(vtkStatisticalModel* inMeta)
 {
-  if (!inMeta || inMeta->GetNumberOfBlocks() < 2)
+  if (!inMeta || inMeta->GetNumberOfTables(vtkStatisticalModel::Learned) < 2)
   {
     return;
   }
 
-  vtkTable* summaryTab = vtkTable::SafeDownCast(inMeta->GetBlock(0));
-  if (!summaryTab)
-  {
-    return;
-  }
-
-  vtkTable* contingencyTab = vtkTable::SafeDownCast(inMeta->GetBlock(1));
-  if (!contingencyTab)
+  vtkTable* summaryTab = inMeta->GetTable(vtkStatisticalModel::Learned, 0);
+  vtkTable* contingencyTab = inMeta->GetTable(vtkStatisticalModel::Learned, 1);
+  if (!summaryTab || !contingencyTab)
   {
     return;
   }
@@ -1216,7 +1221,7 @@ void vtkContingencyStatistics::Derive(vtkMultiBlockDataSet* inMeta)
   {
     ContingencyImpl<vtkStdString, vtkStringArray> impl;
     impl.ComputeMarginals(keys, varX, varY, valsX, valsY, card, contingencyTab);
-    impl.ComputePDFs(inMeta, contingencyTab);
+    impl.ComputePDFs(inMeta, contingencyTab, this);
     impl.ComputeDerivedValues(keys, varX, varY, valsX, valsY, card, contingencyTab,
       derivedCols.data(), nDerivedVals, entropies.data(), nEntropy);
   }
@@ -1224,7 +1229,7 @@ void vtkContingencyStatistics::Derive(vtkMultiBlockDataSet* inMeta)
   {
     ContingencyImpl<double, vtkDoubleArray> impl;
     impl.ComputeMarginals(keys, varX, varY, valsX, valsY, card, contingencyTab);
-    impl.ComputePDFs(inMeta, contingencyTab);
+    impl.ComputePDFs(inMeta, contingencyTab, this);
     impl.ComputeDerivedValues(keys, varX, varY, valsX, valsY, card, contingencyTab,
       derivedCols.data(), nDerivedVals, entropies.data(), nEntropy);
   }
@@ -1232,7 +1237,7 @@ void vtkContingencyStatistics::Derive(vtkMultiBlockDataSet* inMeta)
   {
     ContingencyImpl<long, vtkLongArray> impl;
     impl.ComputeMarginals(keys, varX, varY, valsX, valsY, card, contingencyTab);
-    impl.ComputePDFs(inMeta, contingencyTab);
+    impl.ComputePDFs(inMeta, contingencyTab, this);
     impl.ComputeDerivedValues(keys, varX, varY, valsX, valsY, card, contingencyTab,
       derivedCols.data(), nDerivedVals, entropies.data(), nEntropy);
   }
@@ -1250,7 +1255,7 @@ void vtkContingencyStatistics::Derive(vtkMultiBlockDataSet* inMeta)
 
 //------------------------------------------------------------------------------
 void vtkContingencyStatistics::Assess(
-  vtkTable* inData, vtkMultiBlockDataSet* inMeta, vtkTable* outData)
+  vtkTable* inData, vtkStatisticalModel* inMeta, vtkTable* outData)
 {
   if (!inData)
   {
@@ -1262,7 +1267,7 @@ void vtkContingencyStatistics::Assess(
     return;
   }
 
-  vtkTable* summaryTab = vtkTable::SafeDownCast(inMeta->GetBlock(0));
+  vtkTable* summaryTab = inMeta->GetTable(vtkStatisticalModel::Learned, 0);
   if (!summaryTab)
   {
     return;
@@ -1405,20 +1410,20 @@ void vtkContingencyStatistics::CalculatePValues(vtkTable* testTab)
 
 //------------------------------------------------------------------------------
 void vtkContingencyStatistics::Test(
-  vtkTable* inData, vtkMultiBlockDataSet* inMeta, vtkTable* outMeta)
+  vtkTable* inData, vtkStatisticalModel* inMeta, vtkTable* outMeta)
 {
   if (!inMeta)
   {
     return;
   }
 
-  vtkTable* summaryTab = vtkTable::SafeDownCast(inMeta->GetBlock(0));
+  vtkTable* summaryTab = inMeta->GetTable(vtkStatisticalModel::Learned, 0);
   if (!summaryTab)
   {
     return;
   }
 
-  vtkTable* contingencyTab = vtkTable::SafeDownCast(inMeta->GetBlock(1));
+  vtkTable* contingencyTab = inMeta->GetTable(vtkStatisticalModel::Learned, 1);
   if (!contingencyTab)
   {
     return;
@@ -1548,9 +1553,10 @@ void vtkContingencyStatistics::Test(
     // Now search for relevant marginal counts
     StringCounts ek[2];
     int foundCount = 0;
-    for (unsigned int b = 2; b < inMeta->GetNumberOfBlocks() && foundCount < 2; ++b)
+    int nb = inMeta->GetNumberOfTables(vtkStatisticalModel::Derived);
+    for (int b = 0; b < nb && foundCount < 2; ++b)
     {
-      const char* name = inMeta->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
+      auto name = inMeta->GetTableName(vtkStatisticalModel::Derived, b);
       int foundIndex = -1;
       if (name == varNameX)
       {
@@ -1568,10 +1574,11 @@ void vtkContingencyStatistics::Test(
       if (foundIndex > -1)
       {
         // One relevant PDF was found
-        vtkTable* marginalTab = vtkTable::SafeDownCast(inMeta->GetBlock(b));
+        vtkTable* marginalTab = inMeta->GetTable(vtkStatisticalModel::Derived, b);
 
         // Downcast columns to appropriate arrays for efficient data access
-        vtkStringArray* vals = vtkArrayDownCast<vtkStringArray>(marginalTab->GetColumnByName(name));
+        vtkStringArray* vals =
+          vtkArrayDownCast<vtkStringArray>(marginalTab->GetColumnByName(name.c_str()));
         vtkIdTypeArray* marg =
           vtkArrayDownCast<vtkIdTypeArray>(marginalTab->GetColumnByName("Cardinality"));
 
@@ -1664,18 +1671,19 @@ void vtkContingencyStatistics::SelectAssessFunctor(vtkTable* vtkNotUsed(outData)
 }
 
 //------------------------------------------------------------------------------
-void vtkContingencyStatistics::SelectAssessFunctor(vtkTable* outData, vtkMultiBlockDataSet* inMeta,
+void vtkContingencyStatistics::SelectAssessFunctor(vtkTable* outData, vtkStatisticalModel* inMeta,
   vtkIdType pairKey, vtkStringArray* rowNames, AssessFunctor*& dfunc)
 {
   dfunc = nullptr;
-  vtkTable* contingencyTab = vtkTable::SafeDownCast(inMeta->GetBlock(1));
+  vtkTable* contingencyTab =
+    inMeta->FindTableByName(vtkStatisticalModel::Learned, "Contingency Table");
   if (!contingencyTab)
   {
     return;
   }
 
-  std::string varNameX = rowNames->GetValue(0);
-  std::string varNameY = rowNames->GetValue(1);
+  const auto& varNameX = rowNames->GetValue(0);
+  const auto& varNameY = rowNames->GetValue(1);
 
   // Grab the data for the requested variables
   vtkAbstractArray* valsX = outData->GetColumnByName(varNameX.c_str());

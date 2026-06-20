@@ -51,22 +51,22 @@ int TestArrayAPI(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
     sample_values.emplace_back(static_cast<unsigned char>(2));
     sample_values.emplace_back(static_cast<short>(3));
     sample_values.emplace_back(static_cast<unsigned short>(4));
-    sample_values.emplace_back(static_cast<int>(5));
+    sample_values.emplace_back(5);
     sample_values.emplace_back(static_cast<unsigned int>(6));
     sample_values.emplace_back(static_cast<long>(7));
     sample_values.emplace_back(static_cast<unsigned long>(8));
-    sample_values.emplace_back(static_cast<double>(9.0));
+    sample_values.emplace_back(9.0);
     sample_values.emplace_back(static_cast<vtkIdType>(10));
     sample_values.emplace_back(vtkStdString("11"));
-    sample_values.emplace_back(12.0);
+    sample_values.emplace_back(12.0f);
 
     for (std::vector<int>::const_iterator storage_type = storage_types.begin();
          storage_type != storage_types.end(); ++storage_type)
     {
       for (size_t value_type = 0; value_type != value_types.size(); ++value_type)
       {
-        cerr << "creating array with storage type " << *storage_type << " and value type "
-             << vtkImageScalarTypeNameMacro(value_types[value_type]) << endl;
+        std::cerr << "creating array with storage type " << *storage_type << " and value type "
+                  << vtkImageScalarTypeNameMacro(value_types[value_type]) << std::endl;
 
         array.TakeReference(vtkArray::CreateArray(*storage_type, value_types[value_type]));
         test_expression(array);
@@ -93,7 +93,7 @@ int TestArrayAPI(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   }
   catch (std::exception& e)
   {
-    cerr << e.what() << endl;
+    std::cerr << e.what() << std::endl;
     return 1;
   }
 }

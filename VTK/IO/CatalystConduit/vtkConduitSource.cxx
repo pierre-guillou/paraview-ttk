@@ -10,6 +10,7 @@
 #include "vtkInformationVector.h"
 #include "vtkLogger.h"
 #include "vtkMultiBlockDataSet.h"
+#include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOverlappingAMR.h"
@@ -118,7 +119,7 @@ bool vtkConduitSource::GeneratePartitionedDataSet(vtkDataObject* output)
   vtkNew<vtkPartitionedDataSet> pd_output;
   if (!vtkConduitToDataObject::FillPartitionedDataSet(pd_output, this->Internals->Node))
   {
-    vtkLogF(ERROR, "Failed reading mesh from '%s'", this->Internals->Node.name().c_str());
+    vtkLogF(ERROR, "Failed to read mesh from '%s'", this->Internals->Node.name().c_str());
     output->Initialize();
     return false;
   }
@@ -222,10 +223,19 @@ bool vtkConduitSource::GeneratePartitionedDataSetCollection(vtkDataObject* outpu
 int vtkConduitSource::RequestDataObject(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
-  const int dataType = this->OutputMultiBlock ? VTK_MULTIBLOCK_DATA_SET
-    : this->UseMultiMeshProtocol              ? VTK_PARTITIONED_DATA_SET_COLLECTION
-    : this->UseAMRMeshProtocol                ? VTK_OVERLAPPING_AMR
-                                              : VTK_PARTITIONED_DATA_SET;
+  int dataType = VTK_PARTITIONED_DATA_SET; // default
+  if (this->OutputMultiBlock)
+  {
+    dataType = VTK_MULTIBLOCK_DATA_SET;
+  }
+  else if (this->UseMultiMeshProtocol)
+  {
+    dataType = VTK_PARTITIONED_DATA_SET_COLLECTION;
+  }
+  else if (this->UseAMRMeshProtocol)
+  {
+    dataType = VTK_OVERLAPPING_AMR;
+  }
 
   return this->SetOutputDataObject(dataType, outputVector->GetInformationObject(0), /*exact=*/true)
     ? 1
@@ -253,9 +263,20 @@ int vtkConduitSource::RequestData(
     dataGenerated = this->GeneratePartitionedDataSet(real_output);
   }
 
-  if (!dataGenerated)
+  // Check wether all ranks successfully generated the data. If at least one rank failed, we need to
+  // return 0 on every nodes to prevent code hanging in the pipeline.
+  vtkMultiProcessController* controller = vtkMultiProcessController::GetGlobalController();
+  std::vector<int> allDataGenerationResults(controller->GetNumberOfProcesses());
+  int dataGenerationLocalResult = dataGenerated;
+  controller->AllGather(&dataGenerationLocalResult, allDataGenerationResults.data(), 1);
+
+  for (size_t nodeIdx = 0; nodeIdx < allDataGenerationResults.size(); nodeIdx++)
   {
-    return 0;
+    if (!allDataGenerationResults[nodeIdx])
+    {
+      vtkLogF(ERROR, "Data generation failure on process %lu", nodeIdx);
+      return 0;
+    }
   }
 
   if (this->OutputMultiBlock)

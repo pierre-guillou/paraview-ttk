@@ -23,11 +23,14 @@
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper2D.h"
 #include "vtkProperty2D.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextActor.h"
 #include "vtkTextMapper.h"
 #include "vtkTextProperty.h"
 #include "vtkTrivialProducer.h"
 #include "vtkViewport.h"
+
+#include <algorithm>
 
 #define VTK_MAX_PLOTS 50
 
@@ -64,7 +67,8 @@ vtkXYPlotActor::vtkXYPlotActor()
 
   this->Title = nullptr;
   this->XTitle = new char[7];
-  snprintf(this->XTitle, 7, "%s", "X Axis");
+  auto result = vtk::format_to_n(this->XTitle, 7, "{:s}", "X Axis");
+  *result.out = '\0';
 
   this->YTitleActor = vtkTextActor::New();
   this->YTitleActor->SetInput("Y Axis");
@@ -97,11 +101,13 @@ vtkXYPlotActor::vtkXYPlotActor()
   this->AxisTitleTextProperty->SetShadow(1);
   this->AxisTitleTextProperty->SetFontFamilyToArial();
 
-  this->XLabelFormat = new char[8];
-  snprintf(this->XLabelFormat, 8, "%s", "%-#6.3g");
+  this->XLabelFormat = new char[10];
+  result = vtk::format_to_n(this->XLabelFormat, 10, "{:s}", "{:<#6.3g}");
+  *result.out = '\0';
 
-  this->YLabelFormat = new char[8];
-  snprintf(this->YLabelFormat, 8, "%s", "%-#6.3g");
+  this->YLabelFormat = new char[10];
+  result = vtk::format_to_n(this->YLabelFormat, 10, "{:s}", "{:<#6.3g}");
+  *result.out = '\0';
 
   this->Logx = 0;
 
@@ -124,12 +130,10 @@ vtkXYPlotActor::vtkXYPlotActor()
   this->TitleActor->SetMapper(this->TitleMapper);
   this->TitleActor->GetPositionCoordinate()->SetCoordinateSystemToViewport();
 
-  this->XAxis = vtkAxisActor2D::New();
   this->XAxis->GetPositionCoordinate()->SetCoordinateSystemToViewport();
   this->XAxis->GetPosition2Coordinate()->SetCoordinateSystemToViewport();
   this->XAxis->SetProperty(this->GetProperty());
 
-  this->YAxis = vtkAxisActor2D::New();
   this->YAxis->GetPositionCoordinate()->SetCoordinateSystemToViewport();
   this->YAxis->GetPosition2Coordinate()->SetCoordinateSystemToViewport();
   this->YAxis->SetProperty(this->GetProperty());
@@ -169,7 +173,6 @@ vtkXYPlotActor::vtkXYPlotActor()
   this->LegendPosition[1] = .75;
   this->LegendPosition2[0] = .15;
   this->LegendPosition2[1] = .20;
-  this->LegendActor = vtkLegendBoxActor::New();
   this->LegendActor->GetPositionCoordinate()->SetCoordinateSystemToViewport();
   this->LegendActor->GetPosition2Coordinate()->SetCoordinateSystemToViewport();
   this->LegendActor->GetPosition2Coordinate()->SetReferenceCoordinate(nullptr);
@@ -301,12 +304,8 @@ vtkXYPlotActor::~vtkXYPlotActor()
   this->SetXLabelFormat(nullptr);
   this->SetYLabelFormat(nullptr);
 
-  this->XAxis->Delete();
-  this->YAxis->Delete();
-
   this->InitializeEntries();
 
-  this->LegendActor->Delete();
   this->GlyphSource->Delete();
   this->ClipPlanes->Delete();
 
@@ -727,10 +726,7 @@ int vtkXYPlotActor::RenderOpaqueGeometry(vtkViewport* viewport)
       alg->Update(portIdx);
       dobj = alg->GetOutputDataObject(portIdx);
       dsMtime = dobj->GetMTime();
-      if (dsMtime > mtime)
-      {
-        mtime = dsMtime;
-      }
+      mtime = std::max(dsMtime, mtime);
     }
   }
   else if (numDO > 0)
@@ -745,10 +741,7 @@ int vtkXYPlotActor::RenderOpaqueGeometry(vtkViewport* viewport)
       alg->Update(portIdx);
       dobj = alg->GetOutputDataObject(portIdx);
       dsMtime = dobj->GetMTime();
-      if (dsMtime > mtime)
-      {
-        mtime = dsMtime;
-      }
+      mtime = std::max(dsMtime, mtime);
     }
   }
   else
@@ -806,7 +799,9 @@ int vtkXYPlotActor::RenderOpaqueGeometry(vtkViewport* viewport)
         if (!this->LegendActor->GetEntryString(i))
         {
           char legendString[18];
-          snprintf(legendString, sizeof(legendString), "%s%d", "Curve ", i);
+          auto result =
+            vtk::format_to_n(legendString, sizeof(legendString), "{:s}{:d}", "Curve ", i);
+          *result.out = '\0';
           this->LegendActor->SetEntryString(i, legendString);
         }
       }
@@ -1295,10 +1290,7 @@ vtkMTimeType vtkXYPlotActor::GetMTime()
   if (this->Legend)
   {
     mtime2 = this->LegendActor->GetMTime();
-    if (mtime2 > mtime)
-    {
-      mtime = mtime2;
-    }
+    mtime = std::max(mtime2, mtime);
   }
 
   return mtime;
@@ -1482,14 +1474,8 @@ void vtkXYPlotActor::ComputeXRange(double range[2], double* lengths)
           case VTK_XYPLOT_VALUE:
             if (this->GetLogx() == 0)
             {
-              if (x[this->XComponent->GetValue(dsNum)] < range[0])
-              {
-                range[0] = x[this->XComponent->GetValue(dsNum)];
-              }
-              if (x[this->XComponent->GetValue(dsNum)] > range[1])
-              {
-                range[1] = x[this->XComponent->GetValue(dsNum)];
-              }
+              range[0] = std::min(x[this->XComponent->GetValue(dsNum)], range[0]);
+              range[1] = std::max(x[this->XComponent->GetValue(dsNum)], range[1]);
             }
             else
             {
@@ -1513,18 +1499,12 @@ void vtkXYPlotActor::ComputeXRange(double range[2], double* lengths)
             xPrev[2] = x[2];
         }
       } // for all points
-      if (lengths[dsNum] > maxLength)
-      {
-        maxLength = lengths[dsNum];
-      }
+      maxLength = std::max(lengths[dsNum], maxLength);
     } // if need to visit all points
 
     else // if ( this->XValues == VTK_XYPLOT_INDEX )
     {
-      if (numPts > maxNum)
-      {
-        maxNum = numPts;
-      }
+      maxNum = std::max(numPts, maxNum);
     }
   } // over all datasets
 
@@ -1596,15 +1576,9 @@ void vtkXYPlotActor::ComputeYRange(double range[2])
     }
 
     scalars->GetRange(sRange, component);
-    if (sRange[0] < range[0])
-    {
-      range[0] = sRange[0];
-    }
+    range[0] = std::min(sRange[0], range[0]);
 
-    if (sRange[1] > range[1])
-    {
-      range[1] = sRange[1];
-    }
+    range[1] = std::max(sRange[1], range[1]);
   } // over all datasets
 }
 
@@ -1669,10 +1643,7 @@ void vtkXYPlotActor::ComputeDORange(double xrange[2], double yrange[2], double* 
         continue;
       }
       numTuples = array->GetNumberOfTuples();
-      if (numTuples < numRows)
-      {
-        numRows = numTuples;
-      }
+      numRows = std::min(numTuples, numRows);
     }
 
     num = (this->DataObjectPlotMode == VTK_XYPLOT_ROW ? numColumns : numRows);
@@ -1709,14 +1680,8 @@ void vtkXYPlotActor::ComputeDORange(double xrange[2], double yrange[2], double* 
           case VTK_XYPLOT_VALUE:
             if (this->GetLogx() == 0)
             {
-              if (x < xrange[0])
-              {
-                xrange[0] = x;
-              }
-              if (x > xrange[1])
-              {
-                xrange[1] = x;
-              }
+              xrange[0] = std::min(x, xrange[0]);
+              xrange[1] = std::max(x, xrange[1]);
             }
             else // ensure positive values
             {
@@ -1735,18 +1700,12 @@ void vtkXYPlotActor::ComputeDORange(double xrange[2], double yrange[2], double* 
             xPrev = x;
         }
       } // for all points
-      if (lengths[doNum] > maxLength)
-      {
-        maxLength = lengths[doNum];
-      }
+      maxLength = std::max(lengths[doNum], maxLength);
     } // if all data has to be visited
 
     else // if ( this->XValues == VTK_XYPLOT_INDEX )
     {
-      if (num > maxNum)
-      {
-        maxNum = num;
-      }
+      maxNum = std::max(num, maxNum);
     }
 
     // Get the y-values
@@ -1769,14 +1728,8 @@ void vtkXYPlotActor::ComputeDORange(double xrange[2], double yrange[2], double* 
         // skip.
         continue;
       }
-      if (y < yrange[0])
-      {
-        yrange[0] = y;
-      }
-      if (y > yrange[1])
-      {
-        yrange[1] = y;
-      }
+      yrange[0] = std::min(y, yrange[0]);
+      yrange[1] = std::max(y, yrange[1]);
     } // over all y values
   }   // over all dataobjects
 
@@ -2019,10 +1972,7 @@ void vtkXYPlotActor::CreatePlotData(
           continue;
         }
         numTuples = array->GetNumberOfTuples();
-        if (numTuples < numRows)
-        {
-          numRows = numTuples;
-        }
+        numRows = std::min(numTuples, numRows);
       }
 
       pts = this->PlotData[doNum]->GetPoints();
@@ -2232,16 +2182,19 @@ void vtkXYPlotActor::PlaceAxes(vtkViewport* viewport, const int* size, int pos[2
   // Calculate string length from YTitleActor,
   //  + 1 for the case where there is only one character
   //  + 1 for the final \0
-  int len = int((strlen(YTitleActor->GetInput()) + 1) * .5) + 1;
+  int len = int((strlen(this->YTitleActor->GetInput()) + 1) * .5) + 1;
   char* tmp = new char[len];
   switch (this->YTitlePosition)
   {
     case VTK_XYPLOT_Y_AXIS_TOP:
-      snprintf(tmp, len, "%s", YTitleActor->GetInput());
+    {
+      auto result = vtk::format_to_n(tmp, len, "{:s}", this->YTitleActor->GetInput());
+      *result.out = '\0';
       textMapper->SetInput(tmp);
-      break;
+    }
+    break;
     case VTK_XYPLOT_Y_AXIS_HCENTER:
-      textMapper->SetInput(YTitleActor->GetInput());
+      textMapper->SetInput(this->YTitleActor->GetInput());
       break;
     case VTK_XYPLOT_Y_AXIS_VCENTER:
       // Create a dummy title to ensure that the added YTitleActor is visible
@@ -2258,8 +2211,14 @@ void vtkXYPlotActor::PlaceAxes(vtkViewport* viewport, const int* size, int pos[2
   // At this point the thing to do would be to actually ask the Y axis
   // actor to return the largest label.
   // In the meantime, let's try with the min and max
-  snprintf(str1, sizeof(str1), axisY->GetLabelFormat(), axisY->GetAdjustedRange()[0]);
-  snprintf(str2, sizeof(str2), axisY->GetLabelFormat(), axisY->GetAdjustedRange()[1]);
+  std::string axisYLabelFormat =
+    axisY->GetLabelFormat() ? vtk::to_std_format(axisY->GetLabelFormat()) : "";
+  VTK_FORMAT_IF_ERROR_RETURN(auto result = vtk::format_to_n(
+                               str1, sizeof(str1), axisYLabelFormat, axisY->GetAdjustedRange()[0]);
+                             *result.out = '\0', );
+  VTK_FORMAT_IF_ERROR_RETURN(auto result = vtk::format_to_n(
+                               str2, sizeof(str2), axisYLabelFormat, axisY->GetAdjustedRange()[1]);
+                             *result.out = '\0', );
   tprop->ShallowCopy(axisY->GetLabelTextProperty());
   textMapper->SetInput(strlen(str1) > strlen(str2) ? str1 : str2);
   vtkTextMapper::SetRelativeFontSize(
@@ -2267,7 +2226,11 @@ void vtkXYPlotActor::PlaceAxes(vtkViewport* viewport, const int* size, int pos[2
 
   // We do only care of the height of the label in the X axis, so let's
   // use the min for example
-  snprintf(str1, sizeof(str1), axisX->GetLabelFormat(), axisX->GetAdjustedRange()[0]);
+  std::string axisXLabelFormat =
+    axisX->GetLabelFormat() ? vtk::to_std_format(axisX->GetLabelFormat()) : "";
+  VTK_FORMAT_IF_ERROR_RETURN(auto result = vtk::format_to_n(
+                               str1, sizeof(str1), axisXLabelFormat, axisX->GetAdjustedRange()[0]);
+                             *result.out = '\0', );
   tprop->ShallowCopy(axisX->GetLabelTextProperty());
   textMapper->SetInput(str1);
   vtkTextMapper::SetRelativeFontSize(
@@ -2378,7 +2341,7 @@ int vtkXYPlotActor::IsInPlot(vtkViewport* viewport, double u, double v)
 //------------------------------------------------------------------------------
 void vtkXYPlotActor::SetPlotLines(int i, int isOn)
 {
-  i = (i < 0 ? 0 : (i >= VTK_MAX_PLOTS ? VTK_MAX_PLOTS - 1 : i));
+  i = std::min(std::max(i, 0), VTK_MAX_PLOTS - 1);
   int val = this->LinesOn->GetValue(i);
   if (val != isOn)
   {
@@ -2390,14 +2353,14 @@ void vtkXYPlotActor::SetPlotLines(int i, int isOn)
 //------------------------------------------------------------------------------
 int vtkXYPlotActor::GetPlotLines(int i)
 {
-  i = (i < 0 ? 0 : (i >= VTK_MAX_PLOTS ? VTK_MAX_PLOTS - 1 : i));
+  i = std::min(std::max(i, 0), VTK_MAX_PLOTS - 1);
   return this->LinesOn->GetValue(i);
 }
 
 //------------------------------------------------------------------------------
 void vtkXYPlotActor::SetPlotPoints(int i, int isOn)
 {
-  i = (i < 0 ? 0 : (i >= VTK_MAX_PLOTS ? VTK_MAX_PLOTS - 1 : i));
+  i = std::min(std::max(i, 0), VTK_MAX_PLOTS - 1);
   int val = this->PointsOn->GetValue(i);
   if (val != isOn)
   {
@@ -2409,7 +2372,7 @@ void vtkXYPlotActor::SetPlotPoints(int i, int isOn)
 //------------------------------------------------------------------------------
 int vtkXYPlotActor::GetPlotPoints(int i)
 {
-  i = (i < 0 ? 0 : (i >= VTK_MAX_PLOTS ? VTK_MAX_PLOTS - 1 : i));
+  i = std::min(std::max(i, 0), VTK_MAX_PLOTS - 1);
   return this->PointsOn->GetValue(i);
 }
 
@@ -2628,7 +2591,7 @@ void vtkXYPlotActor::ClipPlotData(int* pos, int* pos2, vtkPolyData* pd)
 //------------------------------------------------------------------------------
 void vtkXYPlotActor::SetDataObjectXComponent(int i, int comp)
 {
-  i = (i < 0 ? 0 : (i >= VTK_MAX_PLOTS ? VTK_MAX_PLOTS - 1 : i));
+  i = std::min(std::max(i, 0), VTK_MAX_PLOTS - 1);
   int val = this->XComponent->GetValue(i);
   if (val != comp)
   {
@@ -2640,14 +2603,14 @@ void vtkXYPlotActor::SetDataObjectXComponent(int i, int comp)
 //------------------------------------------------------------------------------
 int vtkXYPlotActor::GetDataObjectXComponent(int i)
 {
-  i = (i < 0 ? 0 : (i >= VTK_MAX_PLOTS ? VTK_MAX_PLOTS - 1 : i));
+  i = std::min(std::max(i, 0), VTK_MAX_PLOTS - 1);
   return this->XComponent->GetValue(i);
 }
 
 //------------------------------------------------------------------------------
 void vtkXYPlotActor::SetDataObjectYComponent(int i, int comp)
 {
-  i = (i < 0 ? 0 : (i >= VTK_MAX_PLOTS ? VTK_MAX_PLOTS - 1 : i));
+  i = std::min(std::max(i, 0), VTK_MAX_PLOTS - 1);
   int val = this->YComponent->GetValue(i);
   if (val != comp)
   {
@@ -2659,14 +2622,14 @@ void vtkXYPlotActor::SetDataObjectYComponent(int i, int comp)
 //------------------------------------------------------------------------------
 int vtkXYPlotActor::GetDataObjectYComponent(int i)
 {
-  i = (i < 0 ? 0 : (i >= VTK_MAX_PLOTS ? VTK_MAX_PLOTS - 1 : i));
+  i = std::min(std::max(i, 0), VTK_MAX_PLOTS - 1);
   return this->YComponent->GetValue(i);
 }
 
 //------------------------------------------------------------------------------
 void vtkXYPlotActor::SetPointComponent(int i, int comp)
 {
-  i = (i < 0 ? 0 : (i >= VTK_MAX_PLOTS ? VTK_MAX_PLOTS - 1 : i));
+  i = std::min(std::max(i, 0), VTK_MAX_PLOTS - 1);
   int val = this->XComponent->GetValue(i);
   if (val != comp)
   {
@@ -2678,7 +2641,7 @@ void vtkXYPlotActor::SetPointComponent(int i, int comp)
 //------------------------------------------------------------------------------
 int vtkXYPlotActor::GetPointComponent(int i)
 {
-  i = (i < 0 ? 0 : (i >= VTK_MAX_PLOTS ? VTK_MAX_PLOTS - 1 : i));
+  i = std::min(std::max(i, 0), VTK_MAX_PLOTS - 1);
   return this->XComponent->GetValue(i);
 }
 

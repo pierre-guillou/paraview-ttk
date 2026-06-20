@@ -4,6 +4,7 @@
 
 #include "vtkAbstractTransform.h"
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkDataArrayRange.h"
 #include "vtkMath.h"
 #include "vtkSMPTools.h"
@@ -106,12 +107,9 @@ void vtkImplicitFunction::FunctionValue(vtkDataArray* input, vtkDataArray* outpu
   else // pass point through transform
   {
     FunctionWorker<TransformFunction> worker(TransformFunction(this, this->Transform));
-    typedef vtkTypeList::Create<float, double> InputTypes;
-    typedef vtkTypeList::Create<float, double> OutputTypes;
-    typedef vtkArrayDispatch::Dispatch2ByValueTypeUsingArrays<vtkArrayDispatch::AllArrays,
-      InputTypes, OutputTypes>
-      MyDispatch;
-    if (!MyDispatch::Execute(input, output, worker))
+    using Dispatcher = vtkArrayDispatch::Dispatch2ByArray<vtkArrayDispatch::AllPointArrays,
+      vtkArrayDispatch::AOSPointArrays>;
+    if (!Dispatcher::Execute(input, output, worker))
     {
       worker(input, output); // Use vtkDataArray API if dispatch fails.
     }
@@ -125,12 +123,9 @@ void vtkImplicitFunction::EvaluateFunction(vtkDataArray* input, vtkDataArray* ou
   output->SetNumberOfTuples(input->GetNumberOfTuples());
 
   FunctionWorker<SimpleFunction> worker(SimpleFunction(this));
-  typedef vtkTypeList::Create<float, double> InputTypes;
-  typedef vtkTypeList::Create<float, double> OutputTypes;
-  typedef vtkArrayDispatch::Dispatch2ByValueTypeUsingArrays<vtkArrayDispatch::AllArrays, InputTypes,
-    OutputTypes>
-    MyDispatch;
-  if (!MyDispatch::Execute(input, output, worker))
+  using Dispatcher = vtkArrayDispatch::Dispatch2ByArray<vtkArrayDispatch::AllPointArrays,
+    vtkArrayDispatch::AOSPointArrays>;
+  if (!Dispatcher::Execute(input, output, worker))
   {
     worker(input, output); // Use vtkDataArray API if dispatch fails.
   }

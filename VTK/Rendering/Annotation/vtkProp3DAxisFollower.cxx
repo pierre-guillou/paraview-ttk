@@ -9,12 +9,12 @@
 #include "vtkMath.h"
 #include "vtkMatrix4x4.h"
 #include "vtkObjectFactory.h"
-#include "vtkProperty.h"
 #include "vtkTexture.h"
 #include "vtkTransform.h"
 #include "vtkViewport.h"
 
 #include <cmath>
+#include <iostream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkProp3DAxisFollower);
@@ -26,7 +26,7 @@ vtkStandardNewMacro(vtkProp3DAxisFollower);
 // Order is MINMIN, MINMAX, MAXMAX, MAXMIN
 namespace
 {
-const double AxisAlignedY[3][4][2][3] = {
+constexpr double AxisAlignedY[3][4][2][3] = {
   { { { 0.0, 1.0, 0.0 }, { 0.0, 0.0, 1.0 } }, { { 0.0, 1.0, 0.0 }, { 0.0, 0.0, -1.0 } },
     { { 0.0, -1.0, 0.0 }, { 0.0, 0.0, -1.0 } }, { { 0.0, -1.0, 0.0 }, { 0.0, 0.0, 1.0 } } },
   { { { 1.0, 0.0, 0.0 }, { 0.0, 0.0, 1.0 } }, { { 1.0, 0.0, 0.0 }, { 0.0, 0.0, -1.0 } },
@@ -381,6 +381,7 @@ void vtkProp3DAxisFollower ::ComputeRotationAndTranlation(vtkViewport* viewport,
 }
 
 //------------------------------------------------------------------------------
+// VTK_DEPRECATED_IN_9_6_0
 void vtkProp3DAxisFollower::ComputerAutoCenterTranslation(
   const double& vtkNotUsed(autoScaleFactor), double translation[3])
 {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBoundingBox.h"
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkDataArrayRange.h"
 #include "vtkMath.h"
 #include "vtkMathUtilities.h"
@@ -20,6 +21,7 @@ namespace
 {
 inline double Sign(const double& a)
 {
+  // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
   return a > 0.0 ? 1.0 : (a < 0 ? -1.0 : 0.0);
 }
 inline bool OppSign(const double& a, const double& b)
@@ -44,15 +46,8 @@ void vtkBoundingBox::AddPoint(double p[3])
   int i;
   for (i = 0; i < 3; i++)
   {
-    if (p[i] < this->MinPnt[i])
-    {
-      this->MinPnt[i] = p[i];
-    }
-
-    if (p[i] > this->MaxPnt[i])
-    {
-      this->MaxPnt[i] = p[i];
-    }
+    this->MinPnt[i] = std::min(p[i], this->MinPnt[i]);
+    this->MaxPnt[i] = std::max(p[i], this->MaxPnt[i]);
   }
 }
 
@@ -81,35 +76,12 @@ void vtkBoundingBox::AddBounds(const double bounds[6])
     return;
   }
 
-  if (bounds[0] < this->MinPnt[0])
-  {
-    this->MinPnt[0] = bounds[0];
-  }
-
-  if (bounds[1] > this->MaxPnt[0])
-  {
-    this->MaxPnt[0] = bounds[1];
-  }
-
-  if (bounds[2] < this->MinPnt[1])
-  {
-    this->MinPnt[1] = bounds[2];
-  }
-
-  if (bounds[3] > this->MaxPnt[1])
-  {
-    this->MaxPnt[1] = bounds[3];
-  }
-
-  if (bounds[4] < this->MinPnt[2])
-  {
-    this->MinPnt[2] = bounds[4];
-  }
-
-  if (bounds[5] > this->MaxPnt[2])
-  {
-    this->MaxPnt[2] = bounds[5];
-  }
+  this->MinPnt[0] = std::min(bounds[0], this->MinPnt[0]);
+  this->MaxPnt[0] = std::max(bounds[1], this->MaxPnt[0]);
+  this->MinPnt[1] = std::min(bounds[2], this->MinPnt[1]);
+  this->MaxPnt[1] = std::max(bounds[3], this->MaxPnt[1]);
+  this->MinPnt[2] = std::min(bounds[4], this->MinPnt[2]);
+  this->MaxPnt[2] = std::max(bounds[5], this->MaxPnt[2]);
 }
 
 //------------------------------------------------------------------------------
@@ -128,44 +100,26 @@ void vtkBoundingBox::SetBounds(
 void vtkBoundingBox::SetMinPoint(double x, double y, double z)
 {
   this->MinPnt[0] = x;
-  if (x > this->MaxPnt[0])
-  {
-    this->MaxPnt[0] = x;
-  }
+  this->MaxPnt[0] = std::max(x, this->MaxPnt[0]);
 
   this->MinPnt[1] = y;
-  if (y > this->MaxPnt[1])
-  {
-    this->MaxPnt[1] = y;
-  }
+  this->MaxPnt[1] = std::max(y, this->MaxPnt[1]);
 
   this->MinPnt[2] = z;
-  if (z > this->MaxPnt[2])
-  {
-    this->MaxPnt[2] = z;
-  }
+  this->MaxPnt[2] = std::max(z, this->MaxPnt[2]);
 }
 
 //------------------------------------------------------------------------------
 void vtkBoundingBox::SetMaxPoint(double x, double y, double z)
 {
   this->MaxPnt[0] = x;
-  if (x < this->MinPnt[0])
-  {
-    this->MinPnt[0] = x;
-  }
+  this->MinPnt[0] = std::min(x, this->MinPnt[0]);
 
   this->MaxPnt[1] = y;
-  if (y < this->MinPnt[1])
-  {
-    this->MinPnt[1] = y;
-  }
+  this->MinPnt[1] = std::min(y, this->MinPnt[1]);
 
   this->MaxPnt[2] = z;
-  if (z < this->MinPnt[2])
-  {
-    this->MinPnt[2] = z;
-  }
+  this->MinPnt[2] = std::min(z, this->MinPnt[2]);
 }
 
 //------------------------------------------------------------------------------
@@ -1073,12 +1027,12 @@ struct ThreadedBoundsPointUsesFunctor : public ThreadedBaseBoundsFunctor<TPoints
 
 // ---------------------------------------------------------------------------
 // Serial bounds with point ids
-template <typename TPointsArray, typename TId>
+template <typename TPointsArray, typename TIdIter>
 struct SerialBoundsPointIdsFunctor : public BaseBoundsFunctor<TPointsArray>
 {
-  const TId* PointIds;
+  const TIdIter PointIds;
 
-  SerialBoundsPointIdsFunctor(TPointsArray* pts, const TId* ptIds, double* bds)
+  SerialBoundsPointIdsFunctor(TPointsArray* pts, const TIdIter ptIds, double* bds)
     : BaseBoundsFunctor<TPointsArray>(pts, bds)
     , PointIds(ptIds)
   {
@@ -1126,12 +1080,12 @@ struct SerialBoundsPointIdsFunctor : public BaseBoundsFunctor<TPointsArray>
 
 // ---------------------------------------------------------------------------
 // Threaded bounds with point ids
-template <typename TPointsArray, typename TId>
+template <typename TPointsArray, typename TIdIter>
 struct ThreadedBoundsPointIdsFunctor : public ThreadedBaseBoundsFunctor<TPointsArray>
 {
-  const TId* PointIds;
+  const TIdIter PointIds;
 
-  ThreadedBoundsPointIdsFunctor(TPointsArray* pts, const TId* ptIds, double* bds)
+  ThreadedBoundsPointIdsFunctor(TPointsArray* pts, const TIdIter ptIds, double* bds)
     : ThreadedBaseBoundsFunctor<TPointsArray>(pts, bds)
     , PointIds(ptIds)
   {
@@ -1213,20 +1167,20 @@ struct BoundsPointUsesWorker
 // ---------------------------------------------------------------------------
 struct BoundsPointIdsWorker
 {
-  template <typename TPointsArray, typename TId>
-  void operator()(TPointsArray* pts, const TId* ptIds, TId numberOfPointsIds, double* bds)
+  template <typename TPointsArray, typename TIdIter>
+  void operator()(TPointsArray* pts, const TIdIter ptIds, vtkIdType numberOfPointsIds, double* bds)
   {
     // We use THRESHOLD to test if the data size is small enough
     // to execute the functor serially. This is faster.
     // and also potentially avoids nested multithreading which creates race conditions.
     if (numberOfPointsIds <= vtkSMPTools::THRESHOLD)
     {
-      SerialBoundsPointIdsFunctor<TPointsArray, TId> serialBds(pts, ptIds, bds);
+      SerialBoundsPointIdsFunctor<TPointsArray, TIdIter> serialBds(pts, ptIds, bds);
       serialBds(numberOfPointsIds);
     }
     else
     {
-      ThreadedBoundsPointIdsFunctor<TPointsArray, TId> threadedBds(pts, ptIds, bds);
+      ThreadedBoundsPointIdsFunctor<TPointsArray, TIdIter> threadedBds(pts, ptIds, bds);
       vtkSMPTools::For(0, numberOfPointsIds, threadedBds);
     }
   }
@@ -1237,10 +1191,8 @@ struct BoundsPointIdsWorker
 void vtkBoundingBox::ComputeBounds(vtkPoints* pts, double bounds[6])
 {
   // Compute bounds: dispatch to real types, fallback for other types.
-  using Dispatcher = vtkArrayDispatch::DispatchByValueTypeUsingArrays<vtkArrayDispatch::AllArrays,
-    vtkArrayDispatch::Reals>;
+  using Dispatcher = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
   BoundsWorker worker;
-
   if (!Dispatcher::Execute(pts->GetData(), worker, bounds))
   { // Fallback to slowpath for other point types
     worker(pts->GetData(), bounds);
@@ -1251,8 +1203,7 @@ void vtkBoundingBox::ComputeBounds(vtkPoints* pts, double bounds[6])
 void vtkBoundingBox::ComputeBounds(vtkPoints* pts, const unsigned char* ptUses, double bounds[6])
 {
   // Compute bounds: dispatch to real types, fallback for other types.
-  using Dispatcher = vtkArrayDispatch::DispatchByValueTypeUsingArrays<vtkArrayDispatch::AllArrays,
-    vtkArrayDispatch::Reals>;
+  using Dispatcher = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
   BoundsPointUsesWorker worker;
 
   if (!Dispatcher::Execute(pts->GetData(), worker, ptUses, bounds))
@@ -1266,8 +1217,7 @@ void vtkBoundingBox::ComputeBounds(
   vtkPoints* pts, const std::atomic<unsigned char>* ptUses, double bounds[6])
 {
   // Compute bounds: dispatch to real types, fallback for other types.
-  using Dispatcher = vtkArrayDispatch::DispatchByValueTypeUsingArrays<vtkArrayDispatch::AllArrays,
-    vtkArrayDispatch::Reals>;
+  using Dispatcher = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
   BoundsPointUsesWorker worker;
 
   if (!Dispatcher::Execute(pts->GetData(), worker, ptUses, bounds))
@@ -1277,12 +1227,12 @@ void vtkBoundingBox::ComputeBounds(
 }
 
 //------------------------------------------------------------------------------
+template <typename TIter>
 void vtkBoundingBox::ComputeBounds(
-  vtkPoints* pts, const long long* ptIds, long long numberOfPointsIds, double bounds[6])
+  vtkPoints* pts, const TIter ptIds, vtkIdType numberOfPointsIds, double bounds[6])
 {
   // Compute bounds: dispatch to real types, fallback for other types.
-  using Dispatcher = vtkArrayDispatch::DispatchByValueTypeUsingArrays<vtkArrayDispatch::AllArrays,
-    vtkArrayDispatch::Reals>;
+  using Dispatcher = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
   BoundsPointIdsWorker worker;
 
   if (!Dispatcher::Execute(pts->GetData(), worker, ptIds, numberOfPointsIds, bounds))
@@ -1290,36 +1240,61 @@ void vtkBoundingBox::ComputeBounds(
     worker(pts->GetData(), ptIds, numberOfPointsIds, bounds);
   }
 }
-
-//------------------------------------------------------------------------------
-void vtkBoundingBox::ComputeBounds(
-  vtkPoints* pts, const long* ptIds, long numberOfPointsIds, double bounds[6])
-{
-  // Compute bounds: dispatch to real types, fallback for other types.
-  using Dispatcher = vtkArrayDispatch::DispatchByValueTypeUsingArrays<vtkArrayDispatch::AllArrays,
-    vtkArrayDispatch::Reals>;
-  BoundsPointIdsWorker worker;
-
-  if (!Dispatcher::Execute(pts->GetData(), worker, ptIds, numberOfPointsIds, bounds))
-  { // Fallback to slowpath for other point types
-    worker(pts->GetData(), ptIds, numberOfPointsIds, bounds);
-  }
-}
-
-//------------------------------------------------------------------------------
-void vtkBoundingBox::ComputeBounds(
-  vtkPoints* pts, const int* ptIds, int numberOfPointsIds, double bounds[6])
-{
-  // Compute bounds: dispatch to real types, fallback for other types.
-  using Dispatcher = vtkArrayDispatch::DispatchByValueTypeUsingArrays<vtkArrayDispatch::AllArrays,
-    vtkArrayDispatch::Reals>;
-  BoundsPointIdsWorker worker;
-
-  if (!Dispatcher::Execute(pts->GetData(), worker, ptIds, numberOfPointsIds, bounds))
-  { // Fallback to slowpath for other point types
-    worker(pts->GetData(), ptIds, numberOfPointsIds, bounds);
-  }
-}
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, char* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, signed char* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, unsigned char* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, short* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, unsigned short* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, int* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, unsigned int* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, long* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, unsigned long* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, long long* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(
+  vtkPoints* pts, unsigned long long* ptIds, vtkIdType numberOfPointsIds, double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, char> ptIds, vtkIdType numberOfPointsIds,
+  double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, signed char> ptIds, vtkIdType numberOfPointsIds,
+  double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, unsigned char> ptIds, vtkIdType numberOfPointsIds,
+  double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, short> ptIds, vtkIdType numberOfPointsIds,
+  double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, unsigned short> ptIds, vtkIdType numberOfPointsIds,
+  double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, int> ptIds, vtkIdType numberOfPointsIds,
+  double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, unsigned int> ptIds, vtkIdType numberOfPointsIds,
+  double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, long> ptIds, vtkIdType numberOfPointsIds,
+  double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, unsigned long> ptIds, vtkIdType numberOfPointsIds,
+  double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, long long> ptIds, vtkIdType numberOfPointsIds,
+  double bounds[6]);
+template void vtkBoundingBox::ComputeBounds(vtkPoints* pts,
+  vtk::detail::ValueIterator<vtkDataArray, 1, unsigned long long> ptIds,
+  vtkIdType numberOfPointsIds, double bounds[6]);
 
 // ---------------------------------------------------------------------------
 void vtkBoundingBox::ComputeLocalBounds(

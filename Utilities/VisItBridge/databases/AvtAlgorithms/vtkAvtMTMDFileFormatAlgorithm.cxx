@@ -37,8 +37,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkDataArraySelection.h"
 
 #include "vtkAMRBox.h"
-#include "vtkHierarchicalBoxDataSet.h"
 #include "vtkMultiBlockDataSet.h"
+#include "vtkOverlappingAMR.h"
 #include "vtkPolyData.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkStructuredGrid.h"
@@ -96,7 +96,7 @@ int vtkAvtMTMDFileFormatAlgorithm::RequestData(vtkInformation *vtkNotUsed(reques
       && this->MeshArraySelection->GetNumberOfArraysEnabled() == 1)
     {
     const avtMeshMetaData meshMetaData = this->MetaData->GetMeshes( 0 );
-    vtkHierarchicalBoxDataSet *output = vtkHierarchicalBoxDataSet::
+    vtkOverlappingAMR *output = vtkOverlappingAMR::
       SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
     this->FillAMR( output, &meshMetaData, TimeIndex, 0);
     }

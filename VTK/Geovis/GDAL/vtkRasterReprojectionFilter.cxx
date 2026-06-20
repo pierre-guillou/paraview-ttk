@@ -25,6 +25,8 @@
 // STL includes
 #include <algorithm>
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRasterReprojectionFilter);
 
@@ -203,7 +205,7 @@ int vtkRasterReprojectionFilter::RequestData(vtkInformation* vtkNotUsed(request)
   GDALClose(outputGDAL);
 
   // Update pipeline output instance
-  vtkUniformGrid* output = vtkUniformGrid::GetData(outInfo);
+  vtkImageData* output = vtkImageData::GetData(outInfo);
   output->ShallowCopy(reprojectedImage);
 
   reprojectedImage->Delete();

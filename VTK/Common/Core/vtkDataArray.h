@@ -24,9 +24,8 @@
 #define vtkDataArray_h
 
 #include "vtkAbstractArray.h"
-#include "vtkCommonCoreModule.h"          // For export macro
-#include "vtkVTK_USE_SCALED_SOA_ARRAYS.h" // For #define of VTK_USE_SCALED_SOA_ARRAYS
-#include "vtkWrappingHints.h"             // For VTK_MARSHALMANUAL
+#include "vtkCommonCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"    // For VTK_MARSHALMANUAL
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
@@ -41,6 +40,8 @@ class VTKCOMMONCORE_EXPORT VTK_MARSHALMANUAL vtkDataArray : public vtkAbstractAr
 public:
   vtkTypeMacro(vtkDataArray, vtkAbstractArray);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+  using ArrayTypeTag = std::integral_constant<int, vtkArrayTypes::VTK_DATA_ARRAY>;
+  using typename vtkAbstractArray::DataTypeTag;
 
   /**
    * Perform a fast, safe cast from a vtkAbstractArray to a vtkDataArray.
@@ -324,6 +325,7 @@ public:
    */
   virtual void Fill(double value);
 
+  ///@{
   /**
    * Copy a component from one data array into a component on this data array.
    * This method copies the specified component ("srcComponent") from the
@@ -331,8 +333,13 @@ public:
    * over all the tuples in this data array.  This method can be used to extract
    * a component (column) from one data array and paste that data into
    * a component on this data array.
+   *
+   * If \a src is not vtkDataArray, this method will return false and no action
+   * will be taken.
    */
-  virtual void CopyComponent(int dstComponent, vtkDataArray* src, int srcComponent);
+  bool CopyComponent(int dstComponent, vtkAbstractArray* src, int srcComponent) override;
+  virtual bool CopyComponent(int dstComponent, vtkDataArray* src, int srcComponent);
+  ///@}
 
   /**
    * Get the address of a particular data index. Make sure data is allocated
@@ -519,11 +526,19 @@ public:
   static vtkDataArray* CreateDataArray(int dataType);
 
   /**
+   * If the array is not already in AOS format, return a new array that is with the same data.
+   * If the array is already in AOS format, then a reference to this array is returned
+   * and no new array is created.
+   */
+  vtkSmartPointer<vtkDataArray> ToAOSDataArray();
+
+  /**
    * This key is used to hold tight bounds on the range of
    * one component over all tuples of the array.
    * Two values (a minimum and maximum) are stored for each component.
    * When GetRange() is called when no tuples are present in the array
    * this value is set to { VTK_DOUBLE_MAX, VTK_DOUBLE_MIN }.
+   * \ingroup InformationKeys
    */
   static vtkInformationDoubleVectorKey* COMPONENT_RANGE();
 
@@ -533,6 +548,7 @@ public:
    * Two values (a minimum and maximum) are stored for each component.
    * When GetRange() is called when no tuples are present in the array
    * this value is set to { VTK_DOUBLE_MAX, VTK_DOUBLE_MIN }.
+   * \ingroup InformationKeys
    */
   static vtkInformationDoubleVectorKey* L2_NORM_RANGE();
 
@@ -542,6 +558,7 @@ public:
    * Two values (a minimum and maximum) are stored for each component.
    * When GetFiniteRange() is called when no tuples are present in the array
    * this value is set to { VTK_DOUBLE_MAX, VTK_DOUBLE_MIN }.
+   * \ingroup InformationKeys
    */
   static vtkInformationDoubleVectorKey* L2_NORM_FINITE_RANGE();
 
@@ -552,6 +569,7 @@ public:
 
   /**
    * A human-readable string indicating the units for the array data.
+   * \ingroup InformationKeys
    */
   static vtkInformationStringKey* UNITS_LABEL();
 
@@ -567,7 +585,25 @@ public:
   /**
    * Method for type-checking in FastDownCast implementations.
    */
-  int GetArrayType() const override { return DataArray; }
+  int GetArrayType() const override { return vtkDataArray::ArrayTypeTag::value; }
+
+  enum MemorySpace
+  {
+    HostMemory,       // CPU memory
+    CudaDeviceMemory, // NVIDIA GPU via CUDA
+    HipDeviceMemory,  // AMD GPU via HIP
+  };
+
+  /**
+   * Return the MemorySpace of where the data is stored.
+   */
+  virtual MemorySpace GetMemorySpace() { return MemorySpace::HostMemory; }
+
+  /**
+   * Return a pointer to the data that live on a device (CUDA or HIP).
+   * Returns nullptr if the data is not on a device.
+   */
+  virtual void* GetDeviceVoidPointer(vtkIdType vtkNotUsed(valueIdx)) { return nullptr; }
 
 protected:
   friend class vtkPoints;
@@ -708,27 +744,6 @@ private:
   vtkDataArray(const vtkDataArray&) = delete;
   void operator=(const vtkDataArray&) = delete;
 };
-
-//------------------------------------------------------------------------------
-inline vtkDataArray* vtkDataArray::FastDownCast(vtkAbstractArray* source)
-{
-  if (source)
-  {
-    switch (source->GetArrayType())
-    {
-      case AoSDataArrayTemplate:
-      case SoADataArrayTemplate:
-      case ImplicitArray:
-      case TypedDataArray:
-      case DataArray:
-      case MappedDataArray:
-        return static_cast<vtkDataArray*>(source);
-      default:
-        break;
-    }
-  }
-  return nullptr;
-}
 
 vtkArrayDownCast_FastCastMacro(vtkDataArray);
 VTK_ABI_NAMESPACE_END

@@ -11,6 +11,8 @@
 #include "vtkPythonInterpreter.h"
 #include "vtkPythonUtil.h"
 #include "vtkSmartPyObject.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 
 #include <vtksys/RegularExpression.hxx>
 #include <vtksys/SystemTools.hxx>
@@ -122,12 +124,13 @@ int vtkCPPythonPipeline::DetectScriptVersion(const char* fname)
     vtksys::RegularExpression regex1("paraview version ([0-9]+)\\.([0-9]+)");
     vtksys::RegularExpression regex2("#[ ]+script-version: ([0-9]+)");
     std::array<char, 1024> buffer;
-    while (ifp.getline(&buffer[0], 1024))
+    while (ifp.getline(buffer.data(), 1024))
     {
-      if (regex1.find(&buffer[0]))
+      if (regex1.find(buffer.data()))
       {
-        int major = std::atoi(regex1.match(1).c_str());
-        int minor = std::atoi(regex1.match(2).c_str());
+        int major, minor;
+        VTK_FROM_CHARS_IF_ERROR_BREAK(regex1.match(1), major);
+        VTK_FROM_CHARS_IF_ERROR_BREAK(regex1.match(2), minor);
         if (major > 5 || (major == 5 && minor >= 9))
         {
           vtkVLogF(PARAVIEW_LOG_CATALYST_VERBOSITY(),
@@ -142,15 +145,17 @@ int vtkCPPythonPipeline::DetectScriptVersion(const char* fname)
         }
         break;
       }
-      else if (regex2.find(&buffer[0]))
+      else if (regex2.find(buffer.data()))
       {
         vtkVLogF(
           PARAVIEW_LOG_CATALYST_VERBOSITY(), "Found 'script-version: %s'", regex2.match(1).c_str());
-        if (std::atoi(regex2.match(1).c_str()) == 2)
+        int major;
+        VTK_FROM_CHARS_IF_ERROR_BREAK(regex2.match(1), major);
+        if (major == 2)
         {
           version = 2;
         }
-        else if (std::atoi(regex2.match(1).c_str()) == 1)
+        else if (major == 1)
         {
           version = 1;
         }
@@ -160,14 +165,14 @@ int vtkCPPythonPipeline::DetectScriptVersion(const char* fname)
         }
         break;
       }
-      else if (buffer[0] == '#' || non_empty_strlen(&buffer[0]) == 0)
+      else if (buffer[0] == '#' || non_empty_strlen(buffer.data()) == 0)
       {
         // empty or comment line, continue.
         continue;
       }
       else
       {
-        vtkVLogF(PARAVIEW_LOG_CATALYST_VERBOSITY(), "regex match failed for '%s'", &buffer[0]);
+        vtkVLogF(PARAVIEW_LOG_CATALYST_VERBOSITY(), "regex match failed for '%s'", buffer.data());
         break;
       }
     }
@@ -261,7 +266,8 @@ void vtkCPPythonPipeline::FixEOL(std::string& str)
 std::string vtkCPPythonPipeline::GetPythonAddress(void* pointer)
 {
   char addressOfPointer[1024];
-  snprintf(addressOfPointer, sizeof(addressOfPointer), "%p", pointer);
+  auto result = vtk::format_to_n(addressOfPointer, sizeof(addressOfPointer), "{:p}", pointer);
+  *result.out = '\0';
   char* aplus = addressOfPointer;
   if ((addressOfPointer[0] == '0') && ((addressOfPointer[1] == 'x') || addressOfPointer[1] == 'X'))
   {

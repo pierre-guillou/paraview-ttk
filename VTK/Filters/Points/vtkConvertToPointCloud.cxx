@@ -24,7 +24,7 @@ int vtkConvertToPointCloud::RequestData(vtkInformation* vtkNotUsed(request),
 
   // Copy the points
   vtkPointSet* pointSet = vtkPointSet::SafeDownCast(dataset);
-  if (pointSet)
+  if (pointSet && pointSet->GetPoints())
   {
     // Input is a vtkPointSet, copy the points
     vtkNew<vtkPoints> points;
@@ -62,7 +62,7 @@ int vtkConvertToPointCloud::RequestData(vtkInformation* vtkNotUsed(request),
       // Create as many vertex cells as they are points
       // Note: A faster implementation could be done using SetVoidArray
       vtkNew<vtkCellArray> verts;
-      verts->SetNumberOfCells(dataset->GetNumberOfPoints());
+      verts->AllocateEstimate(dataset->GetNumberOfPoints(), 1); // allocate with 1 point per cell
       for (vtkIdType i = 0; i < dataset->GetNumberOfPoints(); i++)
       {
         verts->InsertNextCell(1, &i);

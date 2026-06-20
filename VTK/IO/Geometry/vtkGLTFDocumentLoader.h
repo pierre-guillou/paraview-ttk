@@ -34,6 +34,7 @@
 
 #include <map>    // For std::map
 #include <memory> // For std::shared_ptr
+#include <set>    // For std::set
 #include <string> // For std::string
 #include <vector> // For std::vector
 
@@ -271,6 +272,9 @@ public:
   {
     int Index = -1;
     int TexCoord = -1;
+    std::vector<double> Offset;
+    std::vector<double> Scale;
+    double Rotation = 0.0;
   };
 
   /**
@@ -424,7 +428,8 @@ public:
       PathType TargetPath;
     };
 
-    float Duration; // In seconds
+    float Duration;                // In seconds
+    std::set<float> AllTimestamps; // In seconds
     std::vector<Animation::Channel> Channels;
     std::vector<Animation::Sampler> Samplers;
     std::string Name;

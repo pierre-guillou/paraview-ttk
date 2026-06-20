@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+#include <algorithm>
+
 #include "vtkGenericGlyph3DFilter.h"
 
 #include "vtkGenericAttribute.h"
@@ -293,14 +295,8 @@ int vtkGenericGlyph3DFilter::RequestData(vtkInformation* vtkNotUsed(request),
     {
       if (this->GetSource(i) != nullptr)
       {
-        if (this->GetSource(i)->GetNumberOfPoints() > numSourcePts)
-        {
-          numSourcePts = this->GetSource(i)->GetNumberOfPoints();
-        }
-        if (this->GetSource(i)->GetNumberOfCells() > numSourceCells)
-        {
-          numSourceCells = this->GetSource(i)->GetNumberOfCells();
-        }
+        numSourcePts = std::max(this->GetSource(i)->GetNumberOfPoints(), numSourcePts);
+        numSourceCells = std::max(this->GetSource(i)->GetNumberOfCells(), numSourceCells);
         if (!(sourceNormals = this->GetSource(i)->GetPointData()->GetNormals()))
         {
           haveNormals = 0;
@@ -449,14 +445,11 @@ int vtkGenericGlyph3DFilter::RequestData(vtkInformation* vtkNotUsed(request),
     // Clamp data scale if enabled
     if (this->Clamping)
     {
-      scalex = (scalex < this->Range[0] ? this->Range[0]
-                                        : (scalex > this->Range[1] ? this->Range[1] : scalex));
+      scalex = std::clamp(scalex, this->Range[0], this->Range[1]);
       scalex = (scalex - this->Range[0]) / den;
-      scaley = (scaley < this->Range[0] ? this->Range[0]
-                                        : (scaley > this->Range[1] ? this->Range[1] : scaley));
+      scaley = std::clamp(scaley, this->Range[0], this->Range[1]);
       scaley = (scaley - this->Range[0]) / den;
-      scalez = (scalez < this->Range[0] ? this->Range[0]
-                                        : (scalez > this->Range[1] ? this->Range[1] : scalez));
+      scalez = std::clamp(scalez, this->Range[0], this->Range[1]);
       scalez = (scalez - this->Range[0]) / den;
     }
 
@@ -476,8 +469,8 @@ int vtkGenericGlyph3DFilter::RequestData(vtkInformation* vtkNotUsed(request),
         value = vMag;
       }
 
-      index = static_cast<int>(static_cast<double>(value - this->Range[0]) * numberOfSources / den);
-      index = (index < 0 ? 0 : (index >= numberOfSources ? (numberOfSources - 1) : index));
+      index = static_cast<int>((value - this->Range[0]) * numberOfSources / den);
+      index = std::clamp(index, 0, numberOfSources - 1);
 
       if (this->GetSource(index) != nullptr)
       {
@@ -545,7 +538,7 @@ int vtkGenericGlyph3DFilter::RequestData(vtkInformation* vtkNotUsed(request),
           vNew[0] = (v[0] + vMag) / 2.0;
           vNew[1] = v[1] / 2.0;
           vNew[2] = v[2] / 2.0;
-          trans->RotateWXYZ(static_cast<double>(180.0), vNew[0], vNew[1], vNew[2]);
+          trans->RotateWXYZ(180.0, vNew[0], vNew[1], vNew[2]);
         }
       }
     }

@@ -8,11 +8,11 @@
 #include "vtkInformation.h"
 #include "vtkLogger.h"
 #include "vtkMultiProcessController.h"
-#include "vtkMultiProcessStream.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPartitionedDataSet.h"
 #include "vtkPartitionedDataSetCollection.h"
+#include "vtkStringFormatter.h"
 #include "vtkXMLCompositeDataSetWriterHelper.h"
 #include "vtkXMLDataElement.h"
 #include "vtkXMLDataWriterHelper.h"
@@ -115,8 +115,8 @@ int vtkXMLPartitionedDataSetCollectionWriter::RequestData(
 
     for (auto& dataset : localDataSets)
     {
-      const auto prefix = artifactsDir + "/" + filenameNoExt + "_" + std::to_string(pidx) + "_" +
-        std::to_string(localOffset);
+      const auto prefix = artifactsDir + "/" + filenameNoExt + "_" + vtk::to_string(pidx) + "_" +
+        vtk::to_string(localOffset);
       const auto fname = helper->WriteDataSet(path, prefix, dataset);
       allFilenames[pidx].push_back(fname);
       if (!fname.empty())

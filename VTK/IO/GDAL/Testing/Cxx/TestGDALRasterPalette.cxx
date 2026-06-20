@@ -18,7 +18,7 @@
 #include <iostream>
 
 // Main program
-int TestGDALRasterPalette(int argc, char** argv)
+int TestGDALRasterPalette(int argc, char* argv[])
 {
   if (argc < 3)
   {
@@ -40,7 +40,7 @@ int TestGDALRasterPalette(int argc, char** argv)
     std::cerr << "ERROR: Missing cell data scalars" << std::endl;
     return 1;
   }
-  if (image->GetCellData()->GetScalars()->GetSize() == 0)
+  if (image->GetCellData()->GetScalars()->GetDataSize() == 0)
   {
     std::cerr << "ERROR: Cell data scalars empty" << std::endl;
     return 1;

@@ -4,11 +4,11 @@
 #include "vtkCleanUnstructuredGrid.h"
 
 #include "vtkArrayDispatch.h"
-#include "vtkArrayDispatchArrayList.h"
 #include "vtkBitArray.h"
 #include "vtkCell.h"
 #include "vtkCellData.h"
 #include "vtkCellSizeFilter.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkCellTypes.h"
 #include "vtkCollection.h"
 #include "vtkDataArrayRange.h"
@@ -55,12 +55,12 @@ void AllocatePointAttributes(vtkPointData* inPD, vtkPointData* outPD, vtkIdType 
 unsigned char GetTopologicalDimension(vtkDataSet* ds)
 {
   vtkNew<vtkCellTypes> cTypes;
-  ds->GetCellTypes(cTypes);
+  ds->GetDistinctCellTypes(cTypes);
   unsigned char topoDim = 0;
   for (vtkIdType iC = 0; iC < cTypes->GetNumberOfTypes(); ++iC)
   {
     unsigned char dimC =
-      static_cast<unsigned char>(vtkCellTypes::GetDimension(cTypes->GetCellType(iC)));
+      static_cast<unsigned char>(vtkCellTypeUtilities::GetDimension(cTypes->GetCellType(iC)));
     topoDim = std::max(topoDim, dimC);
     if (topoDim >= MAX_CELL_DIM)
     {
@@ -218,13 +218,14 @@ struct SpatialDensityStrategy : public WeighingStrategy
     vtkSMPThreadLocalObject<vtkIdList> localPointIds;
     auto distribute = [&](vtkIdType begin, vtkIdType end)
     {
+      auto*& pointIds = localPointIds.Local();
       for (vtkIdType iC = begin; iC < end; ++iC)
       {
-        ds->GetCellPoints(iC, localPointIds.Local());
-        double participation = mRange[iC] / localPointIds.Local()->GetNumberOfIds();
-        for (vtkIdType iP = 0; iP < localPointIds.Local()->GetNumberOfIds(); ++iP)
+        ds->GetCellPoints(iC, pointIds);
+        double participation = mRange[iC] / pointIds->GetNumberOfIds();
+        for (vtkIdType iP = 0; iP < pointIds->GetNumberOfIds(); ++iP)
         {
-          dRange[localPointIds.Local()->GetId(iP)] += participation;
+          dRange[pointIds->GetId(iP)] += participation;
         }
       }
     };

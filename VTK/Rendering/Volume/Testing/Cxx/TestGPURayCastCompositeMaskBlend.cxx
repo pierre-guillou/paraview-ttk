@@ -16,9 +16,11 @@
 #include "vtkVolumeProperty.h"
 #include "vtkXMLImageDataReader.h"
 
+#include <iostream>
+
 int TestGPURayCastCompositeMaskBlend(int argc, char* argv[])
 {
-  cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << endl;
+  std::cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << std::endl;
   char* cfname = vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/vase_1comp.vti");
 
   vtkXMLImageDataReader* reader = vtkXMLImageDataReader::New();
@@ -44,15 +46,7 @@ int TestGPURayCastCompositeMaskBlend(int argc, char* argv[])
   // min spacing divided by 2. Nyquist-Shannon theorem says so.
   // sample distance could be bigger if we compute the actual max frequency
   // in the data.
-  double distance = spacing[0];
-  if (distance > spacing[1])
-  {
-    distance = spacing[1];
-  }
-  if (distance > spacing[2])
-  {
-    distance = spacing[2];
-  }
+  double distance = std::min({ spacing[0], spacing[1], spacing[2] });
   distance = distance / 2.0;
 
   mapper->SetSampleDistance(static_cast<float>(distance));
@@ -162,7 +156,7 @@ int TestGPURayCastCompositeMaskBlend(int argc, char* argv[])
   else
   {
     retVal = vtkTesting::PASSED;
-    cout << "Required extensions not supported." << endl;
+    std::cout << "Required extensions not supported." << std::endl;
   }
 
   volume->Delete();

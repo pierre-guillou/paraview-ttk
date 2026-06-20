@@ -69,14 +69,14 @@ public:
   enum
   {
     PAN = 0,
-    ZOOM,
-    ZOOM_AXIS,
-    SELECT,
+    ZOOM = 1,
+    ZOOM_AXIS = 2,
+    SELECT = 3,
     SELECT_RECTANGLE = SELECT,
-    SELECT_POLYGON,
-    CLICK_AND_DRAG,
-    NOTIFY,
-    ACTION_TYPES_COUNT
+    SELECT_POLYGON = 4,
+    CLICK_AND_DRAG = 5,
+    NOTIFY = 6,
+    ACTION_TYPES_COUNT = 7
   };
 
   /**
@@ -367,6 +367,18 @@ public:
   vtkSetClampMacro(
     SelectionMode, int, vtkContextScene::SELECTION_DEFAULT, vtkContextScene::SELECTION_TOGGLE);
   vtkGetMacro(SelectionMode, int);
+  ///@}
+
+  ///@{
+  /**
+   * Return the selection mode associated to the mouse event modifiers for a specific mouse event.
+   * The value returned is an enum coming from vtkContextScene::SelectionModifier.
+   * The static version takes in a the current selection mode used which will be returned if no
+   * modifier is selected.
+   */
+  int GetSelectionModeFromMouseModifiers(const vtkContextMouseEvent& mouseEvent);
+  static int GetSelectionModeFromMouseModifiers(
+    const vtkContextMouseEvent& mouseEvent, int currentSelectionMode);
   ///@}
 
 protected:

@@ -10,6 +10,7 @@
 #include "pqCoreUtilities.h"
 #include "pqPVApplicationCore.h"
 #include "pqPropertyLinks.h"
+#include "pqWidgetUtilities.h"
 #include "vtkCommand.h"
 #include "vtkCompositeAnimationPlayer.h"
 #include "vtkEventQtSlotConnect.h"
@@ -29,6 +30,7 @@ struct pqTimeManagerWidget::pqInternals
   pqInternals(pqTimeManagerWidget* self)
   {
     this->Ui.setupUi(self);
+    pqWidgetUtilities::formatChildTooltips(self);
     self->connect(this->Ui.advancedButton, &QToolButton::toggled, self,
       &pqTimeManagerWidget::updateWidgetsVisibility);
     // Note: size of both widgets depends only on this max value...
@@ -93,9 +95,9 @@ void pqTimeManagerWidget::setActiveScene(pqAnimationScene* scene)
   }
 
   auto sceneProxy = scene->getProxy();
-  this->Internals->SceneLinks.addPropertyLink(this->Internals->Ui.strideStep, "value",
+  this->Internals->SceneLinks.addTraceablePropertyLink(this->Internals->Ui.strideStep, "value",
     SIGNAL(valueChanged(int)), sceneProxy, sceneProxy->GetProperty("Stride"));
-  this->Internals->SceneLinks.addPropertyLink(this->Internals->Ui.nbOfFramesValue, "value",
+  this->Internals->SceneLinks.addTraceablePropertyLink(this->Internals->Ui.nbOfFramesValue, "value",
     SIGNAL(valueChanged(int)), sceneProxy, sceneProxy->GetProperty("NumberOfFrames"));
   this->Internals->Connector->Connect(sceneProxy->GetProperty("PlayMode"),
     vtkCommand::UncheckedPropertyModifiedEvent, this, SLOT(updateWidgetsVisibility()));

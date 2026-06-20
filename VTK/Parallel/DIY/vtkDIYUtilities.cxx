@@ -17,7 +17,6 @@
 #include "vtkNew.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkRectilinearGridToPointSet.h"
-#include "vtkSOADataArrayTemplate.h"
 #include "vtkSmartPointer.h"
 #include "vtkStringArray.h"
 #include "vtkUnstructuredGrid.h"
@@ -56,8 +55,8 @@ struct SaveArrayWorker
   {
     switch (array->GetDataType())
     {
-      vtkTemplateMacro(vtkNew<vtkAOSDataArrayTemplate<VTK_TT>> aosArray; aosArray->DeepCopy(array);
-                       this->operator()(aosArray.Get()));
+      vtkTemplateMacro(auto aosArray = array->ToAOSDataArray(); this->operator()(
+        vtkAOSDataArrayTemplate<VTK_TT>::FastDownCast(aosArray.Get())));
     }
   }
 
@@ -86,21 +85,29 @@ struct LoadArrayWorker
 
     array->SetNumberOfComponents(numberOfComponents);
     array->SetNumberOfTuples(numberOfTuples);
-    array->SetName(name.c_str());
 
-    ValueType* data(nullptr);
+    if (name != "_vtkArrayNoName")
+    {
+      array->SetName(name.c_str());
+    }
+
+    vtkNew<vtkAOSDataArrayTemplate<ValueType>> aosArray;
     if (array->HasStandardMemoryLayout())
     {
-      // get the void pointer, this is OK for standard memory layout
-      data = static_cast<ValueType*>(array->GetVoidPointer(0));
+      aosArray->ShallowCopy(array);
     }
     else
     {
       // create a temporary array for loading
-      data = new ValueType[numberOfComponents * numberOfTuples];
+      aosArray->SetNumberOfComponents(numberOfComponents);
+      aosArray->SetNumberOfTuples(numberOfTuples);
     }
+    ValueType* data = aosArray->GetPointer(0);
 
-    diy::load(this->BB, data, array->GetNumberOfValues());
+    if (array->GetNumberOfValues())
+    {
+      diy::load(this->BB, data, array->GetNumberOfValues());
+    }
 
     if (!array->HasStandardMemoryLayout())
     {
@@ -120,7 +127,6 @@ struct LoadArrayWorker
       }
 
       assert(i == numberOfComponents * numberOfTuples);
-      delete[] data;
     }
   }
 
@@ -231,13 +237,16 @@ void vtkDIYUtilities::Save(diy::BinaryBuffer& bb, vtkDataArray* array)
     }
     else
     {
-      diy::save(bb, std::string(""));
+      diy::save(bb, std::string("_vtkArrayNoName"));
     }
 
     SaveArrayWorker worker(bb);
-    if (!vtkArrayDispatch::Dispatch::Execute(array, worker))
+    if (array->GetNumberOfTuples() > 0)
     {
-      worker(array);
+      if (!vtkArrayDispatch::Dispatch::Execute(array, worker))
+      {
+        worker(array);
+      }
     }
   }
 }
@@ -260,7 +269,7 @@ void vtkDIYUtilities::Save(diy::BinaryBuffer& bb, vtkStringArray* array)
     }
     else
     {
-      diy::save(bb, std::string(""));
+      diy::save(bb, std::string("_vtkArrayNoName"));
     }
 
     for (vtkIdType id = 0; id < array->GetNumberOfValues(); ++id)
@@ -386,7 +395,11 @@ void vtkDIYUtilities::Load(diy::BinaryBuffer& bb, vtkStringArray*& array)
 
     array->SetNumberOfComponents(numberOfComponents);
     array->SetNumberOfTuples(numberOfTuples);
-    array->SetName(name.c_str());
+
+    if (name != "_vtkArrayNoName")
+    {
+      array->SetName(name.c_str());
+    }
 
     vtkIdType numberOfValues = numberOfComponents * numberOfTuples;
 

@@ -25,6 +25,8 @@
 #include "vtkResourceStream.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 #include "vtkTable.h"
 
 #include <vtksys/SystemTools.hxx>
@@ -275,8 +277,9 @@ void ReadAndExtractRowFromCSV(vtkDelimitedTextReader* reader, const std::string&
       Value; // potentially change later with new instance once CSV reader can skip first line
     Value->SetNumberOfComponents(1);
     Value->SetNumberOfTuples(1);
-    Value->SetValue(
-      0, std::stod(arr->GetValue(requestedTimeStep + 2))); // csv file has two headers technically
+    Value->SetValue(0,
+      vtk::scan_value<double>(static_cast<std::string>(arr->GetValue(requestedTimeStep + 2)))
+        ->value()); // csv file has two headers technically
     map.emplace(arr->GetValue(1), Value);
   }
 }
@@ -306,7 +309,8 @@ void ExtractTimeValuesFromCSV(
       timesteps.clear();
       for (int i = 2; i < arr->GetNumberOfValues(); i++)
       {
-        timesteps.emplace_back(std::stof(arr->GetValue(i)));
+        timesteps.emplace_back(
+          vtk::scan_value<float>(static_cast<std::string>(arr->GetValue(i)))->value());
       }
       break;
     }
@@ -415,7 +419,17 @@ vtkSmartPointer<vtkDataArray> ReadSliceFile(const std::string& fileName,
   }
   result->SetNumberOfComponents(nComponents);
   result->SetNumberOfTuples(nTuples);
-  std::size_t readBytes = parser->Read(reinterpret_cast<char*>(result->GetVoidPointer(0)), size);
+  std::size_t readBytes;
+  if (size == nBytesFloat)
+  {
+    readBytes = parser->Read(
+      reinterpret_cast<char*>(vtkFloatArray::FastDownCast(result)->GetPointer(0)), size);
+  }
+  else
+  {
+    readBytes = parser->Read(
+      reinterpret_cast<char*>(vtkDoubleArray::FastDownCast(result)->GetPointer(0)), size);
+  }
   if (readBytes != size)
   {
     vtkErrorWithObjectMacro(nullptr,
@@ -581,7 +595,17 @@ vtkSmartPointer<vtkDataArray> ReadBoundaryFile(const std::string& fileName,
   }
   result->SetNumberOfComponents(nComponents);
   result->SetNumberOfTuples(nTuples);
-  std::size_t readBytes = parser->Read(reinterpret_cast<char*>(result->GetVoidPointer(0)), size);
+  std::size_t readBytes;
+  if (size == nBytesFloat)
+  {
+    readBytes = parser->Read(
+      reinterpret_cast<char*>(vtkFloatArray::FastDownCast(result)->GetPointer(0)), size);
+  }
+  else
+  {
+    readBytes = parser->Read(
+      reinterpret_cast<char*>(vtkDoubleArray::FastDownCast(result)->GetPointer(0)), size);
+  }
   if (readBytes != size)
   {
     vtkErrorWithObjectMacro(nullptr,
@@ -755,9 +779,7 @@ public:
                                     std::upper_bound(hrrData.TimeValues.begin(),
                                       hrrData.TimeValues.end(), this->RequestedTimeValue)) -
       1;
-    requestedTimeStep = requestedTimeStep >= static_cast<vtkIdType>(hrrData.TimeValues.size())
-      ? hrrData.TimeValues.size() - 1
-      : (requestedTimeStep < 0 ? 0 : requestedTimeStep);
+    requestedTimeStep = std::clamp<vtkIdType>(requestedTimeStep, 0, hrrData.TimeValues.size() - 1);
 
     std::map<std::string, vtkSmartPointer<vtkDataArray>> hrrMap;
     vtkNew<vtkDelimitedTextReader> reader;
@@ -838,9 +860,7 @@ public:
                                     std::upper_bound(sData.TimeValues.begin(),
                                       sData.TimeValues.end(), this->RequestedTimeValue)) -
       1;
-    requestedTimeStep = requestedTimeStep >= static_cast<vtkIdType>(sData.TimeValues.size())
-      ? sData.TimeValues.size() - 1
-      : (requestedTimeStep < 0 ? 0 : requestedTimeStep);
+    requestedTimeStep = std::clamp<vtkIdType>(requestedTimeStep, 0, sData.TimeValues.size() - 1);
 
     vtkSmartPointer<vtkRectilinearGrid> slice =
       ::GenerateSubGrid(gData->Geometry, sData.GridSubExtent);
@@ -931,7 +951,7 @@ public:
 
     for (const auto& bfieldData : this->Internals->BoundaryFields)
     {
-      if (oData.AssociatedGrid->GridNb != bfieldData.GridID)
+      if (oData.AssociatedGrid->GridNb != static_cast<unsigned int>(bfieldData.GridID))
       {
         continue;
       }
@@ -940,9 +960,8 @@ public:
                                       std::upper_bound(bfieldData.TimeValues.begin(),
                                         bfieldData.TimeValues.end(), this->RequestedTimeValue)) -
         1;
-      requestedTimeStep = requestedTimeStep >= static_cast<vtkIdType>(bfieldData.TimeValues.size())
-        ? bfieldData.TimeValues.size() - 1
-        : (requestedTimeStep < 0 ? 0 : requestedTimeStep);
+      requestedTimeStep =
+        std::clamp<vtkIdType>(requestedTimeStep, 0, bfieldData.TimeValues.size() - 1);
 
       vtkSmartPointer<vtkDataArray> field = ::ReadBoundaryFile(
         bfieldData.FileName, requestedTimeStep, oData.BlockageNumber, copy->GetNumberOfPoints(), 1);
@@ -1143,7 +1162,6 @@ int vtkFDSReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   std::string rootNodeName = vtksys::SystemTools::GetFilenameWithoutLastExtension(this->FileName);
   rootNodeName = this->SanitizeName(rootNodeName);
   this->Assembly->SetNodeName(vtkDataAssembly::GetRootNode(), rootNodeName.c_str());
-  std::string FDSRootDir = vtksys::SystemTools::GetFilenamePath(this->FileName);
 
   this->Internals->MaxNbOfPartitions = 0;
   this->Internals->GridCount = 0;
@@ -1566,7 +1584,7 @@ bool vtkFDSReader::ParseGRID(const std::vector<int>& baseNodes)
   for (vtkIdType iBlock = 0; iBlock < nBlockages; ++iBlock)
   {
     auto& oData = gridBoundaries[iBlock];
-    std::string blockageName = gridName + "_Blockage_" + std::to_string(oData.BlockageNumber);
+    std::string blockageName = gridName + "_Blockage_" + vtk::to_string(oData.BlockageNumber);
     blockageName = this->SanitizeName(blockageName);
     const int bIdx = this->Assembly->AddNode(blockageName.c_str(), baseNodes[::BOUNDARIES]);
     this->Internals->Boundaries.emplace(bIdx, oData);
@@ -1610,8 +1628,6 @@ bool vtkFDSReader::ParseCSVF(const std::vector<int>& baseNodes)
       vtkWarningMacro(<< "Line " << parser.LineNumber << " : unable to parse devc file path.");
       return false;
     }
-
-    std::string nodeName = vtksys::SystemTools::GetFilenameWithoutLastExtension(fileName);
 
     // add FDS root to file name to get full path
     fileName = FDSRootDir + "/" + fileName;
@@ -2008,9 +2024,8 @@ int vtkFDSReader::RequestData(vtkInformation* vtkNotUsed(request),
         std::upper_bound(
           timeValues, timeValues + this->Internals->NumberOfTimeSteps, requestedTimeValue)) -
       1;
-    requestedTimeStep = requestedTimeStep >= this->Internals->NumberOfTimeSteps
-      ? this->Internals->NumberOfTimeSteps - 1
-      : (requestedTimeStep < 0 ? 0 : requestedTimeStep);
+    requestedTimeStep =
+      std::clamp<vtkIdType>(requestedTimeStep, 0, this->Internals->NumberOfTimeSteps - 1);
     output->GetInformation()->Set(
       vtkDataObject::DATA_TIME_STEP(), this->Internals->TimeValues[requestedTimeStep]);
   }
@@ -2048,9 +2063,7 @@ int vtkFDSReader::RequestData(vtkInformation* vtkNotUsed(request),
                                         devcFileData.TimeValues.end(), requestedTimeValue)) -
         1;
       requestedTimeStep =
-        requestedTimeStep >= static_cast<vtkIdType>(devcFileData.TimeValues.size())
-        ? devcFileData.TimeValues.size() - 1
-        : (requestedTimeStep < 0 ? 0 : requestedTimeStep);
+        std::clamp<vtkIdType>(requestedTimeStep, 0, devcFileData.TimeValues.size() - 1);
 
       ::ReadAndExtractRowFromCSV(
         csvReader, devcFileData.FileName, requestedTimeStep, deviceVisitor->DeviceValueMap);

@@ -44,7 +44,6 @@
 #include <visitstream.h>
 
 #include <avtCallback.h>
-#include <avtCommonDataFunctions.h>
 #include <avtDatabaseMetaData.h>
 #include <avtDatasetCollection.h>
 #include <avtDatasetVerifier.h>
@@ -52,6 +51,7 @@
 #include <avtDomainBoundaries.h>
 #include <avtDomainNesting.h>
 #include <avtFileFormatInterface.h>
+#include <avtGhostNodeGenerator.h>
 #include <avtMemory.h>
 #include <avtMixedVariable.h>
 #include <avtParallel.h>
@@ -253,14 +253,21 @@ avtGenericDatabase::SetCycleTimeInDatabaseMetaData(avtDatabaseMetaData *md, int 
 //      during a -dump run.
 //
 //  Created: Mark C. Miller, Wed Dec 12 04:58:26 PST 2018
+//
+//  Modifications:
+//    Kathleen Biagas, Wed May 20 14:27:24 PDT 2020
+//    Modified to dump out every domain.
+//
+//    Kathleen Biagas, Fri May 22 15:21:19 PDT 2020
+//    Handle parallel.
+//
 // ****************************************************************************
+
 static void
 DebugDumpDatasetCollection(avtDatasetCollection &dsc, int ndoms,
     string phaseName)
-
 {
     static int call_count = 0;
-    std::ostringstream oss;
 
     if (!avtDebugDumpOptions::DumpEnabled())
         return;
@@ -268,19 +275,213 @@ DebugDumpDatasetCollection(avtDatasetCollection &dsc, int ndoms,
     string dumpDir = avtDebugDumpOptions::GetDumpDirectory();
     if (dumpDir == "")
         dumpDir = ".";
-    oss << dumpDir << "/gdb." << std::setfill('0') << std::setw(4) << call_count << "." << phaseName << ".vtk";
-    string dumpFile = oss.str();
-    vtkDataSetWriter *dsw = vtkDataSetWriter::New();
+    vtkNew<vtkDataSetWriter> dsw;
     dsw->SetFileTypeToASCII();
-    dsw->SetFileName(dumpFile.c_str());
     for (int i = 0 ; i < ndoms; i++)
     {
-        vtkDataSet *ds = dsc.GetDataset(i, 0);
-        dsw->SetInputData(i, ds);
+        std::ostringstream oss;
+#ifdef PARALLEL
+        oss << dumpDir << "/gdb." << std::setfill('0') << std::setw(4)
+            << call_count << "." << phaseName << ".dom"
+            << std::setfill('0') << std::setw(4) << i
+            << ".proc" << std::setfill('0') << std::setw(4) << PAR_Rank() << ".vtk";
+#else
+        oss << dumpDir << "/gdb." << std::setfill('0') << std::setw(4)
+            << call_count << "." << phaseName << ".dom"
+            << std::setfill('0') << std::setw(4) << i << ".vtk";
+#endif
+        dsw->SetFileName(oss.str().c_str());
+        dsw->SetInputData(dsc.GetDataset(i, 0));
+        dsw->Write();
     }
-    dsw->Write();
-    dsw->Delete();
     call_count++;
+}
+
+// ****************************************************************************
+//  Method: avtGenericDatabase::AugmentGhostData
+//
+//  Purpose:
+//      Merge generated ghost zones/nodes with extra ghost zones/nodes provided
+//      by the database in the form of avtExtraGhostZones and
+//      avtExtraGhostNodes.
+//
+//  Returns:    void
+//
+//  Programmer: Justin Privitera
+//  Creation:   10/17/24
+//
+//  Modifications:
+//    Justin Privitera, Thu Dec 12 16:49:08 PST 2024
+//    Added debugging information.
+//
+// ****************************************************************************
+
+void
+avtGenericDatabase::AugmentGhostData(avtDatasetCollection &ds,
+                                     avtDataRequest_p &spec,
+                                     avtSourceFromDatabase *src)
+{
+    char  progressString[1024] = "Augmenting Ghost Arrays";
+    src->DatabaseProgress(0, 0, progressString);
+    const int ndomains = ds.GetNDomains();
+    for (int domain_id = 0; domain_id < ndomains; domain_id ++)
+    {
+        vtkDataSet *dataset = ds.GetDataset(domain_id, 0);
+        if (dataset != NULL)
+        {
+            // this lambda handles zone and node cases
+            auto combineGhosts = [this, spec, domain_id](vtkUnsignedCharArray* ghosts,
+                                                         vtkUnsignedCharArray* extraGhosts,
+                                                         vtkDataSet* dataset,
+                                                         const std::string &arrayName,
+                                                         bool cellCentered)
+            {
+                // if we have provided extra ghost zones or nodes to begin with.
+                // if we haven't, then there is nothing to do
+                if (extraGhosts)
+                {
+                    // is there already a ghost node or ghost zone array
+                    if (ghosts)
+                    {
+                        const int num_comps = ghosts->GetNumberOfComponents();
+                        if (1 != num_comps || 1 != extraGhosts->GetNumberOfComponents())
+                        {
+                            // we don't know what to do in the case that the ghost
+                            // zone/node array has more than one component
+                            debug1 << "AugmentGhostData: When attempting to combine "
+                                      "avtGhostNodes/Zones and avtExtraGhostNodes/Zones, "
+                                      "one of the arrays has more than one component. "
+                                      "This should not be possible. Please contact a "
+                                      "VisIt developer." << std::endl;
+                            EXCEPTION0(ImproperUseException);
+                        }
+                        const int num_tuples = ghosts->GetNumberOfTuples();
+                        if (num_tuples != extraGhosts->GetNumberOfTuples())
+                        {
+                            // we don't know what to do in the case that the original
+                            // and extra ghost zone/node arrays do not have the same
+                            // number of tuples.
+                            debug1 << "AugmentGhostData: When attempting to combine "
+                                      "avtGhostNodes/Zones and avtExtraGhostNodes/Zones, "
+                                      "the arrays do not have the same number of tuples. "
+                                      "This should not be possible. Please contact a "
+                                      "VisIt developer." << std::endl;
+                            EXCEPTION0(ImproperUseException);
+                        }
+
+                        // create a new ghost zone/node array that will be the result
+                        // of merging the existing and extra.
+                        vtkUnsignedCharArray *newGhosts = vtkUnsignedCharArray::New();
+                        newGhosts->SetName(arrayName.c_str());
+                        newGhosts->SetNumberOfComponents(num_comps);
+                        newGhosts->SetNumberOfTuples(num_tuples);
+                        unsigned char *ghostPtr = ghosts->GetPointer(0);
+                        unsigned char *extraGhostPtr = extraGhosts->GetPointer(0);
+                        unsigned char *newGhostPtr = newGhosts->GetPointer(0);
+
+                        for (int tuple_id = 0; tuple_id < num_tuples; tuple_id ++)
+                        {
+                            // bitwise OR
+                            newGhostPtr[tuple_id] = ghostPtr[tuple_id] | extraGhostPtr[tuple_id];
+                        }
+
+                        if (cellCentered)
+                        {
+                            dataset->GetCellData()->RemoveArray(arrayName.c_str());
+                            dataset->GetCellData()->AddArray(newGhosts);
+                            newGhosts->Delete();
+                            dataset->GetCellData()->CopyFieldOn(arrayName.c_str());
+                        }
+                        else
+                        {
+                            dataset->GetPointData()->RemoveArray(arrayName.c_str());
+                            dataset->GetPointData()->AddArray(newGhosts);
+                            newGhosts->Delete();
+                            dataset->GetPointData()->CopyFieldOn(arrayName.c_str());
+                        }
+                    }
+                    else // we can still succeed with no ghosts
+                    {
+                        const int num_comps = extraGhosts->GetNumberOfComponents();
+                        if (1 != num_comps)
+                        {
+                            // we don't know what to do in the case that the extra ghost
+                            // zone/node array has more than one component
+                            EXCEPTION0(ImproperUseException);
+                        }
+                        const int num_tuples = extraGhosts->GetNumberOfTuples();
+
+                        // create a new ghost zone/node array that will be a copy of
+                        // the extra ghost zone/node array
+                        vtkUnsignedCharArray *newGhosts = vtkUnsignedCharArray::New();
+                        newGhosts->SetName(arrayName.c_str());
+                        newGhosts->SetNumberOfComponents(num_comps);
+                        newGhosts->SetNumberOfTuples(num_tuples);
+                        unsigned char *extraGhostPtr = extraGhosts->GetPointer(0);
+                        unsigned char *newGhostPtr = newGhosts->GetPointer(0);
+                        for (int tuple_id = 0; tuple_id < num_tuples; tuple_id ++)
+                        {
+                            // copy data
+                            newGhostPtr[tuple_id] = extraGhostPtr[tuple_id];
+                        }
+
+                        if (cellCentered)
+                        {
+                            dataset->GetCellData()->AddArray(newGhosts);
+                            newGhosts->Delete();
+                            dataset->GetCellData()->CopyFieldOn(arrayName.c_str());
+
+                            // if we are cell centered then we need to perform some
+                            // extra steps to tell the metadata that we now have
+                            // ghost zones.
+                            const int ts = spec->GetTimestep();
+                            avtDatabaseMetaData *md = GetMetaData(ts);
+                            const char *varname = spec->GetVariable();
+                            string meshname = md->MeshForVar(varname);
+                            md->SetContainsGhostZones(meshname, AVT_HAS_GHOSTS);
+                        }
+                        else
+                        {
+                            dataset->GetPointData()->AddArray(newGhosts);
+                            newGhosts->Delete();
+                            dataset->GetPointData()->CopyFieldOn(arrayName.c_str());
+                        }
+                    }
+                }
+            };
+
+            // zones first
+            vtkUnsignedCharArray *ghostZones =
+                static_cast<vtkUnsignedCharArray*>(
+                    dataset->GetCellData()->GetArray("avtGhostZones"));
+            vtkUnsignedCharArray *extraGhostZones =
+                static_cast<vtkUnsignedCharArray*>(
+                    dataset->GetCellData()->GetArray("avtExtraGhostZones"));
+
+            combineGhosts(ghostZones,
+                          extraGhostZones,
+                          dataset,
+                          "avtGhostZones",
+                          true /*cell centered is true*/);
+
+            // nodes second
+            vtkUnsignedCharArray *ghostNodes =
+                static_cast<vtkUnsignedCharArray*>(
+                    dataset->GetPointData()->GetArray("avtGhostNodes"));
+            vtkUnsignedCharArray *extraGhostNodes =
+                static_cast<vtkUnsignedCharArray*>(
+                    dataset->GetPointData()->GetArray("avtExtraGhostNodes"));
+
+            combineGhosts(ghostNodes,
+                          extraGhostNodes,
+                          dataset,
+                          "avtGhostNodes",
+                          false /*cell centered is false*/);
+        }
+
+        src->DatabaseProgress(domain_id, ndomains, progressString);
+    }
+    src->DatabaseProgress(1, 0, progressString);
 }
 
 // ****************************************************************************
@@ -477,7 +678,10 @@ DebugDumpDatasetCollection(avtDatasetCollection &dsc, int ndoms,
 //    Add judicious calls to DebugDumpDatasetCollection
 //
 //    Alister Maguire, Tue Sep 24 10:04:42 MST 2019
-//    Added a call to GetQOTOutput when prompted. 
+//    Added a call to GetQOTOutput when prompted.
+//
+//    Justin Privitera, Tue Oct 22 10:32:27 PDT 2024
+//    Call augment ghost data unconditionally.
 //
 // ****************************************************************************
 
@@ -487,7 +691,7 @@ avtGenericDatabase::GetOutput(avtDataRequest_p spec,
 {
     //
     // If the request is for a QOT dataset, we can bypass a lot
-    // of the work. 
+    // of the work.
     //
     if (spec->RetrieveQOTDataset())
     {
@@ -824,6 +1028,8 @@ avtGenericDatabase::GetOutput(avtDataRequest_p spec,
                                       spec, src, allDomains,
                                       canDoCollectiveCommunication);
     }
+    // unconditionally add ghost data if the database provided extra ghost information
+    AugmentGhostData(datasetCollection, spec, src);
 
     //
     // Finally, do the material selection.
@@ -866,17 +1072,17 @@ avtGenericDatabase::GetOutput(avtDataRequest_p spec,
 //
 //  Purpose:
 //      Retrieve a QOT dataset. Currently, this is a reduced point mesh
-//      that contains scalars of variable/element pairs through time. 
+//      that contains scalars of variable/element pairs through time.
 //
 //      All of the dataset's arrays should be the same size (number of
 //      requested timesteps), and each will be a variable/element pair
-//      through time. The dataset also contains the same number of 
-//      points, each of which is associated with the dataset arrays in 
+//      through time. The dataset also contains the same number of
+//      points, each of which is associated with the dataset arrays in
 //      the following manner:
 //      The point located at index 'i' will be defined as having position
 //      (x, 0, 0), where x is the timestep, simulation time, or cycle
 //      (whichever was requested) associated with the element located
-//      at index 'i' of each of the dataset's arrays. 
+//      at index 'i' of each of the dataset's arrays.
 //
 //  Arguments:
 //      spec    A database specification.
@@ -886,14 +1092,14 @@ avtGenericDatabase::GetOutput(avtDataRequest_p spec,
 //
 //  Note: much of this was taken from GetOutput.
 //
-//  Programmer: Alister Maguire 
-//  Creation:   Tue Sep 24 10:04:42 MST 2019 
+//  Programmer: Alister Maguire
+//  Creation:   Tue Sep 24 10:04:42 MST 2019
 //
 //  Modifications:
 //
 //      Alister Maguire, Wed Oct 23 11:18:37 PDT 2019
 //      Create a proper data tree so that we can handle multi-processor
-//      queries. 
+//      queries.
 //
 // ****************************************************************************
 
@@ -913,8 +1119,8 @@ avtGenericDatabase::GetQOTOutput(avtDataRequest_p spec,
     }
 
     //
-    // We only query a single domain, but we need to create proper 
-    // a proper data tree. Let's grab the domain list here.  
+    // We only query a single domain, but we need to create proper
+    // a proper data tree. Let's grab the domain list here.
     //
     int startTime = QOTAtts->GetStartTime();
     avtDatabaseMetaData *md = GetMetaData(startTime);
@@ -974,7 +1180,7 @@ avtGenericDatabase::GetQOTOutput(avtDataRequest_p spec,
 
     avtDataObject_p dob = src->GetOutput();
     boolVector emptySelections;
-    PopulateDataObjectInformation(dob, spec->GetVariable(), 
+    PopulateDataObjectInformation(dob, spec->GetVariable(),
         startTime, emptySelections, spec);
 
     ManageMemoryForNonCachableVar(NULL);
@@ -982,7 +1188,7 @@ avtGenericDatabase::GetQOTOutput(avtDataRequest_p spec,
 
     return rv;
 }
-    
+
 
 // ****************************************************************************
 //  Method: avtGenericDatabase::UpdateInternalState
@@ -3106,6 +3312,9 @@ avtGenericDatabase::GetLabelVariable(const char *varname, int ts, int domain,
 //    Kathleen Biagas, Thu Sep 11 09:10:42 PDT 2014
 //    Keep avtOriginalNodeNumbers if present.
 //
+//    Justin Privitera, Tue Oct 22 10:32:27 PDT 2024
+//    Keep extra ghost zone/node arrays if present.
+//
 // ****************************************************************************
 
 vtkDataSet *
@@ -3172,6 +3381,28 @@ avtGenericDatabase::GetMesh(const char *meshname, int ts, int domain,
             return NULL;
         }
 
+#if 0
+  // This was requested to be removed by Paraview folks.
+  // We're not sure if there will be a performance penalty for removing
+  // this block, as it states in the comment below. So, blocking it out
+  // for now, for ease of retrieval if needed, and will enter a ticket to
+  // remove this at a later date.
+
+        //
+        // VTK creates a trivial producer for each data set.  It later does
+        // garbage collection and that takes a long time if we have a lot
+        // of trivial producers.  Make one trivial producer for all
+        // data sets here.
+        //
+        static vtkTrivialProducer* tp = NULL;
+        if(tp == NULL)
+        {
+            tp = vtkTrivialProducer::New();
+            vtkVisItUtility::RegisterStaticVTKObject(tp);
+        }
+        tp->SetOutput(mesh);
+        tp->SetOutput(NULL);
+#endif
         AssociateBounds(mesh);
 
         if (CachingRecommended(mesh) && Interface->CanCacheVariable(real_meshname))
@@ -3224,6 +3455,16 @@ avtGenericDatabase::GetMesh(const char *meshname, int ts, int domain,
             mesh->GetPointData()->GetArray("avtGhostNodes"));
         GetMetaData(ts)->SetContainsGhostZones(meshname, AVT_HAS_GHOSTS);
     }
+    if (mesh->GetCellData()->GetArray("avtExtraGhostZones"))
+    {
+        rv->GetCellData()->AddArray(
+            mesh->GetCellData()->GetArray("avtExtraGhostZones"));
+    }
+    if (mesh->GetPointData()->GetArray("avtExtraGhostNodes"))
+    {
+        rv->GetPointData()->AddArray(
+            mesh->GetPointData()->GetArray("avtExtraGhostNodes"));
+    }
     if (mesh->GetCellData()->GetArray("avtOriginalCellNumbers"))
     {
         rv->GetCellData()->AddArray(
@@ -3249,23 +3490,26 @@ avtGenericDatabase::GetMesh(const char *meshname, int ts, int domain,
 //  Method: avtGenericDatabase::GetQOTDataset
 //
 //  Purpose:
-//      Determines what QOT dataset type is requested and calls 
+//      Determines what QOT dataset type is requested and calls
 //      the appropriate routine.
 //
 //  Arguments:
 //      domain       The domain of the dataset to retrieve.
-//      varname      The name of the variable to retreive. 
+//      varname      The name of the variable to retreive.
 //      vars2nd      The list of secondary variables.
-//      spec         The data request. 
+//      spec         The data request.
 //      src          The source from a database.
 //
-//  Returns:         
-//      The requested QOT dataset. 
+//  Returns:
+//      The requested QOT dataset.
 //
-//  Programmer: Alister Maguire 
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Programmer: Alister Maguire
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
+//
+//    Alister Maguire, Fri Nov  6 08:39:59 PST 2020
+//    Handle the AVT_MESH case.
 //
 // ****************************************************************************
 
@@ -3305,8 +3549,57 @@ avtGenericDatabase::GetQOTDataset(int domain,
         }
     }
 
-    int startTime   = QOTAtts->GetStartTime();
-    avtVarType type = GetMetaData(startTime)->DetermineVarType(varname);
+    //
+    // Tricky business here: if we're querying more than one variable,
+    // we need to check if ANY of our variables are a mesh type. If any
+    // are, we need to
+    //
+    //    a. Reduce the mesh requests down to one (no need to get the
+    //       same mesh multiple times).
+    //    b. Temporarily promote the mesh variable to our primary variable
+    //       (if it isn't already there).
+    //    c. Temporarily demote our primary variable if it is NOT a mesh
+    //       variable and we do have one.
+    //
+    // The reason for all of this is that, when a QOT mesh variable is
+    // requested, the structure of the mesh changes dramatically from
+    // when we grab standard QOT variables. We need to make sure that
+    // we're grabbing the correct mesh structure before we starting adding
+    // variables to it.
+    //
+    int startTime     = QOTAtts->GetStartTime();
+    string tmpVarname = string(varname);
+    std::vector<string> tmpVars2nd;
+
+    for (std::vector<CharStrRef>::const_iterator it = vars2nd.begin();
+         it != vars2nd.end(); ++it)
+    {
+        bool primaryIsMesh = (GetMetaData(startTime)->
+            DetermineVarType(tmpVarname.c_str()) == AVT_MESH);
+        bool secondaryIsMesh = (GetMetaData(startTime)->
+            DetermineVarType(**it) == AVT_MESH);
+
+        if (secondaryIsMesh && !primaryIsMesh)
+        {
+            //
+            // Swap primary and secondary.
+            //
+            tmpVars2nd.push_back(tmpVarname);
+            tmpVarname = string(**it);
+            continue;
+        }
+        else if (secondaryIsMesh)
+        {
+            //
+            // Skip secondary mesh since we'll grab it as a primary.
+            //
+            continue;
+        }
+
+        tmpVars2nd.push_back(string(**it));
+    }
+
+    avtVarType type = GetMetaData(startTime)->DetermineVarType(tmpVarname);
 
     Interface->TurnMaterialSelectionOff();
 
@@ -3315,39 +3608,57 @@ avtGenericDatabase::GetQOTDataset(int domain,
     switch (type)
     {
       case AVT_SCALAR_VAR:
-        rv = GetQOTScalarVarDataset(varname, element, domain, spec);
+        rv = GetQOTScalarVarDataset(tmpVarname.c_str(), element, domain, spec);
         break;
 
       case AVT_VECTOR_VAR:
-        rv = GetQOTVectorVarDataset(varname, element, domain, spec);
+        rv = GetQOTVectorVarDataset(tmpVarname.c_str(), element, domain, spec);
         break;
 
       case AVT_TENSOR_VAR:
-        rv = GetQOTTensorVarDataset(varname, element, domain, spec);
+        rv = GetQOTTensorVarDataset(tmpVarname.c_str(), element, domain, spec);
         break;
 
       case AVT_SYMMETRIC_TENSOR_VAR:
-        rv = GetQOTSymmetricTensorVarDataset(varname, element, domain, spec);
+        rv = GetQOTSymmetricTensorVarDataset(tmpVarname.c_str(), element, domain, spec);
         break;
 
       case AVT_ARRAY_VAR:
-        rv = GetQOTArrayVarDataset(varname, element, domain, spec);
+        rv = GetQOTArrayVarDataset(tmpVarname.c_str(), element, domain, spec);
         break;
+
+      case AVT_MESH:
+      {
+        //
+        // The request requires mesh coordinates, likely for an Expression
+        // filter.
+        //
+        int tsRange[2];
+        int tsStride = 1;
+
+        tsRange[0] = startTime;
+        tsRange[1] = QOTAtts->GetEndTime();
+        tsStride   = QOTAtts->GetStride();
+
+        rv = Interface->GetQOTCoordMesh(QOTAtts, element, domain,
+            tsRange, tsStride, tmpVarname.c_str());
+        break;
+      }
+
       //
-      // Intentional fall-throughs. These cases are invalid for the query. 
+      // Intentional fall-throughs. These cases are invalid for the query.
       //
       case AVT_LABEL_VAR:
       case AVT_MATERIAL:
-      case AVT_MESH:
       case AVT_CURVE:
       case AVT_MATSPECIES:
       default:
-        EXCEPTION1(InvalidVariableException, varname);
+        EXCEPTION1(InvalidVariableException, tmpVarname.c_str());
     }
 
-    if (rv != NULL && vars2nd.size() > 0)
+    if (rv != NULL && tmpVars2nd.size() > 0)
     {
-        AddSecondaryQOTVariables(rv, domain, vars2nd, spec);
+        AddSecondaryQOTVariables(rv, domain, tmpVars2nd, spec);
     }
 
     return rv;
@@ -3358,25 +3669,29 @@ avtGenericDatabase::GetQOTDataset(int domain,
 //  Method: avtGenericDatabase::AddSecondaryQOTVariables
 //
 //  Purpose:
-//      Add secondary variables to a QOT dataset. 
+//      Add secondary variables to a QOT dataset.
 //
 //  Arguments:
-//      ds       The QOT dataset. 
-//      domain   The domain of interest. 
-//      vars2nd  The secondary variables. 
-//      spec     The data request. 
+//      ds       The QOT dataset.
+//      domain   The domain of interest.
+//      vars2nd  The secondary variables.
+//      spec     The data request.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
-
+//
+//    Alister Maguire, Fri Nov  6 08:39:59 PST 2020
+//    Updated vars2nd to be a vector of strings. Check if the dataset
+//    contains cells, and add the variabe array based on that result.
+//
 // ****************************************************************************
 
 void
-avtGenericDatabase::AddSecondaryQOTVariables(vtkDataSet *ds, 
+avtGenericDatabase::AddSecondaryQOTVariables(vtkDataSet *ds,
                                              int domain,
-                                             const vector<CharStrRef> &vars2nd,
+                                             const vector<string> &vars2nd,
                                              const avtDataRequest_p spec)
 {
     const QueryOverTimeAttributes *QOTAtts = spec->GetQOTAtts();
@@ -3415,57 +3730,67 @@ avtGenericDatabase::AddSecondaryQOTVariables(vtkDataSet *ds,
 
     for (size_t i = 0 ; i < num2ndVars ; i++)
     {
-        const char *varName = *(vars2nd[i]);
+        const char *varName = vars2nd[i].c_str();
         avtDatabaseMetaData *md = GetMetaData(tsRange[0]);
 
         avtVarType vt = md->DetermineVarType(varName, false);
 
         //
-        // The QOT dataset has a limited number of types that it handles. 
+        // The QOT dataset has a limited number of types that it handles.
         //
         if (vt == AVT_MESH || vt == AVT_MATERIAL || vt == AVT_LABEL_VAR ||
             vt == AVT_MATSPECIES || vt == AVT_CURVE)
             continue;
 
-        //
-        // The QOT dataset is always a point mesh. 
-        //
-        vtkPointData *pointData = ds->GetPointData();
-        vtkDataArray *secVar    = NULL;
+        vtkDataArray *secVar = NULL;
 
         switch (vt)
         {
           case AVT_SCALAR_VAR:
-            secVar = GetQOTScalarVariable(varName, domain, element, 
+            secVar = GetQOTScalarVariable(varName, domain, element,
                 tsRange, tsStride, spec);
             break;
           case AVT_VECTOR_VAR:
-            secVar = GetQOTVectorVariable(varName, domain, element, 
+            secVar = GetQOTVectorVariable(varName, domain, element,
                 tsRange, tsStride, spec);
             break;
           case AVT_TENSOR_VAR:
-            secVar = GetQOTTensorVariable(varName, domain, element, 
+            secVar = GetQOTTensorVariable(varName, domain, element,
                 tsRange, tsStride, spec);
             break;
           case AVT_SYMMETRIC_TENSOR_VAR:
-            secVar = GetQOTSymmetricTensorVariable(varName, domain, element, 
+            secVar = GetQOTSymmetricTensorVariable(varName, domain, element,
                 tsRange, tsStride, spec);
             break;
           case AVT_ARRAY_VAR:
-            secVar = GetQOTArrayVariable(varName, domain, element, 
+            secVar = GetQOTArrayVariable(varName, domain, element,
                 tsRange, tsStride, spec);
             break;
           default:
             EXCEPTION1(InvalidVariableException, varName);
         }
 
-        if (secVar == NULL) 
+        if (secVar == NULL)
         {
             continue;
         }
 
         secVar->SetName(varName);
-        pointData->AddArray(secVar);
+
+        //
+        // If our ds contains cells, this means that we have a QOT
+        // coordinate mesh, and the pipeline expects zonal variables.
+        // Otherwise, we have a QOT point mesh, and all variables
+        // should be added to the points.
+        //
+        if (ds->GetNumberOfCells() > 0)
+        {
+            ds->GetCellData()->AddArray(secVar);
+        }
+        else
+        {
+            ds->GetPointData()->AddArray(secVar);
+        }
     }
 }
 
@@ -3477,16 +3802,16 @@ avtGenericDatabase::AddSecondaryQOTVariables(vtkDataSet *ds,
 //      Constructs a query over time dataset for a scalar variable.
 //
 //  Arguments:
-//      varname      The variable of interest. 
-//      element      The element of interest. 
-//      domain       The domain of interest. 
-//      spec         The data request. 
+//      varname      The variable of interest.
+//      element      The element of interest.
+//      domain       The domain of interest.
+//      spec         The data request.
 //
-//  Returns:         
-//      A QOT dataset containing the requested variable. 
+//  Returns:
+//      A QOT dataset containing the requested variable.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
 //
@@ -3494,8 +3819,8 @@ avtGenericDatabase::AddSecondaryQOTVariables(vtkDataSet *ds,
 
 vtkDataSet *
 avtGenericDatabase::GetQOTScalarVarDataset(const char *varname,
-                                           int element, 
-                                           int domain, 
+                                           int element,
+                                           int domain,
                                            const avtDataRequest_p spec)
 {
     const QueryOverTimeAttributes *QOTAtts = spec->GetQOTAtts();
@@ -3519,7 +3844,7 @@ avtGenericDatabase::GetQOTScalarVarDataset(const char *varname,
     //
     // We seem to be okay retrieving md from the first time step, even if
     // the variable isn't defined on that timestep. We should keep and eye
-    // on this for edge cases, though. 
+    // on this for edge cases, though.
     //
     const avtScalarMetaData *smd = GetMetaData(tsRange[0])->GetScalar(varname);
     if (smd == NULL)
@@ -3527,7 +3852,7 @@ avtGenericDatabase::GetQOTScalarVarDataset(const char *varname,
         EXCEPTION1(InvalidVariableException, varname);
     }
 
-    vtkDataSet *mesh = Interface->GetQOTMesh(QOTAtts, 
+    vtkDataSet *mesh = Interface->GetQOTPointMesh(QOTAtts,
         domain, tsRange, tsStride);
 
     if (mesh == NULL)
@@ -3536,7 +3861,7 @@ avtGenericDatabase::GetQOTScalarVarDataset(const char *varname,
         return NULL;
     }
 
-    vtkDataArray *var = GetQOTScalarVariable(varname, domain, element, 
+    vtkDataArray *var = GetQOTScalarVariable(varname, domain, element,
         tsRange, tsStride, spec);
 
     if (var == NULL)
@@ -3561,16 +3886,16 @@ avtGenericDatabase::GetQOTScalarVarDataset(const char *varname,
 //      Constructs a query over time dataset for a vector variable.
 //
 //  Arguments:
-//      varname      The variable of interest. 
-//      element      The element of interest. 
-//      domain       The domain of interest. 
-//      spec         The data request. 
+//      varname      The variable of interest.
+//      element      The element of interest.
+//      domain       The domain of interest.
+//      spec         The data request.
 //
-//  Returns:         
-//      A QOT dataset containing the requested variable. 
+//  Returns:
+//      A QOT dataset containing the requested variable.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
 //
@@ -3578,8 +3903,8 @@ avtGenericDatabase::GetQOTScalarVarDataset(const char *varname,
 
 vtkDataSet *
 avtGenericDatabase::GetQOTVectorVarDataset(const char *varname,
-                                           int element, 
-                                           int domain, 
+                                           int element,
+                                           int domain,
                                            const avtDataRequest_p spec)
 {
     const QueryOverTimeAttributes *QOTAtts = spec->GetQOTAtts();
@@ -3606,7 +3931,7 @@ avtGenericDatabase::GetQOTVectorVarDataset(const char *varname,
         EXCEPTION1(InvalidVariableException, varname);
     }
 
-    vtkDataSet *mesh = Interface->GetQOTMesh(QOTAtts, 
+    vtkDataSet *mesh = Interface->GetQOTPointMesh(QOTAtts,
         domain, tsRange, tsStride);
 
     if (mesh == NULL)
@@ -3645,19 +3970,19 @@ avtGenericDatabase::GetQOTVectorVarDataset(const char *varname,
 //  Method: avtGenericDatabase::GetQOTArrayVarDataset
 //
 //  Purpose:
-//      Construct a QOT dataset containing an array variable. 
+//      Construct a QOT dataset containing an array variable.
 //
 //  Arguments:
-//      varname      The variable of interest. 
-//      element      The element of interest. 
-//      domain       The domain of interest. 
-//      spec         The data request. 
+//      varname      The variable of interest.
+//      element      The element of interest.
+//      domain       The domain of interest.
+//      spec         The data request.
 //
-//  Returns:         
-//      A QOT dataset containing the requested variable. 
+//  Returns:
+//      A QOT dataset containing the requested variable.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
 //
@@ -3665,8 +3990,8 @@ avtGenericDatabase::GetQOTVectorVarDataset(const char *varname,
 
 vtkDataSet *
 avtGenericDatabase::GetQOTArrayVarDataset(const char *varname,
-                                          int element, 
-                                          int domain, 
+                                          int element,
+                                          int domain,
                                           const avtDataRequest_p spec)
 {
     const QueryOverTimeAttributes *QOTAtts = spec->GetQOTAtts();
@@ -3693,7 +4018,7 @@ avtGenericDatabase::GetQOTArrayVarDataset(const char *varname,
         EXCEPTION1(InvalidVariableException, varname);
     }
 
-    vtkDataSet *mesh = Interface->GetQOTMesh(QOTAtts, 
+    vtkDataSet *mesh = Interface->GetQOTPointMesh(QOTAtts,
         domain, tsRange, tsStride);
 
     if (mesh == NULL)
@@ -3702,7 +4027,7 @@ avtGenericDatabase::GetQOTArrayVarDataset(const char *varname,
         return NULL;
     }
 
-    vtkDataArray *var = GetQOTArrayVariable(varname, domain, element, 
+    vtkDataArray *var = GetQOTArrayVariable(varname, domain, element,
         tsRange, tsStride, spec);
 
     if (var == NULL)
@@ -3724,19 +4049,19 @@ avtGenericDatabase::GetQOTArrayVarDataset(const char *varname,
 //  Method: avtGenericDatabase::GetQOTTensorVarDataset
 //
 //  Purpose:
-//      Construct a QOT dataset containing an tensor variable. 
+//      Construct a QOT dataset containing an tensor variable.
 //
 //  Arguments:
-//      varname      The variable of interest. 
-//      element      The element of interest. 
-//      domain       The domain of interest. 
-//      spec         The data request. 
+//      varname      The variable of interest.
+//      element      The element of interest.
+//      domain       The domain of interest.
+//      spec         The data request.
 //
-//  Returns:         
-//      A QOT dataset containing the requested variable. 
+//  Returns:
+//      A QOT dataset containing the requested variable.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
 //
@@ -3744,8 +4069,8 @@ avtGenericDatabase::GetQOTArrayVarDataset(const char *varname,
 
 vtkDataSet *
 avtGenericDatabase::GetQOTTensorVarDataset(const char *varname,
-                                           int element, 
-                                           int domain, 
+                                           int element,
+                                           int domain,
                                            const avtDataRequest_p spec)
 {
     const QueryOverTimeAttributes *QOTAtts = spec->GetQOTAtts();
@@ -3763,7 +4088,7 @@ avtGenericDatabase::GetQOTTensorVarDataset(const char *varname,
         EXCEPTION1(InvalidVariableException, varname);
     }
 
-    vtkDataSet *mesh = Interface->GetQOTMesh(QOTAtts, 
+    vtkDataSet *mesh = Interface->GetQOTPointMesh(QOTAtts,
         domain, tsRange, tsStride);
 
     if (mesh == NULL)
@@ -3772,7 +4097,7 @@ avtGenericDatabase::GetQOTTensorVarDataset(const char *varname,
         return NULL;
     }
 
-    vtkDataArray *var = GetQOTTensorVariable(varname, domain, element, 
+    vtkDataArray *var = GetQOTTensorVariable(varname, domain, element,
         tsRange, tsStride, spec);
 
     if (var == NULL)
@@ -3797,16 +4122,16 @@ avtGenericDatabase::GetQOTTensorVarDataset(const char *varname,
 //      Construct a QOT dataset containing an symmetric tensor variable.
 //
 //  Arguments:
-//      varname      The variable of interest. 
-//      element      The element of interest. 
-//      domain       The domain of interest. 
-//      spec         The data request. 
+//      varname      The variable of interest.
+//      element      The element of interest.
+//      domain       The domain of interest.
+//      spec         The data request.
 //
-//  Returns:         
-//      A QOT dataset containing the requested variable. 
+//  Returns:
+//      A QOT dataset containing the requested variable.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
 //
@@ -3814,8 +4139,8 @@ avtGenericDatabase::GetQOTTensorVarDataset(const char *varname,
 
 vtkDataSet *
 avtGenericDatabase::GetQOTSymmetricTensorVarDataset(const char *varname,
-                                                    int element, 
-                                                    int domain, 
+                                                    int element,
+                                                    int domain,
                                                     const avtDataRequest_p spec)
 {
     const QueryOverTimeAttributes *QOTAtts = spec->GetQOTAtts();
@@ -3827,14 +4152,14 @@ avtGenericDatabase::GetQOTSymmetricTensorVarDataset(const char *varname,
     tsRange[1] = QOTAtts->GetEndTime();
     tsStride   = QOTAtts->GetStride();
 
-    const avtSymmetricTensorMetaData *stmd = 
+    const avtSymmetricTensorMetaData *stmd =
         GetMetaData(tsRange[0])->GetSymmTensor(varname);
     if (stmd == NULL)
     {
         EXCEPTION1(InvalidVariableException, varname);
     }
 
-    vtkDataSet *mesh = Interface->GetQOTMesh(QOTAtts, 
+    vtkDataSet *mesh = Interface->GetQOTPointMesh(QOTAtts,
         domain, tsRange, tsStride);
 
     if (mesh == NULL)
@@ -3865,29 +4190,29 @@ avtGenericDatabase::GetQOTSymmetricTensorVarDataset(const char *varname,
 //  Method: avtGenericDatabase::GetQOTScalarVariable
 //
 //  Purpose:
-//      Retrieve a QOT scalar variable. 
+//      Retrieve a QOT scalar variable.
 //
 //  Arguments:
-//      varname      The variable of interest. 
-//      domain       The domain of interest. 
-//      element      The element of interest. 
-//      tsRange      The timestep range. 
-//      tsStride     The timestep stride. 
+//      varname      The variable of interest.
+//      domain       The domain of interest.
+//      element      The element of interest.
+//      tsRange      The timestep range.
+//      tsStride     The timestep stride.
 //      dataRequest  The data request.
 //
-//  Returns:         
-//      The requested variable. 
+//  Returns:
+//      The requested variable.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
 //
 // ****************************************************************************
 
 vtkDataArray *
-avtGenericDatabase::GetQOTScalarVariable(const char *varname, 
-                                         int domain, 
+avtGenericDatabase::GetQOTScalarVariable(const char *varname,
+                                         int domain,
                                          int element,
                                          int *tsRange,
                                          int tsStride,
@@ -3913,7 +4238,7 @@ avtGenericDatabase::GetQOTScalarVariable(const char *varname,
         real_varname = smd->originalName.c_str();
     }
 
-    var = Interface->GetQOTVar(domain, real_varname, 
+    var = Interface->GetQOTVar(domain, real_varname,
         element, tsRange, tsStride);
 
     if (var != NULL)
@@ -3937,29 +4262,29 @@ avtGenericDatabase::GetQOTScalarVariable(const char *varname,
 //  Method: avtGenericDatabase::GetQOTVectorVariable
 //
 //  Purpose:
-//      Retrieve a QOT vector variable. 
+//      Retrieve a QOT vector variable.
 //
 //  Arguments:
-//      varname      The variable of interest. 
-//      domain       The domain of interest. 
-//      element      The element of interest. 
-//      tsRange      The timestep range. 
-//      tsStride     The timestep stride. 
+//      varname      The variable of interest.
+//      domain       The domain of interest.
+//      element      The element of interest.
+//      tsRange      The timestep range.
+//      tsStride     The timestep stride.
 //      dataRequest  The data request.
 //
-//  Returns:         
-//      The requested variable. 
+//  Returns:
+//      The requested variable.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
 //
 // ****************************************************************************
 
 vtkDataArray *
-avtGenericDatabase::GetQOTVectorVariable(const char *varname, 
-                                         int domain, 
+avtGenericDatabase::GetQOTVectorVariable(const char *varname,
+                                         int domain,
                                          int element,
                                          int *tsRange,
                                          int tsStride,
@@ -4011,29 +4336,29 @@ avtGenericDatabase::GetQOTVectorVariable(const char *varname,
 //  Method: avtGenericDatabase::GetQOTArrayVariable
 //
 //  Purpose:
-//      Retrieve a QOT array variable. 
+//      Retrieve a QOT array variable.
 //
 //  Arguments:
-//      varname      The variable of interest. 
-//      domain       The domain of interest. 
-//      element      The element of interest. 
-//      tsRange      The timestep range. 
-//      tsStride     The timestep stride. 
+//      varname      The variable of interest.
+//      domain       The domain of interest.
+//      element      The element of interest.
+//      tsRange      The timestep range.
+//      tsStride     The timestep stride.
 //      dataRequest  The data request.
 //
-//  Returns:         
-//      The requested variable. 
+//  Returns:
+//      The requested variable.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
 //
 // ****************************************************************************
 
 vtkDataArray *
-avtGenericDatabase::GetQOTArrayVariable(const char *varname, 
-                                        int domain, 
+avtGenericDatabase::GetQOTArrayVariable(const char *varname,
+                                        int domain,
                                         int element,
                                         int *tsRange,
                                         int tsStride,
@@ -4085,29 +4410,29 @@ avtGenericDatabase::GetQOTArrayVariable(const char *varname,
 //  Method: avtGenericDatabase::GetQOTTensorVariable
 //
 //  Purpose:
-//      Retrieve a QOT tensor variable. 
+//      Retrieve a QOT tensor variable.
 //
 //  Arguments:
-//      varname      The variable of interest. 
-//      domain       The domain of interest. 
-//      element      The element of interest. 
-//      tsRange      The timestep range. 
-//      tsStride     The timestep stride. 
+//      varname      The variable of interest.
+//      domain       The domain of interest.
+//      element      The element of interest.
+//      tsRange      The timestep range.
+//      tsStride     The timestep stride.
 //      dataRequest  The data request.
 //
-//  Returns:         
-//      The requested variable. 
+//  Returns:
+//      The requested variable.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
 //
 // ****************************************************************************
 
 vtkDataArray *
-avtGenericDatabase::GetQOTTensorVariable(const char *varname, 
-                                         int domain, 
+avtGenericDatabase::GetQOTTensorVariable(const char *varname,
+                                         int domain,
                                          int element,
                                          int *tsRange,
                                          int tsStride,
@@ -4159,29 +4484,29 @@ avtGenericDatabase::GetQOTTensorVariable(const char *varname,
 //  Method: avtGenericDatabase::GetQOTSymmetricTensorVariable
 //
 //  Purpose:
-//      Retrieve a QOT symmetric tensor variable. 
+//      Retrieve a QOT symmetric tensor variable.
 //
 //  Arguments:
-//      varname      The variable of interest. 
-//      domain       The domain of interest. 
-//      element      The element of interest. 
-//      tsRange      The timestep range. 
-//      tsStride     The timestep stride. 
-//      dataRequest  The data request. 
+//      varname      The variable of interest.
+//      domain       The domain of interest.
+//      element      The element of interest.
+//      tsRange      The timestep range.
+//      tsStride     The timestep stride.
+//      dataRequest  The data request.
 //
-//  Returns:         
-//      The requested variable. 
+//  Returns:
+//      The requested variable.
 //
 //  Programmer: Alister Maguire
-//  Creation:   Mon Sep 23 15:11:40 MST 2019 
+//  Creation:   Mon Sep 23 15:11:40 MST 2019
 //
 //  Modifications:
 //
 // ****************************************************************************
 
 vtkDataArray *
-avtGenericDatabase::GetQOTSymmetricTensorVariable(const char *varname, 
-                                                  int domain, 
+avtGenericDatabase::GetQOTSymmetricTensorVariable(const char *varname,
+                                                  int domain,
                                                   int element,
                                                   int *tsRange,
                                                   int tsStride,
@@ -4195,7 +4520,7 @@ avtGenericDatabase::GetQOTSymmetricTensorVariable(const char *varname,
     // Note: use the "real_varname" when talking to the Interface, but use
     // the standard "varname" for caching and all other places.
     //
-    const avtSymmetricTensorMetaData *stmd = 
+    const avtSymmetricTensorMetaData *stmd =
         GetMetaData(tsRange[0])->GetSymmTensor(varname);
     if (stmd == NULL)
     {
@@ -4518,11 +4843,11 @@ avtGenericDatabase::GetAuxiliaryData(avtDataRequest_p spec,
 //  Method: avtGenericDatabase::GetCycles
 //
 //  Purpose:
-//      Retrieve the available cycles from a database.  
+//      Retrieve the available cycles from a database.
 //
 //  Arguments:
-//      dom       The domain of interest.  
-//      cycles    A vector to store the retrieved cycles in. 
+//      dom       The domain of interest.
+//      cycles    A vector to store the retrieved cycles in.
 //
 //  Programmer: Alister Maguire
 //  Creation:   Tue Sep 24 09:58:14 MST 2019
@@ -4540,11 +4865,11 @@ avtGenericDatabase::GetCycles(int dom, intVector &cycles)
 //  Method: avtGenericDatabase::GetTimes
 //
 //  Purpose:
-//      Retrieve the available times from a database.  
+//      Retrieve the available times from a database.
 //
 //  Arguments:
-//      dom       The domain of interest.  
-//      times     A vector to store the retrieved times in. 
+//      dom       The domain of interest.
+//      times     A vector to store the retrieved times in.
 //
 //  Programmer: Alister Maguire
 //  Creation:   Tue Sep 24 09:58:14 MST 2019
@@ -4942,8 +5267,12 @@ avtGenericDatabase::AddOriginalNodesArray(vtkDataSet *ds, const int domain)
 //    being passed back correctly).
 //
 //    Alister Maguire, Mon Nov 27 15:31:54 PST 2017
-//    If materialLabelsForced is true, then create material labels. 
+//    If materialLabelsForced is true, then create material labels.
 //
+//    Mark C. Miller, Tue Jun 14 08:43:22 PDT 2022
+//    Adjust topoDim for cases of structured grids with one dimension only
+//    one node thick (e.g. [nx][ny][1] or [nx][1][nz] or [1][ny][nz]). These
+//    are really 2D surfaces (a structured arrangement of quads) in 3 space.
 // ****************************************************************************
 
 avtDataTree_p
@@ -5025,6 +5354,14 @@ avtGenericDatabase::MaterialSelect(vtkDataSet *ds, avtMaterial *mat,
         return NULL;
     }
     int topoDim = mmd->topologicalDimension;
+    if (ds->GetDataObjectType() == VTK_STRUCTURED_GRID)
+    {
+        int *dims = ((vtkStructuredGrid*)ds)->GetDimensions();
+        if ((dims[0] == 1 && dims[1] > 1 && dims[2] > 1) ||
+            (dims[1] == 1 && dims[0] > 1 && dims[2] > 1) ||
+            (dims[2] == 1 && dims[0] > 1 && dims[1] > 1))
+            topoDim = 2;
+    }
 
     avtMaterial *material_used = NULL;
     void_ref_ptr vr_mir = GetMIR(dom, var, ts, ds, mat, topoDim,
@@ -5175,7 +5512,7 @@ avtGenericDatabase::MaterialSelect(vtkDataSet *ds, avtMaterial *mat,
     //
     stringVector labelStrings;
 
-    if (type == AVT_MATERIAL || materialLabelsForced) 
+    if (type == AVT_MATERIAL || materialLabelsForced)
     {
         if (needInternalSurfaces)
         {
@@ -5698,6 +6035,9 @@ avtGenericDatabase::EnumScalarSelect(avtDatasetCollection &dsc,
 //
 //    Mark C. Miller, Wed Mar  4 18:00:38 PST 2009
 //    Adjusted for dbio-only build
+//
+//    Justin Privitera, Fri Sep 27 10:18:37 PDT 2024
+//    Relaxed restriction on input data only being floats.
 // ****************************************************************************
 
 void
@@ -5728,8 +6068,7 @@ avtGenericDatabase::SpeciesSelect(avtDatasetCollection &dsc,
         for (int j = 0 ; j < n_cell_vars ; j++)
         {
             vtkDataArray *arr = inCD->GetArray(j);
-            if (arr->GetDataType() != VTK_FLOAT ||
-                arr->GetNumberOfComponents() != 1)
+            if (arr->GetNumberOfComponents() != 1)
             {
                 continue;
             }
@@ -6339,9 +6678,9 @@ avtGenericDatabase::ActivateTimestep(int stateIndex)
 //    enum scalars. Thanks Jeremy!
 //
 //    Alister Maguire, Mon Nov 27 15:31:54 PST 2017
-//    When preparing labels, check to see if we're forcing material 
-//    labels to be created. Also, if the dataset doesn't contain 
-//    any materials, don't try and look for them.  
+//    When preparing labels, check to see if we're forcing material
+//    labels to be created. Also, if the dataset doesn't contain
+//    any materials, don't try and look for them.
 //
 // ****************************************************************************
 
@@ -6491,7 +6830,7 @@ avtGenericDatabase::ReadDataset(avtDatasetCollection &ds, intVector &domains,
             doSelect = false;
         }
 
-        if (!doSelect || !Interface->PerformsMaterialSelection()) 
+        if (!doSelect || !Interface->PerformsMaterialSelection())
         {
             // We know we want the dataset as a whole
             if (md->GetFormatCanDoDomainDecomposition())
@@ -6534,7 +6873,7 @@ avtGenericDatabase::ReadDataset(avtDatasetCollection &ds, intVector &domains,
         //
         //  Prepare labels; we need nmats labels.
         //
-        if (spec->ForceConstructMaterialLabels() && nmats > 0) 
+        if (spec->ForceConstructMaterialLabels() && nmats > 0)
         {
             labels = matnames;
         }
@@ -6733,20 +7072,20 @@ avtGenericDatabase::ReadDataset(avtDatasetCollection &ds, intVector &domains,
 //
 //  Arguments:
 //      ds        The dataset collection.
-//      domains   A list of current domains. 
+//      domains   A list of current domains.
 //      spec      A data request.
 //      src       The source object.
 //
 //  Notes: Sections of this method were copied from ReadDataset.
 //
 //  Programmer: Alister Maguire
-//  Creation: Tue Sep 24 09:58:14 MST 2019 
+//  Creation: Tue Sep 24 09:58:14 MST 2019
 //
 //  Modifications:
 //
 //      Alister Maguire, Wed Oct 23 11:18:37 PDT 2019
 //      Create a proper data tree so that we can handle multi-processor
-//      queries. 
+//      queries.
 //
 //      Alister Maguire, Tue Oct 29 10:32:56 PDT 2019
 //      Make sure that each processor calls ActivateTimestep on all
@@ -6755,9 +7094,9 @@ avtGenericDatabase::ReadDataset(avtDatasetCollection &ds, intVector &domains,
 // ****************************************************************************
 
 void
-avtGenericDatabase::ReadQOTDataset(avtDatasetCollection &ds, 
+avtGenericDatabase::ReadQOTDataset(avtDatasetCollection &ds,
                                    intVector &domains,
-                                   avtDataRequest_p &spec, 
+                                   avtDataRequest_p &spec,
                                    avtSourceFromDatabase *src)
 {
     int timerHandle = visitTimer->StartTimer();
@@ -6766,7 +7105,7 @@ avtGenericDatabase::ReadQOTDataset(avtDatasetCollection &ds,
 
     //
     // If the pick atts contains a domain >= 0, then this is our
-    // target. Otherwise, 0 is the only domain available. 
+    // target. Otherwise, 0 is the only domain available.
     //
     int qDomain = QOTAtts->GetPickAtts().GetDomain();
     if (qDomain < 0)
@@ -6787,7 +7126,7 @@ avtGenericDatabase::ReadQOTDataset(avtDatasetCollection &ds,
     int startTime = spec->GetQOTAtts()->GetStartTime();
     int stopTime = spec->GetQOTAtts()->GetEndTime();
     int stride   = spec->GetQOTAtts()->GetStride();
-    bool addLastStep = ((stopTime - startTime) % 
+    bool addLastStep = ((stopTime - startTime) %
         stride == 0.0) ? false : true;
 
     //
@@ -6824,14 +7163,19 @@ avtGenericDatabase::ReadQOTDataset(avtDatasetCollection &ds,
     ds.SetVars2nd(vars2nd);
 
     char  progressString[1024];
-    sprintf(progressString, "Reading QOT dataset from %s", 
+    sprintf(progressString, "Reading QOT dataset from %s",
         Interface->GetType());
 
     const int numDomains = (const int)domains.size();
 
+    //
+    // NOTE: when run in parallel, visit is smart about the
+    // contents of "domains". Each processor only gets the
+    // domains it needs to process.
+    //
     for (int i = 0; i < numDomains; ++i)
     {
-        int curDomain = domains[i]; 
+        int curDomain = domains[i];
 
         if (md->GetFormatCanDoDomainDecomposition())
         {
@@ -6870,7 +7214,7 @@ avtGenericDatabase::ReadQOTDataset(avtDatasetCollection &ds,
 
         ds.SetNumMaterials(i, 1);
 
-        char label[256]; 
+        char label[256];
         snprintf(label, 256, "%d", curDomain);
         stringVector labels;
         labels.push_back(label);
@@ -7070,8 +7414,15 @@ avtGenericDatabase::ReadQOTDataset(avtDatasetCollection &ds,
 //    ExchangeVector.
 //
 //    Burlen Loring, Fri Oct  2 17:02:27 PDT 2015
-//    clean up a warning
+//    Clean up a warning.
 //
+//    Eric Brugger, Wed Jul  8 16:18:50 PDT 2020
+//    Corrected a deadlock situation that could arise when not all the
+//    processors decided to change the ghost type. Now if any of them
+//    decide to change the ghost type, all of them will do it.
+//
+//    Mark C. Miller, Wed May 25 13:24:51 PDT 2022
+//    Do no work if there is no more than 1 domain.
 // ****************************************************************************
 
 bool
@@ -7080,6 +7431,7 @@ avtGenericDatabase::CommunicateGhosts(avtGhostDataType ghostType,
                       avtDataRequest_p &spec, avtSourceFromDatabase *src,
                       intVector &allDomains, bool canDoCollectiveCommunication)
 {
+
 #ifndef PARALLEL
     (void)canDoCollectiveCommunication;
 #endif
@@ -7157,23 +7509,42 @@ avtGenericDatabase::CommunicateGhosts(avtGhostDataType ghostType,
                                     "  This also counts synchronization.");
 
     //
-    // The unstructured mesh domain boundaries code can create situations
-    // where ghost nodes identify faces as ghost that are actually real.
-    // Create ghost zones in this case.
+    // There are some situations where we need a different type of
+    // ghost information than requested. If we do, then we need to do
+    // this on all the processors or we may have a deadlock situation.
     //
+    int swapGhostType = 0;
     if (ghostType == GHOST_NODE_DATA)
     {
         if (hasDomainBoundaryInfo)
             if (!dbi->CreatesRobustGhostNodes())
-                ghostType = GHOST_ZONE_DATA;
+                swapGhostType = 1;
+        //
+        // The unstructured mesh domain boundaries code can create situations
+        // where ghost nodes identify faces as ghost that are actually real.
+        // Create ghost zones in this case.
+        //
         if (md->GetMesh(meshname)->meshType == AVT_UNSTRUCTURED_MESH)
-            ghostType = GHOST_ZONE_DATA;
+            swapGhostType = 1;
     }
     if (ghostType == GHOST_ZONE_DATA)
     {
         if (hasDomainBoundaryInfo)
             if (dbi->CanOnlyCreateGhostNodes())
-                ghostType = GHOST_NODE_DATA;
+                swapGhostType = 1;
+    }
+#ifdef PARALLEL
+    int swapGhostTypeGlobal;
+    MPI_Allreduce(&swapGhostType, &swapGhostTypeGlobal, 1,
+                  MPI_INT, MPI_MAX, VISIT_MPI_COMM);
+    swapGhostType = swapGhostTypeGlobal;
+#endif
+    if (swapGhostType == 1)
+    {
+        if (ghostType == GHOST_NODE_DATA)
+            ghostType = GHOST_ZONE_DATA;
+        else
+            ghostType = GHOST_NODE_DATA;
     }
 
     //
@@ -7213,26 +7584,35 @@ avtGenericDatabase::CommunicateGhosts(avtGhostDataType ghostType,
     // proper subroutine to do it.
     //
     int portion2 = visitTimer->StartTimer();
-    bool s = false;
+    bool madeGhosts = false;
     if (ghostType == GHOST_NODE_DATA)
     {
         if (hasDomainBoundaryInfo)
-            s = CommunicateGhostNodesFromDomainBoundariesFromFile(ds, doms,
-                                                       spec, src, allDomains);
+            madeGhosts = CommunicateGhostNodesFromDomainBoundariesFromFile
+               (ds, doms, spec, src, allDomains);
         else if (canUseGlobalNodeIds)
-            s = CommunicateGhostNodesFromGlobalNodeIds(ds, doms, spec, src);
+            madeGhosts = CommunicateGhostNodesFromGlobalNodeIds
+                (ds, doms, spec, src);
         else if (canDoStreamingGhosts)  // Zones not Nodes
-            s = CommunicateGhostZonesWhileStreaming(ds, doms, spec, src);
+            madeGhosts = CommunicateGhostZonesWhileStreaming
+                (ds, doms, spec, src);
+        else
+        {
+            avtGhostNodeGenerator gnf;
+            madeGhosts = gnf.CreateGhosts(ds);
+        }
     }
     else if (ghostType == GHOST_ZONE_DATA)
     {
         if (hasDomainBoundaryInfo)
-            s = CommunicateGhostZonesFromDomainBoundariesFromFile(ds, doms,
-                                                                  spec, src);
+            madeGhosts = CommunicateGhostZonesFromDomainBoundariesFromFile
+                (ds, doms, spec, src);
         else if (canUseGlobalNodeIds)
-            s = CommunicateGhostZonesFromGlobalNodeIds(ds, doms, spec, src);
+            madeGhosts = CommunicateGhostZonesFromGlobalNodeIds
+                (ds, doms, spec, src);
         else if (canDoStreamingGhosts)
-            s = CommunicateGhostZonesWhileStreaming(ds, doms, spec, src);
+            madeGhosts = CommunicateGhostZonesWhileStreaming
+                (ds, doms, spec, src);
     }
     else
     {
@@ -7241,7 +7621,6 @@ avtGenericDatabase::CommunicateGhosts(avtGhostDataType ghostType,
     }
     visitTimer->StopTimer(portion2, "Time to actually communicate ghost data");
 
-    bool madeGhosts = s;
     if (madeGhosts)
     {
         //
@@ -7326,7 +7705,7 @@ avtGenericDatabase::GetDomainBoundaryInformation(avtDatasetCollection &ds,
 
     need_db = need_db_global;
 #endif
-    
+
     if (need_db)
     {
         debug1  << "avtGenericDatabase::GetDomainBoundaryInformation Cached "
@@ -7343,7 +7722,7 @@ avtGenericDatabase::GetDomainBoundaryInformation(avtDatasetCollection &ds,
         {
             debug1 << "avtGenericDatabase::GetDomainBoundaryInformation: Global for local success" <<endl;
             // do not cache b/c we don't have a good way of invalidating
-            // the dbis if the set of domains involved changes. 
+            // the dbis if the set of domains involved changes.
         }else
         {
             debug1 << "avtGenericDatabase::GetDomainBoundaryInformation: No local info." <<endl;
@@ -7428,10 +7807,10 @@ avtGenericDatabase::GetLocalDomainBoundaryInformation(avtDatasetCollection &ds,
                                                       avtDataRequest_p spec,
                                                       bool confirmInputMeshHasRightSize)
 {
-    
-    
+
+
     int t_fetch_loc_dbi = visitTimer->StartTimer();
-    
+
     VoidRefList local_dbis;
     GetAuxiliaryData(spec,
                      local_dbis,
@@ -7451,16 +7830,16 @@ avtGenericDatabase::GetLocalDomainBoundaryInformation(avtDatasetCollection &ds,
             local_lsts.push_back(lst);
         }
     }
-    
+
     visitTimer->StopTimer(t_fetch_loc_dbi,
                           "avtGenericDatabase: Fetch local domain boundary info");
-    
+
     int t_gen_global = visitTimer->StartTimer();
     // this will return null if there are no local lists.
     avtDomainBoundaries *res  = avtLocalStructuredDomainBoundaryList::GlobalGenerate(local_lsts);
     visitTimer->StopTimer(t_gen_global,
                          "avtGenericDatabase: Generate global domain boundaries from local info");
-    
+
     return res;
 }
 
@@ -7610,6 +7989,21 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundariesFromFile(
 //    Eric Brugger, Fri Mar 13 15:20:08 PDT 2020
 //    Modify to handle NULL meshes.
 //
+//    Eric Brugger, Mon May 24 11:38:21 PDT 2021
+//    Modify to handle meshes with no points or cells.
+//
+//    Eric Brugger, Wed Jul  5 10:41:32 PDT 2023
+//    Modified to handle the case where a variable is defined on a subset
+//    of the materials and a domain has mixed materials without the material
+//    the variable was defined on.
+//
+//    Justin Privitera, Tue Oct 22 10:32:27 PDT 2024
+//    Exchange extra ghost zone/node arrays.
+//
+//    Kathleen Biagas, Thu Oct 31, 2024
+//    Don't attempt to Exchange extra ghost zone/node arrays if no process
+//    has extra ghost information.
+//
 // ****************************************************************************
 
 bool
@@ -7661,7 +8055,11 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         else
             allmats = false;
 
-        if (mat != NULL && mat->GetMixlen() > 0)
+	// If the dataset is NULL then it is a variable that is defined on
+	// a material and this domain doesn't contain the material.
+	// Exchanging mixed variable information doesn't make sense in this
+	// case.
+        if (mat != NULL && mat->GetMixlen() > 0 && ds.GetDataset(i, 0) != NULL)
         {
             int num = (int)ds.GetAllMixVars(i).size();
             most_mixvars = (most_mixvars > num ? most_mixvars : num);
@@ -7723,8 +8121,10 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
     for (int i = 0 ; i < (int)doms.size() ; i++)
     {
         list.push_back(ds.GetDataset(i, 0));
-        if (list[i] != NULL)
-            list[i]->Register(NULL);
+        if (list[i] == NULL ||
+            list[i]->GetNumberOfPoints() == 0 || list[i]->GetNumberOfCells() == 0)
+            continue;
+        list[i]->Register(NULL);
     }
     vector<vtkDataSet *> newList = dbi->ExchangeMesh(doms, list);
 
@@ -7734,7 +8134,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
     //
     for (int i = 0 ; i < (int)doms.size() ; i++)
     {
-        if (list[i] == NULL)
+        if (list[i] == NULL ||
+            list[i]->GetNumberOfPoints() == 0 || list[i]->GetNumberOfCells() == 0)
             continue;
         vtkFieldData *fd = list[i]->GetFieldData();
         for (int k = 0; k < fd->GetNumberOfArrays(); k++)
@@ -7764,7 +8165,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (size_t i = 0 ; i < doms.size() ; i++)
         {
             vtkDataSet *ds1 = list[i];
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
             {
                 scalars.push_back(NULL);
                 continue;
@@ -7785,7 +8187,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (int i = 0 ; i < (int)doms.size() ; i++)
         {
             vtkDataSet *ds1 = ds.GetDataset(i, 0);
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                 continue;
             vtkDataArray *s   = scalarsOut[i];
             if (centering == AVT_NODECENT)
@@ -7811,7 +8214,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (size_t i = 0 ; i < doms.size() ; i++)
         {
             vtkDataSet *ds1 = list[i];
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
             {
                 vectors.push_back(NULL);
                 continue;
@@ -7832,7 +8236,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (int i = 0 ; i < (int)doms.size() ; i++)
         {
             vtkDataSet *ds1 = ds.GetDataset(i, 0);
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                 continue;
             vtkDataArray *s   = vectorsOut[i];
             if (vmd->centering == AVT_NODECENT)
@@ -7868,7 +8273,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
                 for (size_t j = 0 ; j < doms.size() ; j++)
                 {
                     vtkDataSet *ds1 = list[j];
-                    if (ds1 == NULL)
+                    if (ds1 == NULL ||
+                        ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                     {
                         scalars.push_back(NULL);
                         continue;
@@ -7889,7 +8295,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
                 for (int j = 0 ; j < (int)doms.size() ; j++)
                 {
                     vtkDataSet *ds1 = ds.GetDataset(j, 0);
-                    if (ds1 == NULL)
+                    if (ds1 == NULL ||
+                        ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                         continue;
                     vtkDataSetAttributes *atts = NULL;
                     if (isPointData)
@@ -7910,7 +8317,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
                 vector<vtkDataArray *> scalars;
                 for (size_t j = 0 ; j < doms.size() ; j++)
                 {
-                    if (list[j] == NULL)
+                    if (list[j] == NULL ||
+                        list[j]->GetNumberOfPoints() == 0 || list[j]->GetNumberOfCells() == 0)
                     {
                         scalars.push_back(NULL);
                         continue;
@@ -7923,7 +8331,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
                 for (int j = 0 ; j < (int)doms.size() ; j++)
                 {
                     vtkDataSet *ds1 = ds.GetDataset(j, 0);
-                    if (ds1 == NULL)
+                    if (ds1 == NULL ||
+                        ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                         continue;
                     ds1->GetCellData()->AddArray(scalarsOut[j]);
                     scalarsOut[j]->Delete();
@@ -7939,7 +8348,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
                 for (size_t j = 0 ; j < doms.size() ; j++)
                 {
                     vtkDataSet *ds1 = list[j];
-                    if (ds1 == NULL)
+                    if (ds1 == NULL ||
+                        ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                     {
                         vectors.push_back(NULL);
                         continue;
@@ -7960,7 +8370,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
                 for (int j = 0 ; j < (int) doms.size() ; j++)
                 {
                     vtkDataSet *ds1 = ds.GetDataset(j, 0);
-                    if (ds1 == NULL)
+                    if (ds1 == NULL ||
+                        ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                         continue;
                     vtkDataSetAttributes *atts = NULL;
                     if (isPointData)
@@ -8041,7 +8452,13 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
                 for (int j = 0 ; j < (int)doms.size(); j++)
                 {
                     avtMaterial *mat = matList[j];
-                    if (mat != NULL && mat->GetMixlen() > 0)
+
+	            // If the dataset is NULL then it is a variable that is
+		    // defined on a material and this domain doesn't contain
+		    // the material. Exchanging mixed variable information
+		    // doesn't make sense in this case.
+                    if (mat != NULL && mat->GetMixlen() > 0 &&
+                        ds.GetDataset(j, 0) != NULL)
                     {
                         avtMixedVariable *mv = (avtMixedVariable *)
                                                  *(ds.GetAllMixVars(j)[i]);
@@ -8092,7 +8509,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (size_t j = 0 ; j < doms.size() ; j++)
         {
             vtkDataSet *ds1 = list[j];
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
             {
                 nodeNums.push_back(NULL);
                 continue;
@@ -8105,7 +8523,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (int j = 0 ; j < (int)doms.size() ; j++)
         {
             vtkDataSet *ds1 = ds.GetDataset(j, 0);
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                 continue;
             ds1->GetPointData()->AddArray(nodeNumsOut[j]);
             nodeNumsOut[j]->Delete();
@@ -8121,7 +8540,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (size_t j = 0 ; j < doms.size() ; j++)
         {
             vtkDataSet *ds1 = list[j];
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
             {
                 cellNums.push_back(NULL);
                 continue;
@@ -8134,7 +8554,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (int j = 0 ; j < (int)doms.size() ; j++)
         {
             vtkDataSet *ds1 = ds.GetDataset(j, 0);
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                 continue;
             ds1->GetCellData()->AddArray(cellNumsOut[j]);
             cellNumsOut[j]->Delete();
@@ -8150,7 +8571,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (size_t j = 0 ; j < doms.size() ; j++)
         {
             vtkDataSet *ds1 = list[j];
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
             {
                 nodeNums.push_back(NULL);
                 continue;
@@ -8163,7 +8585,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (int j = 0 ; j < (int)doms.size() ; j++)
         {
             vtkDataSet *ds1 = ds.GetDataset(j, 0);
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                 continue;
             ds1->GetPointData()->AddArray(nodeNumsOut[j]);
             nodeNumsOut[j]->Delete();
@@ -8179,7 +8602,8 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (size_t j = 0 ; j < doms.size() ; j++)
         {
             vtkDataSet *ds1 = list[j];
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
             {
                 cellNums.push_back(NULL);
                 continue;
@@ -8192,10 +8616,96 @@ avtGenericDatabase::CommunicateGhostZonesFromDomainBoundaries(
         for (int j = 0 ; j < (int)doms.size() ; j++)
         {
             vtkDataSet *ds1 = ds.GetDataset(j, 0);
-            if (ds1 == NULL)
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
                 continue;
             ds1->GetCellData()->AddArray(cellNumsOut[j]);
             cellNumsOut[j]->Delete();
+        }
+    }
+
+    //
+    // Exchange ExtraGhostZone Arrays.
+    //
+    // this logic was added to support the functionality in the
+    // AugmentGhostData() function.
+    vector<vtkDataArray *> extraGhostZones;
+    for (size_t j = 0 ; j < doms.size() ; j++)
+    {
+        vtkDataSet *ds1 = list[j];
+        if (ds1 == NULL ||
+            ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
+        {
+            extraGhostZones.push_back(NULL);
+            continue;
+        }
+        if (ds1->GetCellData()->GetArray("avtExtraGhostZones"))
+        {
+            extraGhostZones.push_back(ds1->GetCellData()->GetArray(
+                                                "avtExtraGhostZones"));
+        }
+    }
+
+    int canDoExchange = (extraGhostZones.size() > 0);
+#ifdef PARALLEL
+    int myCanDoExchange = canDoExchange;
+    MPI_Allreduce(&myCanDoExchange, &canDoExchange, 1, MPI_INT, MPI_MAX, VISIT_MPI_COMM);
+#endif
+
+    if(canDoExchange)
+    {
+        vector<vtkDataArray *> extraGhostZonesOut;
+        extraGhostZonesOut = dbi->ExchangeScalar(doms,false,extraGhostZones);
+        for (int j = 0 ; j < (int)doms.size() ; j++)
+        {
+            vtkDataSet *ds1 = ds.GetDataset(j, 0);
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
+                continue;
+            ds1->GetCellData()->AddArray(extraGhostZonesOut[j]);
+            extraGhostZonesOut[j]->Delete();
+        }
+    }
+
+    //
+    // Exchange ExtraGhostNode Arrays.
+    //
+    // this logic was added to support the functionality in the
+    // AugmentGhostData() function.
+    vector<vtkDataArray *> extraGhostNodes;
+    for (size_t j = 0 ; j < doms.size() ; j++)
+    {
+        vtkDataSet *ds1 = list[j];
+        if (ds1 == NULL ||
+            ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
+        {
+            extraGhostNodes.push_back(NULL);
+            continue;
+        }
+        if (ds1->GetPointData()->GetArray("avtExtraGhostNodes"))
+        {
+            extraGhostNodes.push_back(ds1->GetPointData()->GetArray(
+                                                "avtExtraGhostNodes"));
+        }
+    }
+
+    canDoExchange = (extraGhostNodes.size() > 0);
+#ifdef PARALLEL
+    myCanDoExchange = canDoExchange;
+    MPI_Allreduce(&myCanDoExchange, &canDoExchange, 1, MPI_INT, MPI_MAX, VISIT_MPI_COMM);
+#endif
+    if(canDoExchange)
+    {
+        vector<vtkDataArray *> extraGhostNodesOut;
+        extraGhostNodesOut = dbi->ExchangeScalar(doms,true,extraGhostNodes);
+        for (int j = 0 ; j < (int)doms.size() ; j++)
+        {
+            vtkDataSet *ds1 = ds.GetDataset(j, 0);
+            if (ds1 == NULL ||
+                ds1->GetNumberOfPoints() == 0 || ds1->GetNumberOfCells() == 0)
+                continue;
+            ds1->GetPointData()->AddArray(extraGhostNodesOut[j]);
+            extraGhostNodesOut[j]->Delete();
         }
     }
 
@@ -8340,6 +8850,12 @@ avtGenericDatabase::CommunicateGhostNodesFromDomainBoundariesFromFile(
 //    Eric Brugger, Fri Mar 13 15:20:08 PDT 2020
 //    Modify to handle NULL meshes.
 //
+//    Kathleen Biagas, Fri May 22 15:41:44 PDT 2020
+//    Test for myMin > myMax.
+//
+//    Eric Brugger, Mon May 24 11:38:21 PDT 2021
+//    Modify to handle meshes with no points or cells.
+//
 // ****************************************************************************
 
 bool
@@ -8385,7 +8901,8 @@ avtGenericDatabase::CommunicateGhostZonesFromGlobalNodeIds(
     for (int i = 0 ; i < (int)doms.size() ; i++)
     {
         vtkUnstructuredGrid *d = (vtkUnstructuredGrid *) ds.GetDataset(i, 0);
-        if (d == NULL)
+        if (d == NULL ||
+            d->GetNumberOfPoints() == 0 || d->GetNumberOfCells() == 0)
         {
             gni.push_back(NULL);
             lni.push_back(NULL);
@@ -8468,6 +8985,8 @@ avtGenericDatabase::CommunicateGhostZonesFromGlobalNodeIds(
     int myMax = numIdsPerProc * (rank+1);
     if (myMax > maxId)
         myMax = maxId;
+    if (myMin > myMax)
+        myMin = myMax;
 
     //
     // We will do the bookkeeping for this processor's range.  Set up
@@ -8942,6 +9461,9 @@ avtGenericDatabase::CommunicateGhostZonesWhileStreaming(
 //    Burlen Loring, Fri Oct  2 17:02:27 PDT 2015
 //    clean up a warning
 //
+//    Kathleen Biagas, Fri May 22 15:41:44 PDT 2020
+//    Test for myMin > myMax.
+//
 // ****************************************************************************
 
 bool
@@ -8987,6 +9509,8 @@ avtGenericDatabase::CommunicateGhostNodesFromGlobalNodeIds(
     int myMax = numIdsPerProc * (rank+1);
     if (myMax > maxId)
         myMax = maxId;
+    if (myMin > myMax)
+        myMin = myMax;
 
     //
     // We will do the bookkeeping for this processor's range.  Set up
@@ -9390,8 +9914,8 @@ avtGenericDatabase::ApplyGhostForDomainNesting(avtDatasetCollection &ds,
 //    Added MIR iteration capability.
 //
 //    Alister Maguire, Mon Nov 27 15:31:54 PST 2017
-//    Added ForceConstructMaterialLabels argument to 
-//    MaterialSelect. 
+//    Added ForceConstructMaterialLabels argument to
+//    MaterialSelect.
 //
 //    Mark C. Miller, Wed Dec 12 04:59:12 PST 2018
 //    Add a call to DebugDumpDatasetCollection
@@ -9598,6 +10122,11 @@ avtGenericDatabase::CreateGlobalNodes(avtDatasetCollection &ds,
 //    Added logic to support presentGhostZoneTypes, which allows us to
 //    differentiate between ghost zones for boundaries & nesting.
 //
+//    Eric Brugger, Tue Dec  7 12:41:29 PST 2021
+//    Added logic to avoid a hang in parallel if only some processors had non
+//    rectilinear grids or the processors with domains had non rectilinear
+//    grids and others didn't have any grids.
+//
 // ****************************************************************************
 
 bool
@@ -9624,11 +10153,24 @@ avtGenericDatabase::CreateSimplifiedNestingRepresentation(
         return false;
     }
 
+    //
+    // If any of the grids on any of the processors are not rectilinear
+    // then return.
+    //
+    int non_rect = 0;
     for (int i = 0 ; i < ds.GetNDomains() ; i++)
     {
         if (ds.GetDataset(i, 0)->GetDataObjectType() != VTK_RECTILINEAR_GRID)
-            return false;
+            non_rect = 1;
     }
+#ifdef PARALLEL
+    int non_rect_global;
+    MPI_Allreduce(&non_rect, &non_rect_global, 1,
+                  MPI_INT, MPI_MAX, VISIT_MPI_COMM);
+    non_rect = non_rect_global;
+#endif
+    if (non_rect)
+        return false;
 
     avtStructuredDomainNesting *dn = (avtStructuredDomainNesting*)*vr;
 
@@ -12834,6 +13376,9 @@ avtGenericDatabase::GetDomainName(const string &varName, const int ts,
 //    Kathleen Biagas, Tue Sep  9 13:57:55 PDT 2014
 //    Don't take ghost zones into account if they came from DB.
 //
+//    Eric Brugger, Thu Aug  3 14:25:20 PDT 2023
+//    Return false if the zone or node index is out of range.
+//
 // ****************************************************************************
 
 bool
@@ -12876,6 +13421,8 @@ avtGenericDatabase::QueryCoords(const string &varName, const int dom,
         if (forZone)
         {
             int zone = currentid;
+	    if (zone < 0 || zone >= ds->GetNumberOfCells())
+                return false;
             if (ds->GetDataObjectType() == VTK_RECTILINEAR_GRID ||
                 ds->GetDataObjectType() == VTK_STRUCTURED_GRID)
             {
@@ -12904,6 +13451,8 @@ avtGenericDatabase::QueryCoords(const string &varName, const int dom,
         else
         {
             int node = currentid;
+	    if (node < 0 || node >= ds->GetNumberOfPoints())
+                return false;
             if (ds->GetDataObjectType() == VTK_RECTILINEAR_GRID ||
                 ds->GetDataObjectType() == VTK_STRUCTURED_GRID)
             {

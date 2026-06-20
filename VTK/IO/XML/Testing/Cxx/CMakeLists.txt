@@ -8,17 +8,20 @@ set(all_tests
   TestReadDuplicateDataArrayNames.cxx,NO_DATA,NO_VALID
   TestSettingTimeArrayInReader.cxx,NO_VALID,NO_OUTPUT
   TestXML.cxx,NO_DATA,NO_VALID,NO_OUTPUT
+  TestXMLDuplicatedDataArray.cxx,NO_VALID
   TestXMLGhostCellsImport.cxx
   TestXMLHierarchicalBoxDataFileConverter.cxx,NO_VALID
   TestXMLHyperTreeGridIO.cxx,NO_VALID
   TestXMLHyperTreeGridIO2.cxx,NO_VALID
   TestXMLHyperTreeGridIOInterface.cxx
   TestXMLHyperTreeGridIOReduction.cxx,NO_VALID
+  TestXMLHyperTreeGridReaderV2Bounds.cxx,NO_VALID
   TestXMLLargeUnstructuredGrid.cxx,NO_VALID
   TestXMLMappedUnstructuredGridIO.cxx,NO_DATA,NO_VALID
   TestXMLMultiBlockDataWriterWithEmptyLeaf.cxx,NO_DATA,NO_VALID
   TestXMLPieceDistribution.cxx
   TestXMLPolyhedronUnstructuredGrid.cxx,NO_DATA,NO_VALID
+  TestXMLReaderVariant.cxx,NO_VALID
   TestXMLToString.cxx,NO_DATA,NO_VALID,NO_OUTPUT
   TestXMLUnstructuredGridReader.cxx
   TestXMLWriterWithDataArrayFallback.cxx,NO_VALID
@@ -34,6 +37,10 @@ endif()
 
 vtk_add_test_cxx(vtkIOXMLCxxTests tests
   ${all_tests})
+
+# We expect TestXMLReaderVariant to fail, the test ensures it raises an error instead of segfault
+set_tests_properties(VTK::IOXMLCxx-TestXMLReaderVariant PROPERTIES PASS_REGULAR_EXPRESSION "Missing word type attribute")
+set_tests_properties(VTK::IOXMLCxx-TestXMLReaderVariant PROPERTIES FAIL_REGULAR_EXPRESSION "")
 
 # Each of these most be added in a separate vtk_add_test_cxx
 vtk_add_test_cxx(vtkIOXMLCxxTests tests

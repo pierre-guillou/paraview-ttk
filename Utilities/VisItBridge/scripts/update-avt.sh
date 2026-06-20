@@ -8,12 +8,13 @@ readonly name="visit"
 readonly ownership="VisIt Upstream <kwrobot@kitware.com>"
 readonly subtree="Library/VisItLib"
 readonly repo="https://gitlab.kitware.com/third-party/visit.git"
-readonly tag="for/paraview-20241213-g756b0aa4ee"
+readonly tag="for/paraview-20251211-v3.4.2"
 
 readonly paths="
 .gitattributes
 README.kitware.md
 src/CMakeLists.paraview.txt
+src/VERSION
 
 src/CMake/testFStream.cxx
 src/CMake/TestSocklenT.c
@@ -30,10 +31,12 @@ src/avt/Database/Database/avtSILGenerator.*
 src/avt/Database/Database/avtSourceFromDatabase.*
 src/avt/Database/Database/avtTransformManager.*
 src/avt/Database/Database/avtVariableCache.*
+src/avt/Database/Database/CMakeLists.txt
 src/avt/Database/Database/database_exports.h
 src/avt/Database/Ghost/StructuredBoundary.C
 src/avt/Database/Ghost/avtDomainBoundaries.*
 src/avt/Database/Ghost/avtDomainNesting.h
+src/avt/Database/Ghost/avtGhostNodeGenerator.*
 src/avt/Database/Ghost/avtIsenburgSGG.*
 src/avt/Database/Ghost/avtLocalStructuredDomainBoundaries.*
 src/avt/Database/Ghost/avtNekDomainBoundaries.*
@@ -42,6 +45,7 @@ src/avt/Database/Ghost/avtStructuredDomainBoundaries.*
 src/avt/Database/Ghost/avtStructuredDomainNesting.*
 src/avt/Database/Ghost/avtUnstructuredDomainBoundaries.*
 src/avt/Database/Ghost/avtUnstructuredPointBoundaries.*
+src/avt/Database/Ghost/CMakeLists.txt
 src/avt/Database/Formats/avtMTMDFileFormat.*
 src/avt/Database/Formats/avtSTMDFileFormat.h
 src/avt/Database/Formats/avtSTSDFileFormatInterface.h
@@ -62,6 +66,7 @@ src/avt/Database/Formats/avtFileFormatInterface.*
 src/avt/Database/Formats/avtSTMDFileFormat.*
 src/avt/Database/Formats/avtFileFormatInterface.h
 src/avt/Database/Formats/avtMTSDFileFormat.h
+src/avt/Database/Formats/CMakeLists.txt
 src/avt/Database/CMakeLists.txt
 
 src/avt/DBAtts/SIL/avtSIL.*
@@ -74,6 +79,7 @@ src/avt/DBAtts/SIL/avtSILRangeNamespace.*
 src/avt/DBAtts/SIL/avtSILRestriction.*
 src/avt/DBAtts/SIL/avtSILRestrictionTraverser.*
 src/avt/DBAtts/SIL/avtSILSet.*
+src/avt/DBAtts/SIL/CMakeLists.txt
 src/avt/DBAtts/MetaData/avtArrayMetaData.*
 src/avt/DBAtts/MetaData/avtBaseVarMetaData.*
 src/avt/DBAtts/MetaData/avtCurveMetaData.*
@@ -94,6 +100,7 @@ src/avt/DBAtts/MetaData/avtTensorMetaData.*
 src/avt/DBAtts/MetaData/avtTypes.*
 src/avt/DBAtts/MetaData/avtVarMetaData.*
 src/avt/DBAtts/MetaData/avtVectorMetaData.*
+src/avt/DBAtts/MetaData/CMakeLists.txt
 src/avt/DBAtts/MetaData/dbatts_exports.h
 src/avt/DBAtts/CMakeLists.txt
 
@@ -125,6 +132,7 @@ src/avt/Pipeline/Pipeline/avtNullDataWriter.*
 src/avt/Pipeline/Pipeline/avtParallel.*
 src/avt/Pipeline/Pipeline/avtParallelContext.*
 src/avt/Pipeline/Pipeline/avtWebpage.*
+src/avt/Pipeline/Pipeline/CMakeLists.txt
 src/avt/Pipeline/Sinks/avtDataObjectSink.*
 src/avt/Pipeline/Sinks/avtDatabaseWriter.*
 src/avt/Pipeline/Sinks/avtDatasetSink.*
@@ -135,6 +143,7 @@ src/avt/Pipeline/Sinks/avtTerminatingDatasetSink.*
 src/avt/Pipeline/Sinks/avtTerminatingImageSink.*
 src/avt/Pipeline/Sinks/avtTerminatingNullDataSink.*
 src/avt/Pipeline/Sinks/avtTerminatingSink.*
+src/avt/Pipeline/Sinks/CMakeLists.txt
 src/avt/Pipeline/Data/avtCallback.*
 src/avt/Pipeline/Data/avtCommonDataFunctions.*
 src/avt/Pipeline/Data/avtDataAttributes.*
@@ -169,6 +178,7 @@ src/avt/Pipeline/Data/avtResampleSelection.*
 src/avt/Pipeline/Data/avtResolutionSelection.*
 src/avt/Pipeline/Data/avtSpatialBoxSelection.*
 src/avt/Pipeline/Data/avtSpecies.*
+src/avt/Pipeline/Data/CMakeLists.txt
 src/avt/Pipeline/Data/pipeline_exports.h
 src/avt/Pipeline/Sources/avtDataObjectSource.*
 src/avt/Pipeline/Sources/avtDatasetSource.*
@@ -181,6 +191,7 @@ src/avt/Pipeline/Sources/avtOriginatingNullDataSource.*
 src/avt/Pipeline/Sources/avtOriginatingSource.*
 src/avt/Pipeline/Sources/avtQueryableSource.*
 src/avt/Pipeline/Sources/avtSourceFromAVTDataset.*
+src/avt/Pipeline/Sources/CMakeLists.txt
 src/avt/Pipeline/CMakeLists.txt
 src/avt/Pipeline/AbstractFilters/avtCompactTreeFilter.*
 src/avt/Pipeline/AbstractFilters/avtDataObjectToDatasetFilter.*
@@ -193,6 +204,7 @@ src/avt/Pipeline/AbstractFilters/avtPluginFilter.h
 src/avt/Pipeline/AbstractFilters/avtPluginSIMODataTreeIterator.h
 src/avt/Pipeline/AbstractFilters/avtPluginStructuredChunkDataTreeIterator.*
 src/avt/Pipeline/AbstractFilters/avtSIMODataTreeIterator.*
+src/avt/Pipeline/AbstractFilters/CMakeLists.txt
 
 src/avt/VisWindow/VisWindow/VisWindowTypes.h
 
@@ -201,6 +213,7 @@ src/avt/CMakeLists.txt
 src/common/comm/BadHostException.*
 src/common/comm/BufferConnection.*
 src/common/comm/CancelledConnectException.h
+src/common/comm/CMakeLists.txt
 src/common/comm/Connection.*
 src/common/comm/CouldNotConnectException.h
 src/common/comm/DConvert.C
@@ -214,7 +227,9 @@ src/common/comm/TypeRepresentation.*
 src/common/comm/comm_exports.h
 src/common/comm/convert.h
 
+src/common/Exceptions/CMakeLists.txt
 src/common/Exceptions/Database/BadPermissionException.*
+src/common/Exceptions/Database/CMakeLists.txt
 src/common/Exceptions/Database/DBYieldedNoDataException.*
 src/common/Exceptions/Database/DatabaseException.h
 src/common/Exceptions/Database/FileDoesNotExistException.*
@@ -234,6 +249,7 @@ src/common/Exceptions/Pipeline/BadDomainException.*
 src/common/Exceptions/Pipeline/BadIndexException.*
 src/common/Exceptions/Pipeline/BadNodeException.*
 src/common/Exceptions/Pipeline/BadVectorException.*
+src/common/Exceptions/Pipeline/CMakeLists.txt
 src/common/Exceptions/Pipeline/ExpressionException.*
 src/common/Exceptions/Pipeline/GhostCellException.*
 src/common/Exceptions/Pipeline/ImproperUseException.*
@@ -255,10 +271,12 @@ src/common/Exceptions/Pipeline/PipelineException.h
 src/common/Exceptions/Pipeline/StubReferencedException.*
 src/common/Exceptions/Pipeline/UnexpectedValueException.*
 src/common/Exceptions/Pipeline/avtexception_exports.h
+src/common/Exceptions/Plotter/CMakeLists.txt
 src/common/Exceptions/Plotter/InvalidColortableException.*
 src/common/Exceptions/Plotter/LibraryNotFoundException.*
 src/common/Exceptions/Plotter/PlotterException.h
 
+src/common/expr/CMakeLists.txt
 src/common/expr/ExprGrammar.*
 src/common/expr/ExprInit.C
 src/common/expr/ExprNode.*
@@ -272,6 +290,7 @@ src/common/expr/ParsingExprList.*
 src/common/expr/RecursiveExpressionException.*
 src/common/expr/expr_exports.h
 
+src/common/misc/CMakeLists.txt
 src/common/misc/ConfigureInfo.C.in
 src/common/misc/ConfigureInfo.h
 src/common/misc/DebugStream.h
@@ -286,11 +305,12 @@ src/common/misc/VisItInit.*
 src/common/misc/legend_defines.h
 src/common/misc/misc_exports.h
 
+src/common/parser/CMakeLists.txt
 src/common/parser/Colors.h
 src/common/parser/ConfiguratingItem.*
 src/common/parser/ConfiguratingSet.*
 src/common/parser/Dictionary.*
-src/common/parser/Grammar.*
+src/common/parser/Grammar.C
 src/common/parser/ParseException.h
 src/common/parser/ParseTreeNode.*
 src/common/parser/Parser.C
@@ -301,10 +321,13 @@ src/common/parser/Sequence.*
 src/common/parser/State.h
 src/common/parser/Symbol.*
 src/common/parser/SymbolSet.h
-src/common/parser/Token.*
+src/common/parser/Token.C
+src/common/parser/VisItGrammar.h
 src/common/parser/VisItParser.h
+src/common/parser/VisItToken.h
 src/common/parser/parser_exports.h
 
+src/common/plugin/CMakeLists.txt
 src/common/plugin/DatabasePluginInfo.*
 src/common/plugin/DatabasePluginManager.*
 src/common/plugin/InvalidDirectoryException.*
@@ -319,8 +342,11 @@ src/common/plugin/plugin_entry_point.h
 src/common/plugin/plugin_exports.h
 src/common/plugin/plugin_vartypes.h
 
+src/common/proxybase/CMakeLists.txt
+
 src/common/state/AttributeGroup.*
 src/common/state/AttributeSubject.*
+src/common/state/CMakeLists.txt
 src/common/state/ColorAttribute.*
 src/common/state/ColorControlPoint.*
 src/common/state/ColorControlPointList.*
@@ -330,7 +356,6 @@ src/common/state/ConfigManager.*
 src/common/state/DBOptionsAttributes.*
 src/common/state/DBPluginInfoAttributes.*
 src/common/state/DataNode.*
-src/common/state/DatabaseAttributes.*
 src/common/state/Expression.*
 src/common/state/ExpressionList.*
 src/common/state/FileOpenOptions.*
@@ -339,7 +364,6 @@ src/common/state/JSONNode.*
 src/common/state/LightAttributes.*
 src/common/state/LightList.*
 src/common/state/Line.*
-src/common/state/LineoutInfo.h
 src/common/state/MapNode.*
 src/common/state/NameschemeAttributes.*
 src/common/state/NamespaceAttributes.*
@@ -369,6 +393,7 @@ src/common/state/state_exports.h
 
 src/common/utility/AtomicProperties.*
 src/common/utility/BJHash.h
+src/common/utility/CMakeLists.txt
 src/common/utility/CoordUtils.C
 src/common/utility/EqualVal.h
 src/common/utility/FixedLengthBitField.h
@@ -394,13 +419,14 @@ src/common/CMakeLists.txt
 
 src/include/visit-cmake.h.in
 src/include/visit-hdf5.h
+src/include/visit-version.h.in
 
 src/visit_vtk/full/visit_vtk_exports.h
 src/visit_vtk/full/vtkAccessors.h
 src/visit_vtk/full/vtkBinaryPartitionVolumeFromVolume.*
-src/visit_vtk/full/vtkCSGCell.*
 src/visit_vtk/full/vtkCSGFixedLengthBitField.h
 src/visit_vtk/full/vtkCSGGrid.*
+src/visit_vtk/full/vtkExtractCellsByType.*
 src/visit_vtk/full/vtkMultiSplitter.*
 src/visit_vtk/full/vtkPolyDataOnionPeelFilter.*
 src/visit_vtk/full/vtkSurfaceFromVolume.*

@@ -117,5 +117,71 @@ configure_file(
   "${CMAKE_BINARY_DIR}/README.md"
   COPYONLY)
 
+# VTK wheel sdk
+# All file must be relative from the pyproject.toml file, since we want to configure this file,
+# we need to put all the sources of the wheel_sdks in the build dir too.
+set(_wheel_sdk_depends_args)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
+  list(APPEND _wheel_sdk_depends_args DEPENDS_EXPLICIT_ONLY)
+endif ()
+
+set(wheel_sdks_files
+  wheel_sdks/README.md
+  wheel_sdks/CMakeLists.txt
+  wheel_sdks/cmake/vtk-config-version.cmake.in
+  wheel_sdks/cmake/vtk-config.cmake.in
+  wheel_sdks/src/vtk_sdk/_version.pyi
+  wheel_sdks/src/vtk_sdk/__init__.py
+  wheel_sdks/src/vtk_sdk/py.typed
+  wheel_sdks/src/vtk_sdk/cmake/__init__.py
+  wheel_sdks/tests/test_package.py
+  wheel_sdks/tests/test_find_package.py
+  wheel_sdks/tests/packages/find_package/CMakeLists.txt
+  wheel_sdks/tests/packages/find_package/pyproject.toml
+  wheel_sdks/tests/packages/src/vtk_simple/__init__.py)
+
+set(wheel_sdk_copied_files)
+foreach (wheel_sdk_file IN LISTS wheel_sdks_files)
+  set(input_wheel_sdk_file "${CMAKE_CURRENT_LIST_DIR}/${wheel_sdk_file}")
+  set(output_wheel_sdk_file "${CMAKE_BINARY_DIR}/${wheel_sdk_file}")
+  add_custom_command(
+    OUTPUT  "${output_wheel_sdk_file}"
+    DEPENDS ${input_wheel_sdk_file}
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${input_wheel_sdk_file}"
+            "${output_wheel_sdk_file}"
+    COMMENT "Copying ${wheel_sdk_file} to the binary directory"
+            ${_wheel_sdk_depends_args})
+  list(APPEND wheel_sdk_copied_files
+    "${output_wheel_sdk_file}")
+endforeach ()
+
+add_custom_target(vtk_wheel_sdk_copy ALL
+  DEPENDS
+    ${wheel_sdk_copied_files})
+
+# Determine wheel version. This code is similar to setup.py.in.
+set(VTK_WHEEL_SDK_VERSION "${VTK_MAJOR_VERSION}.${VTK_MINOR_VERSION}.${VTK_BUILD_VERSION}")
+
+# VTK_VERSION_SUFFIX is ignored on tags
+if (NOT DEFINED ENV{CI_COMMIT_TAG} AND NOT VTK_VERSION_SUFFIX STREQUAL "")
+  string(APPEND VTK_WHEEL_SDK_VERSION ".${VTK_VERSION_SUFFIX}")
+elseif ("$ENV{CI_COMMIT_TAG}" MATCHES "\.rc")
+  # add the RC tag if it exists
+  string(FIND "$ENV{CI_COMMIT_TAG}" "." last_dot_index REVERSE)
+  string(SUBSTRING "$ENV{CI_COMMIT_TAG}" ${last_dot_index} -1 rc_bit)
+  string(APPEND VTK_WHEEL_SDK_VERSION ${rc_bit})
+endif ()
+
+set(VTK_WHEEL_SDK_VTK_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}") # location to copy into the SDK
+configure_file(
+  "${CMAKE_CURRENT_LIST_DIR}/wheel_sdks/pyproject.toml.in"
+  "${CMAKE_BINARY_DIR}/wheel_sdks/pyproject.toml"
+  @ONLY)
+configure_file(
+  "${CMAKE_SOURCE_DIR}/Copyright.txt"
+  "${CMAKE_BINARY_DIR}/wheel_sdks/LICENSE"
+  COPYONLY)
+
 unset(license_file)
 unset(wheel_data_dir)

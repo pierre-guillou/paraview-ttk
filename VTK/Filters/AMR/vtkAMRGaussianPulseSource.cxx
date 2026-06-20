@@ -18,6 +18,8 @@
 #include <cassert>
 #include <vector>
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRGaussianPulseSource);
 
@@ -228,7 +230,7 @@ void vtkAMRGaussianPulseSource::Generate2DDataSet(vtkOverlappingAMR* amr)
   blockId = 0;
   level = 0;
 
-  std::vector<int> blocksPerLevel(2);
+  std::vector<unsigned int> blocksPerLevel(2);
   blocksPerLevel[0] = 1;
   blocksPerLevel[1] = 2;
 
@@ -236,7 +238,7 @@ void vtkAMRGaussianPulseSource::Generate2DDataSet(vtkOverlappingAMR* amr)
   vtkAMRBox box(grid->GetOrigin(), grid->GetDimensions(), grid->GetSpacing(), origin,
     amr->GetGridDescription());
 
-  amr->Initialize(2, blocksPerLevel.data());
+  amr->Initialize(blocksPerLevel);
   amr->SetOrigin(grid->GetOrigin());
   amr->SetGridDescription(grid->GetDataDescription());
   amr->SetSpacing(level, grid->GetSpacing());
@@ -284,7 +286,7 @@ void vtkAMRGaussianPulseSource::Generate3DDataSet(vtkOverlappingAMR* amr)
   blockId = 0;
   level = 0;
 
-  std::vector<int> blocksPerLevel(2);
+  std::vector<unsigned int> blocksPerLevel(2);
   blocksPerLevel[0] = 1;
   blocksPerLevel[1] = 2;
 
@@ -292,7 +294,7 @@ void vtkAMRGaussianPulseSource::Generate3DDataSet(vtkOverlappingAMR* amr)
   vtkAMRBox box(grid->GetOrigin(), grid->GetDimensions(), grid->GetSpacing(), origin,
     amr->GetGridDescription());
 
-  amr->Initialize(2, blocksPerLevel.data());
+  amr->Initialize(blocksPerLevel);
   amr->SetOrigin(grid->GetOrigin());
   amr->SetGridDescription(grid->GetDataDescription());
   amr->SetSpacing(level, grid->GetSpacing());

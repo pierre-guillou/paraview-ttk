@@ -8,8 +8,11 @@
 #include "vtkImageData.h"
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringScanner.h"
 
 #include <cmath>
+
+#include <iostream>
 
 int TestThreadedCopy(int ac, char* av[])
 {
@@ -20,11 +23,13 @@ int TestThreadedCopy(int ac, char* av[])
   {
     if (i < ac - 1 && !strcmp(av[i], "--numThreads"))
     {
-      vtkSMPTools::Initialize(atoi(av[i + 1]));
+      int numThreads;
+      VTK_FROM_CHARS_IF_ERROR_RETURN(av[i + 1], numThreads, EXIT_FAILURE);
+      vtkSMPTools::Initialize(numThreads);
     }
     if (i < ac - 1 && !strcmp(av[i], "--GB"))
     {
-      GB = atof(av[i + 1]);
+      VTK_FROM_CHARS_IF_ERROR_RETURN(av[i + 1], GB, EXIT_FAILURE);
     }
     if (!strcmp(av[i], "--write"))
     {
@@ -39,14 +44,14 @@ int TestThreadedCopy(int ac, char* av[])
 
   if (write)
   {
-    cout << "Populate it." << endl;
+    std::cout << "Populate it." << std::endl;
     int* ptr = static_cast<int*>(hugeImage->GetScalarPointer());
     for (int k = 0; k < edge; ++k)
     {
       double z = (double)k / edge - 0.5;
       if (k % (edge / 10) == 0)
       {
-        cout << (z + 0.5) * 100 << "% done" << endl;
+        std::cout << (z + 0.5) * 100 << "% done" << std::endl;
       }
       for (int j = 0; j < edge; ++j)
       {
@@ -75,7 +80,7 @@ int TestThreadedCopy(int ac, char* av[])
   dsw->SetFileName("dest.vtk");
   if (write)
   {
-    cout << "Write them." << endl;
+    std::cout << "Write them." << std::endl;
     dsw->Write();
     dsw->Write();
   }

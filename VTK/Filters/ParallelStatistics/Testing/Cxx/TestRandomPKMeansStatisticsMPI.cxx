@@ -13,7 +13,7 @@
 #include "vtkIdTypeArray.h"
 #include "vtkMPIController.h"
 #include "vtkMath.h"
-#include "vtkMultiBlockDataSet.h"
+#include "vtkStatisticalModel.h"
 #include "vtkTable.h"
 #include "vtkTimerLog.h"
 #include "vtkVariantArray.h"
@@ -22,6 +22,8 @@
 
 #include <sstream>
 #include <vector>
+
+#include <iostream>
 
 namespace
 {
@@ -179,36 +181,28 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
 
   if (myRank == args->ioRank)
   {
-    vtkMultiBlockDataSet* outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
-      pks->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
+    auto* outputMetaDS = pks->GetOutputModel();
 
-    cout << "\n## Completed parallel calculation of kmeans statistics (with assessment):\n"
-         << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
-    for (unsigned int b = 0; b < outputMetaDS->GetNumberOfBlocks(); ++b)
+    std::cout << "\n## Completed parallel calculation of kmeans statistics (with assessment):\n"
+              << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
+    vtkTable* outputMeta = outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0);
+    vtkIdType testIntValue = 0;
+    for (vtkIdType r = 0; r < outputMeta->GetNumberOfRows(); r++)
     {
-      vtkTable* outputMeta = vtkTable::SafeDownCast(outputMetaDS->GetBlock(b));
-      if (!b)
-      {
-        vtkIdType testIntValue = 0;
-        for (vtkIdType r = 0; r < outputMeta->GetNumberOfRows(); r++)
-        {
-          testIntValue += outputMeta->GetValueByName(r, "Cardinality").ToInt();
-        }
+      testIntValue += outputMeta->GetValueByName(r, "Cardinality").ToInt();
+    }
 
-        cout << "\n## Computed clusters (cardinality: " << testIntValue << " / run):\n";
+    std::cout << "\n## Computed clusters (cardinality: " << testIntValue << " / run):\n";
 
-        if (testIntValue != nVals * args->nProcs)
-        {
-          vtkGenericWarningMacro("Sum of cluster cardinalities is incorrect: "
-            << testIntValue << " != " << nVals * args->nProcs << ".");
-          *(args->retVal) = 1;
-        }
-      }
-      else
-      {
-        cout << "   Ranked cluster: "
-             << "\n";
-      }
+    if (testIntValue != nVals * args->nProcs)
+    {
+      vtkGenericWarningMacro("Sum of cluster cardinalities is incorrect: "
+        << testIntValue << " != " << nVals * args->nProcs << ".");
+      *(args->retVal) = 1;
+    }
+    for (int b = 0; b < outputMetaDS->GetNumberOfTables(vtkStatisticalModel::Derived); ++b)
+    {
+      std::cout << "   Ranked cluster:\n";
       outputMeta->Dump();
     }
   }
@@ -243,6 +237,7 @@ int TestRandomPKMeansStatisticsMPI(int argc, char* argv[])
   int ioRank;
   int flag;
 
+  // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
   MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_IO, &ioPtr, &flag);
 
   if ((!flag) || (*ioPtr == MPI_PROC_NULL))
@@ -274,14 +269,14 @@ int TestRandomPKMeansStatisticsMPI(int argc, char* argv[])
 
   if (com->GetLocalProcessId() == ioRank)
   {
-    cout << "\n# Process " << ioRank << " will be the I/O node.\n";
+    std::cout << "\n# Process " << ioRank << " will be the I/O node.\n";
   }
 
   // Check how many processes have been made available
   int numProcs = controller->GetNumberOfProcesses();
   if (controller->GetLocalProcessId() == ioRank)
   {
-    cout << "\n# Running test with " << numProcs << " processes...\n";
+    std::cout << "\n# Running test with " << numProcs << " processes...\n";
   }
 
   // **************************** Parse command line ***************************
@@ -322,7 +317,7 @@ int TestRandomPKMeansStatisticsMPI(int argc, char* argv[])
   {
     if (com->GetLocalProcessId() == ioRank)
     {
-      cerr << "Usage: " << clArgs.GetHelp() << "\n";
+      std::cerr << "Usage: " << clArgs.GetHelp() << "\n";
     }
 
     controller->Finalize();
@@ -351,7 +346,7 @@ int TestRandomPKMeansStatisticsMPI(int argc, char* argv[])
   // Clean up and exit
   if (com->GetLocalProcessId() == ioRank)
   {
-    cout << "\n# Test completed.\n\n";
+    std::cout << "\n# Test completed.\n\n";
   }
 
   controller->Finalize();

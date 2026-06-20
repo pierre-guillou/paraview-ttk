@@ -3,6 +3,7 @@ vtk_add_test_cxx(vtkRenderingAnnotationCxxTests tests
   TestAxisActor_Mode2D.cxx
   TestAxisActor_MultiAxis.cxx
   TestAxisActor_Text3D.cxx
+  TestAxisActor_Updates.cxx,NO_VALID
   TestAxisActor_X.cxx
   TestAxisActor_Y.cxx
   TestAxisActor_Z.cxx
@@ -36,6 +37,11 @@ vtk_add_test_cxx(vtkRenderingAnnotationCxxTests tests
   TestLegendScaleActorCustomLabels.cxx
   TestLegendScaleActorDefault.cxx
   TestPieChartActor.cxx
+  TestPolarAxes_Arcs.cxx
+  TestPolarAxes_Axis.cxx
+  TestPolarAxes_Default.cxx
+  TestPolarAxes_Mode2D.cxx
+  TestPolarAxes_Text3D.cxx
   TestPolarAxes.cxx
   TestPolarAxes2D.cxx
   TestPolarAxes2DDefault.cxx

@@ -6,7 +6,6 @@
 #include "vtkActor2D.h"
 #include "vtkCoordinate.h"
 #include "vtkDataArray.h"
-#include "vtkDataSet.h"
 #include "vtkExecutive.h"
 #include "vtkFloatArray.h"
 #include "vtkIdList.h"
@@ -15,6 +14,7 @@
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextMapper.h"
 #include "vtkTextProperty.h"
 #include "vtkTree.h"
@@ -64,7 +64,7 @@ vtkLabeledTreeMapDataMapper::vtkLabeledTreeMapDataMapper()
   this->ChildrenCount = new int[this->MaxTreeLevels + 1];
   this->LabelMasks = new float[this->MaxTreeLevels + 1][4];
   this->SetRectanglesArrayName("area");
-  this->SetLabelFormat("%s");
+  this->SetLabelFormat("{:s}");
 
   // Take control of the TextMappers array.
   // The superclass just created new TextMapper instances
@@ -158,10 +158,7 @@ void vtkLabeledTreeMapDataMapper::UpdateFontSizes()
       this->TextMappers[0]->SetInput(test);
       this->TextMappers[0]->GetSize(this->CurrentViewPort, tSize);
       this->FontWidths[i][test[0] - 32] = tSize[0];
-      if (this->FontHeights[i] < tSize[1])
-      {
-        this->FontHeights[i] = tSize[1];
-      }
+      this->FontHeights[i] = std::max(this->FontHeights[i], tSize[1]);
     }
   }
 }
@@ -237,19 +234,23 @@ void vtkLabeledTreeMapDataMapper::GetVertexLabel(vtkIdType vertex, vtkDataArray*
     {
       if (numericData->GetDataType() == VTK_CHAR)
       {
-        if (strcmp(this->LabelFormat, "%c") != 0)
+        if (strcmp(this->LabelFormat, "{:c}") != 0)
         {
-          vtkErrorMacro(<< "Label format must be %c to use with char");
+          vtkErrorMacro(<< "Label format must be {:c} to use with char");
           string[0] = '\0';
           return;
         }
-        snprintf(string, stringSize, this->LabelFormat,
-          static_cast<char>(numericData->GetComponent(vertex, activeComp)));
+        VTK_FORMAT_IF_ERROR_RETURN(
+          auto result = vtk::format_to_n(string, stringSize, this->LabelFormat,
+            static_cast<char>(numericData->GetComponent(vertex, activeComp)));
+          *result.out = '\0', );
       }
       else
       {
-        snprintf(
-          string, stringSize, this->LabelFormat, numericData->GetComponent(vertex, activeComp));
+        VTK_FORMAT_IF_ERROR_RETURN(
+          auto result = vtk::format_to_n(
+            string, stringSize, this->LabelFormat, numericData->GetComponent(vertex, activeComp));
+          *result.out = '\0', );
       }
     }
     else
@@ -258,29 +259,37 @@ void vtkLabeledTreeMapDataMapper::GetVertexLabel(vtkIdType vertex, vtkDataArray*
       strcat(format, this->LabelFormat);
       for (j = 0; j < (numComp - 1); j++)
       {
-        snprintf(string, stringSize, format, numericData->GetComponent(vertex, j));
+        VTK_FORMAT_IF_ERROR_RETURN(auto result = vtk::format_to_n(string, stringSize, format,
+                                     numericData->GetComponent(vertex, j));
+                                   *result.out = '\0', );
         strcpy(format, string);
         strcat(format, ", ");
         strcat(format, this->LabelFormat);
       }
-      snprintf(string, stringSize, format, numericData->GetComponent(vertex, numComp - 1));
+      VTK_FORMAT_IF_ERROR_RETURN(auto result = vtk::format_to_n(string, stringSize, format,
+                                   numericData->GetComponent(vertex, numComp - 1));
+                                 *result.out = '\0', );
       strcat(string, ")");
     }
   }
   else if (stringData) // rendering string data
   {
-    if (strcmp(this->LabelFormat, "%s") != 0)
+    if (strcmp(this->LabelFormat, "{:s}") != 0)
     {
-      vtkErrorMacro(<< "Label format must be %s to use with strings");
+      vtkErrorMacro(<< "Label format must be {:s} to use with strings");
       string[0] = '\0';
       return;
     }
-    snprintf(string, stringSize, this->LabelFormat, stringData->GetValue(vertex).c_str());
+    VTK_FORMAT_IF_ERROR_RETURN(auto result = vtk::format_to_n(string, stringSize, this->LabelFormat,
+                                 stringData->GetValue(vertex).c_str());
+                               *result.out = '\0', );
   }
   else // Use the vertex id
   {
     val = static_cast<double>(vertex);
-    snprintf(string, stringSize, this->LabelFormat, val);
+    VTK_FORMAT_IF_ERROR_RETURN(
+      auto result = vtk::format_to_n(string, stringSize, this->LabelFormat, val);
+      *result.out = '\0', );
   }
 }
 
@@ -543,10 +552,7 @@ void vtkLabeledTreeMapDataMapper::LabelTree(vtkTree* tree, vtkFloatArray* boxInf
 int vtkLabeledTreeMapDataMapper::GetStringSize(char* string, int level)
 {
 
-  if (level > this->MaxFontLevel)
-  {
-    level = this->MaxFontLevel;
-  }
+  level = std::min(level, this->MaxFontLevel);
   int size = 0, i;
   for (i = 0; string[i] != '\0'; i++)
   {
@@ -603,25 +609,10 @@ int vtkLabeledTreeMapDataMapper::ConvertToDC(float* binfo, float* newBinfo)
     return 0;
   }
 
-  if (newBinfo[0] < 0)
-  {
-    newBinfo[0] = 0;
-  }
-
-  if (newBinfo[1] > windowWidth)
-  {
-    newBinfo[1] = windowWidth;
-  }
-
-  if (newBinfo[2] < 0)
-  {
-    newBinfo[2] = 0;
-  }
-
-  if (newBinfo[3] > windowHeight)
-  {
-    newBinfo[3] = windowHeight;
-  }
+  newBinfo[0] = std::max(newBinfo[0], 0.f);
+  newBinfo[1] = std::min<double>(newBinfo[1], windowWidth);
+  newBinfo[2] = std::max(newBinfo[2], 0.f);
+  newBinfo[3] = std::min<double>(newBinfo[3], windowHeight);
 
   return 0;
 }

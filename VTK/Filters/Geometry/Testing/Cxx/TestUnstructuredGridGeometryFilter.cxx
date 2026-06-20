@@ -31,7 +31,7 @@
 #include "vtkActor.h"
 #include "vtkCellData.h"
 #include "vtkCellType.h"
-#include "vtkCellTypes.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkLookupTable.h"
 #include "vtkPolyData.h"
 #include "vtkRegressionTestImage.h"
@@ -99,6 +99,9 @@
 
 #ifdef USE_SHRINK
 #include "vtkShrinkFilter.h"
+
+#include <iostream>
+
 #endif
 
 int TestUnstructuredGridGeometryFilter(int argc, char* argv[])
@@ -130,7 +133,7 @@ int TestUnstructuredGridGeometryFilter(int argc, char* argv[])
   cellIds->SetName("cellIds");
 
   float scalar = 0.0;
-  const float scalarStep = 0.1;
+  constexpr float scalarStep = 0.1;
   vtkIdType cellId = 0;
   double xOffset = 0.0;
   double yOffset = 0.0;
@@ -3800,7 +3803,7 @@ int TestUnstructuredGridGeometryFilter(int argc, char* argv[])
   for (vtkIdType j = 0; j < uniqueCells->GetNumberOfValues(); ++j)
   {
     unsigned char cellType = uniqueCells->GetValue(j);
-    std::cout << vtkCellTypes::GetClassNameFromTypeId(cellType) << ": "
+    std::cout << vtkCellTypeUtilities::GetClassNameFromTypeId(cellType) << ": "
               << static_cast<int>(cellType) << std::endl;
   }
 
@@ -3851,7 +3854,7 @@ int TestUnstructuredGridGeometryFilter(int argc, char* argv[])
   }
 
   auto actor = vtkSmartPointer<vtkActor>::New();
-//  cout<<"prop="<<actor->GetProperty()->GetBackfaceCulling()<<endl;
+//  std::cout<<"prop="<<actor->GetProperty()->GetBackfaceCulling()<<std::endl;
 #ifdef USE_CULLING
   actor->GetProperty()->SetBackfaceCulling(1);
 #endif

@@ -98,6 +98,7 @@ struct IntegratingFunctor
   void operator()(vtkIdType partId, vtkIdType endPartId)
   {
     bool isFirst = vtkSMPTools::GetSingleThread();
+    auto*& localData = this->LocalData.Local();
     for (vtkIdType id = partId; id < endPartId; id++)
     {
       if (isFirst)
@@ -109,7 +110,6 @@ struct IntegratingFunctor
         break;
       }
       vtkLagrangianParticle* particle = this->ParticlesVec[id];
-      vtkLagrangianThreadedData* localData = this->LocalData.Local();
 
       // Set threaded data on the particle
       particle->SetThreadedData(localData);
@@ -585,9 +585,9 @@ int vtkLagrangianParticleTracker::RequestData(vtkInformation* vtkNotUsed(request
 vtkMTimeType vtkLagrangianParticleTracker::GetMTime()
 {
   // Take integrator and integration model MTime into account
-  return std::max(this->Superclass::GetMTime(),
-    std::max(this->IntegrationModel ? this->IntegrationModel->GetMTime() : 0,
-      this->Integrator ? this->Integrator->GetMTime() : 0));
+  return std::max(
+    { this->Superclass::GetMTime(), this->IntegrationModel ? this->IntegrationModel->GetMTime() : 0,
+      this->Integrator ? this->Integrator->GetMTime() : 0 });
 }
 
 //------------------------------------------------------------------------------

@@ -4,9 +4,7 @@
 #include "vtkActor.h"
 #include "vtkArcSource.h"
 #include "vtkCamera.h"
-#include "vtkCoordinate.h"
 #include "vtkFollower.h"
-#include "vtkInteractorObserver.h"
 #include "vtkLineSource.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
@@ -14,6 +12,7 @@
 #include "vtkPolyDataMapper.h"
 #include "vtkProperty.h"
 #include "vtkRenderer.h"
+#include "vtkStringFormatter.h"
 #include "vtkVectorText.h"
 #include "vtkWindow.h"
 
@@ -304,7 +303,7 @@ void vtkAngleRepresentation3D::BuildRepresentation()
     }
 
     const double length = l1 < l2 ? l1 : l2;
-    const double anglePlacementRatio = 0.5;
+    constexpr double anglePlacementRatio = 0.5;
     const double l = length * anglePlacementRatio;
     double arcp1[3] = { l * vector1[0] + c[0], l * vector1[1] + c[1], l * vector1[2] + c[2] };
     double arcp2[3] = { l * vector2[0] + c[0], l * vector2[1] + c[1], l * vector2[2] + c[2] };
@@ -319,11 +318,12 @@ void vtkAngleRepresentation3D::BuildRepresentation()
       const int npoints = points->GetNumberOfPoints();
       points->GetPoint(npoints / 2, this->TextPosition);
 
-      char string[512];
-      snprintf(string, sizeof(string), this->LabelFormat,
-        vtkMath::DegreesFromRadians(this->Angle) * this->Scale);
+      double scaledAngle = vtkMath::DegreesFromRadians(this->Angle) * this->Scale;
+      std::string labelFormat = this->LabelFormat ? vtk::to_std_format(this->LabelFormat) : "";
+      std::string string;
+      VTK_FORMAT_IF_ERROR_RETURN(string = vtk::format(labelFormat, scaledAngle), );
 
-      this->TextInput->SetText(string);
+      this->TextInput->SetText(string.c_str());
       this->TextActor->SetCamera(this->Renderer->GetActiveCamera());
       this->TextActor->SetPosition(this->TextPosition);
 

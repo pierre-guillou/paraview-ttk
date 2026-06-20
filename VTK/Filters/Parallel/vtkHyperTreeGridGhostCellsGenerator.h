@@ -31,8 +31,6 @@
 #include "vtkHyperTreeGridAlgorithm.h"
 #include "vtkWeakPointer.h" // for vtkWeakPointer
 
-#include <vector> // For vtkHypertreeGridGhostCellsGenerator::ExtractInterface
-
 VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
 class vtkCellData;
@@ -82,37 +80,17 @@ protected:
    */
   int ProcessTrees(vtkHyperTreeGrid*, vtkDataObject*) override;
 
-  /**
-   * Recursively copy the input tree (cell data and mask information)
-   * pointed by the cursor to the output. Fills memory gaps if present.
-   */
-  VTK_DEPRECATED_IN_9_4_0(
-    "This method is now defined in an internal class, and cannot be overridden anymore.")
-  void CopyInputTreeToOutput(vtkHyperTreeGridNonOrientedCursor* inCursor,
-    vtkHyperTreeGridNonOrientedCursor* outCursor, vtkCellData* inCellData, vtkCellData* outCellData,
-    vtkBitArray* inMask, vtkBitArray* outMask);
-
-  /**
-   * Reads the input interface with neighbor processes.
-   * This method is built in mirror with vtkHyperTreeGridGhostCellsGenerator::CreateGhostTree
-   */
-  VTK_DEPRECATED_IN_9_4_0(
-    "This method is now defined in an internal class, and cannot be overridden anymore.")
-  void ExtractInterface(vtkHyperTreeGridNonOrientedCursor* inCursor, vtkBitArray* isParent,
-    std::vector<vtkIdType>& indices, vtkHyperTreeGrid* grid, unsigned int mask, vtkIdType& pos);
-
-  /**
-   * Creates a ghost tree in the output. It is built in mirror with
-   * vtkHyperTreeGridGhostCellsGenerator::ExtractInterface.
-   */
-  VTK_DEPRECATED_IN_9_4_0(
-    "This method is now defined in an internal class, and cannot be overridden anymore.")
-  vtkIdType CreateGhostTree(vtkHyperTreeGridNonOrientedCursor* outCursor, vtkBitArray* isParent,
-    vtkIdType* indices, vtkIdType&& pos = 0);
-
 private:
   vtkHyperTreeGridGhostCellsGenerator(const vtkHyperTreeGridGhostCellsGenerator&) = delete;
   void operator=(const vtkHyperTreeGridGhostCellsGenerator&) = delete;
+
+  /**
+   * Exchange HTG metadata between processes
+   * Duplicated from vtkHyperTreeGridRedistribute, to be merged when both filters are moved
+   * to the same vtk module (currently vtkHyperTreeGridRedistribute is in VTK::ParallelMPI,
+   * and vtkHyperTreeGridGhostCellsGenerator is in VTK::Parallel).
+   */
+  void ExchangeHTGMetadata(vtkHyperTreeGrid* inputHTG);
 
   vtkWeakPointer<vtkMultiProcessController> Controller;
 };

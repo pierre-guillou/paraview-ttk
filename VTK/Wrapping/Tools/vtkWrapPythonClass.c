@@ -21,6 +21,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+// NOLINTBEGIN(bugprone-unsafe-functions)
+
 /* -------------------------------------------------------------------- */
 /* prototypes for the methods used by the python wrappers */
 
@@ -91,7 +93,7 @@ const char* vtkWrapPython_GetSuperClass(
 /* -------------------------------------------------------------------- */
 /* Create the docstring for a class, and print it to fp */
 void vtkWrapPython_ClassDoc(
-  FILE* fp, FileInfo* file_info, ClassInfo* data, const HierarchyInfo* hinfo, int is_vtkobject)
+  FILE* fp, FileInfo* file_info, ClassInfo* data, const HierarchyInfo* hinfo)
 {
   char pythonname[1024];
   const char* supername;
@@ -99,32 +101,8 @@ void vtkWrapPython_ClassDoc(
   const char* ccp = NULL;
   size_t i, n;
   size_t briefmax = 255;
-  int j, m;
   char temp[500];
   char* comment;
-
-  /* for special objects, add constructor signatures to the doc */
-  /* XXX only include constructors that are wrapped */
-  /* XXX exclude constructors that are type-preceded */
-  /* XXX use python-style signatures with annotations */
-  if (!is_vtkobject && !data->Template && !data->IsAbstract)
-  {
-    m = 0;
-    for (j = 0; j < data->NumberOfFunctions; j++)
-    {
-      if (vtkWrapPython_MethodCheck(data, data->Functions[j], hinfo) &&
-        vtkWrap_IsConstructor(data, data->Functions[j]))
-      {
-        m++;
-        fprintf(fp, "\n  \"%s\\n\"",
-          vtkWrapText_FormatSignature(data->Functions[j]->Signature, 70, 2000));
-      }
-    }
-    if (m > 0)
-    {
-      fprintf(fp, "\"\\n\"\n");
-    }
-  }
 
   if (data == file_info->MainClass && file_info->NameComment)
   {
@@ -492,7 +470,7 @@ void vtkWrapPython_GenerateObjectType(
 
   if (hasNumberProtocol)
   {
-    fprintf(fp, "  Py%s_NumberMethods, // tp_as_number\n", classname);
+    fprintf(fp, "  &Py%s_AsNumber, // tp_as_number\n", classname);
   }
   else
   {
@@ -501,156 +479,10 @@ void vtkWrapPython_GenerateObjectType(
   fprintf(fp,
     "  nullptr, // tp_as_sequence\n"
     "  nullptr, // tp_as_mapping\n"
-    "  nullptr, // tp_hash\n");
-  if (strcmp(classname, "vtkAlgorithm") == 0)
-  {
-    fprintf(fp,
-      "  [](PyObject* self, PyObject* args, PyObject* /*kwargs*/) -> PyObject*\n"
-      "  {\n"
-      "    int nargs = vtkPythonArgs::GetArgCount(self, args);\n"
-      "    if(nargs>1)\n"
-      "    {\n"
-      "      // Could call vtkPythonArgs::ArgCountError here, but MSVC confuses the "
-      "intended static overload with a non-static overload and raises C4753.\n"
-      "      char text[256];\n"
-      "      snprintf(text, sizeof(text), \"no overloads of __call__() take %%d argument%%s\", "
-      "nargs, (nargs == 1 ? \"\" "
-      ": \"s\"));\n"
-      "      PyErr_SetString(PyExc_TypeError, text);\n"
-      "      return nullptr;\n"
-      "    }\n"
-      "    vtkPythonArgs ap(self, args, \"__call__\");\n"
-      "    vtkObjectBase *vp = ap.GetSelfPointer(self, args);\n"
-      "    vtkAlgorithm *op = vtkAlgorithm::SafeDownCast(vp);\n"
-      "    if (op == nullptr)\n"
-      "    {\n"
-      "      PyErr_SetString(PyExc_TypeError, \"The call operator must be invoked on a "
-      "vtkAlgorithm\");\n"
-      "      return nullptr;\n"
-      "    }\n"
-      "    vtkDataObject *input = nullptr;\n"
-      "    PyObject* output = nullptr;\n"
-      "    if(op)\n"
-      "    {\n"
-      "      if(nargs == 0)\n"
-      "      {\n"
-      "        if(op->GetNumberOfInputPorts())\n"
-      "        {\n"
-      "          PyErr_SetString(PyExc_ValueError, \"No input was provided when one is "
-      "required.\");\n"
-      "          return nullptr;\n"
-      "        }\n"
-      "      }\n"
-      "      int numOutputPorts = op->GetNumberOfOutputPorts();\n"
-      "      std::vector<vtkAlgorithmOutput*> inpConns;\n"
-      "      std::vector<vtkDataObject*> inputs;\n"
-      "      if(nargs == 1 && op->GetNumberOfInputPorts() < 1)\n"
-      "      {\n"
-      "        PyErr_SetString(PyExc_ValueError, \"Trying to set input on an algorithm with 0 "
-      "input ports\");\n"
-      "        return nullptr;\n"
-      "      }\n"
-      "      if(nargs == 1)\n"
-      "      {\n"
-      "        PyObject* obj = PyTuple_GetItem(args, 0);\n"
-      "        if(PySequence_Check(obj))\n"
-      "        {\n"
-      "           Py_ssize_t nInps = PySequence_Size(obj);\n"
-      "           for(Py_ssize_t i=0; i<nInps; i++)\n"
-      "           {\n"
-      "             PyObject* s = PySequence_GetItem(obj, i);\n"
-      "             vtkDataObject* dobj = vtkDataObject::SafeDownCast(\n"
-      "                 vtkPythonUtil::GetPointerFromObject(s, \"vtkDataObject\"));\n"
-      "             if (dobj)\n"
-      "             {\n"
-      "               inputs.push_back(dobj);\n"
-      "             }\n"
-      "             else\n"
-      "             {\n"
-      "               PyErr_SetString(PyExc_ValueError, \"Expecting a sequence of data objects or "
-      "a single data object as input.\");\n"
-      "               return nullptr;\n"
-      "             }\n"
-      "           }\n"
-      "        }\n"
-      "        else if(ap.GetVTKObject(input, \"vtkDataObject\"))\n"
-      "        {\n"
-      "          inputs.push_back(input);\n"
-      "        }\n"
-      "        else\n"
-      "        {\n"
-      "          PyErr_SetString(PyExc_ValueError, \"Expecting a sequence of data objects or a "
-      "single data object as input.\");\n"
-      "          return nullptr;\n"
-      "        }\n"
-      "\n");
-    fprintf(fp,
-      "        int nConns = op->GetNumberOfInputConnections(0);\n"
-      "        for(int i=0; i<nConns; i++)\n"
-      "        {\n"
-      "          auto conn = op->GetInputConnection(0, i);\n"
-      "          inpConns.push_back(conn);\n"
-      "          if(conn && conn->GetProducer())\n"
-      "          {\n"
-      "            conn->GetProducer()->Register(nullptr);\n"
-      "          }\n"
-      "        }\n"
-      "        op->RemoveAllInputConnections(0);\n"
-      "        for(vtkDataObject* inputDobj : inputs)\n"
-      "        {\n"
-      "          vtkTrivialProducer* tp = vtkTrivialProducer::New();\n"
-      "          tp->SetOutput(inputDobj);\n"
-      "          op->AddInputConnection(0, tp->GetOutputPort());\n"
-      "          tp->Delete();\n"
-      "        }\n"
-      "      }\n"
-      "      op->Update();\n"
-      "      if(numOutputPorts > 1)\n"
-      "      {\n"
-      "        output = PyTuple_New(numOutputPorts);\n"
-      "        for(int i=0; i<numOutputPorts; i++)\n"
-      "        {\n"
-      "          auto dobj = op->GetOutputDataObject(i);\n"
-      "          auto copy = dobj->NewInstance();\n"
-      "          copy->ShallowCopy(dobj);\n"
-      "          auto anOutput = ap.BuildVTKObject(copy);\n"
-      "          PyTuple_SetItem(output, i, anOutput);\n"
-      "          copy->UnRegister(nullptr);\n"
-      "        }\n"
-      "      }\n"
-      "      else if(op->GetNumberOfOutputPorts() == 1)\n"
-      "      {\n"
-      "        auto dobj = op->GetOutputDataObject(0);\n"
-      "        auto copy = dobj->NewInstance();\n"
-      "        copy->ShallowCopy(dobj);\n"
-      "        output = ap.BuildVTKObject(copy);\n"
-      "        copy->UnRegister(nullptr);\n"
-      "      }\n"
-      "      else\n"
-      "      {\n"
-      "        output = ap.BuildNone();\n"
-      "      }\n"
-      "      if(op->GetNumberOfInputPorts())\n"
-      "      {\n"
-      "        op->RemoveAllInputConnections(0);\n"
-      "        for(auto conn : inpConns)\n"
-      "        {\n"
-      "          op->AddInputConnection(0, conn);\n"
-      "          if(conn && conn->GetProducer())\n"
-      "          {\n"
-      "            conn->GetProducer()->UnRegister(nullptr);\n"
-      "          }\n"
-      "        }\n"
-      "      }\n"
-      "    }\n"
-      "    return output;\n"
-      "  }, //tp_call\n");
-  }
-  else
-  {
-    fprintf(fp, "  nullptr, // tp_call\n");
-  }
-  fprintf(fp, "  PyVTKObject_String, // tp_str\n");
+    "  nullptr, // tp_hash\n"
+    "  %s, // tp_call\n"
+    "  PyVTKObject_String, // tp_str\n",
+    (strcmp(classname, "vtkAlgorithm") == 0 ? "PyvtkAlgorithm_Call" : "nullptr"));
 
   fprintf(fp,
     "  PyObject_GenericGetAttr, // tp_getattro\n"
@@ -785,7 +617,7 @@ int vtkWrapPython_WrapOneClass(FILE* fp, const char* module, const char* classna
   {
     /* the docstring for the class, as a static var ending in "Doc" */
     fprintf(fp, "static const char *Py%s_Doc =\n", classname);
-    vtkWrapPython_ClassDoc(fp, file_info, data, hinfo, is_vtkobject);
+    vtkWrapPython_ClassDoc(fp, file_info, data, hinfo);
     fprintf(fp, ";\n\n");
 
     vtkWrapPython_GenerateObjectType(fp, module, classname, hasNumberProtocol);
@@ -800,3 +632,5 @@ int vtkWrapPython_WrapOneClass(FILE* fp, const char* module, const char* classna
 
   return 1;
 }
+
+// NOLINTEND(bugprone-unsafe-functions)

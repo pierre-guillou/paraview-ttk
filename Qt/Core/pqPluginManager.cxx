@@ -64,7 +64,7 @@ public:
       if (!xmls.empty())
       {
         stream << " >\n";
-        for (std::string xml : xmls)
+        for (const std::string& xml : xmls)
         {
           stream << "<XML filename=\"" << xml << "\" />\n";
         }
@@ -76,7 +76,7 @@ public:
       }
     }
     stream << "</Plugins>\n";
-    // cout << stream.str().c_str() << endl;
+    // std::cout << stream.str().c_str() << endl;
     return QString(stream.str().c_str());
   }
 };

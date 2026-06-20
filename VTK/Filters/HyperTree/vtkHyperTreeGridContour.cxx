@@ -43,10 +43,10 @@ VTK_ABI_NAMESPACE_BEGIN
 
 namespace
 {
-const unsigned int MooreCursors1D[2] = { 0, 2 };
-const unsigned int MooreCursors2D[8] = { 0, 1, 2, 3, 5, 6, 7, 8 };
-const unsigned int MooreCursors3D[26] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17,
-  18, 19, 20, 21, 22, 23, 24, 25, 26 };
+constexpr unsigned int MooreCursors1D[2] = { 0, 2 };
+constexpr unsigned int MooreCursors2D[8] = { 0, 1, 2, 3, 5, 6, 7, 8 };
+constexpr unsigned int MooreCursors3D[26] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16,
+  17, 18, 19, 20, 21, 22, 23, 24, 25, 26 };
 const unsigned int* MooreCursors[3] = {
   MooreCursors1D,
   MooreCursors2D,
@@ -146,10 +146,7 @@ double FindEpsilon(vtkDataArray* contourValues)
     {
       continue;
     }
-    if (difference < epsilon)
-    {
-      epsilon = difference;
-    }
+    epsilon = std::min(difference, epsilon);
   }
 
   // Ensure there is no overlap by dividing min diff by 10
@@ -569,10 +566,7 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
   vtkIdType estimatedSize = static_cast<vtkIdType>(pow(static_cast<double>(numCells), .75));
   estimatedSize *= numContours;
   estimatedSize = estimatedSize / 1024 * 1024;
-  if (estimatedSize < 1024)
-  {
-    estimatedSize = 1024;
-  }
+  estimatedSize = std::max<vtkIdType>(estimatedSize, 1024);
 
   // Create storage for output points
   vtkPoints* newPts = vtkPoints::New();
@@ -618,7 +612,7 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
 
   // Initialize storage for signs and values
   // NOLINTNEXTLINE(bugprone-sizeof-expression)
-  this->CellSigns = (vtkBitArray**)malloc(numContours * sizeof(*this->CellSigns));
+  this->CellSigns = new vtkBitArray*[numContours];
   this->Signs.resize(numContours, true);
   for (int c = 0; c < numContours; ++c)
   {
@@ -689,7 +683,7 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
       this->CellSigns[c]->Delete();
     }
   } // c
-  free(this->CellSigns);
+  delete[] this->CellSigns;
   delete this->Helper;
   this->CellScalars->Delete();
   newPts->Delete();

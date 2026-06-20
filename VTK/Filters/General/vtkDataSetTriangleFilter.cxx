@@ -215,35 +215,30 @@ void vtkDataSetTriangleFilter::UnstructuredExecute(
   vtkUnstructuredGrid* inUgrid = vtkUnstructuredGrid::SafeDownCast(dataSetInput);
   if (inUgrid)
   {
-    // avoid doing cell simplification if all cells are already simplices
-    vtkUnsignedCharArray* cellTypes = inUgrid->GetCellTypesArray();
-    if (cellTypes)
+    int allSimplices = 1;
+    for (vtkIdType cellId = 0; cellId < inUgrid->GetNumberOfCells() && allSimplices; cellId++)
     {
-      int allsimplices = 1;
-      for (vtkIdType cellId = 0; cellId < cellTypes->GetNumberOfValues() && allsimplices; cellId++)
+      switch (inUgrid->GetCellType(cellId))
       {
-        switch (cellTypes->GetValue(cellId))
-        {
-          case VTK_TETRA:
-            break;
-          case VTK_VERTEX:
-          case VTK_LINE:
-          case VTK_TRIANGLE:
-            if (this->TetrahedraOnly)
-            {
-              allsimplices = 0; // don't shallowcopy need to strip non tets
-            }
-            break;
-          default:
-            allsimplices = 0;
-            break;
-        }
+        case VTK_TETRA:
+          break;
+        case VTK_VERTEX:
+        case VTK_LINE:
+        case VTK_TRIANGLE:
+          if (this->TetrahedraOnly)
+          {
+            allSimplices = 0; // don't shallowcopy need to strip non tets
+          }
+          break;
+        default:
+          allSimplices = 0;
+          break;
       }
-      if (allsimplices)
-      {
-        output->ShallowCopy(input);
-        return;
-      }
+    }
+    if (allSimplices)
+    {
+      output->ShallowCopy(input);
+      return;
     }
   }
 
@@ -306,8 +301,8 @@ void vtkDataSetTriangleFilter::UnstructuredExecute(
         // the wedge is "flipped" compared to other cells in that
         // the normal of the first face points out instead of in
         // so we flip the way we pass the points to the triangulator
-        const vtkIdType wedgemap[18] = { 3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8, 12, 13, 14, 15, 16,
-          17 };
+        constexpr vtkIdType wedgemap[18] = { 3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8, 12, 13, 14, 15,
+          16, 17 };
         type = cell->GetCellType();
         if (type == VTK_WEDGE || type == VTK_QUADRATIC_WEDGE ||
           type == VTK_QUADRATIC_LINEAR_WEDGE || type == VTK_BIQUADRATIC_QUADRATIC_WEDGE)

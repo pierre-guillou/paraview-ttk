@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPOutlineFilterInternals.h"
 
-#include "vtkAMRInformation.h"
 #include "vtkAppendPolyData.h"
 #include "vtkBoundingBox.h"
+#include "vtkCartesianGrid.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkDataObjectTree.h"
 #include "vtkGraph.h"
@@ -15,9 +15,9 @@
 #include "vtkOutlineCornerSource.h"
 #include "vtkOutlineSource.h"
 #include "vtkOverlappingAMR.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include "vtkPolyData.h"
 #include "vtkSmartPointer.h"
-#include "vtkUniformGrid.h"
 
 //------------------------------------------------------------------------------
 VTK_ABI_NAMESPACE_BEGIN
@@ -90,7 +90,7 @@ int vtkPOutlineFilterInternals::RequestData(vtkInformation* vtkNotUsed(request),
     return this->RequestData(oamr, output);
   }
 
-  vtkUniformGridAMR* amr = vtkUniformGridAMR::SafeDownCast(input);
+  vtkAMRDataObject* amr = vtkAMRDataObject::SafeDownCast(input);
   if (amr)
   {
     return this->RequestData(amr, output);
@@ -206,11 +206,11 @@ int vtkPOutlineFilterInternals::RequestData(vtkOverlappingAMR* input, vtkPolyDat
   vtkNew<vtkAppendPolyData> appender;
   for (unsigned int level = 0; level < input->GetNumberOfLevels(); ++level)
   {
-    unsigned int num_datasets = input->GetNumberOfDataSets(level);
+    unsigned int num_datasets = input->GetNumberOfBlocks(level);
     for (unsigned int dataIdx = 0; dataIdx < num_datasets; ++dataIdx)
     {
       double bounds[6];
-      input->GetAMRInfo()->GetBounds(level, dataIdx, bounds);
+      input->GetBounds(level, dataIdx, bounds);
       appender->AddInputData(this->GenerateOutlineGeometry(bounds));
     }
   }
@@ -221,7 +221,7 @@ int vtkPOutlineFilterInternals::RequestData(vtkOverlappingAMR* input, vtkPolyDat
 }
 
 //------------------------------------------------------------------------------
-int vtkPOutlineFilterInternals::RequestData(vtkUniformGridAMR* input, vtkPolyData* output)
+int vtkPOutlineFilterInternals::RequestData(vtkAMRDataObject* input, vtkPolyData* output)
 {
   // All processes simply produce the outline for the non-null blocks that exist
   // on the process.
@@ -229,14 +229,14 @@ int vtkPOutlineFilterInternals::RequestData(vtkUniformGridAMR* input, vtkPolyDat
   unsigned int block_id = 0;
   for (unsigned int level = 0; level < input->GetNumberOfLevels(); ++level)
   {
-    unsigned int num_datasets = input->GetNumberOfDataSets(level);
+    unsigned int num_datasets = input->GetNumberOfBlocks(level);
     for (unsigned int dataIdx = 0; dataIdx < num_datasets; ++dataIdx, block_id++)
     {
-      vtkUniformGrid* ug = input->GetDataSet(level, dataIdx);
-      if (ug)
+      vtkCartesianGrid* cg = input->GetDataSetAsCartesianGrid(level, dataIdx);
+      if (cg)
       {
         double bounds[6];
-        ug->GetBounds(bounds);
+        cg->GetBounds(bounds);
         appender->AddInputData(this->GenerateOutlineGeometry(bounds));
       }
     }

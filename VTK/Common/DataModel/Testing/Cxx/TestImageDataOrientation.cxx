@@ -15,6 +15,8 @@
 #include "vtkNew.h"
 #include "vtkPoints.h"
 
+#include <iostream>
+
 inline int DoOrientationTest(
   int extent[6], double origin[3], double spacing[3], double direction[9])
 {
@@ -127,7 +129,6 @@ inline int DoOrientationTest(
 
     // Check setting image geometry using 4x4 matrix
 
-    std::string testedMatrix;
     if (testedMatrixIndex == 0)
     {
       image->ApplyIndexToPhysicalMatrix(indexToPhysical);
@@ -188,7 +189,7 @@ inline int DoOrientationTest(
 
 int TestImageDataOrientation(int, char*[])
 {
-  const double pi = vtkMath::Pi();
+  constexpr double pi = vtkMath::Pi();
 
   // test 0D, 1D, 2D, 3D data with various extents, spacings, origins, directions
   static int dims[4][3] = {

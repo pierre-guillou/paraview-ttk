@@ -3,6 +3,7 @@
 #include "vtkXMLUnstructuredDataReader.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkDataArrayRange.h"
@@ -191,10 +192,7 @@ void vtkXMLUnstructuredDataReader::SetupUpdateExtent(int piece, int numberOfPiec
 
   // If more pieces are requested than available, just return empty
   // pieces for the extra ones.
-  if (this->UpdateNumberOfPieces > this->NumberOfPieces)
-  {
-    this->UpdateNumberOfPieces = this->NumberOfPieces;
-  }
+  this->UpdateNumberOfPieces = std::min(this->UpdateNumberOfPieces, this->NumberOfPieces);
 
   // Find the range of pieces to read.
   if (this->UpdatePieceId < this->UpdateNumberOfPieces)
@@ -761,7 +759,7 @@ int vtkXMLUnstructuredDataReader::ReadCellArray(vtkIdType numberOfCells,
 
   // Validate the offsets
   ValidateOffsets offsetValidator;
-  using SupportedArrays = vtkCellArray::InputArrayList;
+  using SupportedArrays = vtkArrayDispatch::OffsetsArrays;
 
   // Convert array to supported type if necessary
   using Dispatch = vtkArrayDispatch::DispatchByArray<SupportedArrays>;
@@ -769,8 +767,7 @@ int vtkXMLUnstructuredDataReader::ReadCellArray(vtkIdType numberOfCells,
   if (offsetsNeedConversion)
   {
     // Use a vtkCellArray::ArrayType64 to ensure we can represent the incoming offset array type.
-    vtkSmartPointer<vtkCellArray::ArrayType64> newArray =
-      vtkSmartPointer<vtkCellArray::ArrayType64>::New();
+    auto newArray = vtkSmartPointer<vtkCellArray::AOSArray64>::New();
 
     // DeepCopy takes care of the type conversion.
     newArray->DeepCopy(cellOffsets);
@@ -987,7 +984,7 @@ int vtkXMLUnstructuredDataReader::ReadPolyhedronCellArray(vtkIdType numberOfCell
     if (!this->ReadArrayValues(polyOffsets, 1, polyhedronCellOffsets, 0, numberOfCells) &&
       !this->AbortExecute)
     {
-      vtkErrorMacro("Cannot read polyhedorn cell offsets from "
+      vtkErrorMacro("Cannot read polyhedron cell offsets from "
         << eCells->GetName() << " in piece " << this->Piece
         << " because the \"polyhedron_offsets\" array is not long enough.");
       return 0;
@@ -1001,7 +998,7 @@ int vtkXMLUnstructuredDataReader::ReadPolyhedronCellArray(vtkIdType numberOfCell
 
   // Validate the offsets
   ValidateOffsets offsetValidator;
-  using SupportedArrays = vtkCellArray::InputArrayList;
+  using SupportedArrays = vtkArrayDispatch::OffsetsArrays;
 
   // Convert array to supported type if necessary
   using Dispatch = vtkArrayDispatch::DispatchByArray<SupportedArrays>;
@@ -1009,8 +1006,7 @@ int vtkXMLUnstructuredDataReader::ReadPolyhedronCellArray(vtkIdType numberOfCell
   if (offsetsNeedConversion)
   {
     // Use a vtkCellArray::ArrayType64 to ensure we can represent the incoming offset array type.
-    vtkSmartPointer<vtkCellArray::ArrayType64> newArray =
-      vtkSmartPointer<vtkCellArray::ArrayType64>::New();
+    auto newArray = vtkSmartPointer<vtkCellArray::AOSArray64>::New();
 
     // DeepCopy takes care of the type conversion.
     newArray->DeepCopy(polyhedronCellOffsets);
@@ -1210,8 +1206,7 @@ int vtkXMLUnstructuredDataReader::ReadPolyhedronCellArray(vtkIdType numberOfCell
   if (faceOffsetsNeedConversion)
   {
     // Use a vtkCellArray::ArrayType64 to ensure we can represent the incoming offset array type.
-    vtkSmartPointer<vtkCellArray::ArrayType64> newArray =
-      vtkSmartPointer<vtkCellArray::ArrayType64>::New();
+    auto newArray = vtkSmartPointer<vtkCellArray::AOSArray64>::New();
 
     // DeepCopy takes care of the type conversion.
     newArray->DeepCopy(faceOffsets);

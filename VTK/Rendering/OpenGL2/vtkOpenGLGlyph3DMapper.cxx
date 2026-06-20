@@ -25,7 +25,9 @@
 #include "vtkTransform.h"
 #include "vtkUnsignedCharArray.h"
 
+#include <algorithm>
 #include <map>
+#include <set>
 
 VTK_ABI_NAMESPACE_BEGIN
 namespace
@@ -403,6 +405,9 @@ void vtkOpenGLGlyph3DMapper::Render(vtkRenderer* ren, vtkActor* actor)
       }
     }
   }
+
+  // Clear out cached entries for datasets that are not present in this dataset
+  this->ClearUnusedCachedEntries(inputDO);
 
   // Render the input dataset or every dataset in the input composite dataset.
   this->BlockMTime = this->BlockAttributes ? this->BlockAttributes->GetMTime() : 0;
@@ -846,14 +851,11 @@ void vtkOpenGLGlyph3DMapper::RebuildStructures(
         // Clamp data scale if enabled
         if (this->Clamping && this->ScaleMode != NO_DATA_SCALING)
         {
-          scalex = (scalex < this->Range[0] ? this->Range[0]
-                                            : (scalex > this->Range[1] ? this->Range[1] : scalex));
+          scalex = std::min(std::max(scalex, this->Range[0]), this->Range[1]);
           scalex = (scalex - this->Range[0]) / den;
-          scaley = (scaley < this->Range[0] ? this->Range[0]
-                                            : (scaley > this->Range[1] ? this->Range[1] : scaley));
+          scaley = std::min(std::max(scaley, this->Range[0]), this->Range[1]);
           scaley = (scaley - this->Range[0]) / den;
-          scalez = (scalez < this->Range[0] ? this->Range[0]
-                                            : (scalez > this->Range[1] ? this->Range[1] : scalez));
+          scalez = std::min(std::max(scalez, this->Range[0]), this->Range[1]);
           scalez = (scalez - this->Range[0]) / den;
         }
       }
@@ -1012,6 +1014,54 @@ void vtkOpenGLGlyph3DMapper::RebuildStructures(
   }
 
   subarray->BuildTime.Modified();
+}
+
+//------------------------------------------------------------------------------
+void vtkOpenGLGlyph3DMapper::ClearUnusedCachedEntries(vtkDataObject* inputDO)
+{
+  std::set<vtkDataSet*> inputChildren;
+  if (auto* cd = vtkCompositeDataSet::SafeDownCast(inputDO))
+  {
+    using Opts = vtk::CompositeDataSetOptions;
+    for (vtkDataObject* child : vtk::Range(cd, Opts::SkipEmptyNodes))
+    {
+      if (auto* ds = vtkDataSet::SafeDownCast(child))
+      {
+        inputChildren.insert(ds);
+      }
+    }
+  }
+  else if (auto* ds = vtkDataSet::SafeDownCast(inputDO))
+  {
+    inputChildren.insert(ds);
+  }
+
+  // Iterate through the cached entries and clear mappers for datasets that are
+  // not present in the input dataset. If we don't do that, these entries are
+  // essentially leaked memory, though they are all free'd when the mapper is deleted.
+  if (this->GlyphValues)
+  {
+    std::map<const vtkDataSet*, vtkOpenGLGlyph3DMapper::vtkOpenGLGlyph3DMapperSubArray*>::iterator
+      miter = this->GlyphValues->Entries.begin();
+    for (; miter != this->GlyphValues->Entries.end(); /* No increment here*/)
+    {
+      if (inputChildren.find(const_cast<vtkDataSet*>(miter->first)) != inputChildren.end())
+      {
+        // We have an entry for this dataset, so keep it and move on to the next one.
+        ++miter;
+        continue;
+      }
+      std::vector<vtkOpenGLGlyph3DMapper::vtkOpenGLGlyph3DMapperEntry*>::iterator miter2 =
+        miter->second->Entries.begin();
+      for (; miter2 != miter->second->Entries.end(); ++miter2)
+      {
+        (*miter2)->ClearMappers();
+      }
+
+      (*miter).second->ClearEntries();
+      miter = this->GlyphValues->Entries.erase(miter);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

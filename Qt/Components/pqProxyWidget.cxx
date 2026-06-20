@@ -20,6 +20,7 @@
 #include "pqShortcutDecorator.h"
 #include "pqStringVectorPropertyWidget.h"
 #include "pqTimer.h"
+#include "pqWidgetUtilities.h"
 #include "vtkCollection.h"
 #include "vtkNew.h"
 #include "vtkPVGeneralSettings.h"
@@ -79,7 +80,7 @@ std::vector<vtkWeakPointer<vtkPVXMLElement>> get_decorators(vtkPVXMLElement* hin
     vtkPVXMLElement* elem = vtkPVXMLElement::SafeDownCast(collection->GetItemAsObject(cc));
     if (elem && elem->GetAttribute("type"))
     {
-      decoratorTypes.push_back(elem);
+      decoratorTypes.emplace_back(elem);
     }
   }
   return decoratorTypes;
@@ -564,7 +565,8 @@ QString pqProxyWidget::documentationText(vtkSMProperty* smProperty, Documentatio
   }
   else
   {
-    return pqProxy::rstToHtml(QCoreApplication::translate("ServerManagerXML", xmlDocumentation));
+    return pqWidgetUtilities::rstToHtml(
+      QCoreApplication::translate("ServerManagerXML", xmlDocumentation));
   }
 }
 
@@ -575,7 +577,8 @@ QString pqProxyWidget::documentationText(vtkSMProxy* smProxy, DocumentationType 
     smProxy ? vtkGetDocumentation(smProxy->GetDocumentation(), dtype) : nullptr;
   return (!xmlDocumentation || xmlDocumentation[0] == 0)
     ? QString()
-    : pqProxy::rstToHtml(QCoreApplication::translate("ServerManagerXML", xmlDocumentation));
+    : pqWidgetUtilities::rstToHtml(
+        QCoreApplication::translate("ServerManagerXML", xmlDocumentation));
 }
 
 //-----------------------------------------------------------------------------
@@ -772,7 +775,7 @@ void pqProxyWidget::createPropertyWidgets(const QStringList& properties)
     }
     catch (std::out_of_range&)
     {
-      ordered_properties.push_back(std::make_pair(smproperty, std::string(opiter->GetKey())));
+      ordered_properties.emplace_back(smproperty, opiter->GetKey());
       continue;
     }
 

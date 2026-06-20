@@ -12,10 +12,9 @@
 #
 #****************************************************************************
 
-# XXX(Kitware): only include directories necessary for ParaView.
-if (FALSE)
 IF(VISIT_DBIO_ONLY)
     ADD_SUBDIRECTORY(DBAtts)
+    add_subdirectory(Math)
     ADD_SUBDIRECTORY(Pipeline)
     ADD_SUBDIRECTORY(Database)
 ELSE(VISIT_DBIO_ONLY)
@@ -40,10 +39,12 @@ ELSE(VISIT_DBIO_ONLY)
     IF(VISIT_PYTHON_FILTERS)
         ADD_SUBDIRECTORY(PythonFilters)
     ENDIF(VISIT_PYTHON_FILTERS)
+
+    if(MFEM_FOUND)
+        add_subdirectory(MFEM)
+    endif()
+    if(CONDUIT_FOUND AND MFEM_FOUND)
+        add_subdirectory(Blueprint)
+    endif()
+
 ENDIF(VISIT_DBIO_ONLY)
-else ()
-add_subdirectory(Math)
-add_subdirectory(DBAtts)
-add_subdirectory(Pipeline)
-add_subdirectory(Database)
-endif ()

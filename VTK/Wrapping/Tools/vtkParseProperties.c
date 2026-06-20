@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
+
 /*-------------------------------------------------------------------
  * A struct that lays out the function information in a way
  * that makes it easy to find methods that act on the same ivars.
@@ -15,23 +18,24 @@
 
 typedef struct MethodAttributes_
 {
-  const char* Name;      /* method name */
-  unsigned int Type;     /* data type of gettable/settable value */
-  int Count;             /* count for gettable/settable value */
-  const char* ClassName; /* class name for if the type is a class */
-  const char* Comment;   /* documentation for method */
-  parse_access_t Access; /* method is private, protected */
-  int HasProperty;       /* method accesses a property */
-  int IsLegacy;          /* method is marked "legacy" */
-  int IsStatic;          /* method is static */
-  int IsRepeat;          /* method is a repeat of a similar method */
-  int IsHinted;          /* method has a hint */
-  int IsMultiValue;      /* method is e.g. SetValue(x0, x1, x2) */
-  int IsIndexed;         /* method is e.g. SetValue(i, val) */
-  int IsEnumerated;      /* method is e.g. SetValueToSomething() */
-  int IsBoolean;         /* method is ValueOn() or ValueOff() */
-  int IsRHS;             /* method is GetValue(val), not val = GetValue() */
-  int IsNoDiscard;       /* method is int AddValue() or bool RemoveValue() */
+  const char* Name;       /* method name */
+  unsigned int Type;      /* data type of gettable/settable value */
+  int Count;              /* count for gettable/settable value */
+  unsigned int IndexType; /* the integer type for indexed properties */
+  const char* ClassName;  /* class name for if the type is a class */
+  const char* Comment;    /* documentation for method */
+  parse_access_t Access;  /* method is private, protected */
+  int HasProperty;        /* method accesses a property */
+  int IsLegacy;           /* method is marked "legacy" */
+  int IsStatic;           /* method is static */
+  int IsRepeat;           /* method is a repeat of a similar method */
+  int IsHinted;           /* method has a hint */
+  int IsMultiValue;       /* method is e.g. SetValue(x0, x1, x2) */
+  int IsIndexed;          /* method is e.g. SetValue(i, val) */
+  int IsEnumerated;       /* method is e.g. SetValueToSomething() */
+  int IsBoolean;          /* method is ValueOn() or ValueOff() */
+  int IsRHS;              /* method is GetValue(val), not val = GetValue() */
+  int IsNoDiscard;        /* method is int AddValue() or bool RemoveValue() */
 } MethodAttributes;
 
 typedef struct ClassPropertyMethods_
@@ -472,6 +476,7 @@ static int isIntegral(const ValueInfo* val)
 static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
 {
   int i, n;
+  int allSame = 0;
   int indexed = 0;
 
   attrs->Name = func->Name;
@@ -521,7 +526,7 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
       {
         /* make sure this isn't a multi-value int method */
         unsigned int tmptype = func->Parameters[0]->Type;
-        int allSame = 1;
+        allSame = 1;
 
         n = func->NumberOfParameters;
         for (i = 0; i < n; i++)
@@ -531,7 +536,13 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
             allSame = 0;
           }
         }
-        indexed = !allSame;
+        if (allSame && !isSetMethod(func->Name))
+        {
+          /* set to "not indexed" unless this is a Set(i,j) method, in
+           * which case we will set it to both "Indexed" and "MultiValue"
+           * and resolve the ambiguity in categorizePropertyMethods() */
+          indexed = 0;
+        }
       }
     }
     /* methods of the form "type GetValue(int i)" */
@@ -540,6 +551,10 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
       isGetMethod(func->Name) && func->NumberOfParameters == 1)
     {
       indexed = 1;
+    }
+    if (indexed)
+    {
+      attrs->IndexType = func->Parameters[0]->Type;
     }
 
     attrs->IsIndexed = indexed;
@@ -576,6 +591,7 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
       attrs->Type = func->Parameters[indexed]->Type;
       attrs->Count = func->Parameters[indexed]->Count;
       attrs->ClassName = func->Parameters[indexed]->Class;
+      attrs->IsMultiValue = allSame;
 
       return 1;
     }
@@ -632,7 +648,7 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
   {
     unsigned int tmptype = func->Parameters[0]->Type;
     const char* tmpclass = func->Parameters[0]->Class;
-    int allSame = 1;
+    allSame = 1;
 
     n = func->NumberOfParameters;
     for (i = 0; i < n; i++)
@@ -678,7 +694,7 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
           (func->ReturnValue->Type & VTK_PARSE_UNQUALIFIED_TYPE) == VTK_PARSE_VOID ||
           (func->ReturnValue->Type & VTK_PARSE_UNQUALIFIED_TYPE) == VTK_PARSE_INT ||
           (func->ReturnValue->Type & VTK_PARSE_UNQUALIFIED_TYPE) == VTK_PARSE_SIZE_T ||
-          (func->ReturnValue->Type & VTK_PARSE_UNQUALIFIED_TYPE) == VTK_PARSE_ID_TYPE))
+          (func->ReturnValue->Type & VTK_PARSE_UNQUALIFIED_TYPE) == VTK_PARSE_LONG_LONG))
       {
         attrs->HasProperty = 1;
         attrs->Type = tmptype;
@@ -831,20 +847,36 @@ static int methodMatchesProperty(
   }
 
   /* check for GetNumberOf and SetNumberOf for indexed properties */
-  if (isGetNumberOfMethod(meth->Name) &&
-    (methType == VTK_PARSE_INT || methType == VTK_PARSE_SIZE_T || methType == VTK_PARSE_ID_TYPE) &&
-    (methType & VTK_PARSE_INDIRECT) == 0 &&
-    ((methodBitfield & (VTK_METHOD_GET_IDX | VTK_METHOD_GET_NTH | VTK_METHOD_GET_IDX_RHS)) != 0))
+  if (isGetNumberOfMethod(meth->Name) && *longMatch == 0)
   {
-    return 1;
+    if ((methType == VTK_PARSE_INT || methType == VTK_PARSE_SIZE_T ||
+          methType == VTK_PARSE_LONG_LONG) &&
+      (methType & VTK_PARSE_INDIRECT) == 0 &&
+      ((methodBitfield &
+         (VTK_METHOD_GET_IDX | VTK_METHOD_GET_NTH | VTK_METHOD_GET_IDX_RHS |
+           VTK_METHOD_GET_NTH_RHS)) != 0))
+    {
+      return 1;
+    }
+    else
+    {
+      return 0;
+    }
   }
 
-  if (isSetNumberOfMethod(meth->Name) &&
-    (methType == VTK_PARSE_INT || methType == VTK_PARSE_SIZE_T || methType == VTK_PARSE_ID_TYPE) &&
-    (methType & VTK_PARSE_INDIRECT) == 0 &&
-    ((methodBitfield & (VTK_METHOD_SET_IDX | VTK_METHOD_SET_NTH)) != 0))
+  if (isSetNumberOfMethod(meth->Name) && *longMatch == 0)
   {
-    return 1;
+    if ((methType == VTK_PARSE_INT || methType == VTK_PARSE_SIZE_T ||
+          methType == VTK_PARSE_LONG_LONG) &&
+      (methType & VTK_PARSE_INDIRECT) == 0 &&
+      ((methodBitfield & (VTK_METHOD_SET_IDX | VTK_METHOD_SET_NTH)) != 0))
+    {
+      return 1;
+    }
+    else
+    {
+      return 0;
+    }
   }
 
   /* remove ampersands i.e. "ref" */
@@ -964,6 +996,7 @@ static void initializePropertyInfo(
 
   property->ClassName = meth->ClassName;
   property->Count = meth->Count;
+  property->IndexType = meth->IsIndexed ? meth->IndexType : VTK_PARSE_UNKNOWN;
   property->IsStatic = meth->IsStatic;
   property->EnumConstantNames = 0;
   property->PublicMethods = 0;
@@ -1276,7 +1309,7 @@ static void categorizeProperties(
 
 static void categorizePropertyMethods(ClassInfo* data, ClassPropertyMethods* methods)
 {
-  int i, n;
+  int i, j, n;
   FunctionInfo* func;
   MethodAttributes* attrs;
 
@@ -1295,6 +1328,37 @@ static void categorizePropertyMethods(ClassInfo* data, ClassPropertyMethods* met
     {
       /* check for repeats e.g. SetPoint(float *), SetPoint(double *) */
       searchForRepeatedMethods(0, methods, i);
+    }
+  }
+
+  /* Look for and resolve ambiguous categorizations */
+  for (i = 0; i < n; i++)
+  {
+    attrs = methods->Methods[i];
+    if (attrs->IsMultiValue && attrs->IsIndexed)
+    {
+      /* Resolve ambiguity for "SetValue(int i, int j)" methods
+       * by checking whether there is a "int GetValue(int i)" method */
+      for (j = 0; j < n; j++)
+      {
+        if (i != j && methods->Methods[j]->IsIndexed && isGetMethod(methods->Methods[j]->Name) &&
+          attrs->Access == methods->Methods[j]->Access &&
+          strcmp(&attrs->Name[3], &methods->Methods[j]->Name[3]) == 0)
+        {
+          break;
+        }
+      }
+      if (j < n)
+      {
+        /* use IsIndexed = 1 */
+        attrs->IsMultiValue = 0;
+      }
+      else
+      {
+        /* use IsMultiValue = 1 */
+        attrs->IsIndexed = 0;
+        attrs->Count = 2;
+      }
     }
   }
 }
@@ -1434,3 +1498,6 @@ const char* vtkParseProperties_MethodTypeAsString(unsigned int methodType)
       return "UNKNOWN";
   }
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

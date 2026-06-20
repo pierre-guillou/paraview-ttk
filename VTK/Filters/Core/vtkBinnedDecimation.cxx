@@ -3,6 +3,7 @@
 #include "vtkBinnedDecimation.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkArrayListTemplate.h" // For processing attribute data
 #include "vtkBoundingBox.h"
 #include "vtkCellArray.h"
@@ -22,8 +23,8 @@
 #include "vtkPolyData.h"
 #include "vtkSMPThreadLocal.h"
 #include "vtkSMPTools.h"
-#include "vtkTriangle.h"
 
+#include <algorithm>
 #include <atomic>
 #include <vector>
 
@@ -103,9 +104,9 @@ struct BinPoints
     TIds tmp1 = static_cast<TIds>(((x[1] - bY) * fY));
     TIds tmp2 = static_cast<TIds>(((x[2] - bZ) * fZ));
 
-    ijk[0] = tmp0 < 0 ? 0 : (tmp0 >= xD ? xD - 1 : tmp0);
-    ijk[1] = tmp1 < 0 ? 0 : (tmp1 >= yD ? yD - 1 : tmp1);
-    ijk[2] = tmp2 < 0 ? 0 : (tmp2 >= zD ? zD - 1 : tmp2);
+    ijk[0] = std::min(std::max<vtkIdType>(tmp0, 0), xD - 1);
+    ijk[1] = std::min(std::max<vtkIdType>(tmp1, 0), yD - 1);
+    ijk[2] = std::min(std::max<vtkIdType>(tmp2, 0), zD - 1);
   }
 
   TIds GetBinIndex(const double* x) const
@@ -1620,9 +1621,9 @@ int vtkBinnedDecimation::RequestData(vtkInformation* vtkNotUsed(request),
 
   // Do a quick check as to whether triangles are available.
   vtkCellArray* inTris = input->GetPolys();
-  vtkIdType numTris, triSize;
+  vtkIdType numTris;
   if (inTris == nullptr || (numTris = inTris->GetNumberOfCells()) < 1 ||
-    (triSize = inTris->GetNumberOfConnectivityEntries()) != numTris * 4)
+    inTris->GetNumberOfConnectivityIds() != numTris * 3)
   {
     vtkLog(TRACE, "Empty input, or non-triangles in input.");
     return 1;
@@ -1648,9 +1649,6 @@ int vtkBinnedDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   // memory.
   this->LargeIds = numBins > VTK_INT_MAX || numPts > VTK_INT_MAX || numTris > VTK_INT_MAX;
 
-  // Fast path: dispatch to real point types
-  using vtkArrayDispatch::Reals;
-
   // There are four possible algorithms to take depending on the desired
   // output. Algorithms 2-3 are very similar and combined here.
   if (this->PointGenerationMode == vtkBinnedDecimation::INPUT_POINTS)
@@ -1661,7 +1659,7 @@ int vtkBinnedDecimation::RequestData(vtkInformation* vtkNotUsed(request),
       outPD->PassData(inPD);
     }
 
-    using PointReuseDispatch = vtkArrayDispatch::DispatchByValueType<Reals>;
+    using PointReuseDispatch = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
     PointReuseWorker deciWorker;
     if (!PointReuseDispatch::Execute(inPts->GetData(), deciWorker, this->LargeIds, inTris, inCD,
           outCD, this->NumberOfDivisions, this->Bounds, this->DivisionSpacing, output, this))
@@ -1675,7 +1673,7 @@ int vtkBinnedDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   else if (this->PointGenerationMode == vtkBinnedDecimation::BIN_CENTERS ||
     this->PointGenerationMode == vtkBinnedDecimation::BIN_POINTS)
   {
-    using BinPointsDispatch = vtkArrayDispatch::DispatchByValueType<Reals>;
+    using BinPointsDispatch = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
     BinPointsWorker deciWorker;
     if (!BinPointsDispatch::Execute(inPts->GetData(), deciWorker, inPD, outPD, this->LargeIds,
           this->PointGenerationMode, inTris, inCD, outCD, this->NumberOfDivisions, this->Bounds,
@@ -1689,7 +1687,7 @@ int vtkBinnedDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   // Algorithm 4: average points in bins
   else // if ( this->PointGenerationMode == vtkBinnedDecimation::BIN_AVERAGE )
   {
-    using AvePointsDispatch = vtkArrayDispatch::DispatchByValueType<Reals>;
+    using AvePointsDispatch = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
     AvePointsWorker deciWorker;
     if (!AvePointsDispatch::Execute(inPts->GetData(), deciWorker, inPD, outPD, this->LargeIds,
           inTris, inCD, outCD, this->NumberOfDivisions, this->Bounds, this->DivisionSpacing, output,

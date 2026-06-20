@@ -334,7 +334,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
   MarkCellBoundary* marker)
 {
   vtkIdType faceId, numEdgePts, numFacePts;
-  const int MAX_FACE_POINTS = 32;
+  constexpr int MAX_FACE_POINTS = 32;
   vtkIdType ptIds[MAX_FACE_POINTS]; // cell face point ids
   const vtkIdType* faceVerts;
   bool insertEdge, insertFace;
@@ -688,7 +688,8 @@ struct MarkStructured : public MarkCellBoundary
     // is which.
     char ptUses[8] = { 0 };
     vtkIdType faceMark = 0;
-    vtkStructuredData::GetCellPoints(cellId, ptIds, VTK_XYZ_GRID, this->Dims);
+    vtkStructuredData::GetCellPoints(
+      cellId, ptIds, vtkStructuredData::VTK_STRUCTURED_XYZ_GRID, this->Dims);
     vtkIdType tmpPtIds[8];
     std::copy_n(ptIds->GetPointer(0), 8, tmpPtIds);
 

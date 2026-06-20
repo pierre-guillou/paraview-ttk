@@ -16,6 +16,7 @@
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
+#include <vtkStringFormatter.h>
 #include <vtkTestUtilities.h>
 #include <vtkXMLMultiBlockDataReader.h>
 
@@ -40,7 +41,7 @@ vtkSmartPointer<vtkActor> GetActor(
     reader->SetPieceDistribution(mode);
 
     vtkNew<vtkArrayCalculator> calculator;
-    calculator->SetFunction(std::to_string(idx).c_str());
+    calculator->SetFunction(vtk::to_string(idx).c_str());
     calculator->SetResultArrayName("piece-id");
     calculator->SetAttributeTypeToCellData();
     calculator->SetInputConnection(reader->GetOutputPort());
@@ -62,7 +63,7 @@ vtkSmartPointer<vtkActor> GetActor(
 
 int TestXMLPieceDistribution(int argc, char* argv[])
 {
-  const int numPieces = 3;
+  constexpr int numPieces = 3;
 
   // These are multiblocks that have multipieces alone. These should be
   // split with each piece distributed across the ranks separately.

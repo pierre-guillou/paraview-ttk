@@ -21,6 +21,8 @@
 
 #include <array>
 
+#include <iostream>
+
 // VTK_21_POINT_WEDGE is defined (or not) in vtkHigherOrderInterpolation.h
 #ifdef VTK_21_POINT_WEDGE
 VTK_ABI_NAMESPACE_BEGIN
@@ -268,7 +270,7 @@ int vtkHigherOrderWedge::CellBoundary(
   // We do not try to evaluate the exactly closest face in world
   // coordinates as that would be too slow to be useful and
   // too chaotic to be numerically stable.
-  const double separatrixNormals[9][3] = {
+  constexpr double separatrixNormals[9][3] = {
     { 0.00000, 0.70711, -0.70711 },   // face 0-2
     { -0.40825, -0.40825, -0.81650 }, // face 0-3
     { 0.70711, 0.00000, -0.70711 },   // face 0-4
@@ -281,7 +283,7 @@ int vtkHigherOrderWedge::CellBoundary(
     { 0.94868, 0.31623, 0.00000 },   // face 3-4
     { -0.70711, 0.70711, 0.00000 }   // face 4-2
   };
-  const double basepoints[3][3] = {
+  constexpr double basepoints[3][3] = {
     { 0.25000, 0.25000, 0.25000 }, // face 0-[234]
     { 0.25000, 0.25000, 0.75000 }, // face 1-[234]
     { 0.25000, 0.25000, 0.50000 }  // face [234]-[342]
@@ -622,11 +624,9 @@ double vtkHigherOrderWedge::GetParametricDistance(const double pcoords[3])
 
   for (int ii = 0; ii < 3; ++ii)
   {
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     pDist = (pcoords[ii] < 0. ? -pcoords[ii] : (pcoords[ii] > 1. ? pcoords[ii] - 1. : 0.));
-    if (pDist > pDistMax)
-    {
-      pDistMax = pDist;
-    }
+    pDistMax = std::max(pDist, pDistMax);
   }
 
   return pDistMax;
@@ -728,6 +728,7 @@ int vtkHigherOrderWedge::PointIndexFromIJK(int i, int j, int k, const int* order
 
   if (nbdy == 3) // Vertex DOF
   {              // ijk is a corner node. Return the proper index (somewhere in [0,5]):
+                 // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     return (ibdy && jbdy ? 0 : (jbdy && ijbdy ? 1 : 2)) + (k ? 3 : 0);
   }
 
@@ -737,6 +738,7 @@ int vtkHigherOrderWedge::PointIndexFromIJK(int i, int j, int k, const int* order
     if (!kbdy)
     { // Must be on a vertical edge and 2 of {ibdy, jbdy, ijbdy} are true
       offset += rm1 * 6;
+      // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
       return offset + (k - 1) + ((ibdy && jbdy) ? 0 : (jbdy && ijbdy ? 1 : 2)) * tm1;
     }
     else
@@ -1043,7 +1045,7 @@ vtkWedge* vtkHigherOrderWedge::GetApproximateWedge(
   // in the approximating wedge spanning half of (i, i+1) x (j, j+1) x (k, k+1):
   // vtkIdType aconn[8]; // = {0, 1, 2, 3, 4, 5, 6, 7};
   // std::cout << "Wedgeproximate " << subId << "\n";
-  const int deltas[2][3][2] = {
+  constexpr int deltas[2][3][2] = {
     { { 0, 0 }, { 1, 0 }, { 0, 1 } }, // positive orientation: r, s axes increase as i, j increase
     { { 1, 1 }, { 0, 1 }, { 1, 0 } }  // negative orientation: r, s axes decrease as i, j increase
   };
@@ -1175,6 +1177,7 @@ void vtkHigherOrderWedge::GetQuadrilateralFace(int faceId, const int* order,
   if (nptsActual == 21)
   {
     set_number_of_ids_and_points(9);
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     int quadFace = (di == -dj ? 1 : (dj == 0 ? 0 : 2));
     for (int ii = 0; ii < 9; ++ii)
     {

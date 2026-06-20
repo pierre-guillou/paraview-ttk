@@ -37,6 +37,7 @@
 VTK_ABI_NAMESPACE_BEGIN
 
 class vtkCellData;
+class vtkDataArray;
 class vtkDataAssembly;
 class vtkDataSetAttributes;
 class vtkFieldData;
@@ -45,7 +46,6 @@ class vtkPartitionedDataSetCollection;
 class vtkPointData;
 class vtkPointSet;
 class vtkStructuredGrid;
-class vtkUnsignedCharArray;
 class vtkUnstructuredGrid;
 
 struct DatabasePartitionInfo
@@ -225,7 +225,8 @@ public:
   /**
    * Read global fields.
    */
-  bool GetGlobalFields(vtkFieldData* fd, const DatabaseHandle& handle, int timestep);
+  bool GetGlobalFields(vtkDataArraySelection* globalFieldSelection, vtkFieldData* fd,
+    const DatabaseHandle& handle, int timestep);
 
   /**
    * Get if there are restart files available.
@@ -336,7 +337,8 @@ public:
 
 protected:
   std::vector<int> GetFileIds(const std::string& dbasename, int myrank, int numRanks) const;
-  Ioss::Region* GetRegion(const std::string& dbasename, int fileid);
+  Ioss::Region* GetRegion(
+    const std::string& dbasename, int fileid, Ioss::DatabaseUsage dbUsage = Ioss::READ_RESTART);
   Ioss::Region* GetRegion(const DatabaseHandle& handle)
   {
     return this->GetRegion(handle.first, handle.second);
@@ -376,9 +378,9 @@ protected:
 
   /**
    * Combine a vector cell types, cell arrays pairs into a single
-   * vtkUnsignedCharArray of cell types and a vtkCellArray.
+   * vtkDataArray of cell types and a vtkCellArray.
    */
-  std::pair<vtkSmartPointer<vtkUnsignedCharArray>, vtkSmartPointer<vtkCellArray>> CombineTopologies(
+  std::pair<vtkSmartPointer<vtkDataArray>, vtkSmartPointer<vtkCellArray>> CombineTopologies(
     const std::vector<std::pair<int, vtkSmartPointer<vtkCellArray>>>& topologies);
 
   /**
@@ -430,6 +432,13 @@ protected:
    * GetGeometry for vtkStructuredGrid i.e. CGNS.
    */
   bool GetGeometry(vtkStructuredGrid* grid, const Ioss::StructuredBlock* groupEntity);
+
+  /**
+   * Get IOSS NodeBlock blockname if it exists, otherwise get first Nodeblock in region.
+   *
+   * If no NodeBlock available, `std::runtime_error` is thrown.
+   */
+  Ioss::GroupingEntity* GetNodeBlock(const Ioss::Region* region, const std::string& blockname);
 
   /**
    * Adds geometry (points) and topology (cell) information to the grid for the
@@ -495,6 +504,11 @@ protected:
    * the name of the entity block (or set) which provided the cells to determine
    * which points to extract.
    *
+   * If (1) \a field_data is non-null, and (2) the \a group_entity corresponds to an
+   * element block, and (3) the data in the \a region borders data from other files;
+   * then an array will be added to \a field_data containing the list of sides which
+   * are in communication with other files and the ID of the file for each side.
+   *
    * Returns true on success.
    *
    * On error, `std::runtime_error` is thrown.
@@ -502,7 +516,7 @@ protected:
   bool GetFields(vtkDataSetAttributes* dsa, vtkDataArraySelection* selection, Ioss::Region* region,
     Ioss::GroupingEntity* group_entity, const DatabaseHandle& handle, int timestep,
     bool read_ioss_ids, vtkIdTypeArray* ids_to_extract = nullptr,
-    const std::string& cache_key_suffix = std::string());
+    const std::string& cache_key_suffix = std::string(), vtkFieldData* field_data = nullptr);
 
   /**
    * This reads node fields for an entity block or set.

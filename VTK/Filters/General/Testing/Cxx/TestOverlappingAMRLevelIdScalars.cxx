@@ -9,12 +9,14 @@
 #include "vtkOverlappingAMRLevelIdScalars.h"
 #include "vtkUniformGrid.h"
 
+#include <iostream>
+
 int TestOverlappingAMRLevelIdScalars(int, char*[])
 {
   // Create overlapping AMR with 2 levels
   vtkNew<vtkOverlappingAMR> amr;
-  std::array<int, 2> blocksPerLevel{ 2, 1 };
-  amr->Initialize(static_cast<int>(blocksPerLevel.size()), blocksPerLevel.data());
+  std::vector<unsigned int> blocksPerLevel{ 2, 1 };
+  amr->Initialize(blocksPerLevel);
 
   // Attach datasets to the AMR
   vtkNew<vtkUniformGrid> root;
@@ -51,7 +53,11 @@ int TestOverlappingAMRLevelIdScalars(int, char*[])
     block->GetOrigin(), block->GetDimensions(), spacing, origin, amr->GetGridDescription());
   amr->SetAMRBox(1, 0, box2);
 
-  amr->Audit();
+  if (!amr->CheckValidity())
+  {
+    std::cerr << "AMR dataset is not valid" << std::endl;
+    return EXIT_FAILURE;
+  }
 
   // Apply id filter
   vtkNew<vtkOverlappingAMRLevelIdScalars> levelIdFilter;
@@ -60,10 +66,8 @@ int TestOverlappingAMRLevelIdScalars(int, char*[])
 
   // Retrieve level datasets
   vtkOverlappingAMR* outputAMR = vtkOverlappingAMR::SafeDownCast(levelIdFilter->GetOutput());
-  std::array<vtkUniformGrid*, 3> outputImages{ vtkUniformGrid::SafeDownCast(
-                                                 outputAMR->GetDataSet(0, 0)),
-    vtkUniformGrid::SafeDownCast(outputAMR->GetDataSet(0, 1)),
-    vtkUniformGrid::SafeDownCast(outputAMR->GetDataSet(1, 0)) };
+  std::array<vtkImageData*, 3> outputImages{ outputAMR->GetDataSetAsImageData(0, 0),
+    outputAMR->GetDataSetAsImageData(0, 1), outputAMR->GetDataSetAsImageData(1, 0) };
 
   // Check level id field
   for (int datasetId = 0; datasetId < static_cast<int>(outputImages.size()); datasetId++)

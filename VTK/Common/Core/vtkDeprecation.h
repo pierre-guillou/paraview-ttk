@@ -52,8 +52,8 @@
 #endif
 #endif
 
-// API deprecated before 9.3.0 have already been removed.
-#define VTK_MINIMUM_DEPRECATION_LEVEL VTK_VERSION_CHECK(9, 3, 0)
+// API deprecated before 9.4.0 have already been removed.
+#define VTK_MINIMUM_DEPRECATION_LEVEL VTK_VERSION_CHECK(9, 4, 0)
 
 // Force the deprecation level to be at least that of VTK's build
 // configuration.
@@ -63,36 +63,25 @@
 #endif
 
 // Deprecation macro support for various compilers.
-#if 0 && __cplusplus >= 201402L
-// This is currently hard-disabled because compilers do not mix C++ attributes
-// and `__attribute__` extensions together well.
-#define VTK_DEPRECATION(reason) [[deprecated(reason)]]
-#elif defined(VTK_WRAPPING_CXX)
+#if defined(VTK_WRAPPING_CXX)
 // Ignore deprecation in wrapper code.
 #define VTK_DEPRECATION(reason)
 #elif defined(__VTK_WRAP__)
 #define VTK_DEPRECATION(reason) [[vtk::deprecated(reason)]]
 #else
-#if defined(_WIN32) || defined(_WIN64)
 #define VTK_DEPRECATION(reason) [[deprecated(reason)]]
-#elif defined(__clang__)
-#if __has_extension(attribute_deprecated_with_message)
-#define VTK_DEPRECATION(reason) __attribute__((__deprecated__(reason)))
-#else
-#define VTK_DEPRECATION(reason) __attribute__((__deprecated__))
-#endif
-#elif defined(__GNUC__)
-#if (__GNUC__ >= 5) || ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 5))
-#define VTK_DEPRECATION(reason) __attribute__((__deprecated__(reason)))
-#else
-#define VTK_DEPRECATION(reason) __attribute__((__deprecated__))
-#endif
-#else
-#define VTK_DEPRECATION(reason)
-#endif
 #endif
 
 // APIs deprecated in the next release.
+#if defined(__VTK_WRAP__)
+#define VTK_DEPRECATED_IN_9_6_0(reason) [[vtk::deprecated(reason, "9.6.0")]]
+#elif VTK_DEPRECATION_LEVEL >= VTK_VERSION_CHECK(9, 5, 20250513)
+#define VTK_DEPRECATED_IN_9_6_0(reason) VTK_DEPRECATION(reason)
+#else
+#define VTK_DEPRECATED_IN_9_6_0(reason)
+#endif
+
+// APIs deprecated in 9.5.0.
 #if defined(__VTK_WRAP__)
 #define VTK_DEPRECATED_IN_9_5_0(reason) [[vtk::deprecated(reason, "9.5.0")]]
 #elif VTK_DEPRECATION_LEVEL >= VTK_VERSION_CHECK(9, 4, 20241008)
@@ -101,16 +90,13 @@
 #define VTK_DEPRECATED_IN_9_5_0(reason)
 #endif
 
-// APIs deprecated in 9.4.0.
+// APIs deprecated in the older release always warn.
 #if defined(__VTK_WRAP__)
 #define VTK_DEPRECATED_IN_9_4_0(reason) [[vtk::deprecated(reason, "9.4.0")]]
-#elif VTK_DEPRECATION_LEVEL >= VTK_VERSION_CHECK(9, 3, 20230807)
-#define VTK_DEPRECATED_IN_9_4_0(reason) VTK_DEPRECATION(reason)
 #else
-#define VTK_DEPRECATED_IN_9_4_0(reason)
+#define VTK_DEPRECATED_IN_9_4_0(reason) VTK_DEPRECATION(reason)
 #endif
 
-// APIs deprecated in the older release always warn.
 #if defined(__VTK_WRAP__)
 #define VTK_DEPRECATED_IN_9_3_0(reason) [[vtk::deprecated(reason, "9.3.0")]]
 #else

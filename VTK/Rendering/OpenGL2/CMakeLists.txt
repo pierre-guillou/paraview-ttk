@@ -117,7 +117,7 @@ set(headers
 
 set(nowrap_headers
   vtkOpenGLPointGaussianMapperHelper.h
-  vtkOpenGLResourceFreeCallback.h	
+  vtkOpenGLResourceFreeCallback.h
   vtkOpenGLShaderDeclaration.h
 )
 
@@ -132,7 +132,8 @@ if (VTK_USE_WIN32_OPENGL AND (NOT CMAKE_CROSSCOMPILING OR DEFINED CMAKE_CROSSCOM
 endif ()
 
 set(sources)
-set(private_headers)
+set(private_sources)
+
 set(private_classes
   vtkOpenGLLowMemoryCellTypeAgent
   vtkOpenGLLowMemoryLinesAgent
@@ -286,9 +287,34 @@ if (VTK_OPENGL_HAS_EGL)
       OVERRIDE vtkOpenGLRenderWindow)
     set(has_vtkRenderWindow_override 1)
   endif ()
-  set_source_files_properties(vtkEGLRenderWindow.cxx
+
+  list(APPEND private_sources
+    "Private/vtkEGLConfig.cxx"
+    "Private/vtkEGLDefaultConfig.cxx"
+    "Private/vtkEGLRenderWindowInternals.cxx")
+  list(APPEND private_headers
+    "Private/vtkEGLConfig.h"
+    "Private/vtkEGLDefaultConfig.h"
+    "Private/vtkEGLRenderWindowInternals.h")
+
+  set_source_files_properties(Private/vtkEGLRenderWindowInternals.cxx
     PROPERTIES
       COMPILE_DEFINITIONS "VTK_DEFAULT_EGL_DEVICE_INDEX=${VTK_DEFAULT_EGL_DEVICE_INDEX}")
+
+  if (VTK_USE_WAYLAND_OPENGL)
+    include("${CMAKE_SOURCE_DIR}/CMake/vtkWaylandProtocols.cmake")
+    list(APPEND private_sources
+      ${XDG_SHELL_C}
+      ${XDG_SHELL_H}
+      "Private/vtkEGLWaylandConfig.h"
+      "Private/vtkEGLWaylandConfig.cxx")
+  endif()
+
+  if (ANDROID)
+    list(APPEND private_sources
+      "Private/vtkEGLAndroidConfig.h"
+      "Private/vtkEGLAndroidConfig.cxx")
+  endif()
 endif ()
 
 # Setup factory overrides and add window system specific render windows.
@@ -345,20 +371,11 @@ elseif (ANDROID)
   include_directories("${CMAKE_ANDROID_NDK}/sources/android/native_app_glue")
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   # Add some custom overrides
-  # VTK_DEPRECATED_IN_9_4_0() Remove when vtkSDL2OpenGLRenderWindow is removed.
-  if (VTK_USE_SDL2)
-    vtk_object_factory_declare(
-      BASE vtkRenderWindow
-      OVERRIDE vtkSDL2OpenGLRenderWindow)
-    set(has_vtkRenderWindow_override 1)
-    list(APPEND classes vtkSDL2OpenGLRenderWindow)
-  else ()
-    vtk_object_factory_declare(
-      BASE vtkRenderWindow
-      OVERRIDE vtkWebAssemblyOpenGLRenderWindow)
-    set(has_vtkRenderWindow_override 1)
-    list(APPEND classes vtkWebAssemblyOpenGLRenderWindow)
-  endif ()
+  vtk_object_factory_declare(
+    BASE vtkRenderWindow
+    OVERRIDE vtkWebAssemblyOpenGLRenderWindow)
+  set(has_vtkRenderWindow_override 1)
+  list(APPEND classes vtkWebAssemblyOpenGLRenderWindow)
 elseif (APPLE_IOS)
   # Add some custom overrides
   vtk_object_factory_declare(
@@ -415,46 +432,24 @@ configure_file(
 vtk_module_add_module(VTK::RenderingOpenGL2
   CLASSES ${classes}
   PRIVATE_CLASSES ${private_classes}
-  SOURCES ${sources} ${vtk_object_factory_source}
+  SOURCES ${sources} ${vtk_object_factory_source} ${private_sources}
   HEADERS ${headers}
   NOWRAP_HEADERS ${nowrap_headers}
   PRIVATE_HEADERS ${private_headers} ${vtk_object_factory_header})
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-  # VTK_DEPRECATED_IN_9_4_0() Remove when vtkSDL2OpenGLRenderWindow is removed.
-  if (VTK_USE_SDL2)
-    # The -sUSE_SDL=2 flag will inform emcc driver to add include paths.
-    # PUBLIC because vtkSDL2OpenGLRenderWindow.h includes SDL2.h
-    vtk_module_compile_options(VTK::RenderingUI
-      PUBLIC
-        "-sUSE_SDL=2")
-    vtk_module_link_options(VTK::RenderingUI
-      PUBLIC
-        "-sUSE_SDL=2")
-  endif ()
-elseif (VTK_USE_SDL2)
-  # VTK_DEPRECATED_IN_9_4_0() Remove when vtkSDL2OpenGLRenderWindow is removed.
-  list(APPEND classes vtkSDL2OpenGLRenderWindow)
-  vtk_module_find_package(PACKAGE SDL2)
-  # PUBLIC because vtkSDL2OpenGLRenderWindow.h includes SDL2.h
-  vtk_module_link(VTK::RenderingUI
-    PUBLIC
-      SDL2::SDL2)
-endif ()
+set_property(SOURCE vtkEGLDefaultConfig.cxx vtkEGLWaylandConfig.cxx APPEND
+  PROPERTY
+    COMPILE_DEFINITIONS "VTK_OPENGL_USE_GLES=$<BOOL:${VTK_OPENGL_USE_GLES}>")
 
-if (VTK_USE_X)
-  vtk_module_find_package(PACKAGE X11)
-  vtk_module_link(VTK::RenderingOpenGL2 PUBLIC X11::X11)
-  if (TARGET X11::Xcursor)
-    vtk_module_link(VTK::RenderingOpenGL2 PRIVATE X11::Xcursor)
-  else()
-    message(WARNING "X11::Xcursor not found; custom cursors will be ignored.")
-  endif()
-  set_property(SOURCE vtkXOpenGLRenderWindow.cxx APPEND
-    PROPERTY
-      COMPILE_DEFINITIONS "VTK_HAVE_XCURSOR=$<TARGET_EXISTS:X11::Xcursor>"
-  )
-elseif (VTK_USE_COCOA)
+if (VTK_USE_WAYLAND_OPENGL)
+  vtk_module_link(VTK::RenderingOpenGL2
+    PRIVATE
+      ${WAYLAND_CLIENT_LIB}
+      ${WAYLAND_EGL_LIB})
+  vtk_module_definitions(VTK::RenderingOpenGL2 PRIVATE USE_WAYLAND)
+endif()
+
+if (VTK_USE_COCOA)
   vtk_module_link(VTK::RenderingOpenGL2 PUBLIC "-framework Cocoa")
 elseif (VTK_USE_WIN32_OPENGL)
   # vtkWin32OpenGLDXRenderWindow requires D3D.
@@ -471,6 +466,15 @@ endif ()
 
 if (APPLE_IOS)
   vtk_module_link(VTK::RenderingOpenGL2 PUBLIC "-framework UIKit")
+endif ()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  if (VTK_WEBASSEMBLY_THREADS)
+    # OffscreenCanvas is required when using pthreads.
+    vtk_module_link_options(VTK::RenderingOpenGL2
+      INTERFACE
+        "-sOFFSCREENCANVAS_SUPPORT=1")
+  endif ()
 endif ()
 
 if (NOT ANDROID AND

@@ -34,6 +34,8 @@
 
 #include "vtkTestConditionals.txx"
 
+#include <iostream>
+
 using namespace vtk;
 
 template <int N, typename T, typename U>
@@ -549,7 +551,7 @@ int BezierInterpolation(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   ok &= testNearlyEqual(coeffs[2], 1.0, "Quad lf 2");
 
   {
-    const double pcoords[3] = { 1, 0, 0 };
+    constexpr double pcoords[3] = { 1, 0, 0 };
     vtkBezierInterpolation::DeCasteljauSimplex(2, 1, pcoords, coeffs);
     ok &= testNearlyEqual(coeffs[0], 0.0, "Simplex lf 0");
     ok &= testNearlyEqual(coeffs[1], 1.0, "Simplex lf 1");
@@ -557,7 +559,7 @@ int BezierInterpolation(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   }
 
   {
-    const double pcoords[3] = { 0, 1, 0 };
+    constexpr double pcoords[3] = { 0, 1, 0 };
     vtkBezierInterpolation::DeCasteljauSimplex(2, 1, pcoords, coeffs);
     ok &= testNearlyEqual(coeffs[0], 0.0, "Simplex lf 0");
     ok &= testNearlyEqual(coeffs[1], 0.0, "Simplex lf 1");
@@ -565,7 +567,7 @@ int BezierInterpolation(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   }
 
   {
-    const double pcoords[3] = { 0, 0, 1 };
+    constexpr double pcoords[3] = { 0, 0, 1 };
     vtkBezierInterpolation::DeCasteljauSimplex(2, 1, pcoords, coeffs);
     ok &= testNearlyEqual(coeffs[0], 1.0, "Simplex lf 0");
     ok &= testNearlyEqual(coeffs[1], 0.0, "Simplex lf 1");
@@ -573,7 +575,7 @@ int BezierInterpolation(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   }
 
   {
-    const double pcoords[3] = { 1, 0, 0 };
+    constexpr double pcoords[3] = { 1, 0, 0 };
     vtkBezierInterpolation::DeCasteljauSimplex(2, 2, pcoords, coeffs);
     ok &= testNearlyEqual(coeffs[0], 0.0, "Simplex lf 0");
     ok &= testNearlyEqual(coeffs[1], 0.0, "Simplex lf 1");
@@ -581,12 +583,12 @@ int BezierInterpolation(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
     ok &= testNearlyEqual(coeffs[3], 0.0, "Simplex lf 3");
     ok &= testNearlyEqual(coeffs[4], 0.0, "Simplex lf 4");
     ok &= testNearlyEqual(coeffs[5], 0.0, "Simplex lf 5");
-    cout << "coeffs " << coeffs[0] << ", " << coeffs[1] << ", " << coeffs[2] << ", " << coeffs[3]
-         << ", " << coeffs[4] << ", " << coeffs[5] << endl;
+    std::cout << "coeffs " << coeffs[0] << ", " << coeffs[1] << ", " << coeffs[2] << ", "
+              << coeffs[3] << ", " << coeffs[4] << ", " << coeffs[5] << std::endl;
   }
 
   {
-    const double pcoords[3] = { 0, 1, 0 };
+    constexpr double pcoords[3] = { 0, 1, 0 };
     vtkBezierInterpolation::DeCasteljauSimplex(2, 2, pcoords, coeffs);
     ok &= testNearlyEqual(coeffs[0], 0.0, "Simplex lf 0");
     ok &= testNearlyEqual(coeffs[1], 0.0, "Simplex lf 1");
@@ -594,12 +596,12 @@ int BezierInterpolation(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
     ok &= testNearlyEqual(coeffs[3], 0.0, "Simplex lf 3");
     ok &= testNearlyEqual(coeffs[4], 0.0, "Simplex lf 4");
     ok &= testNearlyEqual(coeffs[5], 1.0, "Simplex lf 5");
-    cout << "coeffs " << coeffs[0] << ", " << coeffs[1] << ", " << coeffs[2] << ", " << coeffs[3]
-         << ", " << coeffs[4] << ", " << coeffs[5] << endl;
+    std::cout << "coeffs " << coeffs[0] << ", " << coeffs[1] << ", " << coeffs[2] << ", "
+              << coeffs[3] << ", " << coeffs[4] << ", " << coeffs[5] << std::endl;
   }
 
   {
-    const double pcoords[3] = { 0, 0, 1 };
+    constexpr double pcoords[3] = { 0, 0, 1 };
     vtkBezierInterpolation::DeCasteljauSimplex(2, 2, pcoords, coeffs);
     ok &= testNearlyEqual(coeffs[0], 1.0, "Simplex lf 0");
     ok &= testNearlyEqual(coeffs[1], 0.0, "Simplex lf 1");
@@ -607,12 +609,12 @@ int BezierInterpolation(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
     ok &= testNearlyEqual(coeffs[3], 0.0, "Simplex lf 3");
     ok &= testNearlyEqual(coeffs[4], 0.0, "Simplex lf 4");
     ok &= testNearlyEqual(coeffs[5], 0.0, "Simplex lf 5");
-    cout << "coeffs " << coeffs[0] << ", " << coeffs[1] << ", " << coeffs[2] << ", " << coeffs[3]
-         << ", " << coeffs[4] << ", " << coeffs[5] << endl;
+    std::cout << "coeffs " << coeffs[0] << ", " << coeffs[1] << ", " << coeffs[2] << ", "
+              << coeffs[3] << ", " << coeffs[4] << ", " << coeffs[5] << std::endl;
   }
 
   {
-    const double pcoords[3] = { 0.5, 0.5, 0 };
+    constexpr double pcoords[3] = { 0.5, 0.5, 0 };
     vtkBezierInterpolation::DeCasteljauSimplex(2, 2, pcoords, coeffs);
     ok &= testNearlyEqual(coeffs[0], 0.0, "Simplex lf 0");
     ok &= testNearlyEqual(coeffs[1], 0.0, "Simplex lf 1");
@@ -620,8 +622,8 @@ int BezierInterpolation(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
     ok &= testNearlyEqual(coeffs[3], 0.0, "Simplex lf 3");
     ok &= testNearlyEqual(coeffs[4], 0.5, "Simplex lf 4");
     ok &= testNearlyEqual(coeffs[5], 0.25, "Simplex lf 5");
-    cout << "coeffs " << coeffs[0] << ", " << coeffs[1] << ", " << coeffs[2] << ", " << coeffs[3]
-         << ", " << coeffs[4] << ", " << coeffs[5] << endl;
+    std::cout << "coeffs " << coeffs[0] << ", " << coeffs[1] << ", " << coeffs[2] << ", "
+              << coeffs[3] << ", " << coeffs[4] << ", " << coeffs[5] << std::endl;
   }
 
   return ok ? 0 : 1;

@@ -38,9 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkDataArraySelection.h"
 
 #include "vtkAMRBox.h"
-#include "vtkAMRInformation.h"
 #include "vtkOverlappingAMR.h"
-#include "vtkHierarchicalBoxDataSet.h"
 #include "vtkParallelAMRUtilities.h"
 #include "vtkMultiProcessController.h"
 #include "vtkMultiBlockDataSet.h"
@@ -179,9 +177,6 @@ int vtkAvtSTMDFileFormatAlgorithm::RequestDataObject(vtkInformation *,
       case VTK_OVERLAPPING_AMR:
         output = vtkOverlappingAMR::New();
         break;
-      case VTK_HIERARCHICAL_BOX_DATA_SET:
-        output = vtkHierarchicalBoxDataSet::New();
-        break;
       case VTK_MULTIBLOCK_DATA_SET:
       default:
         output = vtkMultiBlockDataSet::New();
@@ -212,17 +207,7 @@ int vtkAvtSTMDFileFormatAlgorithm::RequestData(vtkInformation *vtkNotUsed(reques
   this->UpdateNumPieces =
     outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES());
 
-  if ( this->OutputType == VTK_HIERARCHICAL_BOX_DATA_SET
-    && this->MeshArraySelection
-    && this->MeshArraySelection->GetNumberOfArraysEnabled() == 1)
-    {
-    const avtMeshMetaData meshMetaData = this->MetaData->GetMeshes( 0 );
-    vtkHierarchicalBoxDataSet *output = vtkHierarchicalBoxDataSet::
-      SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
-    this->FillAMR( output, &meshMetaData, 0, 0 );
-    }
-
-  else if( this->OutputType == VTK_OVERLAPPING_AMR &&
+  if( this->OutputType == VTK_OVERLAPPING_AMR &&
            this->MeshArraySelection &&
            this->MeshArraySelection->GetNumberOfArraysEnabled()==1 )
     {

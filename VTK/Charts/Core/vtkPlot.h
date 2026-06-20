@@ -69,14 +69,24 @@ public:
 
   ///@{
   /**
-   * Sets/gets a printf-style string to build custom tooltip labels from.
+   * Sets/gets a std::format or printf style string to build custom tooltip labels from.
    * An empty string generates the default tooltip labels.
-   * The following case-sensitive format tags (without quotes) are recognized:
+   * The following case-sensitive std::format tags (without quotes) are recognized:
+   * '{:x}' The X value of the plot element
+   * '{:y}' The Y value of the plot element
+   * '{:i}' The IndexedLabels entry for the plot element
+   * '{:l}' The value of the plot's GetLabel() function
+   * '{:s}' The Labels entry for the bar segment
+   *
+   * The following case-sensitive printf style tags (without quotes) are recognized:
    * '%x' The X value of the plot element
    * '%y' The Y value of the plot element
    * '%i' The IndexedLabels entry for the plot element
    * '%l' The value of the plot's GetLabel() function
    * '%s' (vtkPlotBar only) The Labels entry for the bar segment
+   *
+   * Mixtures of std::format and printf style tags are not supported.
+   *
    * Any other characters or unrecognized format tags are printed in the
    * tooltip label verbatim.
    */
@@ -286,7 +296,7 @@ public:
   /**
    * This is a convenience function to set the input connection for the plot.
    */
-  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   virtual void SetInputConnection(vtkAlgorithmOutput* input);
   ///@}
 
@@ -299,7 +309,7 @@ public:
   /**
    * Get the input connection used by the plot.
    */
-  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkAlgorithmOutput* GetInputConnection();
 
   /**

@@ -63,6 +63,7 @@
 using std::ofstream;
 #include <sstream>
 using std::ostringstream;
+#include <iostream>
 #include <vector>
 using std::vector;
 #include <string>
@@ -188,15 +189,15 @@ vtkCxxSetObjectMacro(vtkMaterialInterfaceFilter, ClipFunction, vtkImplicitFuncti
 //============================================================================
 namespace
 {
-vtkUniformGrid* GetReferenceGrid(vtkNonOverlappingAMR* amrds)
+vtkCartesianGrid* GetReferenceGrid(vtkNonOverlappingAMR* amrds)
 {
   unsigned int numLevels = amrds->GetNumberOfLevels();
   for (unsigned int l = 0; l < numLevels; ++l)
   {
-    unsigned int numDatasets = amrds->GetNumberOfDataSets(l);
+    unsigned int numDatasets = amrds->GetNumberOfBlocks(l);
     for (unsigned int dataIdx = 0; dataIdx < numDatasets; ++dataIdx)
     {
-      vtkUniformGrid* refGrid = amrds->GetDataSet(l, dataIdx);
+      vtkCartesianGrid* refGrid = amrds->GetDataSetAsCartesianGrid(l, dataIdx);
       if (refGrid != nullptr)
       {
         return (refGrid);
@@ -265,7 +266,7 @@ public:
   void Squeeze() { this->EquivalenceArray->Squeeze(); }
 
   // Report used memory
-  vtkIdType Capacity() { return this->EquivalenceArray->Capacity(); }
+  vtkIdType Capacity() { return this->EquivalenceArray->GetSize(); }
 
   // We should fix the pointer API and hide this ivar.
   int Resolved;
@@ -316,12 +317,12 @@ void vtkMaterialInterfaceEquivalenceSet::DeepCopy(vtkMaterialInterfaceEquivalenc
 void vtkMaterialInterfaceEquivalenceSet::Print()
 {
   vtkIdType num = this->GetNumberOfMembers();
-  cerr << num << endl;
+  std::cerr << num << endl;
   for (vtkIdType ii = 0; ii < num; ++ii)
   {
-    cerr << "  " << ii << " : " << this->GetEquivalentSetId(ii) << endl;
+    std::cerr << "  " << ii << " : " << this->GetEquivalentSetId(ii) << endl;
   }
-  cerr << endl;
+  std::cerr << endl;
 }
 
 //----------------------------------------------------------------------------
@@ -447,7 +448,7 @@ int vtkMaterialInterfaceEquivalenceSet::ResolveEquivalences()
     }
   }
   this->Resolved = 1;
-  // cerr << "Final number of equivalent sets: " << count << endl;
+  // std::cerr << "Final number of equivalent sets: " << count << endl;
 
   return count;
 }
@@ -946,8 +947,8 @@ void vtkMaterialInterfaceFilterBlock::ComputeBaseExtent(
     }
     else
     {
-      cerr << "vtkMaterialInterfaceFilter.cxx:" << __LINE__
-           << " Invalid Block Ghost Level information. " << (int)levelOfGhostLayer << endl;
+      std::cerr << "vtkMaterialInterfaceFilter.cxx:" << __LINE__
+                << " Invalid Block Ghost Level information. " << (int)levelOfGhostLayer << endl;
     }
   }
 }
@@ -1462,7 +1463,7 @@ void vtkMaterialInterfaceFilterRingBuffer::GrowRing()
     --count;
   }
 
-  // cerr << "Grow ring buffer: " << newRingLength << endl;
+  // std::cerr << "Grow ring buffer: " << newRingLength << endl;
 
   // Replace the ring.
   // Size remains the same.
@@ -1550,9 +1551,9 @@ vtkMaterialInterfaceFilter::vtkMaterialInterfaceFilter()
 #ifdef vtkMaterialInterfaceFilterDEBUG
   int myProcId = this->Controller->GetLocalProcessId();
   this->MyPid = WritePidFile(this->Controller->GetCommunicator(), "mif.pid");
-  cerr << "[" << __LINE__ << "] " << myProcId
-       << " memory commitment entering vtkMaterialInterfaceFilter is:" << endl
-       << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
+  std::cerr << "[" << __LINE__ << "] " << myProcId
+            << " memory commitment entering vtkMaterialInterfaceFilter is:" << endl
+            << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
 #endif
 
 // Pipeline
@@ -1893,12 +1894,11 @@ int vtkMaterialInterfaceFilter::InitializeBlocks(vtkNonOverlappingAMR* input,
     cumulativeExt[0] = cumulativeExt[2] = cumulativeExt[4] = VTK_INT_MAX;
     cumulativeExt[1] = cumulativeExt[3] = cumulativeExt[5] = -VTK_INT_MAX;
 
-    int numBlocks = input->GetNumberOfDataSets(level);
+    int numBlocks = input->GetNumberOfBlocks(level);
     for (int levelBlockId = 0; levelBlockId < numBlocks; ++levelBlockId)
     {
-      //      vtkAMRBox box;
-      //      vtkImageData* image = input->GetDataSet(level,levelBlockId,box);
-      vtkImageData* image = input->GetDataSet(level, levelBlockId);
+      vtkCartesianGrid* cg = input->GetDataSetAsCartesianGrid(level, levelBlockId);
+      vtkImageData* image = vtkImageData::SafeDownCast(cg);
       // TODO: We need to check the CELL_DATA and the correct volume fraction array.
 
       if (image)
@@ -1923,6 +1923,10 @@ int vtkMaterialInterfaceFilter::InitializeBlocks(vtkNonOverlappingAMR* input,
         cumulativeExt[3] = std::max(cumulativeExt[3], ext[3]);
         cumulativeExt[4] = std::min(cumulativeExt[4], ext[4]);
         cumulativeExt[5] = std::max(cumulativeExt[5], ext[5]);
+      }
+      else if (cg)
+      {
+        vtkWarningMacro("Non vtkImageData in AMR are not supported and are skipped");
       }
     }
 
@@ -1985,7 +1989,7 @@ int vtkMaterialInterfaceFilter::InitializeBlocks(vtkNonOverlappingAMR* input,
   this->ShareGhostBlocksTimer->StartTimer();
 #endif
 
-  // cerr << "start ghost blocks\n" << endl;
+  // std::cerr << "start ghost blocks\n" << endl;
 
 #ifdef vtkMaterialInterfaceFilterPROFILE
   // Lets profile to see what takes the most time for large number of processes.
@@ -2023,7 +2027,7 @@ void vtkMaterialInterfaceFilter::CheckLevelsForNeighbors(vtkMaterialInterfaceFil
   //     }
   //   if (match)
   //     {
-  //     cout << "Stop here" << endl;
+  //     std::cout << "Stop here" << endl;
   //     }
   std::vector<vtkMaterialInterfaceFilterBlock*> neighbors;
   vtkMaterialInterfaceFilterBlock* neighbor;
@@ -2038,7 +2042,7 @@ void vtkMaterialInterfaceFilter::CheckLevelsForNeighbors(vtkMaterialInterfaceFil
 
   //   if (blockIndex[0] == 13 && blockIndex[1] == 14 && blockIndex[2] == 10)
   //     {
-  //     cerr << "Debug.\n";
+  //     std::cerr << "Debug.\n";
   //     }
 
   for (int axis = 0; axis < 3; ++axis)
@@ -2393,14 +2397,19 @@ void vtkMaterialInterfaceFilter::ComputeOriginAndRootSpacing(vtkNonOverlappingAM
     int* receivedBlockSize = new int[nbProcs * 3];
     double localSpacing[3] = { 0, 0, 0 };
     double* receivedSpacing = new double[nbProcs * 3];
-    unsigned int dsIdxSize = input->GetNumberOfDataSets(minLevel);
+    unsigned int dsIdxSize = input->GetNumberOfBlocks(minLevel);
     for (unsigned int dsIdx = 0; dsIdx < dsIdxSize; ++dsIdx)
     {
-      vtkUniformGrid* grid = input->GetDataSet(minLevel, dsIdx);
+      vtkCartesianGrid* cg = input->GetDataSetAsCartesianGrid(minLevel, dsIdx);
+      vtkUniformGrid* grid = vtkUniformGrid::SafeDownCast(cg);
       if (grid)
       {
         grid->GetDimensions(localBlockSize);
         grid->GetSpacing(localSpacing);
+      }
+      else if (cg)
+      {
+        vtkWarningMacro("Non vtkImageData in AMR are not supported and are skipped");
       }
     }
     this->Controller->AllGather(localBlockSize, receivedBlockSize, 3);
@@ -2528,12 +2537,11 @@ int vtkMaterialInterfaceFilter::ComputeOriginAndRootSpacingOld(vtkNonOverlapping
   // Add each block.
   for (int level = 0; level < numLevels; ++level)
   {
-    numBlocks = input->GetNumberOfDataSets(level);
+    numBlocks = input->GetNumberOfBlocks(level);
     for (blockId = 0; blockId < numBlocks; ++blockId)
     {
-      //      vtkAMRBox box;
-      //      vtkImageData* image = input->GetDataSet(level,blockId,box);
-      vtkImageData* image = input->GetDataSet(level, blockId);
+      vtkCartesianGrid* cg = input->GetDataSetAsCartesianGrid(level, blockId);
+      vtkImageData* image = vtkImageData::SafeDownCast(cg);
       if (image)
       {
         ++totalNumberOfBlocksInThisProcess;
@@ -2572,6 +2580,10 @@ int vtkMaterialInterfaceFilter::ComputeOriginAndRootSpacingOld(vtkNonOverlapping
           lowestDims[1] = cellDims[1];
           lowestDims[2] = cellDims[2];
         }
+      }
+      else if (cg)
+      {
+        vtkWarningMacro("Non vtkImageDataBlock are not supported and are skipped");
       }
     }
   }
@@ -3311,12 +3323,12 @@ int vtkMaterialInterfaceFilter::RequestData(vtkInformation* vtkNotUsed(request),
   }
 
 #ifdef vtkMaterialInterfaceFilterDEBUG
-  cerr << "[" << __LINE__ << "] " << this->Controller->GetLocalProcessId()
-       << " entered request data."
-       << " MTime: " << this->GetMTime() << endl;
+  std::cerr << "[" << __LINE__ << "] " << this->Controller->GetLocalProcessId()
+            << " entered request data."
+            << " MTime: " << this->GetMTime() << endl;
   std::clock_t startTime = std::clock();
 #ifdef USE_VOXEL_VOLUME
-  cerr << "USE_VOXEL_VOLUME\n";
+  std::cerr << "USE_VOXEL_VOLUME\n";
 #endif
 #endif
   // get the data set which we are to process
@@ -3388,10 +3400,11 @@ int vtkMaterialInterfaceFilter::RequestData(vtkInformation* vtkNotUsed(request),
   {
 #ifdef vtkMaterialInterfaceFilterDEBUG
     int myProcId = this->Controller->GetLocalProcessId();
-    cerr << "[" << __LINE__ << "] " << myProcId << " is processing Material " << this->MaterialId
-         << "." << endl
-         << "[" << __LINE__ << "] " << myProcId << " memory commitment at begin of pass is:" << endl
-         << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
+    std::cerr << "[" << __LINE__ << "] " << myProcId << " is processing Material "
+              << this->MaterialId << "." << endl
+              << "[" << __LINE__ << "] " << myProcId
+              << " memory commitment at begin of pass is:" << endl
+              << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
 #endif
 
     this->Progress = this->MaterialId * this->ProgressMaterialInc;
@@ -3413,7 +3426,7 @@ int vtkMaterialInterfaceFilter::RequestData(vtkInformation* vtkNotUsed(request),
       // Extract all compatible cell data so they could be used by the user
       // to color by. Previously only the array that were used for computation
       // was kept
-      vtkUniformGrid* ds = GetReferenceGrid(hbdsInput);
+      vtkCartesianGrid* ds = ::GetReferenceGrid(hbdsInput);
       if (ds)
       {
         this->NToIntegrate = ds->GetCellData()->GetNumberOfArrays();
@@ -3428,7 +3441,7 @@ int vtkMaterialInterfaceFilter::RequestData(vtkInformation* vtkNotUsed(request),
             case VTK_INT:
             {
               const char* arrayName = ds->GetCellData()->GetArrayName(i);
-              this->IntegratedArrayNames.push_back(arrayName);
+              this->IntegratedArrayNames.emplace_back(arrayName);
             }
             break;
             default:
@@ -3550,12 +3563,12 @@ int vtkMaterialInterfaceFilter::RequestData(vtkInformation* vtkNotUsed(request),
   this->FragmentSplitMarker.clear();
 #ifdef vtkMaterialInterfaceFilterDEBUG
   std::clock_t endTime = std::clock();
-  cerr << "[" << __LINE__ << "] " << this->Controller->GetLocalProcessId()
-       << " clock time elapsed during request data "
-       << (double)(endTime - startTime) / (double)CLOCKS_PER_SEC << " sec." << endl;
-  cerr << "[" << __LINE__ << "] " << this->Controller->GetLocalProcessId()
-       << " exited request data."
-       << " MTime: " << this->GetMTime() << "." << endl;
+  std::cerr << "[" << __LINE__ << "] " << this->Controller->GetLocalProcessId()
+            << " clock time elapsed during request data "
+            << (double)(endTime - startTime) / (double)CLOCKS_PER_SEC << " sec." << endl;
+  std::cerr << "[" << __LINE__ << "] " << this->Controller->GetLocalProcessId()
+            << " exited request data."
+            << " MTime: " << this->GetMTime() << "." << endl;
 #endif
 
 #ifdef vtkMaterialInterfaceFilterPROFILE
@@ -3570,25 +3583,25 @@ int vtkMaterialInterfaceFilter::RequestData(vtkInformation* vtkNotUsed(request),
   numberOfGhostBlocks = this->NumberOfGhostBlocks;
   if (this->Controller == 0)
   {
-    cout << "InitializeTime: " << initializeTime << endl;
-    cout << "ShareGhostBlocksTime: " << shareGhostBlocksTime << endl;
-    cout << "NumberOfBlocks: " << numberOfBlocks << endl;
-    cout << "NumberOfGhostBlocks: " << numberOfGhostBlocks << endl;
-    cout << "ProcessBlocksTime: " << processBlocksTime << endl;
-    cout << "ResolveEquivalencesTimer: " << resolveEquivalencesTime << endl;
+    std::cout << "InitializeTime: " << initializeTime << endl;
+    std::cout << "ShareGhostBlocksTime: " << shareGhostBlocksTime << endl;
+    std::cout << "NumberOfBlocks: " << numberOfBlocks << endl;
+    std::cout << "NumberOfGhostBlocks: " << numberOfGhostBlocks << endl;
+    std::cout << "ProcessBlocksTime: " << processBlocksTime << endl;
+    std::cout << "ResolveEquivalencesTimer: " << resolveEquivalencesTime << endl;
   }
   else
   {
     int numProcs = this->Controller->GetNumberOfProcesses();
     if (this->Controller->GetLocalProcessId() == 0)
     {
-      cout << "Process 0: \n";
-      cout << "  InitializeTime: " << initializeTime << endl;
-      cout << "  ShareGhostBlocksTime: " << shareGhostBlocksTime << endl;
-      cout << "  NumberOfBlocks: " << numberOfBlocks << endl;
-      cout << "  NumberOfGhostBlocks: " << numberOfGhostBlocks << endl;
-      cout << "  ProcessBlocksTime: " << processBlocksTime << endl;
-      cout << "  ResolveEquivalencesTimer: " << resolveEquivalencesTime << endl;
+      std::cout << "Process 0: \n";
+      std::cout << "  InitializeTime: " << initializeTime << endl;
+      std::cout << "  ShareGhostBlocksTime: " << shareGhostBlocksTime << endl;
+      std::cout << "  NumberOfBlocks: " << numberOfBlocks << endl;
+      std::cout << "  NumberOfGhostBlocks: " << numberOfGhostBlocks << endl;
+      std::cout << "  ProcessBlocksTime: " << processBlocksTime << endl;
+      std::cout << "  ResolveEquivalencesTimer: " << resolveEquivalencesTime << endl;
       for (int procIdx = 1; procIdx < numProcs; ++procIdx)
       {
         this->Controller->Receive(&initializeTime, 1, procIdx, 234908);
@@ -3597,13 +3610,13 @@ int vtkMaterialInterfaceFilter::RequestData(vtkInformation* vtkNotUsed(request),
         this->Controller->Receive(&resolveEquivalencesTime, 1, procIdx, 234911);
         this->Controller->Receive(&numberOfBlocks, 1, procIdx, 234912);
         this->Controller->Receive(&numberOfGhostBlocks, 1, procIdx, 234913);
-        cout << "Process " << procIdx << ": \n";
-        cout << "  InitializeTime: " << initializeTime << endl;
-        cout << "  ShareGhostBlocksTime: " << shareGhostBlocksTime << endl;
-        cout << "  NumberOfBlocks: " << numberOfBlocks << endl;
-        cout << "  NumberOfGhostBlocks: " << numberOfGhostBlocks << endl;
-        cout << "  ProcessBlocksTime: " << processBlocksTime << endl;
-        cout << "  ResolveEquivalencesTimer: " << resolveEquivalencesTime << endl;
+        std::cout << "Process " << procIdx << ": \n";
+        std::cout << "  InitializeTime: " << initializeTime << endl;
+        std::cout << "  ShareGhostBlocksTime: " << shareGhostBlocksTime << endl;
+        std::cout << "  NumberOfBlocks: " << numberOfBlocks << endl;
+        std::cout << "  NumberOfGhostBlocks: " << numberOfGhostBlocks << endl;
+        std::cout << "  ProcessBlocksTime: " << processBlocksTime << endl;
+        std::cout << "  ResolveEquivalencesTimer: " << resolveEquivalencesTime << endl;
       }
     }
     else
@@ -3699,7 +3712,7 @@ int vtkMaterialInterfaceFilter::ProcessBlock(int blockId)
           if (this->ComputeMoments)
           {
             // Save the moments from the last fragment
-            this->FragmentMoments->InsertTuple(this->FragmentId, &this->FragmentMoment[0]);
+            this->FragmentMoments->InsertTuple(this->FragmentId, this->FragmentMoment.data());
             // clear the moment accumulator
             FillVector(this->FragmentMoment, 0.0);
           }
@@ -3708,7 +3721,7 @@ int vtkMaterialInterfaceFilter::ProcessBlock(int blockId)
           {
             // update the integrated value, independent of ncomps
             this->FragmentVolumeWtdAvgs[i]->InsertTuple(
-              this->FragmentId, &this->FragmentVolumeWtdAvg[i][0]);
+              this->FragmentId, this->FragmentVolumeWtdAvg[i].data());
             // clear the accumulator
             FillVector(this->FragmentVolumeWtdAvg[i], 0.0);
           }
@@ -3717,7 +3730,7 @@ int vtkMaterialInterfaceFilter::ProcessBlock(int blockId)
           {
             // update the integrated value, independent of ncomps
             this->FragmentMassWtdAvgs[i]->InsertTuple(
-              this->FragmentId, &this->FragmentMassWtdAvg[i][0]);
+              this->FragmentId, this->FragmentMassWtdAvg[i].data());
             // clear the accumulator
             FillVector(this->FragmentMassWtdAvg[i], 0.0);
           }
@@ -3725,7 +3738,7 @@ int vtkMaterialInterfaceFilter::ProcessBlock(int blockId)
           for (int i = 0; i < this->NToSum; ++i)
           {
             // update the integrated value, independent of ncomps
-            this->FragmentSums[i]->InsertTuple(this->FragmentId, &this->FragmentSum[i][0]);
+            this->FragmentSums[i]->InsertTuple(this->FragmentId, this->FragmentSum[i].data());
             // clear the accumulator
             FillVector(this->FragmentSum[i], 0.0);
           }
@@ -4601,14 +4614,14 @@ void vtkMaterialInterfaceFilter::CreateFace(vtkMaterialInterfaceFilterIterator* 
     vtkDataArray* srcArray = in->Block->GetIntegratedArray(i);
     int nComps = srcArray->GetNumberOfComponents();
     thisTup.resize(nComps);
-    CopyTuple(&thisTup[0], srcArray, nComps, in->FlatIndex);
+    CopyTuple(thisTup.data(), srcArray, nComps, in->FlatIndex);
 
     // fragment
     vtkDoubleArray* destArray =
       dynamic_cast<vtkDoubleArray*>(this->CurrentFragmentMesh->GetCellData()->GetArray(i));
     for (vtkIdType ii = 0; ii < numTris; ++ii)
     {
-      destArray->InsertNextTuple(&thisTup[0]);
+      destArray->InsertNextTuple(thisTup.data());
     }
   }
 // Cell data attributes for debugging.
@@ -5350,7 +5363,7 @@ void vtkMaterialInterfaceFilter::ConnectFragment(vtkMaterialInterfaceFilterRingB
       {
         vtkDataArray* arrayToIntegrate = iterator.Block->GetVolumeWtdAvgArray(i);
         int nComps = arrayToIntegrate->GetNumberOfComponents();
-        this->Accumulate(&this->FragmentVolumeWtdAvg[i][0], arrayToIntegrate, nComps,
+        this->Accumulate(this->FragmentVolumeWtdAvg[i].data(), arrayToIntegrate, nComps,
           iterator.FlatIndex, voxelVolumeFrac);
       }
       // accumulate mass weighted average
@@ -5362,7 +5375,7 @@ void vtkMaterialInterfaceFilter::ConnectFragment(vtkMaterialInterfaceFilterRingB
         const double* X0 = iterator.Block->GetOrigin();
         double X[3] = { X0[0] + dX[0] * (0.5 + iterator.Index[0]),
           X0[1] + dX[1] * (0.5 + iterator.Index[1]), X0[2] + dX[2] * (0.5 + iterator.Index[2]) };
-        this->AccumulateMoments(&this->FragmentMoment[0], massArray, iterator.FlatIndex, X);
+        this->AccumulateMoments(this->FragmentMoment.data(), massArray, iterator.FlatIndex, X);
         // mass weighted averages
         double voxelMass;
         massArray->GetTuple(iterator.FlatIndex, &voxelMass);
@@ -5370,7 +5383,7 @@ void vtkMaterialInterfaceFilter::ConnectFragment(vtkMaterialInterfaceFilterRingB
         {
           vtkDataArray* arrayToIntegrate = iterator.Block->GetMassWtdAvgArray(i);
           int nComps = arrayToIntegrate->GetNumberOfComponents();
-          this->Accumulate(&this->FragmentMassWtdAvg[i][0], arrayToIntegrate, nComps,
+          this->Accumulate(this->FragmentMassWtdAvg[i].data(), arrayToIntegrate, nComps,
             iterator.FlatIndex, voxelMass);
         }
       }
@@ -5380,7 +5393,7 @@ void vtkMaterialInterfaceFilter::ConnectFragment(vtkMaterialInterfaceFilterRingB
         vtkDataArray* arrayToIntegrate = iterator.Block->GetArrayToSum(i);
         int nComps = arrayToIntegrate->GetNumberOfComponents();
         this->Accumulate(
-          &this->FragmentSum[i][0], arrayToIntegrate, nComps, iterator.FlatIndex, 1.0);
+          this->FragmentSum[i].data(), arrayToIntegrate, nComps, iterator.FlatIndex, 1.0);
       }
     }
 
@@ -6282,15 +6295,15 @@ void vtkMaterialInterfaceFilter::ResolveLocalFragmentGeometry()
       // remove from output data set
       resolvedFragments->SetPiece(globalId, nullptr);
 #ifdef vtkMaterialInterfaceFilterDEBUG
-      cerr << "[" << __LINE__ << "] " << myProcId << " fragment " << globalId
-           << " is empty and will be ignored." << endl;
+      std::cerr << "[" << __LINE__ << "] " << myProcId << " fragment " << globalId
+                << " is empty and will be ignored." << endl;
 #endif
     }
   }
   // Resize the id vector to reflect loss of removed ids.
   resolvedFragmentIds.erase(shortEnd, end);
   // Squeeze
-  vector<int>(resolvedFragmentIds).swap(resolvedFragmentIds);
+  resolvedFragmentIds.shrink_to_fit();
 }
 
 //----------------------------------------------------------------------------
@@ -6360,9 +6373,9 @@ void vtkMaterialInterfaceFilter::CleanLocalFragmentGeometry()
   }
   cpd->Delete();
 #ifdef vtkMaterialInterfaceFilterDEBUG
-  cerr << "[" << __LINE__ << "] " << myProcId << " cleaned " << nInitial - nFinal
-       << " points from local fragments. ("
-       << (int)(100.0 * (1.0 - (double)nFinal / (double)nInitial) + 0.5) << "%)" << endl;
+  std::cerr << "[" << __LINE__ << "] " << myProcId << " cleaned " << nInitial - nFinal
+            << " points from local fragments. ("
+            << (int)(100.0 * (1.0 - (double)nFinal / (double)nInitial) + 0.5) << "%)" << endl;
 #endif
 }
 
@@ -6483,7 +6496,7 @@ void vtkMaterialInterfaceFilter::ComputeGeometricAttributes()
       ++thisMsgId;
       ++thisMsgId;
 #ifdef vtkMaterialInterfaceFilterDEBUG
-      cerr << "[" << __LINE__ << "] " << controllingProcId << " loading histogram:" << endl;
+      std::cerr << "[" << __LINE__ << "] " << controllingProcId << " loading histogram:" << endl;
       PrintPieceLoadingHistogram(loadingArrays);
 #endif
 
@@ -6514,9 +6527,9 @@ void vtkMaterialInterfaceFilter::ComputeGeometricAttributes()
       partial_sort(heap.begin(), heap.end(), heap.end());
 
 #ifdef vtkMaterialInterfaceFilterDEBUG
-      cerr << "[" << __LINE__ << "] " << controllingProcId
-           << " total loading before fragment localization:" << endl
-           << heap;
+      std::cerr << "[" << __LINE__ << "] " << controllingProcId
+                << " total loading before fragment localization:" << endl
+                << heap;
       vector<int> splitting(nProcs + 1, 0);
       int nSplit = 0;
 #endif
@@ -6529,9 +6542,9 @@ void vtkMaterialInterfaceFilter::ComputeGeometricAttributes()
       vtkMaterialInterfaceProcessRing procRing;
       procRing.Initialize(heap, this->UpperLoadingBound);
 #ifdef vtkMaterialInterfaceFilterDEBUG
-      cerr << "[" << __LINE__ << "] " << controllingProcId << " process ring: ";
+      std::cerr << "[" << __LINE__ << "] " << controllingProcId << " process ring: ";
       procRing.Print();
-      cerr << endl;
+      std::cerr << endl;
 #endif
 
       // Decide who needs to move and build corresponding
@@ -6583,12 +6596,12 @@ void vtkMaterialInterfaceFilter::ComputeGeometricAttributes()
         }
       }
 #ifdef vtkMaterialInterfaceFilterDEBUG
-      cerr << "[" << __LINE__ << "] " << controllingProcId << " splitting:" << endl;
+      std::cerr << "[" << __LINE__ << "] " << controllingProcId << " splitting:" << endl;
       PrintHistogram(splitting);
-      cerr << "[" << __LINE__ << "] " << myProcId << " total number of fragments "
-           << this->NumberOfResolvedFragments << endl;
-      cerr << "[" << __LINE__ << "] " << myProcId << " total number split " << nSplit << endl;
-// cerr << "[" << __LINE__ << "] "
+      std::cerr << "[" << __LINE__ << "] " << myProcId << " total number of fragments "
+                << this->NumberOfResolvedFragments << endl;
+      std::cerr << "[" << __LINE__ << "] " << myProcId << " total number split " << nSplit << endl;
+// std::cerr << "[" << __LINE__ << "] "
 //       << myProcId
 //       << " the transaction matrix is:" << endl;
 // TM.Print();
@@ -6879,10 +6892,10 @@ void vtkMaterialInterfaceFilter::ComputeGeometricAttributes()
 #ifdef vtkMaterialInterfaceFilterDEBUG
             if (nTransactions >= 4)
             {
-              cerr << "[" << __LINE__ << "] " << myProcId
-                   << " memory commitment during localization of " << nTransactions
-                   << " pieces is:" << endl
-                   << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
+              std::cerr << "[" << __LINE__ << "] " << myProcId
+                        << " memory commitment during localization of " << nTransactions
+                        << " pieces is:" << endl
+                        << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
             }
 #endif
             localizedPoints->Delete();
@@ -6917,8 +6930,8 @@ void vtkMaterialInterfaceFilter::ComputeGeometricAttributes()
   }
 
 #ifdef vtkMaterialInterfaceFilterDEBUG
-  cerr << "[" << __LINE__ << "] " << myProcId << " computation of geometric attributes completed."
-       << endl;
+  std::cerr << "[" << __LINE__ << "] " << myProcId
+            << " computation of geometric attributes completed." << endl;
 #endif
 }
 
@@ -7112,7 +7125,7 @@ int vtkMaterialInterfaceFilter::SendGeometricAttributes(const int recipientProcI
     buffer.Pack(this->FragmentOBBs);
   }
   // resolved fragment ids
-  buffer.Pack(&this->ResolvedFragmentIds[this->MaterialId][0], 1, nLocal);
+  buffer.Pack(this->ResolvedFragmentIds[this->MaterialId].data(), 1, nLocal);
 
   // send buffer in two parts. header then data
   int thisMsgId = msgBase;
@@ -7156,7 +7169,7 @@ int vtkMaterialInterfaceFilter::PrepareToCollectGeometricAttributes(
   ids.resize(nProcs, static_cast<int*>(nullptr));
   if (!this->ResolvedFragmentIds[this->MaterialId].empty())
   {
-    ids[myProcId] = &(this->ResolvedFragmentIds[this->MaterialId][0]);
+    ids[myProcId] = this->ResolvedFragmentIds[this->MaterialId].data();
   }
   else
   {
@@ -8026,7 +8039,7 @@ void vtkMaterialInterfaceFilter::PrepareForResolveEquivalences()
     this->FragmentSums[i]->Squeeze();
   }
   // geometry container
-  vector<vtkPolyData*>(this->FragmentMeshes).swap(this->FragmentMeshes);
+  this->FragmentMeshes.shrink_to_fit();
 }
 //----------------------------------------------------------------------------
 void vtkMaterialInterfaceFilter::ResolveEquivalences()
@@ -8034,9 +8047,9 @@ void vtkMaterialInterfaceFilter::ResolveEquivalences()
   int numProcs = this->Controller->GetNumberOfProcesses();
 #ifdef vtkMaterialInterfaceFilterDEBUG
   int myProcId = this->Controller->GetLocalProcessId();
-  cerr << "[" << __LINE__ << "] " << myProcId
-       << " memory commitment entering ResolveEquivalences is:" << endl
-       << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
+  std::cerr << "[" << __LINE__ << "] " << myProcId
+            << " memory commitment entering ResolveEquivalences is:" << endl
+            << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
 #endif
 
   // These get resused for efer attribute we need to merge so I made the ivars.
@@ -8047,26 +8060,26 @@ void vtkMaterialInterfaceFilter::ResolveEquivalences()
   // This also renumbers set ids to be sequential.
   this->GatherEquivalenceSets(this->EquivalenceSet);
 #ifdef vtkMaterialInterfaceFilterDEBUG
-  cerr << "[" << __LINE__ << "] " << myProcId
-       << " memory commitment after GatherEquivalenceSets is:" << endl
-       << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
+  std::cerr << "[" << __LINE__ << "] " << myProcId
+            << " memory commitment after GatherEquivalenceSets is:" << endl
+            << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
 #endif
 
   // Gather and merge fragments for whose geometry is split
   // and build the output dataset as we go.
   this->ResolveLocalFragmentGeometry();
 #ifdef vtkMaterialInterfaceFilterDEBUG
-  cerr << "[" << __LINE__ << "] " << myProcId
-       << " memory commitment after ResolveLocalFragmentGeometry is:" << endl
-       << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
+  std::cerr << "[" << __LINE__ << "] " << myProcId
+            << " memory commitment after ResolveLocalFragmentGeometry is:" << endl
+            << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
 #endif
 
   // Clean duplicate points
   this->CleanLocalFragmentGeometry();
 #ifdef vtkMaterialInterfaceFilterDEBUG
-  cerr << "[" << __LINE__ << "] " << myProcId
-       << " memory commitment after CleanLocalFragmentGeometry is:" << endl
-       << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
+  std::cerr << "[" << __LINE__ << "] " << myProcId
+            << " memory commitment after CleanLocalFragmentGeometry is:" << endl
+            << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
 #endif
 
   // Accumulate contributions from fragemnts who were
@@ -8074,9 +8087,9 @@ void vtkMaterialInterfaceFilter::ResolveEquivalences()
   this->ResolveIntegratedAttributes(0);
   this->BroadcastIntegratedAttributes(0);
 #ifdef vtkMaterialInterfaceFilterDEBUG
-  cerr << "[" << __LINE__ << "] " << myProcId
-       << " memory commitment after ResolveIntegratedAttributes is:" << endl
-       << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
+  std::cerr << "[" << __LINE__ << "] " << myProcId
+            << " memory commitment after ResolveIntegratedAttributes is:" << endl
+            << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
 #endif
 
   // Compute geometric attributes, and gather them for
@@ -8084,9 +8097,9 @@ void vtkMaterialInterfaceFilter::ResolveEquivalences()
   this->ComputeGeometricAttributes();
   this->GatherGeometricAttributes(0);
 #ifdef vtkMaterialInterfaceFilterDEBUG
-  cerr << "[" << __LINE__ << "] " << myProcId
-       << " memory commitment after ComputeGeometricAttributes is:" << endl
-       << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
+  std::cerr << "[" << __LINE__ << "] " << myProcId
+            << " memory commitment after ComputeGeometricAttributes is:" << endl
+            << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
 #endif
 
   // Copy attributes into the output data sets.
@@ -8094,9 +8107,9 @@ void vtkMaterialInterfaceFilter::ResolveEquivalences()
   this->CopyAttributesToOutput1();
 #ifdef vtkMaterialInterfaceFilterDEBUG
   this->CopyAttributesToOutput2();
-  cerr << "[" << __LINE__ << "] " << myProcId
-       << " memory commitment after CopyAttributesToOutput0/1 is:" << endl
-       << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
+  std::cerr << "[" << __LINE__ << "] " << myProcId
+            << " memory commitment after CopyAttributesToOutput0/1 is:" << endl
+            << GetMemoryUsage(this->MyPid, __LINE__, myProcId);
 #endif
 
   delete[] this->NumberOfRawFragmentsInProcess;
@@ -8171,9 +8184,9 @@ void vtkMaterialInterfaceFilter::GatherEquivalenceSets(vtkMaterialInterfaceEquiv
     globalSet->AddEquivalence(ii + myOffset, memberSetId + myOffset);
   }
 
-  // cerr << myProcId << " Input set: " << endl;
+  // std::cerr << myProcId << " Input set: " << endl;
   // set->Print();
-  // cerr << myProcId << " global set: " << endl;
+  // std::cerr << myProcId << " global set: " << endl;
   // globalSet->Print();
 
   // Now add equivalents between processes.
@@ -8181,14 +8194,14 @@ void vtkMaterialInterfaceFilter::GatherEquivalenceSets(vtkMaterialInterfaceEquiv
   // Compare ids and add the equivalences.
   this->ShareGhostEquivalences(globalSet, this->LocalToGlobalOffsets);
 
-  // cerr << "Global after ghost: " << myProcId << endl;
+  // std::cerr << "Global after ghost: " << myProcId << endl;
   // globalSet->Print();
 
   // Merge all of the processes global sets.
   // Clean the global set so that the resulting set ids are sequential.
   this->MergeGhostEquivalenceSets(globalSet);
 
-  // cerr << "Global after merge: " << myProcId << endl;
+  // std::cerr << "Global after merge: " << myProcId << endl;
   // globalSet->Print();
 
   // free what do not need
@@ -8946,7 +8959,9 @@ void vtkMaterialInterfaceFilter::CopyAttributesToOutput1()
   resolvedFragmentCenters->SetPoints(pts);
   pts->Delete();
   vtkCellArray* cells = vtkCellArray::New();
-  cells->SetCells(static_cast<vtkIdType>(this->NumberOfResolvedFragments), va);
+  cells->AllocateExact(static_cast<vtkIdType>(this->NumberOfResolvedFragments),
+    va->GetNumberOfValues() - this->NumberOfResolvedFragments);
+  cells->ImportLegacyFormat(va);
   resolvedFragmentCenters->SetVerts(cells);
   cells->Delete();
   va->Delete();
@@ -9371,7 +9386,7 @@ int vtkMaterialInterfaceFilter::WriteGeometryOutputToTextFile()
       int nComps = aa->GetNumberOfComponents();
       vector<double> tup;
       tup.resize(nComps);
-      CopyTuple(&tup[0], aa, nComps, 0);
+      CopyTuple(tup.data(), aa, nComps, 0);
       fout << tup[0];
       for (int q = 1; q < nComps; ++q)
       {
@@ -9384,7 +9399,7 @@ int vtkMaterialInterfaceFilter::WriteGeometryOutputToTextFile()
         aa = fd->GetArray(j);
         nComps = aa->GetNumberOfComponents();
         tup.resize(nComps);
-        CopyTuple(&tup[0], aa, nComps, 0);
+        CopyTuple(tup.data(), aa, nComps, 0);
         fout << tup[0];
         for (int q = 1; q < nComps; ++q)
         {

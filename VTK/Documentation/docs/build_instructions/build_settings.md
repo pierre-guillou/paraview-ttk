@@ -46,21 +46,34 @@ Less common, but variables which may be of interest to some:
   * `VTK_WEBASSEMBLY_64_BIT` (default `OFF`):
     This option is applicable only when building with Emscripten toolchain.
     Adds -sMEMORY64 compiler and linker flags.
-  * `VTK_WEBASSEMBLY_EXCEPTIONS` (default `OFF`):
-    This option is applicable only when building with Emscripten toolchain.
-    Adds `-fexceptions` compiler and linker flags.
   * `VTK_WEBASSEMBLY_THREADS` (default `OFF`):
     This option is applicable only when building with Emscripten toolchain.
     Adds `-pthread` compiler and linker flags. When `VTK_BUILD_TESTING` is `ON`,
     this also runs unit tests in web workers, which is the only way for the tests
     to reliably load data files without having to embed entire datasets inside
     the test binaries.
+  * `VTK_WEBASSEMBLY_SMP_THREAD_POOL_SIZE` (default `0`, means runtime hardware concurrency): This option can
+    be used for limiting the number of webassembly threads consumed by
+    SMP tools. By setting this you can reserve threads for your application to use.
   * `VTK_TESTING_WASM_ENGINE` (default ``):
     Path to a wasm runtime executable. This is used to run C++ tests in wasm environments.
+  * `VTK_WRAP_JAVASCRIPT` (default `OFF`; requires `VTK_ENABLE_WRAPPING`):
+    Whether JavaScript support will be available or not.
+  * `VTK_WASM_DEBUGINFO` (default `NONE`):
+    Extent of debug information in webassembly binaries when VTK_WRAP_JAVASCRIPT is `ON`.
+    Controls the debug flags that allow the compiler to collect the debugging information.
+    Must be either `NONE`, `READABLE_JS`, `PROFILE` or `DEBUG_NATIVE`.
+  * `VTK_WASM_OPTIMIZATION` (default `SMALL`):
+    Optimization knobs for the webassembly binaries when VTK_WRAP_JAVASCRIPT is `ON`.
+    Controls the optimization flags being used when running emcc.
+    Must be either `NO_OPTIMIZATION`, `LITTLE`, `MORE`, `BEST`, `SMALL`, `SMALLEST` or
+    `SMALLEST_WITH_CLOSURE`.
+  * `VTK_WEBASSEMBLY_JOB_POOL_LINK_SIZE` (default number of processors):
+    Size of the job pool for linking wasm targets. Adjust as needed to avoid OOM errors.
 
 ## OpenGL related build options:
 
-When OpenGL is used, a valid rendering environment (e.g., X, Cocoa, SDL2, OSMesa, EGL) must be available.
+When OpenGL is used, a valid rendering environment (e.g., X, Cocoa, OSMesa, EGL) must be available.
 Sanity checks are in place to prevent a broken build.
 
 For specific platforms:
@@ -92,7 +105,6 @@ that the above condition is always met on all supported platforms.
     render windows.
   * `VTK_USE_X` (default `ON` for Unix-like platforms except macOS,
     iOS, and Emscripten, `OFF` otherwise): Use X for render windows.
-  * `VTK_USE_SDL2` (default `OFF`): Use SDL2 for render windows.
   * `VTK_OPENGL_USE_GLES` (default `OFF`; forced `ON` for Android):
     Whether to use OpenGL ES API for OpenGL or not.
   * `VTK_OPENGL_HAS_EGL` (default `ON` for Android and Linux, `OFF` otherwise):
@@ -101,6 +113,8 @@ that the above condition is always met on all supported platforms.
   * `VTK_DEFAULT_EGL_DEVICE_INDEX` (default `0`; requires
     `VTK_OPENGL_HAS_EGL`): The default EGL device to use for EGL render
     windows.
+  * `VTK_USE_WAYLAND_OPENGL` (default `OFF`; requires `VTK_OPENGL_HAS_EGL`):
+    Use Wayland as backend for EGL render windows instead of X.
   * `VTK_ENABLE_WEBGPU` (default `OFF`; required if using Emscripten): Enable
     WebGPU rendering support.
   * `VTK_DEFAULT_RENDER_WINDOW_OFFSCREEN` (default `OFF`): Whether to default
@@ -275,18 +289,18 @@ currently exist for use with the VTK dispatch mechanism:
     "array-of-structure" ordered arrays derived from `vtkAOSDataArrayTemplate`
   * `VTK_DISPATCH_SOA_ARRAYS` (default `OFF`): includes dispatching for "structure-of-array"
     ordered arrays derived from `vtkSOADataArrayTemplate`
-  * `VTK_DISPATCH_TYPED_ARRAYS` (default `OFF`): includes dispatching for arrays derived
-    from `vtkTypedDataArray` (VTK_DEPRECATED_IN_9_5_0).
+  * `VTK_DISPATCH_SCALED_SOA_ARRAYS` (default `OFF`): includes dispatching for scaled "structure-of-array"
+     ordered arrays derived from `vtkScaledSOADataArrayTemplate`
   * `VTK_DISPATCH_AFFINE_ARRAYS` (default `OFF`): includes dispatching for linearly varying
     `vtkAffineArray`s as part of the implicit array framework
   * `VTK_DISPATCH_CONSTANT_ARRAYS` (default `OFF`): includes dispatching for constant arrays
     `vtkConstantArray` as part of the implicit array framework
   * `VTK_DISPATCH_STD_FUNCTION_ARRAYS` (default `OFF`): includes dispatching for arrays with
     an `std::function` backend `vtkStdFunctionArray` as part of the implicit array framework
-
-The outlier in terms of dispatch support is the family of arrays derived from
-`vtkScaledSOADataArrayTemplate` which are automatically included in dispatch when built setting
-the `VTK_BUILD_SCALED_SOA_ARRAYS`.
+  * `VTK_DISPATCH_STRIDED_ARRAYS` (default `OFF`): includes dispatching for strided arrays
+    `vtkStridedArray` as part of the implicit array framework
+  * `VTK_DISPATCH_STRUCTURED_POINT_ARRAYS` (default `OFF`): includes dispatching for structured point arrays
+    `vtkStructuredPointArray` as part of the implicit array framework
 
 ```{warning}
 Adding increasing numbers of arrays in the dispatch mechanism can greatly slow down compile times.

@@ -29,12 +29,19 @@
 #
 #   Kathleen Biagas, Fri Jul 19 12:13:02 PDT 2019
 #   Added vtkCommonExecutionModel, vtkCommonMisc in support of building plugins
-#   vs install on Windows. They are direct depencencies for this library,
+#   vs install on Windows. They are direct dependencies for this library,
 #   and CMake automagically pulls them in when compiling VisIt, even if not
 #   listed, but not when building the plugins.
 #
 #   Alister Maguire, Mon Dec  2 14:18:39 MST 2019
 #   Removed vtkPPMWriter. It's been replaced with vtkPNMWriter (not custom).
+#
+#   Kathleen Biagas, Thu May 2, 2024
+#   Added vtksys in support of building plugins vs install on Windows.
+#   It is a direct dependency for this library, and CMake automagically pulls
+#   it in when compiling VisIt, even if not listed. This doesn't occur when
+#   building plugins against install, since we don't use the cmake targets,
+#   only lists of libraries.
 #
 #****************************************************************************/
 
@@ -50,6 +57,7 @@ vtkBinaryPartitionVolumeFromVolume.C
 vtkCSGGrid.C
 #vtkConnectedTubeFilter.C
 #vtkDataSetRemoveGhostCells.C
+vtkExtractCellsByType.C
 #vtkLineoutFilter.C
 #vtkLinesFromOriginalCells.C
 #vtkMergeTree.C
@@ -95,7 +103,7 @@ ${OPENEXR_SRC}
 )
 
 
-if (FALSE)
+if(FALSE)
 INCLUDE_DIRECTORIES(
 ${VISIT_BINARY_DIR}/include
 ${VISIT_SOURCE_DIR}/include
@@ -109,37 +117,32 @@ ${VTK_INCLUDE_DIRS}
 ${BOOST_INCLUDE_DIR}
 ${OPENEXR_INCLUDE_DIR}
 )
-endif ()
+endif()
 
 IF(HAVE_BOOST)
     ADD_DEFINITIONS(-D__USE_ISOC99)
 ENDIF(HAVE_BOOST)
 
-if (FALSE)
+if(FALSE)
 # Add link directories needed to use our libraries and VTK.
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_DIRECTORY} ${OPENEXR_LIBRARY_DIR})
-endif ()
+endif()
 
 ADD_LIBRARY(visit_vtk ${VISIT_VTK_SOURCES})
 
-#TARGET_LINK_LIBRARIES(visit_vtk lightweight_visit_vtk vtkCommonExecutionModel vtkCommonMisc vtkFiltersExtraction vtkFiltersFlowPaths vtkFiltersSources vtkImagingHybrid vtkIOImage vtktiff ${OPENEXR_LIB})
-target_link_libraries(visit_vtk
-    PUBLIC
-        visitcommon
-        lightweight_visit_vtk
-        VTK::CommonCore
-        VTK::CommonDataModel
-        VTK::CommonExecutionModel
-    PRIVATE
-        VTK::CommonTransforms
-        VTK::FiltersCore
-        VTK::FiltersGeneral
-        VTK::IOLegacy
-        VTK::ImagingHybrid
-)
+if(VTK_VERSION VERSION_EQUAL "8.1.0")
+    set(vtklibs vtkCommonExecutionModel vtkCommonMisc
+        vtkFiltersExtraction vtkFiltersFlowPaths vtkFiltersSources
+        vtkImagingHybrid vtkIOImage vtktiff)
+else()
+    set(vtklibs VTK::CommonExecutionModel VTK::CommonMisc
+        VTK::FiltersExtraction VTK::FiltersFlowPaths VTK::FiltersSources
+        VTK::ImagingHybrid VTK::IOImage VTK::tiff VTK::vtksys)
+endif()
+
+target_link_libraries(visit_vtk lightweight_visit_vtk ${vtklibs} ${OPENEXR_LIB})
 target_include_directories(visit_vtk
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>")
-
 
 VISIT_INSTALL_TARGETS(visit_vtk)

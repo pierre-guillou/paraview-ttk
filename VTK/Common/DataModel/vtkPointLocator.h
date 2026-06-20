@@ -13,7 +13,11 @@
  * vtkPointLocator has two distinct methods of interaction. In the first
  * method, you supply it with a dataset, and it operates on the points in
  * the dataset. In the second method, you supply it with an array of points,
- * and the object operates on the array.
+ * and the object operates on the array. The locator can be initialized with a
+ * non-empty vtkPoints instance. In this case, pre-existing points are not
+ * registered by the locator. This can be useful for performance reasons in some
+ * cases. If you want the locator to test a point, you should register it by
+ * calling appropriate insertion methods after initialization.
  *
  * @warning
  * Many other types of spatial locators have been developed such as
@@ -36,6 +40,8 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkIncrementalPointLocator.h"
+
+#include <algorithm> // for std::min/std::max
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
@@ -142,8 +148,11 @@ public:
   ///@{
   /**
    * Determine whether point given by x[3] has been inserted into points list.
-   * Return id of previously inserted point if this is true, otherwise return
-   * -1. This method is thread safe.
+   * Return an id of a previously inserted point within tolerance if any
+   * otherwise return -1. If tolerance is 0, the returned id is the one returned
+   * at insertion. If tolerance > 0, it may not be the id of the closest point nor
+   * the same id returned at insertion.
+   * This method is thread safe.
    */
   vtkIdType IsInsertedPoint(double x, double y, double z) override
   {
@@ -171,6 +180,8 @@ public:
    * Given a position x, return the id of the point closest to it. This method
    * is used when performing incremental point insertion. Note that -1
    * indicates that no point was found.
+   * Note that the id may not be the same id returned at insertion of x when
+   * tolerance > 0.
    * This method is thread safe if BuildLocator() is directly or
    * indirectly called from a single thread first.
    */
@@ -272,9 +283,9 @@ protected:
     vtkIdType tmp1 = static_cast<vtkIdType>(((x[1] - this->BY) * this->FY));
     vtkIdType tmp2 = static_cast<vtkIdType>(((x[2] - this->BZ) * this->FZ));
 
-    ijk[0] = tmp0 < 0 ? 0 : (tmp0 >= this->XD ? this->XD - 1 : tmp0);
-    ijk[1] = tmp1 < 0 ? 0 : (tmp1 >= this->YD ? this->YD - 1 : tmp1);
-    ijk[2] = tmp2 < 0 ? 0 : (tmp2 >= this->ZD ? this->ZD - 1 : tmp2);
+    ijk[0] = std::min(std::max<vtkIdType>(tmp0, 0), this->XD - 1);
+    ijk[1] = std::min(std::max<vtkIdType>(tmp1, 0), this->YD - 1);
+    ijk[2] = std::min(std::max<vtkIdType>(tmp2, 0), this->ZD - 1);
   }
 
   vtkIdType GetBucketIndex(const double* x) const

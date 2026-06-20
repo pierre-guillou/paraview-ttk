@@ -70,6 +70,7 @@ from paraview.vtk import vtkTimeStamp
 from paraview.modules.vtkRemotingCore import vtkPVSession
 from paraview.decorator_utils import should_trace_based_on_decorators
 
+
 def _get_skip_rendering():
     return sm.vtkSMTrace.GetActiveTracer().GetSkipRenderingComponents()
 
@@ -1007,20 +1008,17 @@ class ProxyFilter(object):
     def should_trace_in_create(self, prop, user_can_modify_in_create=True):
         if self.should_never_trace(prop): return False
 
-        setting = sm.vtkSMTrace.GetActiveTracer().GetPropertiesToTraceOnCreate()
-        if setting == sm.vtkSMTrace.RECORD_USER_MODIFIED_PROPERTIES and not user_can_modify_in_create:
+        if _user_modified_properties_only() and not user_can_modify_in_create:
             # In ParaView, user never changes properties in Create. It's only
             # afterwords, so skip all properties.
             return False
-        trace_props_with_default_values = True \
-            if setting == sm.vtkSMTrace.RECORD_ALL_PROPERTIES else False
 
-        if trace_props_with_default_values:
+        if _all_properties():
             # We are writing out every property
             return True
 
         obj = prop.get_object()
-        if setting == sm.vtkSMTrace.RECORD_ACTIVE_MODIFIED_PROPERTIES:
+        if _active_modified_properties_only():
           # Check whether the property decorators logic consider this property "relevant".
           # In this case relevant means that int the current state of paraview
           # this property is enabled (not grayed-out) and is visible. Visibility
@@ -1116,10 +1114,44 @@ class RepresentationProxyFilter(PipelineProxyFilter):
         even when it's same as the default value (see issue #17196)."""
         if prop.get_object().FindDomain("vtkSMRepresentationTypeDomain"):
             return True
+
+        prop_name = prop.get_property_name()
+        if prop_name == 'TransferFunction2D' and _active_modified_properties_only():
+            proxy = prop.get_proxy()
+            if proxy and not proxy.UseTransfer2D:
+                # The 2D transfer function is not being used. Skip over it.
+                return False
+
         return PipelineProxyFilter.should_trace_in_create(self, prop)
 
 
 class ViewProxyFilter(ProxyFilter):
+    def should_trace_in_create(self, prop):
+        # Some properties don't have decorators, since they are never displayed
+        # in the GUI. But we should still exclude them from the Python state
+        # file if RECORD_ACTIVE_MODIFIED_PROPERTIES is being used and they are
+        # not relevant for the current settings.
+        prop_name = prop.get_property_name()
+        if _active_modified_properties_only():
+            if prop_name == 'CameraParallelScale':
+                rv = prop.get_proxy()
+                if rv and rv.CameraParallelProjection == 0:
+                    # We should not include `CameraParallelScale` if parallel
+                    # projection is disabled.
+                    return False
+            elif prop_name == 'OSPRayMaterialLibrary':
+                rv = prop.get_proxy()
+                is_ospray = (
+                    rv and
+                    rv.EnableRayTracing and
+                    'OSPRay' in str(rv.BackEnd)
+                )
+                if not is_ospray:
+                    # Don't include if we are not using OSPRay ray tracing
+                    return False
+
+        return super().should_trace_in_create(prop)
+
     def should_never_trace(self, prop):
         # skip "Representations" property and others.
         # The fact that we need to skip so many properties means that we are
@@ -1177,6 +1209,16 @@ class ScreenShotHelperProxyFilter(ProxyFilter):
 
 
 class TransferFunctionProxyFilter(ProxyFilter):
+    def should_trace_in_create(self, prop):
+        prop_name = prop.get_property_name()
+        if prop_name == 'TransferFunction2D' and _active_modified_properties_only():
+            lut = prop.get_proxy()
+            if lut and not lut.GetPropertyValue('Using2DTransferFunction'):
+                # The 2D transfer function is not being used. Skip over it.
+                return False
+
+        return super().should_trace_in_create(prop)
+
     def should_trace_in_ctor(self, prop):
         return False
 
@@ -1282,13 +1324,13 @@ class RegisterPipelineProxy(TraceItem):
     def __init__(self, proxy, saving_state=False):
         TraceItem.__init__(self)
         self.Proxy = sm._getPyProxy(proxy)
+        self.varname = ""
         self.saving_state = saving_state
 
     def finalize(self):
         pname = Trace.get_registered_name(self.Proxy, "sources")
-        varname = Trace.get_varname(pname)
-        accessor = ProxyAccessor(varname, self.Proxy)
-
+        self.varname = Trace.get_varname(pname)
+        accessor = ProxyAccessor(self.varname, self.Proxy)
         ctor = sm._make_name_valid(self.Proxy.GetXMLLabel())
         trace = TraceOutput()
         trace.append("# create a new '%s'" % self.Proxy.GetXMLLabel())
@@ -1312,8 +1354,8 @@ class RegisterSelectionProxy(TraceItem):
         TraceItem.__init__(self)
         self.Proxy = sm._getPyProxy(proxy)
 
-    def finalize(self):
-        pname = Trace.get_registered_name(self.Proxy, "selection_sources")
+    def finalize(self, groupname):
+        pname = Trace.get_registered_name(self.Proxy, groupname)
         varname = Trace.get_varname(pname)
         accessor = ProxyAccessor(varname, self.Proxy)
 
@@ -1321,7 +1363,7 @@ class RegisterSelectionProxy(TraceItem):
         trace = TraceOutput()
         trace.append("# create a new '%s'" % self.Proxy.GetXMLLabel())
         filter_type = ProxyFilter(trace_all_in_ctor=True)
-        ctor_args = "proxyname='%s', registrationname='%s'" % (xmlname, pname)
+        ctor_args = "proxyname='%s', registrationname='%s', groupname='%s'" % (xmlname, pname, groupname)
         trace.append(accessor.trace_ctor("CreateSelection", filter_type, ctor_args=ctor_args))
         Trace.Output.append_separated(trace.raw_data())
         TraceItem.finalize(self)
@@ -2502,6 +2544,21 @@ class ScopedTracer():
 
     def last_trace(self):
         return self._last_trace
+
+
+def _active_modified_properties_only():
+    setting = sm.vtkSMTrace.GetActiveTracer().GetPropertiesToTraceOnCreate()
+    return setting == sm.vtkSMTrace.RECORD_ACTIVE_MODIFIED_PROPERTIES
+
+
+def _user_modified_properties_only():
+    setting = sm.vtkSMTrace.GetActiveTracer().GetPropertiesToTraceOnCreate()
+    return setting == sm.vtkSMTrace.RECORD_USER_MODIFIED_PROPERTIES
+
+
+def _all_properties():
+    setting = sm.vtkSMTrace.GetActiveTracer().GetPropertiesToTraceOnCreate()
+    return setting == sm.vtkSMTrace.RECORD_ALL_PROPERTIES
 
 
 # ------------------------------------------------------------------------------

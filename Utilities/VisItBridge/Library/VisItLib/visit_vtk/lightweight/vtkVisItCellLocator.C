@@ -18,7 +18,6 @@
 #include "vtkVisItCellLocator.h"
 
 #include <vtkUnsignedCharArray.h>
-#include <vtkUnsignedIntArray.h>
 #include <vtkBox.h>
 #include <vtkCell.h>
 #include <vtkCellArray.h>

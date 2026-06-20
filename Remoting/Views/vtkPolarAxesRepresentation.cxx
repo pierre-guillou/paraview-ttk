@@ -1,9 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
 // SPDX-License-Identifier: BSD-3-Clause
 
-// Hide PARAVIEW_DEPRECATED_IN_5_13_0() warnings for this class.
-#define PARAVIEW_DEPRECATION_LEVEL 0
-
 #include "vtkPolarAxesRepresentation.h"
 
 #include "vtkAlgorithmOutput.h"
@@ -381,45 +378,8 @@ void vtkPolarAxesRepresentation::InitializeDataBoundsFromData(vtkDataObject* dat
 //----------------------------------------------------------------------------
 void vtkPolarAxesRepresentation::UpdateBounds()
 {
-  double* scale = this->Scale;
-  double* position = this->Position;
-  double* rotation = this->Orientation;
   double bds[6];
-  if (scale[0] != 1.0 || scale[1] != 1.0 || scale[2] != 1.0 || position[0] != 0.0 ||
-    position[1] != 0.0 || position[2] != 0.0 || rotation[0] != 0.0 || rotation[1] != 0.0 ||
-    rotation[2] != 0.0)
-  {
-    const double* bounds = this->DataBounds;
-    vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
-    transform->Translate(position);
-    transform->RotateZ(rotation[2]);
-    transform->RotateX(rotation[0]);
-    transform->RotateY(rotation[1]);
-    transform->Scale(scale);
-    vtkBoundingBox bbox;
-    int i, j, k;
-    double origX[3], x[3];
-
-    for (i = 0; i < 2; i++)
-    {
-      origX[0] = bounds[i];
-      for (j = 0; j < 2; j++)
-      {
-        origX[1] = bounds[2 + j];
-        for (k = 0; k < 2; k++)
-        {
-          origX[2] = bounds[4 + k];
-          transform->TransformPoint(origX, x);
-          bbox.AddPoint(x);
-        }
-      }
-    }
-    bbox.GetBounds(bds);
-  }
-  else
-  {
-    memcpy(bds, this->DataBounds, sizeof(double) * 6);
-  }
+  this->GetDataBounds(bds);
 
   // overload bounds with the active custom bounds
   for (int i = 0; i < 3; ++i)
@@ -432,13 +392,29 @@ void vtkPolarAxesRepresentation::UpdateBounds()
     }
   }
 
-  this->PolarAxesActor->SetBounds(bds);
+  vtkBoundingBox bbox(bds);
 
-  // PARAVIEW_DEPRECATED_IN_5_13_0(): following line should be removed
-  this->EnableCustomMinRadius = this->EnableCustomRadius;
+  vtkNew<vtkTransform> transform;
+  transform->Translate(this->Translation);
+  transform->RotateX(this->Orientation[0]);
+  transform->RotateY(this->Orientation[1]);
+  transform->RotateZ(this->Orientation[2]);
+  transform->Scale(this->Scale);
+
+  vtkBoundingBox transformedBox;
+  for (int corner = 0; corner < 8; corner++)
+  {
+    double pt[3];
+    bbox.GetCorner(corner, pt);
+    transform->TransformPoint(pt, pt);
+    transformedBox.AddPoint(pt);
+  }
+
+  transformedBox.GetBounds(bds);
 
   double pole[3] = { 0.0, 0.0, 0.0 };
-  double center[3] = { (bds[0] + bds[1]) * 0.5, (bds[2] + bds[3]) * 0.5, (bds[4] + bds[5]) * 0.5 };
+  double center[3];
+  transformedBox.GetCenter(center);
   double maxRadius = this->EnableCustomMaxRadius ? this->MaxRadius : 0.0;
   double minRadius = this->EnableCustomMinRadius ? this->MinRadius : 0.0;
   double minAngle = EnableCustomAngle ? this->MinAngle : 0.0;
@@ -446,7 +422,9 @@ void vtkPolarAxesRepresentation::UpdateBounds()
 
   if (this->EnableAutoPole)
   {
-    this->PolarAxesActor->SetPole(center);
+    pole[0] = center[0];
+    pole[1] = center[1];
+    pole[2] = center[2];
 
     if (!this->EnableCustomMaxRadius)
     {
@@ -457,10 +435,8 @@ void vtkPolarAxesRepresentation::UpdateBounds()
   {
     for (std::size_t ind{ 0 }; ind < 3; ++ind)
     {
-      pole[ind] = position[ind];
+      pole[ind] = this->Position[ind];
     }
-
-    this->PolarAxesActor->SetPole(pole);
 
     if (!this->EnableCustomMaxRadius)
     {
@@ -493,7 +469,7 @@ void vtkPolarAxesRepresentation::UpdateBounds()
     // min/max angle
     // Check bottom-left, top-left, left, bottom-right, top-right, right, bottom, top
     // If inside, keep default values
-    if (pole[0] < bds[0])
+    if (pole[0] <= bds[0])
     {
       if (!this->EnableCustomMinRadius)
       {
@@ -513,15 +489,15 @@ void vtkPolarAxesRepresentation::UpdateBounds()
 
       if (!this->EnableCustomAngle)
       {
-        maxAngle = ((pole[1] < bds[3]) ? atan((bds[3] - pole[1]) / (bds[0] - pole[0]))
-                                       : atan((bds[3] - pole[1]) / (bds[1] - pole[0]))) *
+        maxAngle = ((pole[1] <= bds[3]) ? atan((bds[3] - pole[1]) / (bds[0] - pole[0]))
+                                        : atan((bds[3] - pole[1]) / (bds[1] - pole[0]))) *
           180.0 / vtkMath::Pi();
-        minAngle = ((pole[1] < bds[2]) ? atan((bds[2] - pole[1]) / (bds[1] - pole[0]))
-                                       : atan((bds[2] - pole[1]) / (bds[0] - pole[0]))) *
+        minAngle = ((pole[1] <= bds[2]) ? atan((bds[2] - pole[1]) / (bds[1] - pole[0]))
+                                        : atan((bds[2] - pole[1]) / (bds[0] - pole[0]))) *
           180.0 / vtkMath::Pi();
       }
     }
-    else if (pole[0] > bds[1])
+    else if (pole[0] >= bds[1])
     {
       if (!this->EnableCustomMinRadius)
       {
@@ -542,16 +518,16 @@ void vtkPolarAxesRepresentation::UpdateBounds()
       if (!this->EnableCustomAngle)
       {
         maxAngle = 180 +
-          ((pole[1] < bds[2]) ? atan((bds[2] - pole[1]) / (bds[0] - pole[0]))
-                              : atan((bds[2] - pole[1]) / (bds[1] - pole[0]))) *
+          ((pole[1] <= bds[2]) ? atan((bds[2] - pole[1]) / (bds[0] - pole[0]))
+                               : atan((bds[2] - pole[1]) / (bds[1] - pole[0]))) *
             180 / vtkMath::Pi();
         minAngle = 180 +
-          ((pole[1] < bds[3]) ? atan((bds[3] - pole[1]) / (bds[1] - pole[0]))
-                              : atan((bds[3] - pole[1]) / (bds[0] - pole[0]))) *
+          ((pole[1] <= bds[3]) ? atan((bds[3] - pole[1]) / (bds[1] - pole[0]))
+                               : atan((bds[3] - pole[1]) / (bds[0] - pole[0]))) *
             180 / vtkMath::Pi();
       }
     }
-    else if (pole[1] < bds[2])
+    else if (pole[1] <= bds[2])
     {
       if (!this->EnableCustomMinRadius)
       {
@@ -564,7 +540,7 @@ void vtkPolarAxesRepresentation::UpdateBounds()
         minAngle = atan((bds[2] - pole[1]) / (bds[1] - pole[0])) * 180 / vtkMath::Pi();
       }
     }
-    else if (pole[1] > bds[3])
+    else if (pole[1] >= bds[3])
     {
       if (!this->EnableCustomMinRadius)
       {
@@ -592,29 +568,10 @@ void vtkPolarAxesRepresentation::UpdateBounds()
   {
     this->PolarAxesActor->SetRange(minRadius, maxRadius);
   }
-}
 
-//----------------------------------------------------------------------------
-// PARAVIEW_DEPRECATED_IN_5_13_0(): reimplement with vtkSetMacro(EnableCustomMinRadius, bool);
-void vtkPolarAxesRepresentation::SetEnableCustomMinRadius(bool enabled)
-{
-  this->EnableCustomRadius = enabled;
-  this->EnableCustomMinRadius = enabled;
-}
-
-//----------------------------------------------------------------------------
-// PARAVIEW_DEPRECATED_IN_5_13_0()
-void vtkPolarAxesRepresentation::SetEnableCustomRadius(bool enabled)
-{
-  this->SetEnableCustomMinRadius(enabled);
-}
-
-//----------------------------------------------------------------------------
-// PARAVIEW_DEPRECATED_IN_5_13_0()
-bool vtkPolarAxesRepresentation::GetEnableCustomRadius()
-{
-  this->EnableCustomMinRadius = this->EnableCustomRadius;
-  return this->GetEnableCustomMinRadius();
+  // SetPole triggers a bounds computation based on Min/Max Radii and Angles.
+  // So call it after everything is setup.
+  this->PolarAxesActor->SetPole(pole);
 }
 
 //----------------------------------------------------------------------------
@@ -958,6 +915,12 @@ void vtkPolarAxesRepresentation::SetPolarArcsVisibility(int visible)
 void vtkPolarAxesRepresentation::SetUse2DMode(int use)
 {
   this->PolarAxesActor->SetUse2DMode(use);
+}
+
+//----------------------------------------------------------------------------
+void vtkPolarAxesRepresentation::SetRasterizeText(int use)
+{
+  this->PolarAxesActor->SetUseTextActor3D(use);
 }
 
 //----------------------------------------------------------------------------

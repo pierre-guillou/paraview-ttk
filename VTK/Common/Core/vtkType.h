@@ -56,9 +56,6 @@
 #define VTK_VARIANT 20
 #define VTK_OBJECT 21
 
-// deleted value
-// #define VTK_UNICODE_STRING 22 <==== do not use
-
 // vtkTypes.h can be included in C code directly, which does not support
 // deprecation of enum values
 #if defined(__cplusplus)
@@ -66,6 +63,42 @@
 #else
 #define VTK_DEPRECATED_IN_9_5_0_TYPE(reason)
 #endif
+
+/*--------------------------------------------------------------------------*/
+/* Define a unique integer identifier for each native array type.  */
+// NOLINTNEXTLINE(readability-enum-initial-value)
+enum vtkArrayTypes
+{
+  VTK_ABSTRACT_ARRAY = 0,
+
+  // AbstractArray subclasses
+  VTK_DATA_ARRAY,
+  VTK_STRING_ARRAY,
+  VTK_VARIANT_ARRAY,
+
+  // DataArray subclasses
+  VTK_BIT_ARRAY,
+
+  // GenericDataArray subclasses
+  VTK_AOS_DATA_ARRAY,
+  VTK_SOA_DATA_ARRAY,
+  VTK_SCALED_SOA_DATA_ARRAY,
+  VTKM_DATA_ARRAY,
+  VTK_PERIODIC_DATA_ARRAY,
+  VTK_IMPLICIT_ARRAY,
+
+  // ImplicitArray subclasses/typedefs
+  VTK_AFFINE_ARRAY,
+  VTK_COMPOSITE_ARRAY,
+  VTK_CONSTANT_ARRAY,
+  VTK_INDEXED_ARRAY,
+  VTK_STD_FUNCTION_ARRAY,
+  VTK_STRIDED_ARRAY,
+  VTK_STRUCTURED_POINT_ARRAY,
+
+  VTK_NUM_ARRAY_TYPES,
+};
+
 /*--------------------------------------------------------------------------*/
 // Define a unique integer identifier for each vtkDataObject type.
 // When adding a new data type here, make sure to update vtkDataObjectTypes as well.
@@ -127,7 +160,10 @@ enum vtkTypesDataObject
   VTK_BSP_CUTS = 46,
   VTK_GEO_JSON_FEATURE = 47,
   VTK_IMAGE_STENCIL_DATA = 48,
-  VTK_CELL_GRID = 49
+  VTK_CELL_GRID = 49,
+  VTK_AMR_DATA_OBJECT = 50,
+  VTK_CARTESIAN_GRID = 51,
+  VTK_STATISTICAL_MODEL = 52
 };
 
 /*--------------------------------------------------------------------------*/
@@ -407,6 +443,21 @@ VTK_ABI_NAMESPACE_END
   decl0<decl1<long long>>;                                                                         \
   decl0<decl1<unsigned long long>>
 
+#define vtkInstantiateSecondOrderWithParameterTemplateMacro(decl0, decl1, par)                     \
+  decl0<decl1<float>, par>;                                                                        \
+  decl0<decl1<double>, par>;                                                                       \
+  decl0<decl1<char>, par>;                                                                         \
+  decl0<decl1<signed char>, par>;                                                                  \
+  decl0<decl1<unsigned char>, par>;                                                                \
+  decl0<decl1<short>, par>;                                                                        \
+  decl0<decl1<unsigned short>, par>;                                                               \
+  decl0<decl1<int>, par>;                                                                          \
+  decl0<decl1<unsigned int>, par>;                                                                 \
+  decl0<decl1<long>, par>;                                                                         \
+  decl0<decl1<unsigned long>, par>;                                                                \
+  decl0<decl1<long long>, par>;                                                                    \
+  decl0<decl1<unsigned long long>, par>
+
 #define vtkInstantiateStdFunctionTemplateMacro(decl0, decl1, delc2)                                \
   decl0<decl1<float(delc2)>>;                                                                      \
   decl0<decl1<double(delc2)>>;                                                                     \
@@ -422,17 +473,38 @@ VTK_ABI_NAMESPACE_END
   decl0<decl1<long long(delc2)>>;                                                                  \
   decl0<decl1<unsigned long long(delc2)>>
 
+#define vtkInstantiateStdFunctionWithParameterTemplateMacro(decl0, decl1, delc2, par)              \
+  decl0<decl1<float(delc2)>, par>;                                                                 \
+  decl0<decl1<double(delc2)>, par>;                                                                \
+  decl0<decl1<char(delc2)>, par>;                                                                  \
+  decl0<decl1<signed char(delc2)>, par>;                                                           \
+  decl0<decl1<unsigned char(delc2)>, par>;                                                         \
+  decl0<decl1<short(delc2)>, par>;                                                                 \
+  decl0<decl1<unsigned short(delc2)>, par>;                                                        \
+  decl0<decl1<int(delc2)>, par>;                                                                   \
+  decl0<decl1<unsigned int(delc2)>, par>;                                                          \
+  decl0<decl1<long(delc2)>, par>;                                                                  \
+  decl0<decl1<unsigned long(delc2)>, par>;                                                         \
+  decl0<decl1<long long(delc2)>, par>;                                                             \
+  decl0<decl1<unsigned long long(delc2)>, par>
+
 /** A macro to declare extern templates for all numerical types */
 #ifdef VTK_USE_EXTERN_TEMPLATE
 #define vtkExternTemplateMacro(decl) vtkInstantiateTemplateMacro(decl)
 #define vtkExternSecondOrderTemplateMacro(decl0, decl1)                                            \
   vtkInstantiateSecondOrderTemplateMacro(decl0, decl1)
+#define vtkExternSecondOrderWithParameterTemplateMacro(decl0, decl1, par)                          \
+  vtkInstantiateSecondOrderWithParameterTemplateMacro(decl0, decl1, par)
 #define vtkExternStdFunctionTemplateMacro(decl0, decl1, decl2)                                     \
   vtkInstantiateStdFunctionTemplateMacro(decl0, decl1, decl2)
+#define vtkExternStdFunctionWithParameterTemplateMacro(decl0, decl1, decl2, par)                   \
+  vtkInstantiateStdFunctionWithParameterTemplateMacro(decl0, decl1, decl2, par)
 #else
 #define vtkExternTemplateMacro(decl)
 #define vtkExternSecondOrderTemplateMacro(decl0, decl1)
+#define vtkExternSecondOrderWithParameterTemplateMacro(decl0, decl1, par)
 #define vtkExternStdFunctionTemplateMacro(decl0, decl1, decl2)
+#define vtkExternStdFunctionWithParameterTemplateMacro(decl0, decl1, decl2, par)
 #endif
 
 #endif

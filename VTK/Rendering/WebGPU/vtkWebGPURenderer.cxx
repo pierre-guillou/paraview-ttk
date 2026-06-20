@@ -216,7 +216,8 @@ void vtkWebGPURenderer::Clear()
   bkgPipelineDescriptor.DisableBlending(1);
   const auto pipelineKey =
     wgpuPipelineCache->GetPipelineKey(&bkgPipelineDescriptor, backgroundShaderSource);
-  wgpuPipelineCache->CreateRenderPipeline(&bkgPipelineDescriptor, this, backgroundShaderSource);
+  wgpuPipelineCache->CreateRenderPipeline(
+    &bkgPipelineDescriptor, wgpuRenderWindow, backgroundShaderSource);
   auto pipeline = wgpuPipelineCache->GetRenderPipeline(pipelineKey);
 
   this->WGPURenderEncoder.SetPipeline(pipeline);
@@ -286,7 +287,7 @@ void vtkWebGPURenderer::RecordRenderCommands()
 //------------------------------------------------------------------------------
 void vtkWebGPURenderer::UpdateBuffers()
 {
-  this->RenderStage = RenderStageEnum::UpdatingBuffers;
+  this->RenderStage = RenderStageEnum::SyncDeviceResources;
   this->SetupBindGroupLayouts();
   this->UpdateCamera(); // brings the camera's transform matrices up-to-date.
   this->UpdateLightGeometry();
@@ -379,7 +380,7 @@ int vtkWebGPURenderer::UpdateOpaquePolygonalGeometry()
   int result = 0;
   switch (this->RenderStage)
   {
-    case RenderStageEnum::UpdatingBuffers:
+    case RenderStageEnum::SyncDeviceResources:
     {
       for (int i = 0; i < this->PropArrayCount; i++)
       {
@@ -419,7 +420,7 @@ int vtkWebGPURenderer::UpdateTranslucentPolygonalGeometry()
   int result = 0;
   switch (this->RenderStage)
   {
-    case RenderStageEnum::UpdatingBuffers:
+    case RenderStageEnum::SyncDeviceResources:
     {
       for (int i = 0; i < this->PropArrayCount; i++)
       {
@@ -559,13 +560,12 @@ void vtkWebGPURenderer::ConfigureComputeRenderBuffers(
           renderBuffer->GetPointBufferAttribute();
 
         renderBuffer->SetByteSize(wgpuMapper->GetPointAttributeByteSize(bufferAttribute));
-        renderBuffer->SetRenderBufferOffset(
-          wgpuMapper->GetPointAttributeByteOffset(bufferAttribute) / sizeof(float));
+        renderBuffer->SetRenderBufferOffset(0);
         renderBuffer->SetRenderBufferElementCount(
           wgpuMapper->GetPointAttributeByteSize(bufferAttribute) /
           wgpuMapper->GetPointAttributeElementSize(bufferAttribute));
 
-        renderBuffer->SetWebGPUBuffer(wgpuMapper->GetPointDataWGPUBuffer());
+        renderBuffer->SetWebGPUBuffer(wgpuMapper->GetPointDataWGPUBuffer(bufferAttribute));
 
         it = wgpuMapper->NotSetupComputeRenderBuffers.erase(it);
         erased = true;
@@ -578,13 +578,12 @@ void vtkWebGPURenderer::ConfigureComputeRenderBuffers(
           renderBuffer->GetCellBufferAttribute();
 
         renderBuffer->SetByteSize(wgpuMapper->GetCellAttributeByteSize(bufferAttribute));
-        renderBuffer->SetRenderBufferOffset(
-          wgpuMapper->GetCellAttributeByteOffset(bufferAttribute) / sizeof(float));
+        renderBuffer->SetRenderBufferOffset(0);
         renderBuffer->SetRenderBufferElementCount(
           wgpuMapper->GetCellAttributeByteSize(bufferAttribute) /
           wgpuMapper->GetCellAttributeElementSize(bufferAttribute));
 
-        renderBuffer->SetWebGPUBuffer(wgpuMapper->GetCellDataWGPUBuffer());
+        renderBuffer->SetWebGPUBuffer(wgpuMapper->GetCellDataWGPUBuffer(bufferAttribute));
 
         // Erasing the element. erase() returns the iterator on the next element after removal
         it = wgpuMapper->NotSetupComputeRenderBuffers.erase(it);
@@ -806,13 +805,12 @@ void vtkWebGPURenderer::BeginRecording()
       wgpuRenderWindow->GetPreferredSurfaceTextureFormat(),
       wgpuRenderWindow->GetPreferredSelectorIdsTextureFormat()
     };
-    const int sampleCount =
-      wgpuRenderWindow->GetMultiSamples() ? wgpuRenderWindow->GetMultiSamples() : 1;
     wgpu::RenderBundleEncoderDescriptor bundleEncDesc;
     bundleEncDesc.colorFormatCount = colorFormats.size();
     bundleEncDesc.colorFormats = colorFormats.data();
     bundleEncDesc.depthStencilFormat = wgpuRenderWindow->GetDepthStencilFormat();
-    bundleEncDesc.sampleCount = sampleCount;
+    bundleEncDesc.sampleCount =
+      1; // multi-sampling only works for 1 or 4 samples on some implementations.
     bundleEncDesc.depthReadOnly = false;
     bundleEncDesc.stencilReadOnly = false;
     bundleEncDesc.label = label.c_str();

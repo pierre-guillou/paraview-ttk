@@ -56,6 +56,7 @@ class vtkRenderViewBase;
 class vtkRenderWindow;
 class vtkRenderWindowInteractor;
 class vtkSkybox;
+class vtkStringArray;
 class vtkTextRepresentation;
 class vtkTexture;
 class vtkTimerLog;
@@ -656,6 +657,10 @@ public:
    */
   virtual void SetCenterAxesVisibility(bool);
 
+  virtual void SetCenterAxesXColor(double r, double g, double b);
+  virtual void SetCenterAxesYColor(double r, double g, double b);
+  virtual void SetCenterAxesZColor(double r, double g, double b);
+
   ///@{
   /**
    * Forward to vtkPVInteractorStyle instances.
@@ -726,6 +731,12 @@ public:
   vtkSetVector3Macro(Background2, double);
   vtkGetVector3Macro(Background2, double);
   vtkSetMacro(UseEnvironmentLighting, bool);
+
+  /**
+   * Generate and set the renderer's environment rotation matrix from the parameter angles.
+   */
+  virtual void SetSkyboxRotation(double x, double y, double z);
+  vtkGetVector3Macro(SkyboxRotation, double);
   ///@}
 
   ///@{
@@ -995,6 +1006,51 @@ public:
   void SetEnableOSPRay(bool);
   bool GetEnableOSPRay();
   ///@}
+
+  ///@{
+  /**
+   * Enable/disable ray tracing with ANARI
+   */
+  void SetEnableANARI(bool);
+  bool GetEnableANARI();
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the ANARI library name
+   */
+  void SetANARILibrary(std::string);
+  const char* GetANARILibrary();
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the ANARI renderer
+   */
+  void SetANARIRenderer(std::string);
+  const char* GetANARIRenderer();
+  /**
+   * Returns the renderer names for the current ANARILibrary
+   */
+  vtkStringArray* GetANARIRendererNames();
+  ///@}
+
+  ///@{
+  /**
+   * Return ANARI parameters specification for the current renderer as
+   * a string encoding a JSON which contains the version and an array of
+   * parameters. See pqDynamicPropertiesWidget for the description of these
+   * parameters
+   * @see pqDynamicPropertiesWidget
+   */
+  std::string GetANARIRendererParameters();
+  /**
+   * Sets a parameter 'name' to a 'value'. The value can be a bool,
+   * int32 or float32 encoded as a string.
+   */
+  void SetANARIRendererParameter(const std::string& name, int type, const std::string& value);
+  ///@}
+
   ///@{
   /**
    * Controls whether OSPRay sends casts shadow rays or not.
@@ -1379,6 +1435,7 @@ private:
   bool UseRenderViewSettingsForBackground;
   double Background[3];
   double Background2[3];
+  double SkyboxRotation[3];
 
   vtkSmartPointer<vtkCuller> Culler;
   vtkNew<vtkTimerLog> Timer;

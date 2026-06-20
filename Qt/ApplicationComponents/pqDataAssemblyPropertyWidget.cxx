@@ -21,6 +21,7 @@
 #include "pqTreeViewExpandState.h"
 #include "pqTreeViewSelectionHelper.h"
 #include "pqUndoStack.h"
+#include "pqWidgetUtilities.h"
 
 #include "vtkCommand.h"
 #include "vtkDataAssembly.h"
@@ -358,7 +359,7 @@ public:
           {
             return this->HeaderText;
           }
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         default:
           return this->data(this->index(0, section), role);
       }
@@ -851,6 +852,7 @@ pqDataAssemblyPropertyWidget::pqDataAssemblyPropertyWidget(
 
   auto& internals = (*this->Internals);
   internals.Ui.setupUi(this);
+  pqWidgetUtilities::formatChildTooltips(this);
   internals.Ui.hierarchy->header()->setDefaultSectionSize(iconSize + 4);
   internals.Ui.hierarchy->header()->setMinimumSectionSize(iconSize + 4);
   internals.Ui.hierarchy->setSortingEnabled(true);
@@ -919,6 +921,10 @@ pqDataAssemblyPropertyWidget::pqDataAssemblyPropertyWidget(
     {
       // not in composite-indices mode.
       usingCompositeIndices = false;
+
+      // indicates if we should only returns selectors for leaf nodes.
+      internals.LeafNodesOnly = (vtkSMDataAssemblyDomain::SafeDownCast(domain)->GetMode() ==
+        vtkSMDataAssemblyDomain::LEAVES);
 
       // monitor SelectorsTableModel data changes.
       QObject::connect(internals.SelectorsTableModel.data(), &QAbstractItemModel::dataChanged, this,
@@ -1143,7 +1149,7 @@ void pqDataAssemblyPropertyWidget::assemblyTreeModified(int role)
 
   if (role == Qt::CheckStateRole)
   {
-    internals.Selectors = internals.AssemblyTreeModel->checkedNodes();
+    internals.Selectors = internals.AssemblyTreeModel->checkedNodes(internals.LeafNodesOnly);
     internals.SelectorsTableModel->setData(internals.Selectors);
     internals.CompositeIndices.clear();
     if (assembly != nullptr && internals.InCompositeIndicesMode)
@@ -1152,9 +1158,8 @@ void pqDataAssemblyPropertyWidget::assemblyTreeModified(int role)
       std::vector<std::string> selectors(internals.Selectors.size());
       std::transform(internals.Selectors.begin(), internals.Selectors.end(), selectors.begin(),
         [](const QString& str) { return str.toStdString(); });
-      internals.CompositeIndices =
-        compositeIndicesToVariantList(vtkDataAssemblyUtilities::GetSelectedCompositeIds(
-          selectors, assembly, nullptr, internals.LeafNodesOnly));
+      internals.CompositeIndices = compositeIndicesToVariantList(
+        vtkDataAssemblyUtilities::GetSelectedCompositeIds(selectors, assembly));
     }
     Q_EMIT this->selectorsChanged();
   }
@@ -1212,18 +1217,25 @@ void pqDataAssemblyPropertyWidget::updateDataAssembly(vtkObject* sender)
   internals.ProxyModel->initializeStateWidgets(assembly);
 
   auto domain = vtkSMDomain::SafeDownCast(sender);
-  if (internals.UseInputNameAsHeader && domain)
+  if (domain)
   {
-    vtkSMPropertyHelper inputHelper(domain->GetRequiredProperty("Input"));
-    auto proxy = vtkSMSourceProxy::SafeDownCast(inputHelper.GetAsProxy(0));
-    auto port = inputHelper.GetOutputPort(0);
-    if (proxy && proxy)
+    if (auto da = vtkSMDataAssemblyDomain::SafeDownCast(domain))
     {
-      auto smmodel = pqApplicationCore::instance()->getServerManagerModel();
-      auto pqport = smmodel->findItem<pqOutputPort*>(proxy->GetOutputPort(port));
-      if (pqport)
+      internals.LeafNodesOnly = da->GetMode() == vtkSMDataAssemblyDomain::LEAVES;
+    }
+    if (internals.UseInputNameAsHeader)
+    {
+      vtkSMPropertyHelper inputHelper(domain->GetRequiredProperty("Input"));
+      auto proxy = vtkSMSourceProxy::SafeDownCast(inputHelper.GetAsProxy(0));
+      auto port = inputHelper.GetOutputPort(0);
+      if (proxy)
       {
-        internals.ProxyModel->setHeaderText(pqport->prettyName());
+        auto smmodel = pqApplicationCore::instance()->getServerManagerModel();
+        auto pqport = smmodel->findItem<pqOutputPort*>(proxy->GetOutputPort(port));
+        if (pqport)
+        {
+          internals.ProxyModel->setHeaderText(pqport->prettyName());
+        }
       }
     }
   }

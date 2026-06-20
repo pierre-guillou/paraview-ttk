@@ -30,15 +30,12 @@ vtkSuperquadric::vtkSuperquadric()
   this->Size = .5;
 }
 
-static const double MAX_FVAL = 1e12;
+static constexpr double MAX_FVAL = 1e12;
 static double VTK_MIN_SUPERQUADRIC_ROUNDNESS = 1e-24;
 
 void vtkSuperquadric::SetThetaRoundness(double e)
 {
-  if (e < VTK_MIN_SUPERQUADRIC_ROUNDNESS)
-  {
-    e = VTK_MIN_SUPERQUADRIC_ROUNDNESS;
-  }
+  e = std::max(e, VTK_MIN_SUPERQUADRIC_ROUNDNESS);
 
   if (this->ThetaRoundness != e)
   {
@@ -49,10 +46,7 @@ void vtkSuperquadric::SetThetaRoundness(double e)
 
 void vtkSuperquadric::SetPhiRoundness(double e)
 {
-  if (e < VTK_MIN_SUPERQUADRIC_ROUNDNESS)
-  {
-    e = VTK_MIN_SUPERQUADRIC_ROUNDNESS;
-  }
+  e = std::max(e, VTK_MIN_SUPERQUADRIC_ROUNDNESS);
 
   if (this->PhiRoundness != e)
   {

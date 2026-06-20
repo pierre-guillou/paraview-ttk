@@ -17,7 +17,6 @@
 #include "vtkOverlappingAMR.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
-#include "vtkSOADataArrayTemplate.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUniformGrid.h"
 #include "vtksys/SystemTools.hxx"
@@ -119,12 +118,12 @@ int vtkAMReXGridReader::FillMetaData()
 
   int dimension = this->GetDimension();
   int numberOfLevels = this->GetNumberOfLevels() + 1;
-  std::vector<int> numberOfBlocks(numberOfLevels);
+  std::vector<unsigned int> numberOfBlocks(numberOfLevels);
   for (int i = 0; i < numberOfLevels; ++i)
   {
     numberOfBlocks[i] = this->Internal->Header->levelSize[i];
   }
-  this->Metadata->Initialize(numberOfLevels, numberOfBlocks.data());
+  this->Metadata->Initialize(numberOfBlocks);
   // The AMRBox always has 3 dimensions
   double origin[3] = { 0.0, 0.0, 0.0 };
   double spacing[3] = { 0.0, 0.0, 0.0 };
@@ -136,9 +135,9 @@ int vtkAMReXGridReader::FillMetaData()
   }
   this->Metadata->SetOrigin(origin);
   if (dimension == 3)
-    this->Metadata->SetGridDescription(VTK_XYZ_GRID);
+    this->Metadata->SetGridDescription(vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
   if (dimension == 2)
-    this->Metadata->SetGridDescription(VTK_XY_PLANE);
+    this->Metadata->SetGridDescription(vtkStructuredData::VTK_STRUCTURED_XY_PLANE);
   int boxLo;
   int boxHi;
   long globalID = 0;
@@ -172,12 +171,14 @@ int vtkAMReXGridReader::FillMetaData()
       }
       if (dimension == 3)
       {
-        vtkAMRBox block(blockOrigin, blockDimension, spacing, origin, VTK_XYZ_GRID);
+        vtkAMRBox block(
+          blockOrigin, blockDimension, spacing, origin, vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
         this->Metadata->SetAMRBox(i, j, block);
       }
       if (dimension == 2)
       {
-        vtkAMRBox block(blockOrigin, blockDimension, spacing, origin, VTK_XY_PLANE);
+        vtkAMRBox block(
+          blockOrigin, blockDimension, spacing, origin, vtkStructuredData::VTK_STRUCTURED_XY_PLANE);
         this->Metadata->SetAMRBox(i, j, block);
       }
       this->Metadata->SetAMRBlockSourceIndex(i, j, globalID++);

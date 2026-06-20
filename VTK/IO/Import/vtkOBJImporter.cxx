@@ -4,6 +4,8 @@
 
 #include "vtkActor.h"
 #include "vtkCellArray.h"
+#include "vtkEventForwarderCommand.h"
+#include "vtkFileResourceStream.h"
 #include "vtkFloatArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -15,7 +17,9 @@
 #include "vtkProperty.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderer.h"
+#include "vtkResourceParser.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringScanner.h"
 #include "vtksys/SystemTools.hxx"
 
 #include "vtkOBJImporterInternals.h"
@@ -31,6 +35,20 @@ VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOBJImporter);
 vtkStandardNewMacro(vtkOBJPolyDataProcessor);
 
+namespace
+{
+bool CanReadFile(vtkObject* that, const std::string& fname)
+{
+  vtkNew<vtkFileResourceStream> file;
+  if (!file->Open(fname.c_str()))
+  {
+    vtkErrorWithObjectMacro(that, << "Unable to open file: " << fname);
+    return false;
+  }
+  return true;
+}
+}
+
 //------------------------------------------------------------------------------
 vtkOBJImporter::vtkOBJImporter()
 {
@@ -40,25 +58,13 @@ vtkOBJImporter::vtkOBJImporter()
 //------------------------------------------------------------------------------
 vtkOBJImporter::~vtkOBJImporter() = default;
 
-int CanReadFile(vtkObject* that, const std::string& fname)
-{
-  FILE* fileFD = vtksys::SystemTools::Fopen(fname, "rb");
-  if (fileFD == nullptr)
-  {
-    vtkErrorWithObjectMacro(that, << "Unable to open file: " << fname);
-    return 0;
-  }
-  fclose(fileFD);
-  return 1;
-}
-
 int vtkOBJImporter::ImportBegin()
 {
-  if (!CanReadFile(this, this->GetFileName()))
+  if (!this->GetStream() && !::CanReadFile(this, this->GetFileName()))
   {
     return 0;
   }
-  if (!std::string(GetFileNameMTL()).empty() && !CanReadFile(this, this->GetFileNameMTL()))
+  if (!std::string(GetFileNameMTL()).empty() && !::CanReadFile(this, this->GetFileNameMTL()))
   {
     return 0;
   }
@@ -74,6 +80,13 @@ void vtkOBJImporter::ImportEnd()
 //------------------------------------------------------------------------------
 void vtkOBJImporter::ReadData()
 {
+  this->Impl->SetFileName(this->GetFileName());
+  this->Impl->SetStream(this->GetStream());
+
+  vtkNew<vtkEventForwarderCommand> progressForwarder;
+  progressForwarder->SetTarget(this);
+  this->Impl->AddObserver(vtkCommand::ProgressEvent, progressForwarder);
+
   this->Impl->Update();
   if (Impl->GetSuccessParsingFiles())
   {
@@ -95,31 +108,37 @@ void vtkOBJImporter::PrintSelf(std::ostream& os, vtkIndent indent)
   vtkImporter::PrintSelf(os, indent);
 }
 
-void vtkOBJImporter::SetFileName(const char* arg)
+//------------------------------------------------------------------------------
+void vtkOBJImporter::SetMTLStream(vtkResourceStream* mtlStream)
 {
-  this->Impl->SetFileName(arg);
+  this->Impl->SetMTLStream(mtlStream);
 }
 
+//------------------------------------------------------------------------------
 void vtkOBJImporter::SetFileNameMTL(const char* arg)
 {
   this->Impl->SetMTLfileName(arg);
 }
 
-void vtkOBJImporter::SetTexturePath(const char* path)
-{
-  this->Impl->SetTexturePath(path);
-}
-
-const char* vtkOBJImporter::GetFileName() const
-{
-  return this->Impl->GetFileName().data();
-}
-
+//------------------------------------------------------------------------------
 const char* vtkOBJImporter::GetFileNameMTL() const
 {
   return this->Impl->GetMTLFileName().data();
 }
 
+//------------------------------------------------------------------------------
+void vtkOBJImporter::SetTextureStreams(std::map<std::string, vtkResourceStream*> streamMap)
+{
+  this->Impl->SetTextureStreams(streamMap);
+}
+
+//------------------------------------------------------------------------------
+void vtkOBJImporter::SetTexturePath(const char* path)
+{
+  this->Impl->SetTexturePath(path);
+}
+
+//------------------------------------------------------------------------------
 const char* vtkOBJImporter::GetTexturePath() const
 {
   return this->Impl->GetTexturePath().data();
@@ -208,7 +227,6 @@ struct vtkOBJImportedPolyDataWithMaterial
 vtkOBJPolyDataProcessor::vtkOBJPolyDataProcessor()
 {
   // Instantiate object with nullptr filename, and no materials yet loaded.
-  this->FileName = "";
   this->MTLFileName = "";
   this->DefaultMTLFileName = true;
   this->TexturePath = "";
@@ -338,17 +356,19 @@ p <v_a> <v_b> ...
 int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* vtkNotUsed(outputVector))
 {
-  if (this->FileName.empty())
+  // Stream is higher priority than filename.
+  vtkResourceStream* stream = this->Stream;
+  vtkNew<vtkFileResourceStream> fileStream;
+  if (!stream)
   {
-    vtkErrorMacro(<< "A FileName must be specified.");
-    return 0;
-  }
+    if (!fileStream->Open(this->FileName.c_str()))
+    {
+      vtkErrorMacro("Unable to open " << this->GetFileName() << " , aborting.");
+      this->SetSuccessParsingFiles(false);
+      return 0;
+    }
 
-  FILE* in = vtksys::SystemTools::Fopen(this->FileName, "r");
-  if (in == nullptr)
-  {
-    vtkErrorMacro(<< "File " << this->FileName << " not found");
-    return 0;
+    stream = fileStream;
   }
 
   // clear old poly list
@@ -358,8 +378,6 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
     poly_list[k] = nullptr;
   }
   poly_list.clear();
-
-  vtkDebugMacro(<< "Reading file" << this->FileName);
 
   // clear any old mtls
   for (size_t k = 0; k < this->parsedMTLs.size(); ++k)
@@ -410,12 +428,14 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
     bool mtllibDefined = false;
     { // (make a local scope section to emphasise that the variables below are only used here)
 
-      const int MAX_LINE = 100000;
-      char rawLine[MAX_LINE];
-
-      while (fgets(rawLine, MAX_LINE, in) != nullptr)
+      std::string rawLine;
+      vtkNew<vtkResourceParser> parser;
+      parser->SetStream(stream);
+      for (vtkParseResult res = vtkParseResult::Ok;
+           res != vtkParseResult::Error && res != vtkParseResult::EndOfStream;
+           res = parser->ReadLine(rawLine))
       {
-        _extractLine(rawLine);
+        _extractLine(rawLine.data());
 
         // in the OBJ format the first characters determine how to interpret the line:
         // Skip comments and empty lines
@@ -447,19 +467,22 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
         }
       }
       // Reset file position
-      rewind(in);
+      stream->Seek(0, vtkResourceStream::SeekDirection::Begin);
     }
 
     if (mtllibDefined)
     {
-      if (vtksys::SystemTools::FileExists(mtlname))
+      if (!this->MTLStream)
       {
-        this->MTLFileName = mtlname;
-      }
-      else
-      {
-        vtkErrorMacro(<< "The MTL file set by the mtllib command " << mtlname
-                      << " could not be found");
+        if (vtksys::SystemTools::FileExists(mtlname))
+        {
+          this->MTLFileName = mtlname;
+        }
+        else
+        {
+          vtkErrorMacro(<< "The MTL file set by the mtllib command " << mtlname
+                        << " could not be found");
+        }
       }
     }
     else
@@ -493,8 +516,23 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
     this->SetTexturePath(vtksys::SystemTools::GetFilenamePath(this->FileName).c_str());
   }
 
+  // MTLStream is higher priority than MTLFilename.
+  vtkResourceStream* mtlStream = this->MTLStream;
+  vtkNew<vtkFileResourceStream> mtlFileStream;
+  if (!this->MTLFileName.empty() && !mtlStream)
+  {
+    if (!mtlFileStream->Open(this->MTLFileName.c_str()))
+    {
+      vtkErrorMacro("Unable to open MTL: " << this->MTLFileName << " , aborting.");
+      return 0;
+    }
+
+    mtlStream = mtlFileStream;
+  }
+
+  // Parse OBJ and MTL
   int mtlParseResult;
-  this->parsedMTLs = ParseOBJandMTL(this->MTLFileName, mtlParseResult);
+  this->parsedMTLs = ParseOBJandMTL(mtlStream, mtlParseResult);
   if (this->parsedMTLs.empty())
   { // construct a default material to define the single polydata's actor.
     this->parsedMTLs.push_back(new vtkOBJImportedMaterial);
@@ -549,31 +587,44 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
   bool everything_ok = true; // (use of this flag avoids early return and associated memory leak)
   const double v_scale = this->VertexScale;
   const bool use_scale = (fabs(v_scale - 1.0) > 1e-3);
+  using Integer = std::int64_t;
 
   // -- work through the file line by line, assigning into the above 7 structures as appropriate --
   { // (make a local scope section to emphasise that the variables below are only used here)
 
-    const int MAX_LINE = 100000;
-    char rawLine[MAX_LINE];
     float xyz[3];
     float col[3];
 
     int lineNr = 0;
+    vtkTypeInt64 ulFileLength = 0;
     long lastVertexIndex = 0;
-    while (everything_ok && fgets(rawLine, MAX_LINE, in) != nullptr)
+
+    std::string rawLine;
+    vtkNew<vtkResourceParser> parser;
+    parser->SetStream(stream);
+
+    parser->Seek(0, vtkResourceStream::SeekDirection::End);
+    ulFileLength = parser->Tell();
+    parser->Seek(0, vtkResourceStream::SeekDirection::Begin);
+
+    // average of 40 bytes per line for obj file
+    ulFileLength /= 40;
+
+    for (vtkParseResult res = vtkParseResult::Ok;
+         everything_ok && res != vtkParseResult::Error && res != vtkParseResult::EndOfStream;
+         res = parser->ReadLine(rawLine))
     { /** While OK and there is another line in the file */
       lineNr++;
-      _extractLine(rawLine);
+      _extractLine(rawLine.data());
 
       // in the OBJ format the first characters determine how to interpret the line:
       if (strcmp(cmd, "v") == 0)
       {
         // this is a vertex definition, expect three floats (six if vertex color), separated by
         // whitespace:
-        int nbRead =
-          sscanf(pLine, "%f %f %f %f %f %f", xyz, xyz + 1, xyz + 2, col, col + 1, col + 2);
-        if (nbRead >= 3)
+        if (auto resultXYZ = vtk::scan<float, float, float>(std::string_view(pLine), "{} {} {}"))
         {
+          std::tie(xyz[0], xyz[1], xyz[2]) = resultXYZ->values();
           if (use_scale)
           {
             xyz[0] *= v_scale;
@@ -583,8 +634,9 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
           points->InsertNextPoint(xyz);
           lastVertexIndex++;
 
-          if (nbRead == 6)
+          if (auto resultColor = vtk::scan<float, float, float>(resultXYZ->range(), " {} {} {}"))
           {
+            std::tie(col[0], col[1], col[2]) = resultColor->values();
             hasColors = true;
             colors->InsertNextTypedTuple(col);
           }
@@ -602,8 +654,9 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
       else if (strcmp(cmd, "vt") == 0) /** Texture Coord, whango! */
       {
         // this is a tcoord, expect two floats, separated by whitespace:
-        if (sscanf(pLine, "%f %f", xyz, xyz + 1) == 2)
+        if (auto resultTCoord = vtk::scan<float, float>(std::string_view(pLine), "{} {}"))
         {
+          std::tie(xyz[0], xyz[1]) = resultTCoord->values();
           tcoords->InsertNextTypedTuple(xyz);
         }
         else
@@ -615,8 +668,9 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
       else if (strcmp(cmd, "vn") == 0)
       {
         // this is a normal, expect three floats, separated by whitespace:
-        if (sscanf(pLine, "%f %f %f", xyz, xyz + 1, xyz + 2) == 3)
+        if (auto resultNormal = vtk::scan<float, float, float>(std::string_view(pLine), "{} {} {}"))
         {
+          std::tie(xyz[0], xyz[1], xyz[2]) = resultNormal->values();
           normals->InsertNextTypedTuple(xyz);
           hasNormals = true;
         }
@@ -643,9 +697,9 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
 
           if (pLine < pEnd) // there is still data left on this line
           {
-            int iVert;
-            if (sscanf(pLine, "%d", &iVert) == 1)
+            if (auto resultVert = vtk::scan_int<int>(std::string_view(pLine)))
             {
+              const int iVert = resultVert->value();
               if (iVert <= 0)
               {
                 vtkErrorMacro(<< "Unexpected point indices value");
@@ -660,23 +714,26 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
             else if (strcmp(pLine, "\\\n") == 0)
             {
               // handle backslash-newline continuation
-              if (fgets(rawLine, MAX_LINE, in) != nullptr)
+              res = parser->ReadLine(rawLine);
+              if (res != vtkParseResult::Error && res != vtkParseResult::EndOfStream)
               {
                 lineNr++;
-                pLine = rawLine;
-                pEnd = rawLine + strlen(rawLine);
+                pLine = rawLine.data();
+                pEnd = pLine + rawLine.size();
                 continue;
               }
               else
               {
                 vtkErrorMacro(<< "Error reading continuation line at line " << lineNr);
                 everything_ok = false;
+                break;
               }
             }
             else
             {
               vtkErrorMacro(<< "Error reading 'p' at line " << lineNr);
               everything_ok = false;
+              break;
             }
             // skip over what we just sscanf'd
             // (find the first whitespace character)
@@ -714,9 +771,10 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
 
           if (pLine < pEnd) // there is still data left on this line
           {
-            int iVert, dummyInt;
-            if (sscanf(pLine, "%d/%d", &iVert, &dummyInt) == 2)
+            const std::string_view pLineView(pLine);
+            if (auto resultVert = vtk::scan<Integer, Integer>(pLineView, "{:d}/{:d}"))
             {
+              auto& [iVert, _] = resultVert->values();
               if (iVert <= 0)
               {
                 vtkErrorMacro(<< "Unexpected point indices value");
@@ -729,8 +787,9 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
                 nVerts++;
               }
             }
-            else if (sscanf(pLine, "%d", &iVert) == 1)
+            else if (auto resultVert2 = vtk::scan_int<Integer>(pLineView))
             {
+              auto iVert = resultVert2->value();
               if (iVert <= 0)
               {
                 vtkErrorMacro(<< "Unexpected point indices value");
@@ -745,23 +804,26 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
             else if (strcmp(pLine, "\\\n") == 0)
             {
               // handle backslash-newline continuation
-              if (fgets(rawLine, MAX_LINE, in) != nullptr)
+              res = parser->ReadLine(rawLine);
+              if (res != vtkParseResult::Error && res != vtkParseResult::EndOfStream)
               {
                 lineNr++;
-                pLine = rawLine;
-                pEnd = rawLine + strlen(rawLine);
+                pLine = rawLine.data();
+                pEnd = pLine + rawLine.size();
                 continue;
               }
               else
               {
                 vtkErrorMacro(<< "Error reading continuation line at line " << lineNr);
                 everything_ok = false;
+                break;
               }
             }
             else
             {
               vtkErrorMacro(<< "Error reading 'l' at line " << lineNr);
               everything_ok = false;
+              break;
             }
             // skip over what we just sscanf'd
             // (find the first whitespace character)
@@ -802,9 +864,10 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
 
           if (pLine < pEnd) // there is still data left on this line
           {
-            int iVert, iTCoord, iNormal;
-            if (sscanf(pLine, "%d/%d/%d", &iVert, &iTCoord, &iNormal) == 3)
+            const std::string_view pLineView(pLine);
+            if (auto result = vtk::scan<Integer, Integer, Integer>(pLineView, "{:d}/{:d}/{:d}"))
             {
+              auto& [iVert, iTCoord, iNormal] = result->values();
               // negative indices are specified relative to the current maximum vertex
               // position.  (-1 references the last vertex defined). This makes it easy
               // to describe the points in a face, then the face, without the need to
@@ -826,6 +889,7 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
               {
                 vtkErrorMacro(<< "Unexpected point indice value");
                 everything_ok = false;
+                break;
               }
               else
               {
@@ -846,8 +910,9 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
                 }
               }
             }
-            else if (sscanf(pLine, "%d//%d", &iVert, &iNormal) == 2)
+            else if (auto result2 = vtk::scan<Integer, Integer>(pLineView, "{:d}//{:d}"))
             {
+              auto& [iVert, iNormal] = result2->values();
               if (iVert < 0)
               {
                 iVert = lastVertexIndex + iVert + 1;
@@ -860,6 +925,7 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
               {
                 vtkErrorMacro(<< "Unexpected point indice value");
                 everything_ok = false;
+                break;
               }
               else
               {
@@ -874,8 +940,9 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
                 }
               }
             }
-            else if (sscanf(pLine, "%d/%d", &iVert, &iTCoord) == 2)
+            else if (auto result3 = vtk::scan<Integer, Integer>(pLineView, "{:d}/{:d}"))
             {
+              auto& [iVert, iTCoord] = result3->values();
               if (iVert < 0)
               {
                 iVert = lastVertexIndex + iVert + 1;
@@ -888,6 +955,7 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
               {
                 vtkErrorMacro(<< "Unexpected point indice value");
                 everything_ok = false;
+                break;
               }
               else
               {
@@ -902,8 +970,9 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
                 }
               }
             }
-            else if (sscanf(pLine, "%d", &iVert) == 1)
+            else if (auto result4 = vtk::scan_int<int>(pLineView))
             {
+              auto iVert = result4->value();
               if (iVert < 0)
               {
                 iVert = lastVertexIndex + iVert + 1;
@@ -912,6 +981,7 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
               {
                 vtkErrorMacro(<< "Unexpected point indice value");
                 everything_ok = false;
+                break;
               }
               else
               {
@@ -923,23 +993,26 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
             else if (strcmp(pLine, "\\\n") == 0)
             {
               // handle backslash-newline continuation
-              if (fgets(rawLine, MAX_LINE, in) != nullptr)
+              res = parser->ReadLine(rawLine);
+              if (res != vtkParseResult::Error && res != vtkParseResult::EndOfStream)
               {
                 lineNr++;
-                pLine = rawLine;
-                pEnd = rawLine + strlen(rawLine);
+                pLine = rawLine.data();
+                pEnd = pLine + rawLine.size();
                 continue;
               }
               else
               {
                 vtkErrorMacro(<< "Error reading continuation line at line " << lineNr);
                 everything_ok = false;
+                break;
               }
             }
             else
             {
               vtkErrorMacro(<< "Error reading 'f' at line " << lineNr);
               everything_ok = false;
+              break;
             }
             // skip over what we just read
             // (find the first whitespace character)
@@ -957,7 +1030,7 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
           vtkErrorMacro(<< "Error reading file near line " << lineNr
                         << " while processing the 'f' command"
                         << " nVerts= " << nVerts << " nTCoords= " << nTCoords
-                        << " nNormals= " << nNormals << pLine);
+                        << " nNormals= " << nNormals);
           everything_ok = false;
         }
 
@@ -1036,11 +1109,14 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
       {
         vtkDebugMacro(<< "Ignoring line: " << rawLine);
       }
+
+      if (ulFileLength > 0 && lineNr % 10000 == 0)
+      {
+        this->UpdateProgress(static_cast<double>(lineNr) / ulFileLength);
+      }
     } /** Looping over lines of file */ // (end of while loop)
   }                                     // (end of local scope section)
-
-  // we have finished with the file
-  fclose(in);
+  this->UpdateProgress(1.0);
 
   /** based on how many used materials are present,
                  set the number of output ports of vtkPolyData */
@@ -1244,7 +1320,7 @@ int vtkOBJPolyDataProcessor::RequestData(vtkInformation* vtkNotUsed(request),
 
   if (!everything_ok)
   {
-    SetSuccessParsingFiles(false);
+    this->SetSuccessParsingFiles(false);
   }
 
   return 1;
@@ -1255,7 +1331,6 @@ void vtkOBJPolyDataProcessor::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 
-  os << indent << "FileName: " << (this->FileName.empty() ? this->FileName : "(none)") << "\n";
   os << indent << "MTLFileName: " << (this->MTLFileName.empty() ? this->MTLFileName : "(none)")
      << "\n";
   os << indent << "TexturePath: " << (this->TexturePath.empty() ? this->TexturePath : "(none)")

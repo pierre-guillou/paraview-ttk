@@ -15,10 +15,13 @@ Common/DataModel/vtkUnstructuredGrid.h
 Common/ExecutionModel/vtkAlgorithm.h
 Interaction/Style/vtkInteractorStyleSwitch.h
 Interaction/Widgets/vtkAbstractWidget.h
+Rendering/Annotation/vtkXYPlotActor.h
 Rendering/Core/vtkAbstractMapper.h
 Rendering/Core/vtkColorTransferFunction.h
+Common/DataModel/vtkGraph.h
 Rendering/Core/vtkCompositeDataDisplayAttributes.h
 Rendering/Core/vtkDataSetMapper.h
 Rendering/Core/vtkDiscretizableColorTransferFunction.h
 Rendering/Core/vtkShaderProperty.h
 Rendering/Core/vtkTexture.h
+Rendering/Volume/vtkMultiVolume.h

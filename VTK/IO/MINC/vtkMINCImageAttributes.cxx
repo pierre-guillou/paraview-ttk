@@ -8,13 +8,12 @@
 
 #include "vtkCharArray.h"
 #include "vtkDoubleArray.h"
-#include "vtkFloatArray.h"
 #include "vtkIdTypeArray.h"
 #include "vtkIntArray.h"
-#include "vtkShortArray.h"
-#include "vtkSignedCharArray.h"
 #include "vtkSmartPointer.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 #include "vtkUnsignedCharArray.h"
 
 #include "vtkMINC.h"
@@ -23,6 +22,7 @@
 #include <cctype>
 #include <cfloat>
 #include <cstdlib>
+#include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
@@ -252,11 +252,11 @@ void vtkMINCImageAttributes::AddDimension(const char* dimension, vtkIdType lengt
 // This method also has to store the resulting string internally.
 const char* vtkMINCImageAttributes::ConvertDataArrayToString(vtkDataArray* array)
 {
-  const char* result = "";
+  const char* resultStr = "";
   vtkIdType n = array->GetNumberOfTuples();
   if (n == 0)
   {
-    return result;
+    return resultStr;
   }
 
   int dataType = array->GetDataType();
@@ -265,12 +265,12 @@ const char* vtkMINCImageAttributes::ConvertDataArrayToString(vtkDataArray* array
     vtkCharArray* charArray = vtkArrayDownCast<vtkCharArray>(array);
     if (charArray)
     {
-      result = charArray->GetPointer(0);
+      resultStr = charArray->GetPointer(0);
       // Check to see if string has a terminal null (the null might be
       // part of the attribute, or stored in the following byte)
-      if ((n > 0 && result[n - 1] == '\0') || (charArray->GetSize() > n && result[n] == '\0'))
+      if ((n > 0 && resultStr[n - 1] == '\0') || (charArray->GetSize() > n && resultStr[n] == '\0'))
       {
-        return result;
+        return resultStr;
       }
     }
   }
@@ -286,11 +286,13 @@ const char* vtkMINCImageAttributes::ConvertDataArrayToString(vtkDataArray* array
       char storage[128];
       if (dataType == VTK_DOUBLE)
       {
-        snprintf(storage, 128, "%0.15g", val);
+        auto result = vtk::format_to_n(storage, 128, "{:.15g}", val);
+        *result.out = '\0';
       }
       else
       {
-        snprintf(storage, 128, "%0.7g", val);
+        auto result = vtk::format_to_n(storage, 128, "{:.7g}", val);
+        *result.out = '\0';
       }
       // Add a decimal if there isn't one, to distinguish from int
       for (char* cp = storage; *cp != '.'; cp++)
@@ -333,7 +335,7 @@ const char* vtkMINCImageAttributes::ConvertDataArrayToString(vtkDataArray* array
   {
     if (str == this->StringStore->GetValue(j))
     {
-      result = this->StringStore->GetValue(j).c_str();
+      resultStr = this->StringStore->GetValue(j).c_str();
       break;
     }
   }
@@ -341,16 +343,16 @@ const char* vtkMINCImageAttributes::ConvertDataArrayToString(vtkDataArray* array
   if (j == m)
   {
     j = this->StringStore->InsertNextValue(str);
-    result = this->StringStore->GetValue(j).c_str();
+    resultStr = this->StringStore->GetValue(j).c_str();
   }
 
-  return result;
+  return resultStr;
 }
 
 //------------------------------------------------------------------------------
 void vtkMINCImageAttributes::PrintFileHeader()
 {
-  this->PrintFileHeader(cout);
+  this->PrintFileHeader(std::cout);
 }
 
 //------------------------------------------------------------------------------
@@ -428,10 +430,7 @@ void vtkMINCImageAttributes::PrintFileHeader(ostream& os)
         // dimensions for these variables
         if (varname[5] == '-')
         {
-          if (this->NumberOfImageMinMaxDimensions < nvardim)
-          {
-            nvardim = this->NumberOfImageMinMaxDimensions;
-          }
+          nvardim = std::min<vtkIdType>(this->NumberOfImageMinMaxDimensions, nvardim);
           os << "\tdouble " << varname;
         }
         else
@@ -680,12 +679,11 @@ int vtkMINCImageAttributes::GetAttributeValueAsInt(const char* variable, const c
   if (array->GetDataType() == VTK_CHAR)
   {
     const char* text = this->ConvertDataArrayToString(array);
-    char* endp = const_cast<char*>(text);
-    long result = strtol(text, &endp, 10);
+    auto result = vtk::scan_int<int>(std::string_view(text));
     // Check for complete conversion
-    if (*endp == '\0' && *text != '\0')
+    if (result && *text != '\0')
     {
-      return static_cast<int>(result);
+      return result->value();
     }
   }
   else if (array->GetNumberOfTuples() == 1)
@@ -727,12 +725,11 @@ double vtkMINCImageAttributes::GetAttributeValueAsDouble(
   if (array->GetDataType() == VTK_CHAR)
   {
     const char* text = this->ConvertDataArrayToString(array);
-    char* endp = const_cast<char*>(text);
-    double result = strtod(text, &endp);
+    auto result = vtk::scan_value<double>(std::string_view(text));
     // Check for complete conversion
-    if (*endp == '\0' && *text != '\0')
+    if (result && *text != '\0')
     {
-      return result;
+      return result->value();
     }
   }
   else if (array->GetNumberOfTuples() == 1)
@@ -877,7 +874,7 @@ int vtkMINCImageAttributes::ValidateGlobalAttribute(
 {
   // Global attributes
   static const char* globalAttributes[] = { MIident, MIhistory, MItitle, nullptr };
-  const int autoGlobalAttributes = 2;
+  constexpr int autoGlobalAttributes = 2;
 
   int itry = 0;
   for (itry = 0; globalAttributes[itry] != nullptr; itry++)
@@ -912,7 +909,7 @@ int vtkMINCImageAttributes::ValidateGeneralAttribute(
     MIchildren,                                         // newline-separated list of child variables
     MIcomments, // each variable has specific comments to go with it
     nullptr };
-  const int autoGeneralAttributes = 5;
+  constexpr int autoGeneralAttributes = 5;
 
   int dataType = array->GetDataType();
 
@@ -959,7 +956,7 @@ int vtkMINCImageAttributes::ValidateDimensionAttribute(
     MIunits,             // "mm"
     MIdirection_cosines, // three doubles
     nullptr };
-  const int autoDimensionAttributes = 3;
+  constexpr int autoDimensionAttributes = 3;
 
   vtkIdType size = (array->GetNumberOfTuples() * array->GetNumberOfComponents());
   int dataType = array->GetDataType();
@@ -1026,7 +1023,7 @@ int vtkMINCImageAttributes::ValidateImageAttribute(
     MIvalid_range,  // min and max scalar values as doubles
     nullptr
   };
-  const int autoImageAttributes = 5;
+  constexpr int autoImageAttributes = 5;
 
   int itry = 0;
   for (itry = 0; imageAttributes[itry] != nullptr; itry++)
@@ -1059,7 +1056,7 @@ int vtkMINCImageAttributes::ValidateImageMinMaxAttribute(
     MIunits,      // "normalized", "Hounsfields", etc.
     nullptr
   };
-  const int autoImageMinMaxAttributes = 1;
+  constexpr int autoImageMinMaxAttributes = 1;
 
   int itry = 0;
   for (itry = 0; imageMinMaxAttributes[itry] != nullptr; itry++)

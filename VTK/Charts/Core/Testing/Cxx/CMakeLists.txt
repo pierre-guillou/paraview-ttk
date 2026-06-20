@@ -47,6 +47,7 @@ vtk_add_test_cxx(vtkChartsCoreCxxTests tests
   TestAxes2.cxx
   TestBagPlot.cxx,LOOSE_VALID
   TestBarGraph.cxx,LOOSE_VALID
+  TestBarGraphShiftScale.cxx,LOOSE_VALID
   TestBarGraphHorizontal.cxx,LOOSE_VALID
   TestBarGraphSelection.cxx,LOOSE_VALID
   TestBoxPlot.cxx,LOOSE_VALID
@@ -100,12 +101,15 @@ vtk_add_test_cxx(vtkChartsCoreCxxTests tests
   TestMultipleRenderers.cxx
   TestMultipleScalarsToColors.cxx
   TestParallelCoordinates.cxx
+  TestParallelCoordinatesClearAllAxesSelections.cxx,NO_VALID
+  TestParallelCoordinatesClearAxisSelection.cxx,NO_VALID
   TestParallelCoordinatesDouble.cxx
   TestParallelCoordinatesLegend.cxx
   TestParallelCoordinatesSelection.cxx,NO_VALID
   TestPieChart.cxx
   TestPlotBarRangeHandlesItem.cxx,NO_DATA,NO_VALID
   TestPlotMatrix.cxx,LOOSE_VALID
+  TestPlotPoints.cxx
   TestPlotRangeHandlesItem.cxx,NO_DATA,NO_VALID
   TestPropItem.cxx
   TestRangeHandlesItemEvents.cxx,NO_DATA,NO_VALID

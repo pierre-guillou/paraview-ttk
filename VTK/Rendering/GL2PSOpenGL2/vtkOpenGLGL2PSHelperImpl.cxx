@@ -21,6 +21,8 @@
 #include "vtkTextRenderer.h"
 #include "vtkTransformFeedback.h"
 
+#include "vtk_glad.h"
+// gl2ps.h must come after glad.h
 #include "vtk_gl2ps.h"
 
 #include <algorithm>
@@ -507,8 +509,14 @@ void vtkOpenGLGL2PSHelperImpl::DrawImage(vtkImageData* input, double pos[3])
   int dims[3];
   input->GetDimensions(dims);
 
+  auto scalarsAOS = vtkAOSDataArrayTemplate<float>::FastDownCast(inScalars);
+  if (!scalarsAOS)
+  {
+    vtkErrorMacro("Invalid image format: Expected AOS float scalars.");
+    return;
+  }
   gl2psForceRasterPos(&gl2psRasterPos);
-  gl2psDrawPixels(dims[0], dims[1], 0, 0, format, GL_FLOAT, inScalars->GetVoidPointer(0));
+  gl2psDrawPixels(dims[0], dims[1], 0, 0, format, GL_FLOAT, scalarsAOS->GetPointer(0));
 }
 
 //------------------------------------------------------------------------------
@@ -799,8 +807,8 @@ void vtkOpenGLGL2PSHelperImpl::DrawPathPS(vtkPath* path, double rasterPos[3], do
 
   std::stringstream out;
   out.setf(std::ios_base::left | std::ios_base::fixed);
-  const int floatPrec = 2;
-  const int floatWidth = 6;
+  constexpr int floatPrec = 2;
+  constexpr int floatWidth = 6;
   out.precision(floatPrec);
   out.width(floatWidth);
 
@@ -942,8 +950,8 @@ void vtkOpenGLGL2PSHelperImpl::DrawPathPDF(vtkPath* path, double rasterPos[3], d
 
   std::stringstream out;
   out.setf(std::ios_base::left | std::ios_base::fixed);
-  const int floatPrec = 2;
-  const int floatWidth = 6;
+  constexpr int floatPrec = 2;
+  constexpr int floatWidth = 6;
   out.precision(floatPrec);
   out.width(floatWidth);
 
@@ -1094,8 +1102,8 @@ void vtkOpenGLGL2PSHelperImpl::DrawPathSVG(vtkPath* path, double rasterPos[3], d
   std::stringstream out;
   out.setf(std::ios_base::left | std::ios_base::fixed);
 
-  const int floatPrec = 2;
-  const int floatWidth = 6;
+  constexpr int floatPrec = 2;
+  constexpr int floatWidth = 6;
   out.precision(floatPrec);
   out.width(floatWidth);
 

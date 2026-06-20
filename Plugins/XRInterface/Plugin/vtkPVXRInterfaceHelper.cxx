@@ -39,7 +39,6 @@
 #include "vtkLight.h"
 #include "vtkLightCollection.h"
 #include "vtkMatrixToLinearTransform.h"
-#include "vtkNumberToString.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLFramebufferObject.h"
 #include "vtkOpenGLPolyDataMapper.h"
@@ -69,6 +68,7 @@
 #include "vtkShaderProgram.h"
 #include "vtkShaderProperty.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
 #include "vtkTimerLog.h"
 #include "vtkTransform.h"
 #include "vtkVRFollower.h"
@@ -90,6 +90,46 @@
 
 struct vtkPVXRInterfaceHelper::vtkInternals
 {
+  /*
+   * Event handler which responds to navigation events by sending updated
+   * avatar torso up vector message to collaborators.
+   */
+  class vtkNavigationObserver : public vtkCommand
+  {
+  public:
+    static vtkNavigationObserver* New() { return new vtkNavigationObserver; }
+
+    void Execute(
+      vtkObject* caller, unsigned long vtkNotUsed(event), void* vtkNotUsed(calldata)) override
+    {
+      vtkRenderWindow* renwin = vtkRenderWindow::SafeDownCast(caller);
+      if (renwin)
+      {
+        if (this->CollabClient != nullptr)
+        {
+          renwin->GetPhysicalToWorldMatrix(this->NavigationMatrix.Get());
+          this->CollabClient->GetAvatarInitialUpVector(this->avatarUp);
+          this->NavigationMatrix->MultiplyPoint(this->avatarUp, this->avatarUp);
+          this->CollabClient->SendAvatarUpVector(this->avatarUp);
+        }
+      }
+    }
+
+    vtkPVXRInterfaceCollaborationClient* CollabClient;
+
+  protected:
+    vtkNavigationObserver()
+      : CollabClient(nullptr)
+    {
+    }
+    ~vtkNavigationObserver() override = default;
+
+  private:
+    vtkNew<vtkMatrix4x4> NavigationMatrix;
+    double avatarUp[4];
+  };
+
+  vtkNew<vtkNavigationObserver> NavigationObserver;
   vtkNew<vtkQWidgetWidget> QWidgetWidget;
   vtkPVRenderView* View = nullptr;
   vtkSmartPointer<vtkOpenGLRenderWindow> RenderWindow;
@@ -118,6 +158,7 @@ vtkPVXRInterfaceHelper::vtkPVXRInterfaceHelper()
 {
   this->CollaborationClient->SetHelper(this);
   this->Widgets->SetHelper(this);
+  this->Internals->NavigationObserver->CollabClient = this->CollaborationClient.Get();
 }
 
 //----------------------------------------------------------------------------
@@ -335,6 +376,10 @@ bool vtkPVXRInterfaceHelper::CollaborationConnect()
     }
   }
 
+  // Observer all navigation events (PhysicalToWorld matrix updated)
+  this->Internals->RenderWindow->AddObserver(
+    vtkRenderWindow::PhysicalToWorldMatrixModified, this->Internals->NavigationObserver);
+
   return this->CollaborationClient->Connect(this->Renderer);
 }
 
@@ -355,6 +400,9 @@ bool vtkPVXRInterfaceHelper::CollaborationDisconnect()
       cmodel->GetRay()->RemoveObservers(vtkCommand::ModifiedEvent);
     }
   }
+
+  this->Internals->RenderWindow->RemoveObserver(this->Internals->NavigationObserver);
+
   return this->CollaborationClient->Disconnect();
 }
 
@@ -897,14 +945,13 @@ template <typename T>
 void addVectorAttribute(vtkPVXMLElement* el, const char* name, T* data, int count)
 {
   std::ostringstream o;
-  vtkNumberToString converter;
   for (int i = 0; i < count; ++i)
   {
     if (i)
     {
       o << " ";
     }
-    o << converter.Convert(data[i]);
+    o << vtk::to_string(data[i]);
   }
   el->AddAttribute(name, o.str().c_str());
 }
@@ -1116,8 +1163,7 @@ void vtkPVXRInterfaceHelper::LoadState(vtkPVXMLElement* e, vtkSMProxyLocator* lo
           gchild->GetScalarAttribute("normal0", normal.data());
           gchild->GetScalarAttribute("normal1", normal.data() + 1);
           gchild->GetScalarAttribute("normal2", normal.data() + 2);
-          loc.CropPlaneStates.push_back(
-            std::pair<std::array<double, 3>, std::array<double, 3>>(origin, normal));
+          loc.CropPlaneStates.emplace_back(origin, normal);
         }
       }
 
@@ -1234,8 +1280,7 @@ void vtkPVXRInterfaceHelper::LoadState(vtkPVXMLElement* e, vtkSMProxyLocator* lo
           child->GetScalarAttribute("normal0", normal.data());
           child->GetScalarAttribute("normal1", normal.data() + 1);
           child->GetScalarAttribute("normal2", normal.data() + 2);
-          loc.CropPlaneStates.push_back(
-            std::pair<std::array<double, 3>, std::array<double, 3>>(origin, normal));
+          loc.CropPlaneStates.emplace_back(origin, normal);
         }
       }
     }
@@ -1947,9 +1992,9 @@ std::string vtkPVXRInterfaceHelper::GetOpenXRRuntimeVersionString() const
   }
   else
   {
-    output += std::to_string(version.Major) += '.';
-    output += std::to_string(version.Minor) += '.';
-    output += std::to_string(version.Patch);
+    output += vtk::to_string(version.Major) += '.';
+    output += vtk::to_string(version.Minor) += '.';
+    output += vtk::to_string(version.Patch);
   }
 #endif
 

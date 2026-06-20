@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
+
 /* Initialize the FileInfo struct */
 void vtkParse_InitFile(FileInfo* file_info)
 {
@@ -145,6 +148,7 @@ void vtkParse_InitFunction(FunctionInfo* func)
   func->IsExcluded = 0;
   func->IsDeprecated = 0;
   func->IsMarshalExcluded = 0;
+  func->IsUnblockThreads = 0;
   func->IsPropExcluded = 0;
 
 #ifndef VTK_PARSE_LEGACY_REMOVE
@@ -239,6 +243,7 @@ void vtkParse_CopyFunction(FunctionInfo* func, const FunctionInfo* orig)
   func->IsExcluded = orig->IsExcluded;
   func->IsDeprecated = orig->IsDeprecated;
   func->IsMarshalExcluded = orig->IsMarshalExcluded;
+  func->IsUnblockThreads = orig->IsUnblockThreads;
   func->IsPropExcluded = orig->IsPropExcluded;
 
 #ifndef VTK_PARSE_LEGACY_REMOVE
@@ -312,6 +317,8 @@ void vtkParse_InitValue(ValueInfo* val)
   val->Dimensions = NULL;
   val->Function = NULL;
   val->Template = NULL;
+  val->DeprecatedReason = NULL;
+  val->DeprecatedVersion = NULL;
   val->IsStatic = 0;
   val->IsEnum = 0;
   val->IsPack = 0;
@@ -358,6 +365,8 @@ void vtkParse_CopyValue(ValueInfo* val, const ValueInfo* orig)
     vtkParse_CopyTemplate(val->Template, orig->Template);
   }
 
+  val->DeprecatedReason = orig->DeprecatedReason;
+  val->DeprecatedVersion = orig->DeprecatedVersion;
   val->IsStatic = orig->IsStatic;
   val->IsEnum = orig->IsEnum;
   val->IsPack = orig->IsPack;
@@ -1073,3 +1082,6 @@ void vtkParse_AddDefaultConstructors(ClassInfo* cls, StringCache* cache)
     vtkParse_AddFunctionToClass(cls, func);
   }
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

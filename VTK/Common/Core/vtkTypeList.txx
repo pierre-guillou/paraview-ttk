@@ -65,6 +65,24 @@ VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Description:
+// Get the Size of the TypeList TList.
+
+// Terminal case: empty list has size 0
+template <>
+struct Size<vtkTypeList::NullType>
+{
+  static constexpr int Result = 0;
+};
+
+// Recursive case: count head + tail
+template <typename ArrayHead, typename ArrayTail>
+struct Size<vtkTypeList::TypeList<ArrayHead, ArrayTail>>
+{
+  static constexpr int Result = 1 + Size<ArrayTail>::Result;
+};
+
+//------------------------------------------------------------------------------
+// Description:
 // Sets Result to T if Exp is true, or F if Exp is false.
 template <bool Exp, typename T, typename F>
 struct Select // True case:
@@ -367,11 +385,21 @@ struct Append<vtkTypeList::NullType, vtkTypeList::TypeList<Head, Tail>>
   typedef vtkTypeList::TypeList<Head, Tail> Result;
 };
 
-// Recursive case:
+// Recursive case for two arguments:
 template <typename Head, typename Tail, typename T>
 struct Append<vtkTypeList::TypeList<Head, Tail>, T>
 {
   typedef vtkTypeList::TypeList<Head, typename Append<Tail, T>::Result> Result;
+};
+
+//------------------------------------------------------------------------------
+// Variadic specializations (3 or more arguments)
+
+// Base case: append first two arguments, then recursively append the rest
+template <typename TList, typename T, typename U, typename... Rest>
+struct Append<TList, T, U, Rest...>
+{
+  typedef typename Append<typename Append<TList, T>::Result, U, Rest...>::Result Result;
 };
 
 VTK_ABI_NAMESPACE_END

@@ -17,7 +17,7 @@
 #include "vtkTuple.h"
 #include "vtkUniformGrid.h"
 
-#include "vtkAMRInformation.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include <algorithm>
 #include <vector>
 VTK_ABI_NAMESPACE_BEGIN
@@ -284,7 +284,8 @@ int vtkImageToAMR::RequestData(vtkInformation* vtkNotUsed(request),
   Split(
     rootBox, this->NumberOfLevels, this->RefinementRatio, this->MaximumNumberOfBlocks, amrBoxes);
 
-  std::vector<int> blocksPerLevel;
+  std::vector<unsigned int> blocksPerLevel;
+  blocksPerLevel.reserve(amrBoxes.size());
   for (size_t i = 0; i < amrBoxes.size(); i++)
   {
     blocksPerLevel.push_back(static_cast<int>(amrBoxes[i].size()));
@@ -293,7 +294,7 @@ int vtkImageToAMR::RequestData(vtkInformation* vtkNotUsed(request),
   unsigned int numLevels = static_cast<unsigned int>(blocksPerLevel.size());
   bool abort = false;
 
-  amr->Initialize(static_cast<int>(numLevels), blocksPerLevel.data());
+  amr->Initialize(blocksPerLevel);
   amr->SetOrigin(inputOrigin);
   amr->SetGridDescription(gridDescription);
 
@@ -335,7 +336,7 @@ int vtkImageToAMR::RequestData(vtkInformation* vtkNotUsed(request),
     amr->GetSpacing(level, spacing);
     int coarsenRatio = (int)pow(static_cast<double>(this->RefinementRatio),
       static_cast<int>(numLevels - 1 - level)); // against the finest level
-    for (size_t i = 0; i < amr->GetNumberOfDataSets(level) && !abort; i++)
+    for (size_t i = 0; i < amr->GetNumberOfBlocks(level) && !abort; i++)
     {
       const vtkAMRBox& box = amr->GetAMRBox(level, static_cast<unsigned int>(i));
       double origin[3];

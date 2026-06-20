@@ -68,6 +68,7 @@ bool vtkGLTFDocumentLoaderInternals::LoadBuffers(bool firstBufferIsGLB)
     nlohmann::json bufferRoot =
       nlohmann::json::parse(this->Self->GetInternalModel()->BufferMetaData);
     // Load buffers from disk
+    unsigned int bufferIndex = 0;
     for (const auto& glTFBuffer : bufferRoot)
     {
       std::vector<char> buffer;
@@ -79,20 +80,25 @@ bool vtkGLTFDocumentLoaderInternals::LoadBuffers(bool firstBufferIsGLB)
             "Invalid first buffer value for glb file. No buffer was loaded from the file.");
           return false;
         }
-        if (firstBufferIsGLB && this->Self->GetInternalModel()->Buffers.size() == 1 &&
-          !buffer.empty())
+        if (firstBufferIsGLB && bufferIndex == 0 && !buffer.empty())
         {
           vtkErrorWithObjectMacro(
             this->Self, "Invalid first buffer value for glb file. buffer.uri should be undefined");
           return false;
         }
-        this->Self->GetInternalModel()->Buffers.emplace_back(std::move(buffer));
+
+        // skip if buffer has already been loaded from the GLB BIN chunk
+        if (!firstBufferIsGLB || bufferIndex > 0)
+        {
+          this->Self->GetInternalModel()->Buffers.emplace_back(std::move(buffer));
+        }
       }
       else
       {
         vtkErrorWithObjectMacro(this->Self, "Could not load Buffer from JSON.");
         return false;
       }
+      bufferIndex++;
     }
   }
   catch (nlohmann::json::parse_error& e)
@@ -115,8 +121,7 @@ bool vtkGLTFDocumentLoaderInternals::LoadFileMetaData(nlohmann::json& gltfRoot)
     // Determine the format
     std::string magic;
     magic.resize(4);
-    // NOLINTNEXTLINE(readability-container-data-pointer)
-    stream->Read(&magic[0], magic.size());
+    stream->Read(magic.data(), magic.size());
 
     if (magic == "glTF")
     {
@@ -421,10 +426,7 @@ bool vtkGLTFDocumentLoaderInternals::LoadAnimation(
           "Empty accessor.max value for sampler input accessor. Max is mandatory in this case.");
         return false;
       }
-      if (accessor.Max[0] > maxDuration)
-      {
-        maxDuration = accessor.Max[0];
-      }
+      maxDuration = std::max<double>(accessor.Max[0], maxDuration);
     }
     else
     {
@@ -937,8 +939,8 @@ bool vtkGLTFDocumentLoaderInternals::LoadSampler(
 
   if (root.empty())
   {
-    sampler.MagFilter = Sampler::FilterType::LINEAR_MIPMAP_LINEAR;
-    sampler.MinFilter = Sampler::FilterType::LINEAR_MIPMAP_LINEAR;
+    sampler.MagFilter = Sampler::FilterType::LINEAR;
+    sampler.MinFilter = Sampler::FilterType::NEAREST_MIPMAP_LINEAR;
     sampler.WrapT = Sampler::WrapType::REPEAT;
     sampler.WrapS = Sampler::WrapType::REPEAT;
     return true;
@@ -947,7 +949,7 @@ bool vtkGLTFDocumentLoaderInternals::LoadSampler(
   int tempIntValue = 0;
   if (!vtkGLTFUtils::GetIntValue(root, "magFilter", tempIntValue))
   {
-    sampler.MagFilter = vtkGLTFDocumentLoader::Sampler::FilterType::NEAREST;
+    sampler.MagFilter = vtkGLTFDocumentLoader::Sampler::FilterType::LINEAR;
   }
   else
   {
@@ -958,14 +960,14 @@ bool vtkGLTFDocumentLoaderInternals::LoadSampler(
         sampler.MagFilter = static_cast<Sampler::FilterType>(tempIntValue);
         break;
       default:
-        sampler.MagFilter = Sampler::FilterType::NEAREST;
+        sampler.MagFilter = Sampler::FilterType::LINEAR;
         vtkWarningWithObjectMacro(this->Self, "Invalid sampler.magFilter value.");
     }
   }
 
   if (!vtkGLTFUtils::GetIntValue(root, "minFilter", tempIntValue))
   {
-    sampler.MinFilter = Sampler::FilterType::NEAREST;
+    sampler.MinFilter = Sampler::FilterType::NEAREST_MIPMAP_LINEAR;
   }
   else
   {
@@ -980,7 +982,7 @@ bool vtkGLTFDocumentLoaderInternals::LoadSampler(
         sampler.MinFilter = static_cast<Sampler::FilterType>(tempIntValue);
         break;
       default:
-        sampler.MinFilter = Sampler::FilterType::NEAREST;
+        sampler.MinFilter = Sampler::FilterType::NEAREST_MIPMAP_LINEAR;
         vtkWarningWithObjectMacro(this->Self, "Invalid sampler.minFilter value.");
     }
   }
@@ -1281,6 +1283,19 @@ bool vtkGLTFDocumentLoaderInternals::LoadTextureInfo(
   textureInfo.TexCoord = 0;
   vtkGLTFUtils::GetIntValue(root, "texCoord", textureInfo.TexCoord);
 
+  auto extRootIt = root.find("extensions");
+  if (extRootIt != root.end())
+  {
+    auto texTrRootIt = extRootIt.value().find("KHR_texture_transform");
+    if (texTrRootIt != extRootIt.value().end())
+    {
+      vtkGLTFUtils::GetDoubleArray(texTrRootIt.value(), "scale", textureInfo.Scale);
+      vtkGLTFUtils::GetDoubleArray(texTrRootIt.value(), "offset", textureInfo.Offset);
+      vtkGLTFUtils::GetDoubleValue(texTrRootIt.value(), "rotation", textureInfo.Rotation);
+      vtkGLTFUtils::GetIntValue(texTrRootIt.value(), "texCoord", textureInfo.TexCoord);
+    }
+  }
+
   return true;
 }
 
@@ -1470,15 +1485,15 @@ bool vtkGLTFDocumentLoaderInternals::LoadModelMetaData(
 
   // Load default scene
   this->Self->GetInternalModel()->DefaultScene = 0;
+  int nbScenes = static_cast<int>(this->Self->GetInternalModel()->Scenes.size());
+  if (nbScenes < 1)
+  {
+    // In case the file had no scenes, add an empty scene so that downstream code doesn't need to
+    // check that its default scene index is valid
+    this->Self->GetInternalModel()->Scenes.resize(1);
+  }
   if (!vtkGLTFUtils::GetIntValue(root, "scene", this->Self->GetInternalModel()->DefaultScene))
   {
-    int nbScenes = static_cast<int>(this->Self->GetInternalModel()->Scenes.size());
-    if (nbScenes < 1)
-    {
-      // In case the file had no scenes, add an empty scene so that downstream code doesn't need to
-      // check that its default scene index is valid
-      this->Self->GetInternalModel()->Scenes.resize(1);
-    }
     if (this->Self->GetInternalModel()->DefaultScene < 0 ||
       this->Self->GetInternalModel()->DefaultScene >= nbScenes)
     {
@@ -1651,10 +1666,7 @@ bool vtkGLTFDocumentLoaderInternals::LoadKHRLightsPunctualExtensionLight(
   if (vtkGLTFUtils::GetDoubleValue(root, "range", light.Range))
   {
     // Must be positive
-    if (light.Range < 0)
-    {
-      light.Range = 0;
-    }
+    light.Range = std::max(light.Range, 0.0);
   }
   return true;
 }

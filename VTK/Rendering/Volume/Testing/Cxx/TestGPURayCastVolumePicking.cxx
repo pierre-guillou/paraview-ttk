@@ -39,6 +39,8 @@
 #include "vtkSelectionNode.h"
 #include "vtkSphereSource.h"
 
+#include <iostream>
+
 namespace
 {
 class VolumePickingCommand : public vtkCommand
@@ -75,7 +77,7 @@ public:
       vtkInformationIntegerKey* infoIntKey = vtkSelectionNode::PROP_ID();
 
       vtkAbstractArray* abs = node->GetSelectionList();
-      vtkIdType size = abs->GetSize();
+      vtkIdType size = abs->GetDataSize();
       std::cout << "PropId: " << infoIntKey->Get(properties) << "/ Num. Attr.:  " << size << '\n';
 
       if (numProps > 1)

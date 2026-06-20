@@ -589,8 +589,7 @@ void vtkImageHistogramFunctor::Reduce()
   vtkIdType* histogram = this->Histogram->GetPointer(0);
   vtkIdType total = 0;
 
-  int numberOfBins =
-    static_cast<vtkImageHistogram*>(this->PipelineInfo->Algorithm)->GetNumberOfBins();
+  int numberOfBins = this->PipelineInfo->Algorithm->GetNumberOfBins();
 
   // clear histogram to zero
   for (int i = 0; i < numberOfBins; i++)
@@ -653,21 +652,12 @@ int vtkImageHistogram::RequestData(
       case VTK_UNSIGNED_LONG:
       {
         this->ComputeImageScalarRange(image, scalarRange);
-        if (scalarRange[0] > 0)
-        {
-          scalarRange[0] = 0;
-        }
-        if (scalarRange[1] < 0)
-        {
-          scalarRange[1] = 0;
-        }
+        scalarRange[0] = std::min(scalarRange[0], 0.0);
+        scalarRange[1] = std::max(scalarRange[1], 0.0);
         unsigned long binMaxId = static_cast<unsigned long>(scalarRange[1] - scalarRange[0]);
         this->BinOrigin = scalarRange[0];
         this->BinSpacing = 1.0;
-        if (binMaxId < 255)
-        {
-          binMaxId = 255;
-        }
+        binMaxId = std::max(binMaxId, 255ul);
         if (binMaxId > static_cast<unsigned long>(this->MaximumNumberOfBins - 1))
         {
           binMaxId = static_cast<unsigned long>(this->MaximumNumberOfBins - 1);
@@ -683,14 +673,8 @@ int vtkImageHistogram::RequestData(
       {
         this->NumberOfBins = this->MaximumNumberOfBins;
         this->ComputeImageScalarRange(image, scalarRange);
-        if (scalarRange[0] > 0)
-        {
-          scalarRange[0] = 0;
-        }
-        if (scalarRange[1] < 0)
-        {
-          scalarRange[1] = 0;
-        }
+        scalarRange[0] = std::min(scalarRange[0], 0.0);
+        scalarRange[1] = std::max(scalarRange[1], 0.0);
         this->BinOrigin = scalarRange[0];
         this->BinSpacing = 1.0;
         if (scalarRange[1] > scalarRange[0])

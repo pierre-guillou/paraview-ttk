@@ -19,6 +19,7 @@
 #include "pqVRConnectionManager.h"
 #include "pqVRQueueHandler.h"
 #include "pqView.h"
+#include "pqWidgetUtilities.h"
 
 #if PARAVIEW_PLUGIN_CAVEInteraction_USE_VRPN
 #include "pqVRPNConnection.h"
@@ -38,16 +39,49 @@
 #include "vtkWeakPointer.h"
 
 #include <QDebug>
+#include <QDoubleValidator>
 #include <QListWidgetItem>
 #include <QMap>
 #include <QPointer>
+#include <QScrollArea>
 
 #include <vtksys/FStream.hxx>
 
 #include <cmath>
+#include <iostream>
 
 typedef std::map<std::string, std::string> StringMap;
 typedef std::map<std::string, StringMap> StringMapMap;
+
+namespace
+{
+class vtkNavigationObserver : public vtkCommand
+{
+public:
+  static vtkNavigationObserver* New() { return new vtkNavigationObserver; }
+
+  void Execute(
+    vtkObject* vtkNotUsed(caller), unsigned long vtkNotUsed(event), void* calldata) override
+  {
+    vtkMatrix4x4* mat = static_cast<vtkMatrix4x4*>(calldata);
+    if (mat && this->scaleEdit)
+    {
+      // Update the scale text box
+      std::vector<double> currentScale = vtkSMVRInteractorStyleProxy::GetNavigationScale();
+      this->scaleEdit->setText(QString::number(currentScale[0]));
+    }
+  }
+
+  void SetScaleEdit(QLineEdit* edit) { this->scaleEdit = edit; }
+
+protected:
+  vtkNavigationObserver() {}
+  ~vtkNavigationObserver() override {}
+
+private:
+  QLineEdit* scaleEdit;
+};
+}
 
 class pqVRDockPanel::pqInternals : public Ui::VRDockPanel
 {
@@ -56,6 +90,7 @@ public:
 
   bool IsRunning;
 
+  vtkNew<vtkNavigationObserver> NavigationObserver;
   pqVRCollaborationWidget* CollaborationWidget;
   vtkWeakPointer<vtkCamera> Camera;
   QMap<QString, vtkSMVRInteractorStyleProxy*> StyleNameMap;
@@ -66,9 +101,10 @@ public:
 void pqVRDockPanel::constructor()
 {
   this->setWindowTitle("CAVE Interaction Manager");
-  QWidget* container = new QWidget(this);
+  QScrollArea* container = new QScrollArea(this);
   this->Internals = new pqInternals();
   this->Internals->setupUi(container);
+  pqWidgetUtilities::formatChildTooltips(container);
   this->setWidget(container);
 
   this->Internals->valuatorLookupTable = std::make_shared<StringMapMap>();
@@ -122,6 +158,12 @@ void pqVRDockPanel::constructor()
   connect(
     &pqActiveObjects::instance(), SIGNAL(viewChanged(pqView*)), this, SLOT(setActiveView(pqView*)));
 
+  connect(pqApplicationCore::instance(), SIGNAL(stateSaved(vtkPVXMLElement*)), this,
+    SLOT(saveConfigPanelState(vtkPVXMLElement*)));
+
+  connect(pqApplicationCore::instance(), SIGNAL(stateLoaded(vtkPVXMLElement*, vtkSMProxyLocator*)),
+    this, SLOT(restoreConfigPanelState(vtkPVXMLElement*, vtkSMProxyLocator*)));
+
   connect(this->Internals->proxyCombo, SIGNAL(currentProxyChanged(vtkSMProxy*)), this,
     SLOT(proxyChanged(vtkSMProxy*)));
 
@@ -135,6 +177,26 @@ void pqVRDockPanel::constructor()
 
   this->updateConnectionButtons(this->Internals->connectionsTable->currentRow());
   this->updateStyleButtons(this->Internals->stylesTable->currentRow());
+
+  this->Internals->scaleValue->setValidator(new QDoubleValidator(this));
+  connect(this->Internals->scaleValue, SIGNAL(editingFinished()), this, SLOT(scaleEdited()));
+  this->Internals->NavigationObserver->SetScaleEdit(this->Internals->scaleValue);
+
+  // Using size metrics about the font and margins, try to set the height
+  // of the VR Connections list widget to accomodate 2.5 entries. If more
+  // are added, scrollbar will allow access.
+  QFontMetrics connMetrics(this->Internals->connectionsTable->font());
+  QMargins connMargins = this->Internals->connectionsTable->contentsMargins();
+  int rowHeight = connMetrics.height();
+  int totalHeight = static_cast<int>((2.5 * rowHeight) + connMargins.top() + connMargins.bottom());
+  this->Internals->connectionsTable->setFixedHeight(totalHeight);
+
+  // Same for the Interactions list widget
+  QFontMetrics interMetrics(this->Internals->stylesTable->font());
+  QMargins interMargins = this->Internals->stylesTable->contentsMargins();
+  rowHeight = interMetrics.height();
+  totalHeight = static_cast<int>((4.5 * rowHeight) + interMargins.top() + interMargins.bottom());
+  this->Internals->stylesTable->setFixedHeight(totalHeight);
 
   // Add the render view to the proxy combo
   pqServerManagerModel* smmodel = pqApplicationCore::instance()->getServerManagerModel();
@@ -170,14 +232,18 @@ void pqVRDockPanel::initStyles()
 {
   vtkVRInteractorStyleFactory* styleFactory = vtkVRInteractorStyleFactory::GetInstance();
   std::vector<std::string> styleDescs = styleFactory->GetInteractorStyleDescriptions();
+  std::vector<std::string> styleDocs = styleFactory->GetInteractorStyleDocStrings();
   this->Internals->stylesCombo->clear();
-  for (size_t i = 0; i < styleDescs.size(); ++i)
-  {
-    this->Internals->stylesCombo->addItem(QString::fromStdString(styleDescs[i]));
-  }
 
   QObject::connect(this->Internals->stylesCombo, &QComboBox::currentTextChanged, this,
     &pqVRDockPanel::styleComboChanged, Qt::UniqueConnection);
+
+  for (size_t i = 0; i < styleDescs.size(); ++i)
+  {
+    this->Internals->stylesCombo->addItem(QString::fromStdString(styleDescs[i]));
+    this->Internals->stylesCombo->setItemData(
+      i, QString::fromStdString(styleDocs[i]), Qt::ToolTipRole);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -356,10 +422,7 @@ void pqVRDockPanel::removeConnection()
 //-----------------------------------------------------------------------------
 void pqVRDockPanel::addStyle()
 {
-  vtkSMProxy* proxy = this->Internals->propertyCombo->getCurrentProxy();
-  QByteArray property = this->Internals->propertyCombo->getCurrentPropertyName().toUtf8();
   QString styleString = this->Internals->stylesCombo->currentText();
-
   vtkVRInteractorStyleFactory* styleFactory = vtkVRInteractorStyleFactory::GetInstance();
   vtkSMVRInteractorStyleProxy* style =
     styleFactory->NewInteractorStyleFromDescription(styleString.toStdString());
@@ -370,8 +433,20 @@ void pqVRDockPanel::addStyle()
     return;
   }
 
+  // Some proxies can only be correctly retrieved with the property combobox
+  vtkSMProxy* proxy = this->Internals->propertyCombo->getCurrentProxy();
+  QByteArray property = this->Internals->propertyCombo->getCurrentPropertyName().toUtf8();
+
+  if (style->GetControlledPropertySize() != 0)
+  {
+    style->SetControlledPropertyName(property.data());
+  }
+  else
+  {
+    // When there isn't property, we must retieve the proxy directly from the proxy combobox
+    proxy = this->Internals->proxyCombo->getCurrentProxy();
+  }
   style->SetControlledProxy(proxy);
-  style->SetControlledPropertyName(property.data());
 
   style->AddObserver(vtkSMVRInteractorStyleProxy::INTERACTOR_STYLE_REQUEST_CONFIGURE, this,
     &pqVRDockPanel::configureStyle);
@@ -451,6 +526,42 @@ void pqVRDockPanel::updateStyles()
 }
 
 //-----------------------------------------------------------------------------
+void pqVRDockPanel::scaleEdited()
+{
+  vtkSMRenderViewProxy* viewProxy = vtkSMVRInteractorStyleProxy::GetActiveViewProxy();
+
+  // unobserve the INTERACTOR_STYLE_NAVIGATION events
+  viewProxy->RemoveObserver(this->Internals->NavigationObserver);
+
+  // get the navigation matrix, update it to reflect the edited scale value
+  // emit the INTERACTOR_STYLE_NAVIGATION event
+  QString scaleStr = this->Internals->scaleValue->text();
+  bool converted;
+  double scale = scaleStr.toDouble(&converted);
+
+  if (!converted)
+  {
+    vtkErrorWithObjectMacro(
+      nullptr, << scaleStr.data() << " cannot be converted to a numeric value");
+    return;
+  }
+
+  std::vector<double> newScale{ scale, scale, scale };
+  vtkSMVRInteractorStyleProxy::SetNavigationScale(newScale);
+
+  if (!this->Internals->IsRunning)
+  {
+    // If the event loop isn't running, do a manual render, since it
+    // won't automatically be done for us.
+    viewProxy->StillRender();
+  }
+
+  // re-observe the INTERACTOR_STYLE_NAVIGATION events
+  viewProxy->AddObserver(
+    vtkSMVRInteractorStyleProxy::INTERACTOR_STYLE_NAVIGATION, this->Internals->NavigationObserver);
+}
+
+//-----------------------------------------------------------------------------
 void pqVRDockPanel::editStyle(QListWidgetItem* item)
 {
   if (!item)
@@ -485,8 +596,10 @@ void pqVRDockPanel::updateStyleButtons(int row)
   this->Internals->editStyle->setEnabled(enabled);
   this->Internals->removeStyle->setEnabled(enabled);
 
+  QWidget* dockPanel = this->findChild<QWidget*>("VRDockPanel");
+
   // Remove the existing proxy widget
-  pqProxyWidget* proxyWidget = this->widget()->findChild<pqProxyWidget*>();
+  pqProxyWidget* proxyWidget = dockPanel->findChild<pqProxyWidget*>();
   if (proxyWidget)
   {
     proxyWidget->parentWidget()->layout()->removeWidget(proxyWidget);
@@ -513,9 +626,9 @@ void pqVRDockPanel::updateStyleButtons(int row)
       return;
     }
 
-    proxyWidget = new pqProxyWidget(style, this);
+    proxyWidget = new pqProxyWidget(style, dockPanel);
     proxyWidget->setApplyChangesImmediately(true);
-    QGridLayout* layout = qobject_cast<QGridLayout*>(this->widget()->layout());
+    QGridLayout* layout = qobject_cast<QGridLayout*>(dockPanel->layout());
     QVBoxLayout* propertiesLayout = layout->findChild<QVBoxLayout*>("stylePropertiesLayout");
     if (propertiesLayout)
     {
@@ -542,6 +655,14 @@ void pqVRDockPanel::styleComboChanged(const QString& name)
     style->Delete();
   }
   this->Internals->propertyCombo->setVectorSizeFilter(size);
+  if (size == 0)
+  {
+    this->Internals->propertyCombo->setVisible(false);
+  }
+  else
+  {
+    this->Internals->propertyCombo->setVisible(true);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -564,16 +685,25 @@ void pqVRDockPanel::setActiveView(pqView* view)
     this->Internals->proxyCombo->addProxy(0, rview->getSMName(), rview->getProxy());
   }
 
-#if CAVEINTERACTION_HAS_COLLABORATION
   if (view)
   {
     vtkSMRenderViewProxy* proxy = vtkSMRenderViewProxy::SafeDownCast(view->getViewProxy());
     if (proxy)
     {
+      // observe the INTERACTOR_STYLE_NAVIGATION events on the active render
+      // view proxy, so we can extract the scale and put that value in the
+      // scaleValue edit box
+      if (!proxy->HasObserver(vtkSMVRInteractorStyleProxy::INTERACTOR_STYLE_NAVIGATION,
+            this->Internals->NavigationObserver))
+      {
+        proxy->AddObserver(vtkSMVRInteractorStyleProxy::INTERACTOR_STYLE_NAVIGATION,
+          this->Internals->NavigationObserver);
+      }
+#if CAVEINTERACTION_HAS_COLLABORATION
       proxy->SetEnableSynchronizableActors(true);
+#endif
     }
   }
-#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -609,6 +739,8 @@ void pqVRDockPanel::saveState()
   {
     this->Internals->CollaborationWidget->saveCollaborationState(root.GetPointer());
   }
+
+  this->saveConfigPanelState(root.GetPointer());
 
   vtksys::ofstream os(filename.toUtf8().data(), ios::out);
   root->PrintXML(os, vtkIndent());
@@ -656,6 +788,46 @@ void pqVRDockPanel::restoreState()
   if (this->Internals->CollaborationWidget)
   {
     this->Internals->CollaborationWidget->restoreCollaborationState(root, nullptr);
+  }
+
+  this->restoreConfigPanelState(root, nullptr);
+}
+
+//-----------------------------------------------------------------------------
+void pqVRDockPanel::saveConfigPanelState(vtkPVXMLElement* root)
+{
+  if (!root)
+  {
+    return;
+  }
+
+  vtkNew<vtkPVXMLElement> sectionParent;
+  sectionParent->SetName("CAVEConfigPanel");
+  root->AddNestedElement(sectionParent);
+
+  vtkNew<vtkPVXMLElement> scaleChild;
+  scaleChild->SetName("ScaleFactor");
+  scaleChild->AddAttribute("value", this->Internals->scaleValue->text().toUtf8().constData());
+  sectionParent->AddNestedElement(scaleChild);
+}
+
+//-----------------------------------------------------------------------------
+void pqVRDockPanel::restoreConfigPanelState(vtkPVXMLElement* root, vtkSMProxyLocator* locator)
+{
+  if (!root)
+  {
+    return;
+  }
+
+  vtkPVXMLElement* sectionParent = root->FindNestedElementByName("CAVEConfigPanel");
+  if (sectionParent)
+  {
+    vtkPVXMLElement* scaleChild = sectionParent->FindNestedElementByName("ScaleFactor");
+    if (scaleChild)
+    {
+      const char* attr = scaleChild->GetAttributeOrEmpty("value");
+      this->Internals->scaleValue->setText(QString(attr));
+    }
   }
 }
 
@@ -763,10 +935,17 @@ QString pqVRDockPanel::pqInternals::createName(vtkSMVRInteractorStyleProxy* styl
   objectName =
     (pqControlledProxy ? pqControlledProxy->getSMName()
                        : (smControlledProxy ? smControlledProxy->GetXMLLabel() : "<error>"));
-  propertyName =
-    (strlen(style->GetControlledPropertyName()) ? style->GetControlledPropertyName() : "--");
 
-  description = QString("%1 on %2's %3").arg(styleName).arg(objectName).arg(propertyName);
+  if (style->GetControlledPropertySize() == 0)
+  {
+    description = QString("%1 on %2's").arg(styleName).arg(objectName);
+  }
+  else
+  {
+    propertyName =
+      (strlen(style->GetControlledPropertyName()) ? style->GetControlledPropertyName() : "--");
+    description = QString("%1 on %2's %3").arg(styleName).arg(objectName).arg(propertyName);
+  }
 
   return description;
 }

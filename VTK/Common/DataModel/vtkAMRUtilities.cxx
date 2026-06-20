@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRUtilities.h"
 #include "vtkAMRBox.h"
-#include "vtkAMRInformation.h"
 #include "vtkCellData.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkDataArray.h"
 #include "vtkFieldData.h"
 #include "vtkOverlappingAMR.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include "vtkPointData.h"
 #include "vtkStructuredData.h"
 #include "vtkUniformGrid.h"
@@ -39,10 +39,10 @@ bool vtkAMRUtilities::HasPartiallyOverlappingGhostCells(vtkOverlappingAMR* amr)
   for (; levelIdx > 0; --levelIdx)
   {
     int r = amr->GetRefinementRatio(levelIdx);
-    unsigned int numDataSets = amr->GetNumberOfDataSets(levelIdx);
+    unsigned int numDataSets = amr->GetNumberOfBlocks(levelIdx);
     for (unsigned int dataIdx = 0; dataIdx < numDataSets; ++dataIdx)
     {
-      const vtkAMRBox& myBox = amr->GetAMRInfo()->GetAMRBox(levelIdx, dataIdx);
+      const vtkAMRBox& myBox = amr->GetAMRBox(levelIdx, dataIdx);
       const int* lo = myBox.GetLoCorner();
       int hi[3];
       myBox.GetValidHiCorner(hi);
@@ -276,21 +276,31 @@ void vtkAMRUtilities::StripGhostLayers(
   // TODO: At some point we should check for overlapping cells within the
   // same level, e.g., consider a level 0 with 2 abutting blocks that is
   // ghosted by N !!!!
-  std::vector<int> blocksPerLevel(ghostedAMRData->GetNumberOfLevels());
+  std::vector<unsigned int> blocksPerLevel(ghostedAMRData->GetNumberOfLevels());
   for (unsigned int i = 0; i < blocksPerLevel.size(); i++)
   {
-    blocksPerLevel[i] = ghostedAMRData->GetNumberOfDataSets(i);
+    blocksPerLevel[i] = ghostedAMRData->GetNumberOfBlocks(i);
   }
-  strippedAMRData->Initialize(static_cast<int>(blocksPerLevel.size()), blocksPerLevel.data());
+  strippedAMRData->Initialize(blocksPerLevel);
   strippedAMRData->SetOrigin(ghostedAMRData->GetOrigin());
   strippedAMRData->SetGridDescription(ghostedAMRData->GetGridDescription());
 
   ghostedAMRData->GetSpacing(0, spacing);
   strippedAMRData->SetSpacing(0, spacing);
   unsigned int dataIdx = 0;
-  for (; dataIdx < ghostedAMRData->GetNumberOfDataSets(0); ++dataIdx)
+  for (; dataIdx < ghostedAMRData->GetNumberOfBlocks(0); ++dataIdx)
   {
-    vtkUniformGrid* grid = ghostedAMRData->GetDataSet(0, dataIdx);
+    vtkCartesianGrid* cg = ghostedAMRData->GetDataSetAsCartesianGrid(0, dataIdx);
+    // XXX: The vtkCartesianGrid could be used instead of using spacing, which would provide
+    // an alternative implementation when spacing is not available, which can happen when not using
+    // vtkUniformGrid.
+    vtkUniformGrid* grid = vtkUniformGrid::SafeDownCast(cg);
+    if (cg && !grid)
+    {
+      // this method supports nullptr data but not cartesian grid.
+      vtkErrorWithObjectMacro(nullptr, "Cannot StripGhostLayers for an AMR of non vtkUniformGrid");
+      return;
+    }
     const vtkAMRBox& box = ghostedAMRData->GetAMRBox(0, dataIdx);
     strippedAMRData->SetAMRBox(0, dataIdx, box);
     strippedAMRData->SetDataSet(0, dataIdx, grid);
@@ -303,9 +313,10 @@ void vtkAMRUtilities::StripGhostLayers(
     dataIdx = 0;
     ghostedAMRData->GetSpacing(levelIdx, spacing);
     strippedAMRData->SetSpacing(levelIdx, spacing);
-    for (; dataIdx < ghostedAMRData->GetNumberOfDataSets(levelIdx); ++dataIdx)
+    for (; dataIdx < ghostedAMRData->GetNumberOfBlocks(levelIdx); ++dataIdx)
     {
-      vtkUniformGrid* grid = ghostedAMRData->GetDataSet(levelIdx, dataIdx);
+      vtkUniformGrid* grid =
+        vtkUniformGrid::SafeDownCast(ghostedAMRData->GetDataSetAsCartesianGrid(levelIdx, dataIdx));
       int r = ghostedAMRData->GetRefinementRatio(levelIdx);
       vtkAMRBox myBox = ghostedAMRData->GetAMRBox(levelIdx, dataIdx);
       vtkAMRBox strippedBox = myBox;
@@ -333,18 +344,29 @@ void vtkAMRUtilities::StripGhostLayers(
 //------------------------------------------------------------------------------
 void vtkAMRUtilities::BlankCells(vtkOverlappingAMR* amr)
 {
-  vtkAMRInformation* info = amr->GetAMRInfo();
-  if (!info->HasRefinementRatio())
+  vtkOverlappingAMRMetaData* amrMData = amr->GetOverlappingAMRMetaData();
+  if (!amrMData)
   {
-    info->GenerateRefinementRatio();
+    vtkErrorWithObjectMacro(amr, "Could not recover AMR Meta Data, aborting");
+    return;
   }
-  if (!info->HasChildrenInformation())
+
+  if (!amrMData->HasRefinementRatio())
   {
-    info->GenerateParentChildInformation();
+    amrMData->GenerateRefinementRatio();
+  }
+  if (!amrMData->HasChildrenInformation())
+  {
+    amrMData->GenerateParentChildInformation();
+  }
+
+  if (amr->GetNumberOfBlocks() == 0)
+  {
+    return;
   }
 
   std::vector<int> processorMap;
-  processorMap.resize(amr->GetTotalNumberOfBlocks(), -1);
+  processorMap.resize(amr->GetNumberOfBlocks(), -1);
   vtkSmartPointer<vtkCompositeDataIterator> iter;
   iter.TakeReference(amr->NewIterator());
   iter->SkipEmptyNodesOn();
@@ -355,10 +377,10 @@ void vtkAMRUtilities::BlankCells(vtkOverlappingAMR* amr)
     processorMap[index] = 0;
   }
 
-  unsigned int numLevels = info->GetNumberOfLevels();
+  unsigned int numLevels = amrMData->GetNumberOfLevels();
   for (unsigned int i = 0; i < numLevels; i++)
   {
-    BlankGridsAtLevel(amr, i, info->GetChildrenAtLevel(i), processorMap);
+    BlankGridsAtLevel(amr, i, amrMData->GetChildrenAtLevel(i), processorMap);
   }
 }
 
@@ -366,13 +388,13 @@ void vtkAMRUtilities::BlankCells(vtkOverlappingAMR* amr)
 void vtkAMRUtilities::BlankGridsAtLevel(vtkOverlappingAMR* amr, int levelIdx,
   std::vector<std::vector<unsigned int>>& children, const std::vector<int>& processMap)
 {
-  unsigned int numDataSets = amr->GetNumberOfDataSets(levelIdx);
+  unsigned int numDataSets = amr->GetNumberOfBlocks(levelIdx);
   int N;
 
   for (unsigned int dataSetIdx = 0; dataSetIdx < numDataSets; dataSetIdx++)
   {
     const vtkAMRBox& box = amr->GetAMRBox(levelIdx, dataSetIdx);
-    vtkUniformGrid* grid = amr->GetDataSet(levelIdx, dataSetIdx);
+    vtkCartesianGrid* grid = amr->GetDataSetAsCartesianGrid(levelIdx, dataSetIdx);
     if (grid == nullptr)
     {
       continue;
@@ -394,12 +416,16 @@ void vtkAMRUtilities::BlankGridsAtLevel(vtkOverlappingAMR* amr, int levelIdx,
       for (iter = dsChildren.begin(); iter != dsChildren.end(); ++iter)
       {
         vtkAMRBox ibox;
-        int childGridIndex = amr->GetCompositeIndex(levelIdx + 1, *iter);
+        int childGridIndex = amr->GetAbsoluteBlockIndex(levelIdx + 1, *iter);
         if (processMap[childGridIndex] < 0)
         {
           continue;
         }
-        if (amr->GetAMRInfo()->GetCoarsenedAMRBox(levelIdx + 1, *iter, ibox))
+
+        // Use refinement ratio and coarsened box if possible
+        vtkOverlappingAMRMetaData* amrMData = amr->GetOverlappingAMRMetaData();
+        if (amrMData && amrMData->HasRefinementRatio() &&
+          amrMData->GetCoarsenedAMRBox(levelIdx + 1, *iter, ibox))
         {
           bool shouldBeTrue = ibox.Intersect(box);
           assert(shouldBeTrue); // if the boxes don't intersect, there is a bug
@@ -419,6 +445,28 @@ void vtkAMRUtilities::BlankGridsAtLevel(vtkOverlappingAMR* amr, int levelIdx,
               } // END for x
             }   // END for y
           }     // END for z
+        }
+        // Fallback on block bounds
+        else if (amrMData && amrMData->HasBlockBounds(childGridIndex))
+        {
+          // Recover bounding box of the children grid
+          vtkBoundingBox higherLevelBoundingBox;
+          double ibb[6];
+          amrMData->GetBounds(levelIdx + 1, *iter, ibb);
+          higherLevelBoundingBox.SetBounds(ibb);
+
+          // check if each cell is contained in children grid
+          vtkBoundingBox cellBoundingBox;
+          double bb[6];
+          for (vtkIdType i = 0; i < grid->GetNumberOfCells(); i++)
+          {
+            grid->GetCellBounds(i, bb);
+            cellBoundingBox.SetBounds(bb);
+            if (higherLevelBoundingBox.Contains(cellBoundingBox))
+            {
+              ghosts->SetValue(i, ghosts->GetValue(i) | vtkDataSetAttributes::REFINEDCELL);
+            }
+          }
         }
       } // Processing all higher boxes for a specific coarse grid
     }

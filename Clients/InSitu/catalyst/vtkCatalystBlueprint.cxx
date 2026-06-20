@@ -3,6 +3,7 @@
 #include "vtkCatalystBlueprint.h"
 
 #include "vtkPVLogger.h"
+#include "vtkStringFormatter.h"
 
 #include <catalyst_conduit_blueprint.hpp>
 #include <cinttypes>
@@ -14,14 +15,14 @@ void format_error(const conduit_cpp::Node& n)
   if (n.has_child("valid") && n["valid"].as_string() == "false")
   {
     vtkLogScopeF(ERROR, "%s", n.name().c_str());
-    for (size_t i = 0; i < n.number_of_children(); i++)
+    for (conduit_index_t i = 0; i < n.number_of_children(); i++)
     {
       format_error(n.child(i));
     }
     if (n.has_child("errors"))
     {
       vtkLogF(ERROR, "Errors: %zu", n["errors"].number_of_children());
-      for (size_t i = 0; i < n["errors"].number_of_children(); i++)
+      for (conduit_index_t i = 0; i < n["errors"].number_of_children(); i++)
       {
         vtkLogF(ERROR, "Error %zu : %s", i, n["errors"][i].as_string().c_str());
       }
@@ -105,7 +106,7 @@ bool verify(const std::string& protocol, const conduit_cpp::Node& n)
       }
 
       vtkVLogF(PARAVIEW_LOG_CATALYST_VERBOSITY(), "script (%s): '%s'",
-        n.dtype().is_object() ? script.name().c_str() : std::to_string(index).c_str(),
+        n.dtype().is_object() ? script.name().c_str() : vtk::to_string(index).c_str(),
         script["filename"].as_string().c_str());
 
       // let's verify "args", if any.

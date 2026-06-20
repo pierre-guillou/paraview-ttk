@@ -66,10 +66,11 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestProbeFilter.cxx,NO_VALID
   TestProbeFilterImageInput.cxx
   TestProbeFilterOutputAttributes.cxx,NO_VALID
-  TestQuadricDecimationRegularization.cxx
   TestQuadricDecimationDegenerateTriangle.cxx,NO_DATA,NO_VALID,NO_OUTPUT
   TestQuadricDecimationMapPointData.cxx
   TestQuadricDecimationMaximumError.cxx,NO_DATA,NO_VALID,NO_OUTPUT
+  TestQuadricDecimationRegularization.cxx
+  TestQuadricDecimationSetPointAttributeArray.cxx
   TestResampleToImage.cxx,NO_VALID
   TestResampleToImage2D.cxx,NO_VALID
   TestResampleWithDataSet.cxx,
@@ -82,12 +83,14 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestStaticCleanPolyData.cxx,NO_VALID
   TestStripper.cxx,NO_VALID
   TestStructuredGridAppend.cxx,NO_VALID
+  TestSurfaceNets3DNormalsConsistency.cxx,NO_DATA,NO_VALID
   TestSynchronizedTemplates2D.cxx,NO_VALID
   TestSynchronizedTemplates2DRGB.cxx,NO_DATA,NO_VALID
   TestThreshold.cxx,NO_VALID
   TestThresholdPoints.cxx,NO_VALID
   TestTransposeTable.cxx,NO_VALID
   TestTriangleMeshPointNormals.cxx
+  TestTriangulateNonPlanarQuad.cxx,NO_VALID
   TestTubeBender.cxx
   TestTubeFilter.cxx
   TestUnstructuredGridQuadricDecimation.cxx,NO_VALID
@@ -97,6 +100,7 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   UnitTestMaskPoints.cxx,NO_VALID
   UnitTestMergeFilter.cxx,NO_VALID
   TestContourImplicitArrays.cxx
+  TestContourConstantScalarUG.cxx,NO_VALID
   )
 
 # This test fails on vtk-m due to bug #804 (vtk/vtkm)

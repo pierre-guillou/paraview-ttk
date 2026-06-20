@@ -23,6 +23,8 @@
 #include "vtkWidgetRepresentation.h"
 #include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
+#include <algorithm> // std::min, std::max
+
 VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkDiskSource;
@@ -68,8 +70,7 @@ public:
   InteractionStateType GetInteractionStateAsEnum() noexcept
   {
     // clamp to 0-2
-    this->InteractionState =
-      this->InteractionState < 0 ? 0 : (this->InteractionState > 2 ? 2 : this->InteractionState);
+    this->InteractionState = std::min(std::max(this->InteractionState, 0), 2);
     // convert
     return static_cast<InteractionStateType>(this->InteractionState);
   }
@@ -258,6 +259,70 @@ public:
   vtkTextProperty* GetXMinusLabelProperty();
   vtkTextProperty* GetYMinusLabelProperty();
   vtkTextProperty* GetZMinusLabelProperty();
+  ///@}
+
+  ///@{
+  /**
+   * Set the X axis color. Default is [0.870, 0.254, 0.188].
+   */
+  void SetXAxisColor(double color[3]);
+  void SetXAxisColor(double, double, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set the Y axis color. Default is [0.952, 0.752, 0.090].
+   */
+  void SetYAxisColor(double color[3]);
+  void SetYAxisColor(double, double, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set the Z axis color. Default is [0.654, 0.823, 0.549].
+   */
+  void SetZAxisColor(double color[3]);
+  void SetZAxisColor(double, double, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set the axis color for the axis @a ax.
+   */
+  void SetAxisColor(int ax, double color[3]);
+  void SetAxisColor(int ax, double, double, double);
+  ///@}
+
+  ///@{
+  /**
+   * Get the X axis color. Default is [0.870, 0.254, 0.188].
+   */
+  double* GetXAxisColor() VTK_SIZEHINT(3);
+  void GetXAxisColor(double color[3]);
+  ///@}
+
+  ///@{
+  /**
+   * Get the Y axis color. Default is [0.952, 0.752, 0.090].
+   */
+  double* GetYAxisColor() VTK_SIZEHINT(3);
+  void GetYAxisColor(double color[3]);
+  ///@}
+
+  ///@{
+  /**
+   * Get the Z axis color. Default is [0.654, 0.823, 0.549].
+   */
+  double* GetZAxisColor() VTK_SIZEHINT(3);
+  void GetZAxisColor(double color[3]);
+  ///@}
+
+  ///@{
+  /**
+   * Get the axis color for the axis @a ax.
+   */
+  double* GetAxisColor(int ax) VTK_SIZEHINT(3);
+  void GetAxisColor(int ax, double color[3]);
   ///@}
 
   /**

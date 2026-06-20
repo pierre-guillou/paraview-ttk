@@ -16,6 +16,7 @@
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringFormatter.h"
 #include "vtkUniformGrid.h"
 #include "vtkUnsignedCharArray.h"
 
@@ -108,7 +109,8 @@ void vtkCTHSource::SetMaterialFieldName(int field_id, char* field_name, char* co
       char* end = strchr(comment, '!');
       std::string s(comment, end - comment);
       char n[24];
-      sprintf(n, " - %zu", i + 1);
+      auto result = vtk::format_to(n, " - {:d}", i + 1);
+      *result.out = '\0';
       s.append(n);
       MFieldNames[i][field_id] = s;
     }
@@ -335,14 +337,14 @@ int vtkCTHSource::FillInputData(vtkCPInputDataDescription* input)
     this->AMRSet = vtkSmartPointer<vtkNonOverlappingAMR>::New();
     input->SetGrid(this->AMRSet);
 
-    std::vector<int> datasets(this->MaxLevel + 1, 0);
+    std::vector<unsigned int> datasets(this->MaxLevel + 1, 0);
     // clear out the hierarchy
     for (size_t i = 0; i < Blocks.size(); i++)
     {
       Block& b = this->Blocks[i];
       datasets[b.level]++;
     }
-    AMRSet->Initialize(this->MaxLevel + 1, &datasets[0]);
+    AMRSet->Initialize(datasets);
 
     this->NeighborArray->SetNumberOfTuples(0);
     for (size_t i = 0; i < Blocks.size(); i++)
@@ -544,8 +546,7 @@ void vtkCTHSource::AddNeighborArray(Block& b)
     bool present = false;
     for (int j = 0; j < NeighborArray->GetNumberOfTuples(); j++)
     {
-      int compare;
-      NeighborArray->GetTypedTuple(j, &compare);
+      int compare = NeighborArray->GetValue(j);
       if (b.neighbor_proc[i] == compare)
       {
         present = true;

@@ -62,6 +62,7 @@ public:
     assert(vtkCompositeDataSet::SafeDownCast(dobj) == nullptr);
 
     this->Current->Initialize();
+    this->Current->SetInspectCells(info->InspectCells);
     this->Current->CopyFromDataObject(dobj);
     if (this->Current->GetDataSetType() != -1)
     {
@@ -152,7 +153,8 @@ vtkPVDataInformation::~vtkPVDataInformation()
 void vtkPVDataInformation::CopyParametersToStream(vtkMultiProcessStream& str)
 {
   str << 828792 << this->PortNumber << std::string(this->SubsetSelector ? SubsetSelector : "")
-      << std::string(this->SubsetAssemblyName ? this->SubsetAssemblyName : "") << this->Rank;
+      << std::string(this->SubsetAssemblyName ? this->SubsetAssemblyName : "") << this->Rank
+      << this->InspectCells;
 }
 
 //----------------------------------------------------------------------------
@@ -160,7 +162,7 @@ void vtkPVDataInformation::CopyParametersFromStream(vtkMultiProcessStream& str)
 {
   int magic_number;
   std::string path, name;
-  str >> magic_number >> this->PortNumber >> path >> name >> this->Rank;
+  str >> magic_number >> this->PortNumber >> path >> name >> this->Rank >> this->InspectCells;
   if (magic_number != 828792)
   {
     vtkErrorMacro("Magic number mismatch.");
@@ -443,7 +445,8 @@ void vtkPVDataInformation::CopyFromObject(vtkObject* object)
     {
       this->DataAssembly->DeepCopy(pdc->GetDataAssembly());
     }
-    else if (auto amr = vtkUniformGridAMR::SafeDownCast(subset))
+
+    if (auto amr = vtkAMRDataObject::SafeDownCast(subset))
     {
       this->NumberOfAMRLevels = amr->GetNumberOfLevels();
       this->AMRNumberOfDataSets.resize(this->NumberOfAMRLevels);
@@ -559,6 +562,19 @@ void vtkPVDataInformation::CopyFromDataObject(vtkDataObject* dobj)
       esg->GetExtent(this->Extent);
     }
 
+    if (this->InspectCells)
+    {
+      vtkNew<vtkCellTypes> cellTypes;
+      ds->GetDistinctCellTypes(cellTypes);
+      std::set<unsigned int> uniqueTypeSet;
+      for (int idx = 0; idx < cellTypes->GetNumberOfTypes(); idx++)
+      {
+        uniqueTypeSet.insert(cellTypes->GetCellType(idx));
+      }
+      this->UniqueCellTypes =
+        std::vector<unsigned char>{ uniqueTypeSet.begin(), uniqueTypeSet.end() };
+    }
+
     if (auto ps = vtkPointSet::SafeDownCast(dobj))
     {
       if (ps->GetPoints() && ps->GetPoints()->GetData())
@@ -646,6 +662,12 @@ void vtkPVDataInformation::AddInformation(vtkPVInformation* oinfo)
   this->UniqueBlockTypes.clear();
   this->UniqueBlockTypes.insert(this->UniqueBlockTypes.end(), types.begin(), types.end());
 
+  std::set<unsigned char> cellTypes{ this->UniqueCellTypes.begin(), this->UniqueCellTypes.end() };
+  std::set<unsigned char> otherCellTypes{ other->UniqueCellTypes.begin(),
+    other->UniqueCellTypes.end() };
+  cellTypes.merge(otherCellTypes);
+  this->UniqueCellTypes = std::vector<unsigned char>(cellTypes.begin(), cellTypes.end());
+
   for (int cc = 0; cc < vtkDataObject::NUMBER_OF_ATTRIBUTE_TYPES; ++cc)
   {
     switch (cc)
@@ -701,6 +723,7 @@ void vtkPVDataInformation::DeepCopy(vtkPVDataInformation* other)
   this->TimeSteps = other->TimeSteps;
   this->TimeLabel = other->TimeLabel;
   this->UniqueBlockTypes = other->UniqueBlockTypes;
+  this->UniqueCellTypes = other->UniqueCellTypes;
   std::copy(other->NumberOfElements,
     other->NumberOfElements + vtkDataObject::NUMBER_OF_ATTRIBUTE_TYPES, this->NumberOfElements);
   for (int cc = 0; cc < vtkDataObject::NUMBER_OF_ATTRIBUTE_TYPES; ++cc)
@@ -801,6 +824,8 @@ const char* vtkPVDataInformation::GetPrettyDataTypeString(int dataType)
       return "Partitioned Dataset Collection";
     case VTK_CELL_GRID:
       return "Cell Grid";
+    case VTK_STATISTICAL_MODEL:
+      return "Statistical Model";
     default:
       break;
   }
@@ -1026,6 +1051,14 @@ void vtkPVDataInformation::CopyToStream(vtkClientServerStream* css)
       &this->UniqueBlockTypes.front(), static_cast<int>(this->UniqueBlockTypes.size()));
   }
 
+  *css << static_cast<int>(this->UniqueCellTypes.size());
+  if (!this->UniqueCellTypes.empty())
+  {
+    std::vector<int> uniqueVector{ this->UniqueCellTypes.begin(), this->UniqueCellTypes.end() };
+    *css << vtkClientServerStream::InsertArray(
+      uniqueVector.data(), static_cast<int>(uniqueVector.size()));
+  }
+
   vtkClientServerStream temp;
   this->PointArrayInformation->CopyToStream(&temp);
   *css << temp;
@@ -1093,7 +1126,7 @@ void vtkPVDataInformation::CopyFromStream(const vtkClientServerStream* css)
   }
   std::vector<double> vec;
   vec.resize(timeStepsLength);
-  if (timeStepsLength > 0 && !css->GetArgument(0, argument++, &vec[0], timeStepsLength))
+  if (timeStepsLength > 0 && !css->GetArgument(0, argument++, vec.data(), timeStepsLength))
   {
     this->Initialize();
     vtkErrorMacro("Error parsing stream.");
@@ -1111,10 +1144,27 @@ void vtkPVDataInformation::CopyFromStream(const vtkClientServerStream* css)
   }
   this->UniqueBlockTypes.resize(uniqueBlockTypesLength);
   if (uniqueBlockTypesLength > 0 &&
-    !css->GetArgument(0, argument++, &this->UniqueBlockTypes[0], uniqueBlockTypesLength))
+    !css->GetArgument(0, argument++, this->UniqueBlockTypes.data(), uniqueBlockTypesLength))
   {
     this->Initialize();
     vtkErrorMacro("Error parsing stream.");
+    return;
+  }
+
+  // read UniqueCellTypes
+  int uniqueCellTypesLength = 0;
+  if (!css->GetArgument(0, argument++, &uniqueCellTypesLength))
+  {
+    this->Initialize();
+    vtkErrorMacro("Error parsing stream");
+    return;
+  }
+  this->UniqueCellTypes.resize(uniqueCellTypesLength);
+  if (uniqueCellTypesLength > 0 &&
+    !css->GetArgument(0, argument++, this->UniqueCellTypes.data(), uniqueCellTypesLength))
+  {
+    this->Initialize();
+    vtkErrorMacro("Error parsing stream");
     return;
   }
 
@@ -1157,7 +1207,7 @@ void vtkPVDataInformation::CopyFromStream(const vtkClientServerStream* css)
   this->AMRNumberOfDataSets.resize(this->NumberOfAMRLevels);
   if (this->NumberOfAMRLevels > 0 &&
     !css->GetArgument(
-      0, argument++, &this->AMRNumberOfDataSets[0], static_cast<int>(this->NumberOfAMRLevels)))
+      0, argument++, this->AMRNumberOfDataSets.data(), static_cast<int>(this->NumberOfAMRLevels)))
   {
     this->Initialize();
     vtkErrorMacro("Error parsing stream.");
@@ -1217,6 +1267,7 @@ int vtkPVDataInformation::GetExtentType(int type)
     case VTK_PARTITIONED_DATA_SET_COLLECTION:
     case VTK_UNIFORM_HYPER_TREE_GRID:
     case VTK_CELL_GRID:
+    case VTK_STATISTICAL_MODEL:
       return VTK_PIECES_EXTENT;
 
     case VTK_HIERARCHICAL_BOX_DATA_SET:
@@ -1262,9 +1313,9 @@ vtkSmartPointer<vtkDataObject> vtkPVDataInformation::GetSubset(vtkDataObject* do
 
   // vtkAMRUniformGrid needs to use the other path because indexing is done differently.
   // See issue #20947
-  if (cids.size() == 1 && !vtkUniformGridAMR::SafeDownCast(cd))
+  if (cids.size() == 1 && cids.front() != 0 && !cd->IsA("vtkUniformGridAMR"))
   {
-    auto iter = vtkSmartPointer<vtkCompositeDataIterator>::Take(cd->NewIterator());
+    auto iter = vtk::TakeSmartPointer(cd->NewIterator());
     if (auto diter = vtkDataObjectTreeIterator::SafeDownCast(iter))
     {
       diter->VisitOnlyLeavesOff();

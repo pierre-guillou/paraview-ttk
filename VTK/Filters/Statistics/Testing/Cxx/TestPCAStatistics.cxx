@@ -8,16 +8,18 @@
 
 #include "vtkDoubleArray.h"
 #include "vtkMathUtilities.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkNew.h"
 #include "vtkOrderStatistics.h"
 #include "vtkPCAStatistics.h"
 #include "vtkSmartPointer.h"
+#include "vtkStatisticalModel.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 #include "vtkTestUtilities.h"
 
 #include "vtksys/SystemTools.hxx"
+
+#include <iostream>
 
 int TestPCA(int argc, char* argv[]);
 int TestPCARobust(int argc, char* argv[]);
@@ -37,11 +39,11 @@ int TestPCAStatistics(int argc, char* argv[])
 
   if (result == EXIT_FAILURE)
   {
-    cout << "FAILURE" << endl;
+    std::cout << "FAILURE" << std::endl;
   }
   else
   {
-    cout << "SUCCESS" << endl;
+    std::cout << "SUCCESS" << std::endl;
   }
 
   return result;
@@ -62,7 +64,7 @@ int TestPCARobust(int argc, char* argv[])
 //=============================================================================
 int TestPCARobust2()
 {
-  const int nVals = 7;
+  constexpr int nVals = 7;
   double mingledData[] = {
     0., 1.,  //
     1., 1.,  //
@@ -73,12 +75,12 @@ int TestPCARobust2()
     10., 10. //
   };
 
-  const char m0Name[] = "M0";
+  constexpr char m0Name[] = "M0";
   vtkNew<vtkDoubleArray> dataset1Arr;
   dataset1Arr->SetNumberOfComponents(1);
   dataset1Arr->SetName(m0Name);
 
-  const char m1Name[] = "M1";
+  constexpr char m1Name[] = "M1";
   vtkNew<vtkDoubleArray> dataset2Arr;
   dataset2Arr->SetNumberOfComponents(1);
   dataset2Arr->SetName(m1Name);
@@ -173,17 +175,17 @@ int TestPCAPart(int argc, char* argv[], bool robustPCA)
   };
   int nVals = 32;
 
-  const char m0Name[] = "M0";
+  constexpr char m0Name[] = "M0";
   vtkDoubleArray* dataset1Arr = vtkDoubleArray::New();
   dataset1Arr->SetNumberOfComponents(1);
   dataset1Arr->SetName(m0Name);
 
-  const char m1Name[] = "M1";
+  constexpr char m1Name[] = "M1";
   vtkDoubleArray* dataset2Arr = vtkDoubleArray::New();
   dataset2Arr->SetNumberOfComponents(1);
   dataset2Arr->SetName(m1Name);
 
-  const char m2Name[] = "M2";
+  constexpr char m2Name[] = "M2";
   vtkDoubleArray* dataset3Arr = vtkDoubleArray::New();
   dataset3Arr->SetNumberOfComponents(1);
   dataset3Arr->SetName(m2Name);
@@ -209,9 +211,9 @@ int TestPCAPart(int argc, char* argv[], bool robustPCA)
   pcas->SetMedianAbsoluteDeviation(robustPCA);
 
   // First verify that absence of input does not cause trouble
-  cout << "## Verifying that absence of input does not cause trouble... ";
+  std::cout << "## Verifying that absence of input does not cause trouble... ";
   pcas->Update();
-  cout << "done.\n";
+  std::cout << "done.\n";
 
   // Prepare first test with data
   pcas->SetInputData(vtkStatisticsAlgorithm::INPUT_DATA, datasetTable);
@@ -246,49 +248,43 @@ int TestPCAPart(int argc, char* argv[], bool robustPCA)
   pcas->SetAssessOption(false);
   pcas->Update();
 
-  vtkMultiBlockDataSet* outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
-    pcas->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
+  auto* outputMetaDS = pcas->GetOutputModel();
   vtkTable* outputTest = pcas->GetOutput(vtkStatisticsAlgorithm::OUTPUT_TEST);
 
-  cout << "## Calculated the following statistics for data set:\n";
-  for (unsigned int b = 0; b < outputMetaDS->GetNumberOfBlocks(); ++b)
+  std::cout << "## Calculated the following statistics for data set:\n";
+  vtkTable* primaryTab = outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0);
+  std::cout << "Primary Statistics\n";
+  primaryTab->Dump();
+  for (int b = 0; b < outputMetaDS->GetNumberOfTables(vtkStatisticalModel::Derived); ++b)
   {
-    vtkTable* outputMeta = vtkTable::SafeDownCast(outputMetaDS->GetBlock(b));
-
-    if (b == 0)
-    {
-      cout << "Primary Statistics\n";
-    }
-    else
-    {
-      cout << "Derived Statistics " << (b - 1) << "\n";
-    }
-
-    outputMeta->Dump();
+    vtkTable* derivedTab = outputMetaDS->GetTable(vtkStatisticalModel::Derived, b);
+    std::cout << "Derived Statistics " << b << "\n";
+    derivedTab->Dump();
   }
 
   // Check some results of the Test option
-  cout << "\n## Calculated the following Jarque-Bera-Srivastava statistics for pseudo-random "
-          "variables (n="
-       << nVals;
+  std::cout << "\n## Calculated the following Jarque-Bera-Srivastava statistics for pseudo-random "
+               "variables (n="
+            << nVals;
 
 #ifdef USE_GNU_R
   int nNonGaussian = 1;
   int nRejected = 0;
   double alpha = .01;
 
-  cout << ", null hypothesis: binormality, significance level=" << alpha;
+  std::cout << ", null hypothesis: binormality, significance level=" << alpha;
 #endif // USE_GNU_R
 
-  cout << "):\n";
+  std::cout << "):\n";
 
   // Loop over Test table
   for (vtkIdType r = 0; r < outputTest->GetNumberOfRows(); ++r)
   {
-    cout << "   ";
+    std::cout << "   ";
     for (int i = 0; i < outputTest->GetNumberOfColumns(); ++i)
     {
-      cout << outputTest->GetColumnName(i) << "=" << outputTest->GetValue(r, i).ToString() << "  ";
+      std::cout << outputTest->GetColumnName(i) << "=" << outputTest->GetValue(r, i).ToString()
+                << "  ";
     }
 
 #ifdef USE_GNU_R
@@ -297,13 +293,13 @@ int TestPCAPart(int argc, char* argv[], bool robustPCA)
     // Must verify that p value is valid (it is set to -1 if R has failed)
     if (p > -1 && p < alpha)
     {
-      cout << "N.H. rejected";
+      std::cout << "N.H. rejected";
 
       ++nRejected;
     }
 #endif // USE_GNU_R
 
-    cout << "\n";
+    std::cout << "\n";
   }
 
 #ifdef USE_GNU_R
@@ -317,7 +313,7 @@ int TestPCAPart(int argc, char* argv[], bool robustPCA)
 #endif // USE_GNU_R
 
   // Test Assess option
-  vtkMultiBlockDataSet* paramsTables = vtkMultiBlockDataSet::New();
+  auto* paramsTables = vtkStatisticalModel::New();
   paramsTables->ShallowCopy(outputMetaDS);
 
   pcas->SetInputData(vtkStatisticsAlgorithm::INPUT_MODEL, paramsTables);
@@ -330,7 +326,7 @@ int TestPCAPart(int argc, char* argv[], bool robustPCA)
   pcas->SetAssessOption(true);
   pcas->Update();
 
-  cout << "\n## Assessment results:\n";
+  std::cout << "\n## Assessment results:\n";
   vtkTable* outputData = pcas->GetOutput();
   outputData->Dump();
 
@@ -342,7 +338,7 @@ int TestPCAPart(int argc, char* argv[], bool robustPCA)
 
 int TestEigen()
 {
-  const char m0Name[] = "M0";
+  constexpr char m0Name[] = "M0";
   vtkSmartPointer<vtkDoubleArray> dataset1Arr = vtkSmartPointer<vtkDoubleArray>::New();
   dataset1Arr->SetNumberOfComponents(1);
   dataset1Arr->SetName(m0Name);
@@ -350,7 +346,7 @@ int TestEigen()
   dataset1Arr->InsertNextValue(1);
   dataset1Arr->InsertNextValue(0);
 
-  const char m1Name[] = "M1";
+  constexpr char m1Name[] = "M1";
   vtkSmartPointer<vtkDoubleArray> dataset2Arr = vtkSmartPointer<vtkDoubleArray>::New();
   dataset2Arr->SetNumberOfComponents(1);
   dataset2Arr->SetName(m1Name);
@@ -358,7 +354,7 @@ int TestEigen()
   dataset2Arr->InsertNextValue(0);
   dataset2Arr->InsertNextValue(1);
 
-  const char m2Name[] = "M2";
+  constexpr char m2Name[] = "M2";
   vtkSmartPointer<vtkDoubleArray> dataset3Arr = vtkSmartPointer<vtkDoubleArray>::New();
   dataset3Arr->SetNumberOfComponents(1);
   dataset3Arr->SetName(m2Name);
@@ -383,11 +379,10 @@ int TestEigen()
 
   pcaStatistics->Update();
 
-  vtkSmartPointer<vtkMultiBlockDataSet> outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
+  vtkSmartPointer<vtkStatisticalModel> outputMetaDS = vtkStatisticalModel::SafeDownCast(
     pcaStatistics->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
 
-  vtkSmartPointer<vtkTable> outputMeta = vtkTable::SafeDownCast(outputMetaDS->GetBlock(1));
-
+  vtkSmartPointer<vtkTable> outputMeta = outputMetaDS->GetTable(vtkStatisticalModel::Derived, 0);
   outputMeta->Dump();
 
   ///////// Eigenvalues ////////////

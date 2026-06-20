@@ -29,6 +29,7 @@
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSettings.h"
 #include "vtkSocketCommunicator.h"
+#include "vtkStringScanner.h"
 #include "vtkTimerLog.h"
 
 #include <sstream>
@@ -36,6 +37,7 @@
 #include <vtksys/RegularExpression.hxx>
 
 #include <cassert>
+#include <iostream>
 #include <set>
 
 //****************************************************************************/
@@ -204,7 +206,8 @@ bool vtkSMSessionClient::Connect(const char* url, int timeout, bool (*callback)(
   if (pvserver.find(url))
   {
     std::string hostname = pvserver.match(1);
-    int port = atoi(pvserver.match(3).c_str());
+    int port;
+    VTK_FROM_CHARS_IF_ERROR_BREAK(pvserver.match(3), port);
     port = (port <= 0) ? 11111 : port;
 
     std::ostringstream stream;
@@ -214,7 +217,8 @@ bool vtkSMSessionClient::Connect(const char* url, int timeout, bool (*callback)(
   else if (pvserver_reverse.find(url))
   {
     // 0 ports are acceptable for reverse connections.
-    int port = atoi(pvserver_reverse.match(3).c_str());
+    int port;
+    VTK_FROM_CHARS_IF_ERROR_BREAK(pvserver_reverse.match(3), port);
     port = (port < 0) ? 11111 : port;
     std::ostringstream stream;
     stream << "tcp://localhost:" << port << "?listen=true&nonblocking=true&" << timeoutString.str()
@@ -223,12 +227,13 @@ bool vtkSMSessionClient::Connect(const char* url, int timeout, bool (*callback)(
   }
   else if (pvrenderserver.find(url))
   {
+    int dsport, rsport;
     std::string dataserverhost = pvrenderserver.match(1);
-    int dsport = atoi(pvrenderserver.match(2).c_str());
+    VTK_FROM_CHARS_IF_ERROR_BREAK(pvrenderserver.match(2), dsport);
     dsport = (dsport <= 0) ? 11111 : dsport;
 
     std::string renderserverhost = pvrenderserver.match(3);
-    int rsport = atoi(pvrenderserver.match(4).c_str());
+    VTK_FROM_CHARS_IF_ERROR_BREAK(pvrenderserver.match(4), rsport);
     rsport = (rsport <= 0) ? 22221 : rsport;
 
     std::ostringstream stream;
@@ -244,9 +249,10 @@ bool vtkSMSessionClient::Connect(const char* url, int timeout, bool (*callback)(
   else if (pvrenderserver_reverse.find(url))
   {
     // 0 ports are acceptable for reverse connections.
-    int dsport = atoi(pvrenderserver_reverse.match(4).c_str());
+    int dsport, rsport;
+    VTK_FROM_CHARS_IF_ERROR_BREAK(pvrenderserver_reverse.match(4), dsport);
     dsport = (dsport < 0) ? 11111 : dsport;
-    int rsport = atoi(pvrenderserver_reverse.match(7).c_str());
+    VTK_FROM_CHARS_IF_ERROR_BREAK(pvrenderserver_reverse.match(7), rsport);
     rsport = (rsport < 0) ? 22221 : rsport;
 
     std::ostringstream stream;
@@ -420,7 +426,7 @@ void vtkSMSessionClient::SetupDataServerRenderServerConnection()
   vtkMPIMToNSocketConnectionPortInformation* info =
     vtkMPIMToNSocketConnectionPortInformation::New();
   this->GatherInformation(RENDER_SERVER, info, mpiMToN->GetGlobalID());
-  // info->Print(cout);
+  // info->Print(std::cout);
 
   vtkSMPropertyHelper helper(mpiMToN, "Connections");
   for (int cc = 0; cc < info->GetNumberOfConnections(); cc++)
@@ -594,7 +600,7 @@ void vtkSMSessionClient::PushState(vtkSMMessage* message)
     stream.GetRawData(raw_message);
     for (int cc = 0; cc < num_controllers; cc++)
     {
-      controllers[cc]->TriggerRMIOnAllChildren(&raw_message[0],
+      controllers[cc]->TriggerRMIOnAllChildren(raw_message.data(),
         static_cast<int>(raw_message.size()), vtkPVSessionServer::CLIENT_SERVER_MESSAGE_RMI);
     }
   }
@@ -632,7 +638,7 @@ void vtkSMSessionClient::PushState(vtkSMMessage* message)
         stream << msg.SerializeAsString();
         std::vector<unsigned char> raw_message;
         stream.GetRawData(raw_message);
-        this->DataServerController->TriggerRMIOnAllChildren(&raw_message[0],
+        this->DataServerController->TriggerRMIOnAllChildren(raw_message.data(),
           static_cast<int>(raw_message.size()), vtkPVSessionServer::CLIENT_SERVER_MESSAGE_RMI);
       }
       else if (!remoteObject)
@@ -686,7 +692,7 @@ void vtkSMSessionClient::PullState(vtkSMMessage* message)
     stream << message->SerializeAsString();
     std::vector<unsigned char> raw_message;
     stream.GetRawData(raw_message);
-    controller->TriggerRMIOnAllChildren(&raw_message[0], static_cast<int>(raw_message.size()),
+    controller->TriggerRMIOnAllChildren(raw_message.data(), static_cast<int>(raw_message.size()),
       vtkPVSessionServer::CLIENT_SERVER_MESSAGE_RMI);
 
     // Get the reply
@@ -741,7 +747,7 @@ void vtkSMSessionClient::ExecuteStream(
 
     for (int cc = 0; cc < num_controllers; cc++)
     {
-      controllers[cc]->TriggerRMIOnAllChildren(&raw_message[0],
+      controllers[cc]->TriggerRMIOnAllChildren(raw_message.data(),
         static_cast<int>(raw_message.size()), vtkPVSessionServer::CLIENT_SERVER_MESSAGE_RMI);
       controllers[cc]->Send(
         data, static_cast<int>(size), 1, vtkPVSessionServer::EXECUTE_STREAM_TAG);
@@ -783,7 +789,7 @@ const vtkClientServerStream& vtkSMSessionClient::GetLastResult(vtkTypeUInt32 loc
     stream << static_cast<int>(vtkPVSessionServer::LAST_RESULT);
     std::vector<unsigned char> raw_message;
     stream.GetRawData(raw_message);
-    controller->TriggerRMIOnAllChildren(&raw_message[0], static_cast<int>(raw_message.size()),
+    controller->TriggerRMIOnAllChildren(raw_message.data(), static_cast<int>(raw_message.size()),
       vtkPVSessionServer::CLIENT_SERVER_MESSAGE_RMI);
 
     // Get the reply
@@ -857,7 +863,7 @@ bool vtkSMSessionClient::GatherInformation(
 
   if (controller)
   {
-    controller->TriggerRMIOnAllChildren(&raw_message[0], static_cast<int>(raw_message.size()),
+    controller->TriggerRMIOnAllChildren(raw_message.data(), static_cast<int>(raw_message.size()),
       vtkPVSessionServer::CLIENT_SERVER_MESSAGE_RMI);
 
     int length2 = 0;
@@ -927,7 +933,7 @@ void vtkSMSessionClient::UnRegisterSIObject(vtkSMMessage* message)
     stream.GetRawData(raw_message);
     for (int cc = 0; cc < num_controllers; cc++)
     {
-      controllers[cc]->TriggerRMIOnAllChildren(&raw_message[0],
+      controllers[cc]->TriggerRMIOnAllChildren(raw_message.data(),
         static_cast<int>(raw_message.size()), vtkPVSessionServer::CLIENT_SERVER_MESSAGE_RMI);
     }
   }
@@ -970,7 +976,7 @@ void vtkSMSessionClient::RegisterSIObject(vtkSMMessage* message)
     {
       if (controllers[cc] != nullptr)
       {
-        controllers[cc]->TriggerRMIOnAllChildren(&raw_message[0],
+        controllers[cc]->TriggerRMIOnAllChildren(raw_message.data(),
           static_cast<int>(raw_message.size()), vtkPVSessionServer::CLIENT_SERVER_MESSAGE_RMI);
       }
     }
@@ -1051,7 +1057,7 @@ bool vtkSMSessionClient::OnWrongTagEvent(
   }
   else
   {
-    cout << "Wrong tag but don't know how to handle it... " << tag << endl;
+    std::cout << "Wrong tag but don't know how to handle it... " << tag << endl;
     abort();
     // We was not able to handle it localy
     // return this->Superclass::OnWrongTagEvent(obj, event, calldata);

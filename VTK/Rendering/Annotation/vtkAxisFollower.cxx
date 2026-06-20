@@ -17,6 +17,7 @@
 #include "vtkTransform.h"
 
 #include <cmath>
+#include <iostream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAxisFollower);
@@ -28,7 +29,7 @@ vtkStandardNewMacro(vtkAxisFollower);
 // Order is MINMIN, MINMAX, MAXMAX, MAXMIN
 namespace
 {
-const double AxisAlignedY[3][4][2][3] = {
+constexpr double AxisAlignedY[3][4][2][3] = {
   { { { 0.0, 1.0, 0.0 }, { 0.0, 0.0, 1.0 } }, { { 0.0, 1.0, 0.0 }, { 0.0, 0.0, -1.0 } },
     { { 0.0, -1.0, 0.0 }, { 0.0, 0.0, -1.0 } }, { { 0.0, -1.0, 0.0 }, { 0.0, 0.0, 1.0 } } },
   { { { 1.0, 0.0, 0.0 }, { 0.0, 0.0, 1.0 } }, { { 1.0, 0.0, 0.0 }, { 0.0, 0.0, -1.0 } },
@@ -348,6 +349,7 @@ void vtkAxisFollower::ComputeRotationAndTranlation(vtkRenderer* ren, double tran
 }
 
 //------------------------------------------------------------------------------
+// VTK_DEPRECATED_IN_9_6_0
 void vtkAxisFollower::ComputerAutoCenterTranslation(
   const double& vtkNotUsed(autoScaleFactor), double translation[3])
 {

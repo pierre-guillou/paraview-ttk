@@ -405,7 +405,13 @@ public:
    * nothing in the case. Except for vtkSMProxyProperty. For vtkSMProxyProperty,
    * we don't have any domain that is runtime data dependent and hence we let
    * the property reset itself. This ensures that properties with
-   * vtkSMProxyListDomain, for example, are initialized correctly.
+   * vtkSMProxyListDomain, for example, are initialized correctly. This is also true if
+   * the property has either of the following domains:
+   * 1. vtkSMFileListDomain.
+   * 2. vtkSMFrameStrideQueryDomain.
+   * 3. vtkSMAnimationFrameWindowDomain.
+   * All three domain return time/file related information which is guaranteed to be the same on
+   * all ranks because a synchronization happens at the reader level.
    */
   virtual bool ResetToDomainDefaults(bool use_unchecked_values = false);
 
@@ -453,6 +459,18 @@ public:
    */
   vtkGetObjectMacro(Hints, vtkPVXMLElement);
   void SetHints(vtkPVXMLElement* hints);
+  ///@}
+
+  ///@{
+  /**
+   * The server manager configuration XML may define \c \<Deprecated/\> element for
+   * a property. Deprecated is metadata associated with the property. The
+   * Server Manager does not (and should not) interpret the deprecated.
+   * Returns the XML element for the deprecated associated with this property,
+   * if any, otherwise returns nullptr.
+   */
+  vtkGetObjectMacro(Deprecated, vtkPVXMLElement);
+  void SetDeprecated(vtkPVXMLElement* deprecated);
   ///@}
 
   ///@{
@@ -603,7 +621,13 @@ protected:
    */
   virtual int LoadState(vtkPVXMLElement* element, vtkSMProxyLocator* loader);
 
-  vtkPVXMLElement* Hints;
+  /**
+   * If a proxy is deprecated, prints a warning.
+   */
+  bool WarnIfDeprecated();
+
+  vtkPVXMLElement* Hints = nullptr;
+  vtkPVXMLElement* Deprecated = nullptr;
 
   char* Command;
 

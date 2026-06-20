@@ -15,6 +15,7 @@
 #include "pqRenderView.h"
 #include "pqServerManagerModel.h"
 #include "pqView.h"
+#include "pqWidgetUtilities.h"
 #include "vtkSMRenderViewProxy.h"
 
 #include "vtkClientServerStream.h"
@@ -617,7 +618,7 @@ pqMemoryInspectorPanel::pqMemoryInspectorPanel(QWidget* pWidget, Qt::WindowFlags
   : QWidget(pWidget, flags)
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::pqMemoryInspectorPanel" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::pqMemoryInspectorPanel" << endl;
 #endif
 
   this->ClientOnly = true;
@@ -694,7 +695,7 @@ pqMemoryInspectorPanel::pqMemoryInspectorPanel(QWidget* pWidget, Qt::WindowFlags
 pqMemoryInspectorPanel::~pqMemoryInspectorPanel()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::~pqMemoryInspectorPanel" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::~pqMemoryInspectorPanel" << endl;
 #endif
 
   this->ClearClient();
@@ -741,7 +742,7 @@ void pqMemoryInspectorPanel::ClearServers()
 void pqMemoryInspectorPanel::ServerDisconnected()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel:;ServerDisconnected" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel:;ServerDisconnected" << endl;
 #endif
 
   this->Clear();
@@ -751,7 +752,7 @@ void pqMemoryInspectorPanel::ServerDisconnected()
 void pqMemoryInspectorPanel::ServerConnected()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::ServerConnected" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::ServerConnected" << endl;
 #endif
 
   this->Initialize();
@@ -761,7 +762,7 @@ void pqMemoryInspectorPanel::ServerConnected()
 void pqMemoryInspectorPanel::ConnectToView(pqView* view)
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::ConnectToView" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::ConnectToView" << endl;
 #endif
 
   // rendering triggers the update
@@ -775,7 +776,7 @@ void pqMemoryInspectorPanel::ConnectToView(pqView* view)
 void pqMemoryInspectorPanel::showEvent(QShowEvent* e)
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::showEvent" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::showEvent" << endl;
 #endif
 
   (void)e;
@@ -785,7 +786,7 @@ void pqMemoryInspectorPanel::showEvent(QShowEvent* e)
 void pqMemoryInspectorPanel::EnableUpdate()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::EnableUpdate" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::EnableUpdate" << endl;
 #endif
 
   this->UpdateEnabled = true;
@@ -795,7 +796,7 @@ void pqMemoryInspectorPanel::EnableUpdate()
 void pqMemoryInspectorPanel::RenderCompleted()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::RenderCompleted" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::RenderCompleted" << endl;
 #endif
 
   if (!this->AutoUpdate || !this->isVisible() || !this->UpdateEnabled)
@@ -877,7 +878,7 @@ void pqMemoryInspectorPanel::InitializeServerGroup(long long clientPid,
     // gdb and see where it's stuck without a lot of effort
 
 #ifdef MIP_PROCESS_TABLE
-    cerr << setw(32) << hostName << setw(16) << pid << setw(8) << rank << endl << setw(1);
+    std::cerr << setw(32) << hostName << setw(16) << pid << setw(8) << rank << endl << setw(1);
 #endif
 
     // host
@@ -940,7 +941,7 @@ void pqMemoryInspectorPanel::InitializeServerGroup(long long clientPid,
 void pqMemoryInspectorPanel::Clear()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::Clear" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::Clear" << endl;
 #endif
 
   this->ClearClient();
@@ -951,10 +952,10 @@ void pqMemoryInspectorPanel::Clear()
   this->DataServerSystemType = 0;
   this->RenderServerSystemType = 0;
 
-  this->StackTraceOnClient = 0;
-  this->StackTraceOnServer = 0;
-  this->StackTraceOnDataServer = 0;
-  this->StackTraceOnRenderServer = 0;
+  this->StackTraceOnClient = false;
+  this->StackTraceOnServer = false;
+  this->StackTraceOnDataServer = false;
+  this->StackTraceOnRenderServer = false;
 
   this->Ui->configView->clear();
 }
@@ -963,7 +964,7 @@ void pqMemoryInspectorPanel::Clear()
 int pqMemoryInspectorPanel::Initialize()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::Initialize" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::Initialize" << endl;
 #endif
 
   this->Clear();
@@ -1025,12 +1026,13 @@ int pqMemoryInspectorPanel::Initialize()
 
 #ifdef MIP_PROCESS_TABLE
   // print a process table to the terminal.
-  cerr << endl
-       << setw(32) << "Host" << setw(16) << "Pid" << setw(8) << "Rank" << endl
-       << left << setw(56) << setfill('=') << "client" << endl
-       << right << setw(1) << setfill(' ') << setw(32) << configs->GetFullyQualifiedDomainName(0)
-       << setw(16) << configs->GetPid(0) << setw(8) << "x" << endl
-       << setfill(' ') << setw(1);
+  std::cerr << endl
+            << setw(32) << "Host" << setw(16) << "Pid" << setw(8) << "Rank" << endl
+            << left << setw(56) << setfill('=') << "client" << endl
+            << right << setw(1) << setfill(' ') << setw(32)
+            << configs->GetFullyQualifiedDomainName(0) << setw(16) << configs->GetPid(0) << setw(8)
+            << "x" << endl
+            << setfill(' ') << setw(1);
 #endif
 
   // collect info from the server(s)
@@ -1060,8 +1062,8 @@ int pqMemoryInspectorPanel::Initialize()
 
 // servers
 #ifdef MIP_PROCESS_TABLE
-    cerr << left << setw(56) << setfill('=') << "server" << endl
-         << right << setw(1) << setfill(' ');
+    std::cerr << left << setw(56) << setfill('=') << "server" << endl
+              << right << setw(1) << setfill(' ');
 #endif
     QTreeWidgetItem* group = nullptr;
     group = new QTreeWidgetItem(this->Ui->configView);
@@ -1078,8 +1080,8 @@ int pqMemoryInspectorPanel::Initialize()
 
 // dataservers
 #ifdef MIP_PROCESS_TABLE
-    cerr << left << setw(56) << setfill('=') << "data server" << endl
-         << right << setw(1) << setfill(' ');
+    std::cerr << left << setw(56) << setfill('=') << "data server" << endl
+              << right << setw(1) << setfill(' ');
 #endif
     group = new QTreeWidgetItem(this->Ui->configView);
     group->setChildIndicatorPolicy(QTreeWidgetItem::DontShowIndicatorWhenChildless);
@@ -1095,8 +1097,8 @@ int pqMemoryInspectorPanel::Initialize()
 
 // renderservers
 #ifdef MIP_PROCESS_TABLE
-    cerr << left << setw(56) << setfill('=') << "render server" << endl
-         << right << setw(1) << setfill(' ');
+    std::cerr << left << setw(56) << setfill('=') << "render server" << endl
+              << right << setw(1) << setfill(' ');
 #endif
     group = new QTreeWidgetItem(this->Ui->configView);
     group->setChildIndicatorPolicy(QTreeWidgetItem::DontShowIndicatorWhenChildless);
@@ -1112,7 +1114,7 @@ int pqMemoryInspectorPanel::Initialize()
       this->RenderServerSystemType);
 
 #ifdef MIP_PROCESS_TABLE
-    cerr << setw(56) << setfill('=') << "=" << endl << setw(1) << setfill(' ');
+    std::cerr << setw(56) << setfill('=') << "=" << endl << setw(1) << setfill(' ');
 #endif
   }
   configs->Delete();
@@ -1171,7 +1173,7 @@ int pqMemoryInspectorPanel::Initialize()
 void pqMemoryInspectorPanel::Update()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::Update" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::Update" << endl;
 #endif
 
   pqServer* server = pqActiveObjects::instance().activeServer();
@@ -1196,7 +1198,7 @@ void pqMemoryInspectorPanel::Update()
 void pqMemoryInspectorPanel::UpdateRanks()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::UpdateRanks" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::UpdateRanks" << endl;
 #endif
 
   pqServer* server = pqActiveObjects::instance().activeServer();
@@ -1303,7 +1305,7 @@ void pqMemoryInspectorPanel::UpdateRanks()
 void pqMemoryInspectorPanel::UpdateHosts()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::UpdateHosts" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::UpdateHosts" << endl;
 #endif
 
   this->ClientHost->UpdateMemoryUseWidget();
@@ -1387,7 +1389,7 @@ void pqMemoryInspectorPanel::EnableStackTrace(bool enable, int group)
 void pqMemoryInspectorPanel::ExecuteRemoteCommand()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::ExecCommand" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::ExecCommand" << endl;
 #endif
 
   QTreeWidgetItem* item = this->Ui->configView->currentItem();
@@ -1507,7 +1509,7 @@ void pqMemoryInspectorPanel::RemoteCommandFailed(QProcess::ProcessError code)
 void pqMemoryInspectorPanel::ShowOnlyNodes()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::ShowOnlyNodes" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::ShowOnlyNodes" << endl;
 #endif
 
   this->Ui->configView->collapseAll();
@@ -1544,7 +1546,7 @@ void pqMemoryInspectorPanel::ShowOnlyNodes()
 void pqMemoryInspectorPanel::ShowAllRanks()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::ShowAllRanks" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::ShowAllRanks" << endl;
 #endif
 
   this->Ui->configView->expandAll();
@@ -1554,7 +1556,7 @@ void pqMemoryInspectorPanel::ShowAllRanks()
 void pqMemoryInspectorPanel::ShowHostPropertiesDialog()
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::ShowHostPropertiesDialog" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::ShowHostPropertiesDialog" << endl;
 #endif
 
   QTreeWidgetItem* item = this->Ui->configView->currentItem();
@@ -1599,7 +1601,7 @@ void pqMemoryInspectorPanel::ShowHostPropertiesDialog()
 void pqMemoryInspectorPanel::ConfigViewContextMenu(const QPoint& position)
 {
 #if defined pqMemoryInspectorPanelDEBUG
-  cerr << ":::::pqMemoryInspectorPanel::ConfigContextMenu" << endl;
+  std::cerr << ":::::pqMemoryInspectorPanel::ConfigContextMenu" << endl;
 #endif
 
   QMenu context;
@@ -1735,7 +1737,7 @@ QWidget* pqMemoryInspectorPanel::NewGroupWidget(string name, string icon)
 
   QLabel* label = new QLabel;
   label->setPixmap(QPixmap(icon.c_str()));
-  label->setToolTip(name.c_str());
+  label->setToolTip(pqWidgetUtilities::formatTooltip(QString::fromStdString(name)));
   hlayout->addWidget(label);
 
   label = new QLabel;

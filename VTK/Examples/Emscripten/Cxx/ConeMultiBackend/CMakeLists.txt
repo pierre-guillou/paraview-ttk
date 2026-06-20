@@ -20,7 +20,6 @@ find_package(VTK
     InteractionStyle    # Mouse handling
     RenderingOpenGL2    # For Rendering with OpenGL
     RenderingWebGPU     # For Rendering with WebGPU
-    RenderingUI         # For SDL2 Window
 )
 
 if (NOT VTK_FOUND)
@@ -43,7 +42,8 @@ set(emscripten_link_options)
 list(APPEND emscripten_link_options
   "-sWASM=1"
   "-sMODULARIZE=1"
-  "-sASYNCIFY=1"
+  "-sJSPI=1"
+  "-sJSPI_EXPORTS=['__wasm_call_ctors']"
   "-sALLOW_MEMORY_GROWTH=1"
   "-sEXPORT_NAME=createConeMultiBackendModule"
   "-sEXPORTED_RUNTIME_METHODS=['ENV']" # ENV holds the environment variables accessible by C getenv

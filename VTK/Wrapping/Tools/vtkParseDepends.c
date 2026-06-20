@@ -11,6 +11,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
+
 typedef struct ParseDepends_
 {
   StringCache Strings;
@@ -150,3 +153,6 @@ void vtkParse_FinalizeDependencyTracking(void)
   DepTracker.Target = NULL;
   vtkParse_FreeStringCache(&DepTracker.Strings);
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

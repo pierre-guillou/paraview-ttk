@@ -8,6 +8,7 @@
 #include "vtkCompositeDataPipeline.h"
 #include "vtkDataArray.h"
 #include "vtkDataObject.h"
+#include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationIntegerKey.h"
 #include "vtkInformationVector.h"
@@ -22,8 +23,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStructuredData.h"
 #include "vtkTimerLog.h"
-#include "vtkUniformGrid.h"
-#include "vtkUniformGridAMRDataIterator.h"
+#include "vtkUniformGridAMRIterator.h"
 #include "vtkUnsignedCharArray.h"
 
 #include <algorithm>
@@ -78,7 +78,7 @@ bool vtkAMRSliceFilter::IsAMRData2D(vtkOverlappingAMR* input)
 {
   assert("pre: Input AMR dataset is nullptr" && (input != nullptr));
 
-  return input->GetGridDescription() != VTK_XYZ_GRID;
+  return input->GetGridDescription() != vtkStructuredData::VTK_STRUCTURED_XYZ_GRID;
 }
 
 //------------------------------------------------------------------------------
@@ -127,12 +127,12 @@ vtkPlane* vtkAMRSliceFilter::GetCutPlane(vtkOverlappingAMR* inp)
 }
 
 //------------------------------------------------------------------------------
-vtkUniformGrid* vtkAMRSliceFilter::GetSlice(
+vtkImageData* vtkAMRSliceFilter::GetSlice(
   double origin[3], int* dims, double* gorigin, double* spacing)
 {
   //  vtkTimerLog::MarkStartEvent( "AMRSlice::GetSliceForBlock" );
 
-  vtkUniformGrid* slice = vtkUniformGrid::New();
+  vtkImageData* slice = vtkImageData::New();
 
   // Storage for dimensions of the 2-D slice grid & its origin
   int sliceDims[3];
@@ -152,7 +152,7 @@ vtkUniformGrid* vtkAMRSliceFilter::GetSlice(
       slice->SetOrigin(sliceOrigin);
       slice->SetDimensions(sliceDims);
       slice->SetSpacing(spacing);
-      assert(slice->GetDataDescription() == VTK_YZ_PLANE);
+      assert(slice->GetDataDescription() == vtkStructuredData::VTK_STRUCTURED_YZ_PLANE);
       break;
     case Y_NORMAL: // -- XZ plane
       sliceDims[0] = dims[0];
@@ -166,7 +166,7 @@ vtkUniformGrid* vtkAMRSliceFilter::GetSlice(
       slice->SetOrigin(sliceOrigin);
       slice->SetDimensions(sliceDims);
       slice->SetSpacing(spacing);
-      assert(slice->GetDataDescription() == VTK_XZ_PLANE);
+      assert(slice->GetDataDescription() == vtkStructuredData::VTK_STRUCTURED_XZ_PLANE);
       break;
     case Z_NORMAL: // -- XY plane
       sliceDims[0] = dims[0];
@@ -180,7 +180,7 @@ vtkUniformGrid* vtkAMRSliceFilter::GetSlice(
       slice->SetOrigin(sliceOrigin);
       slice->SetDimensions(sliceDims);
       slice->SetSpacing(spacing);
-      assert(slice->GetDataDescription() == VTK_XY_PLANE);
+      assert(slice->GetDataDescription() == vtkStructuredData::VTK_STRUCTURED_XY_PLANE);
       break;
     default:
       vtkErrorMacro("Undefined normal");
@@ -244,8 +244,8 @@ void vtkAMRSliceFilter::ComputeAMRBlocksToLoad(vtkPlane* p, vtkOverlappingAMR* m
   plane[3] = p->GetNormal()[0] * p->GetOrigin()[0] + p->GetNormal()[1] * p->GetOrigin()[1] +
     p->GetNormal()[2] * p->GetOrigin()[2];
 
-  vtkSmartPointer<vtkUniformGridAMRDataIterator> iter;
-  iter.TakeReference(vtkUniformGridAMRDataIterator::SafeDownCast(metadata->NewIterator()));
+  vtkSmartPointer<vtkUniformGridAMRIterator> iter;
+  iter.TakeReference(vtkUniformGridAMRIterator::SafeDownCast(metadata->NewIterator()));
   iter->SetSkipEmptyNodes(false);
   for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
   {
@@ -273,13 +273,13 @@ void vtkAMRSliceFilter::GetAMRSliceInPlane(
   switch (this->Normal)
   {
     case X_NORMAL:
-      description = VTK_YZ_PLANE;
+      description = vtkStructuredData::VTK_STRUCTURED_YZ_PLANE;
       break;
     case Y_NORMAL:
-      description = VTK_XZ_PLANE;
+      description = vtkStructuredData::VTK_STRUCTURED_XZ_PLANE;
       break;
     case Z_NORMAL:
-      description = VTK_XY_PLANE;
+      description = vtkStructuredData::VTK_STRUCTURED_XY_PLANE;
       break;
     default:
       vtkErrorMacro("Undefined normal");
@@ -291,13 +291,13 @@ void vtkAMRSliceFilter::GetAMRSliceInPlane(
   }
 
   auto numLevels = vtkMath::Min(this->MaxResolution + 1, inp->GetNumberOfLevels());
-  std::vector<int> blocksPerLevel(numLevels, 0);
+  std::vector<unsigned int> blocksPerLevel(numLevels, 0);
   for (unsigned int i = 0; i < this->BlocksToLoad.size(); i++)
   {
     unsigned int flatIndex = this->BlocksToLoad[i];
     unsigned int level;
     unsigned int dataIdx;
-    inp->GetLevelAndIndex(flatIndex, level, dataIdx);
+    inp->ComputeIndexPair(flatIndex, level, dataIdx);
     assert(level < numLevels);
     blocksPerLevel[level]++;
   }
@@ -314,7 +314,7 @@ void vtkAMRSliceFilter::GetAMRSliceInPlane(
     }
   }
 
-  out->Initialize(static_cast<int>(blocksPerLevel.size()), blocksPerLevel.data());
+  out->Initialize(blocksPerLevel);
   out->SetGridDescription(description);
   out->SetOrigin(p->GetOrigin());
   vtkTimerLog::MarkStartEvent("AMRSlice::GetAMRSliceInPlane");
@@ -329,11 +329,18 @@ void vtkAMRSliceFilter::GetAMRSliceInPlane(
     int flatIndex = this->BlocksToLoad[i];
     unsigned int level;
     unsigned int dataIdx;
-    inp->GetLevelAndIndex(flatIndex, level, dataIdx);
-    vtkUniformGrid* grid = inp->GetDataSet(level, dataIdx);
-    vtkUniformGrid* slice = nullptr;
+    inp->ComputeIndexPair(flatIndex, level, dataIdx);
 
-    if (grid)
+    vtkCartesianGrid* cg = inp->GetDataSetAsCartesianGrid(level, dataIdx);
+    vtkImageData* grid = vtkImageData::SafeDownCast(cg);
+    vtkImageData* slice = nullptr;
+
+    if (cg && !grid)
+    {
+      vtkWarningMacro("vtkAMRSliceFilter does not support rectilinear grid yet");
+      continue;
+    }
+    else if (grid)
     {
       // Get the 3-D Grid dimensions
       int dims[3];
@@ -380,13 +387,13 @@ void vtkAMRSliceFilter::GetAMRSliceInPlane(
 }
 
 //------------------------------------------------------------------------------
-void vtkAMRSliceFilter::ComputeCellCenter(vtkUniformGrid* ug, int cellIdx, double centroid[3])
+void vtkAMRSliceFilter::ComputeCellCenter(vtkImageData* imageData, int cellIdx, double centroid[3])
 {
-  assert("pre: Input grid is nullptr" && (ug != nullptr));
-  assert(
-    "pre: cell index out-of-bounds!" && ((cellIdx >= 0) && (cellIdx < ug->GetNumberOfCells())));
+  assert("pre: Input grid is nullptr" && (imageData != nullptr));
+  assert("pre: cell index out-of-bounds!" &&
+    ((cellIdx >= 0) && (cellIdx < imageData->GetNumberOfCells())));
 
-  vtkCell* myCell = ug->GetCell(cellIdx);
+  vtkCell* myCell = imageData->GetCell(cellIdx);
   assert("post: cell is nullptr" && (myCell != nullptr));
 
   double pCenter[3];
@@ -396,11 +403,11 @@ void vtkAMRSliceFilter::ComputeCellCenter(vtkUniformGrid* ug, int cellIdx, doubl
 }
 
 //------------------------------------------------------------------------------
-int vtkAMRSliceFilter::GetDonorCellIdx(double x[3], vtkUniformGrid* ug)
+int vtkAMRSliceFilter::GetDonorCellIdx(double x[3], vtkImageData* imageData)
 {
-  const double* x0 = ug->GetOrigin();
-  const double* h = ug->GetSpacing();
-  int* dims = ug->GetDimensions();
+  const double* x0 = imageData->GetOrigin();
+  const double* h = imageData->GetSpacing();
+  int* dims = imageData->GetDimensions();
 
   int ijk[3];
   for (int i = 0; i < 3; ++i)
@@ -413,11 +420,11 @@ int vtkAMRSliceFilter::GetDonorCellIdx(double x[3], vtkUniformGrid* ug)
 }
 
 //------------------------------------------------------------------------------
-int vtkAMRSliceFilter::GetDonorPointIdx(double x[3], vtkUniformGrid* ug)
+int vtkAMRSliceFilter::GetDonorPointIdx(double x[3], vtkImageData* imageData)
 {
-  const double* x0 = ug->GetOrigin();
-  const double* h = ug->GetSpacing();
-  int* dims = ug->GetDimensions();
+  const double* x0 = imageData->GetOrigin();
+  const double* h = imageData->GetSpacing();
+  int* dims = imageData->GetDimensions();
 
   int ijk[3];
   for (int i = 0; i < 3; ++i)
@@ -430,7 +437,7 @@ int vtkAMRSliceFilter::GetDonorPointIdx(double x[3], vtkUniformGrid* ug)
 }
 
 //------------------------------------------------------------------------------
-void vtkAMRSliceFilter::GetSliceCellData(vtkUniformGrid* slice, vtkUniformGrid* grid3D)
+void vtkAMRSliceFilter::GetSliceCellData(vtkImageData* slice, vtkImageData* grid3D)
 {
   // STEP 1: Allocate data-structures
   vtkCellData* sourceCD = grid3D->GetCellData();
@@ -485,7 +492,7 @@ void vtkAMRSliceFilter::GetSliceCellData(vtkUniformGrid* slice, vtkUniformGrid* 
 }
 
 //------------------------------------------------------------------------------
-void vtkAMRSliceFilter::GetSlicePointData(vtkUniformGrid* slice, vtkUniformGrid* grid3D)
+void vtkAMRSliceFilter::GetSlicePointData(vtkImageData* slice, vtkImageData* grid3D)
 {
   // STEP 1: Allocate data-structures
   vtkPointData* sourcePD = grid3D->GetPointData();

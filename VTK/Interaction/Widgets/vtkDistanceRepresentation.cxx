@@ -5,15 +5,17 @@
 #include "vtkCoordinate.h"
 #include "vtkEventData.h"
 #include "vtkHandleRepresentation.h"
-#include "vtkInteractorObserver.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
-#include "vtkWindow.h"
+#include "vtkStringFormatter.h"
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkDistanceRepresentation, HandleRepresentation, vtkHandleRepresentation);
+
+vtkCxxSetObjectMacro(vtkDistanceRepresentation, Point1Representation, vtkHandleRepresentation);
+vtkCxxSetObjectMacro(vtkDistanceRepresentation, Point2Representation, vtkHandleRepresentation);
 
 //------------------------------------------------------------------------------
 vtkDistanceRepresentation::vtkDistanceRepresentation()
@@ -25,8 +27,9 @@ vtkDistanceRepresentation::vtkDistanceRepresentation()
   this->Tolerance = 5;
   this->Placed = 0;
 
-  this->LabelFormat = new char[8];
-  snprintf(this->LabelFormat, 8, "%s", "%-#6.3g");
+  this->LabelFormat = new char[10];
+  auto result = vtk::format_to_n(this->LabelFormat, 10, "{}", "{:<#6.3g}");
+  *result.out = '\0';
 
   this->Scale = 1.0;
   this->RulerMode = 0;

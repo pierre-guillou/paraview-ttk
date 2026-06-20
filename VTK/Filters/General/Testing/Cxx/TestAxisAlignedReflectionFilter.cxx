@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <vtkXMLMultiBlockDataReader.h>
-
 #include "vtkAxisAlignedReflectionFilter.h"
 #include "vtkCellData.h"
+#include "vtkClipDataSet.h"
 #include "vtkDataAssembly.h"
 #include "vtkExplicitStructuredGrid.h"
 #include "vtkHyperTreeGrid.h"
@@ -14,18 +13,25 @@
 #include "vtkPlane.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
+#include "vtkPolyLineSource.h"
 #include "vtkRectilinearGrid.h"
+#include "vtkSphereSource.h"
+#include "vtkStringFormatter.h"
+#include "vtkStripper.h"
 #include "vtkStructuredGrid.h"
 #include "vtkTestUtilities.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkUnstructuredGridToExplicitStructuredGrid.h"
 #include "vtkXMLHyperTreeGridReader.h"
 #include "vtkXMLImageDataReader.h"
+#include "vtkXMLMultiBlockDataReader.h"
 #include "vtkXMLPartitionedDataSetCollectionReader.h"
 #include "vtkXMLPolyDataReader.h"
 #include "vtkXMLRectilinearGridReader.h"
 #include "vtkXMLStructuredGridReader.h"
 #include "vtkXMLUnstructuredGridReader.h"
+
+#include <iostream>
 
 #define AssertMacro(b, data, reason)                                                               \
   if (!(b))                                                                                        \
@@ -104,6 +110,44 @@ int TestUnstructuredGrid(int argc, char* argv[])
 
   AssertMacro(unstructGridOut->GetPointData()->GetArray("ACCL")->GetTuple3(0)[0] == -2269740,
     unstructGridOut->GetClassName(), "Incorrect cell data");
+
+  // Test PolyLine
+  vtkNew<vtkPolyLineSource> polylines;
+  polylines->Resize(3);
+  polylines->SetClosed(false);
+  for (vtkIdType i = 0; i < 3; ++i)
+  {
+    polylines->SetPoint(i, i + i % 2, i, 0);
+  }
+
+  polylines->Update();
+  double bounds[6];
+  polylines->GetOutput()->GetBounds(bounds);
+  double origin[3] = { (bounds[0] + bounds[1]) / 2, (bounds[2] + bounds[3]) / 2,
+    (bounds[4] + bounds[5]) / 2 };
+
+  vtkNew<vtkPlane> plane;
+  plane->SetOrigin(origin);
+  plane->SetNormal(1.0, 0.0, 0.0);
+
+  vtkNew<vtkClipDataSet> clipper;
+  clipper->SetInputConnection(polylines->GetOutputPort());
+  clipper->SetClipFunction(plane);
+  clipper->Update();
+
+  vtkSmartPointer<vtkPartitionedDataSetCollection> output2 =
+    Reflect(clipper->GetOutputPort(), true, false, vtkAxisAlignedReflectionFilter::X_MAX);
+  vtkUnstructuredGrid* polyLineIn = vtkUnstructuredGrid::SafeDownCast(output2->GetPartition(0, 0));
+  vtkUnstructuredGrid* polyLineOut = vtkUnstructuredGrid::SafeDownCast(output2->GetPartition(1, 0));
+
+  AssertMacro(polyLineOut->GetNumberOfPoints() == polyLineIn->GetNumberOfPoints(),
+    polyLineOut->GetClassName(), "Incorrect number of points");
+  AssertMacro(polyLineOut->GetNumberOfCells() == polyLineIn->GetNumberOfCells(),
+    polyLineOut->GetClassName(), "Incorrect number of cells");
+
+  polyLineOut->GetCellPoints(0, ptsOut);
+  AssertMacro(ptsOut->GetId(0) == 2 && ptsOut->GetId(1) == 1 && ptsOut->GetId(2) == 0,
+    polyLineOut->GetClassName(), "Incorrect point ids in polyline");
 
   return EXIT_SUCCESS;
 }
@@ -239,12 +283,81 @@ int TestPolyData(int argc, char* argv[])
     "Incorrect points");
 
   vtkNew<vtkIdList> cellPtsIn;
-  polyDataIn->GetPolys()->GetCell(0, cellPtsIn);
+  polyDataIn->GetPolys()->GetCellAtId(0, cellPtsIn);
   vtkNew<vtkIdList> cellPtsOut;
-  polyDataOut->GetPolys()->GetCell(0, cellPtsOut);
+  polyDataOut->GetPolys()->GetCellAtId(0, cellPtsOut);
 
   AssertMacro(cellPtsIn->GetId(1) == cellPtsOut->GetId(3) && cellPtsOut->GetId(3) == 251,
     polyDataOut->GetClassName(), "Incorrect cells");
+
+  // Test PolyLine
+  vtkNew<vtkPolyLineSource> polylines;
+  polylines->Resize(3);
+  polylines->SetClosed(false);
+  for (vtkIdType i = 0; i < 3; ++i)
+  {
+    polylines->SetPoint(i, i + i % 2, i, 0);
+  }
+  vtkSmartPointer<vtkPartitionedDataSetCollection> output2 =
+    Reflect(polylines->GetOutputPort(), true, false, vtkAxisAlignedReflectionFilter::X_MAX);
+  vtkPolyData* polyLineIn = vtkPolyData::SafeDownCast(output2->GetPartition(0, 0));
+  vtkPolyData* polyLineOut = vtkPolyData::SafeDownCast(output2->GetPartition(1, 0));
+
+  AssertMacro(polyLineOut->GetNumberOfPoints() == polyLineIn->GetNumberOfPoints(),
+    polyLineOut->GetClassName(), "Incorrect number of points");
+  AssertMacro(polyLineOut->GetNumberOfCells() == polyLineIn->GetNumberOfCells(),
+    polyLineOut->GetClassName(), "Incorrect number of cells");
+
+  AssertMacro(
+    polyLineOut->GetNumberOfLines() == 1, polyLineOut->GetClassName(), "Incorrect number of lines");
+  vtkNew<vtkIdList> ptsOut;
+  polyLineOut->GetCellPoints(0, ptsOut);
+  AssertMacro(ptsOut->GetId(0) == 2 && ptsOut->GetId(1) == 1 && ptsOut->GetId(2) == 0,
+    polyLineOut->GetClassName(), "Incorrect point ids in polyline");
+
+  // Test PolyVertex
+  vtkNew<vtkPolyPointSource> polyPoints;
+  polyPoints->Resize(2);
+  polyPoints->SetPoint(0, 0, 0, 0);
+  polyPoints->SetPoint(1, 1, 0, 0);
+  vtkSmartPointer<vtkPartitionedDataSetCollection> output3 =
+    Reflect(polyPoints->GetOutputPort(), true, false, vtkAxisAlignedReflectionFilter::X_MIN);
+  vtkPolyData* polyPointIn = vtkPolyData::SafeDownCast(output3->GetPartition(0, 0));
+  vtkPolyData* polyPointOut = vtkPolyData::SafeDownCast(output3->GetPartition(1, 0));
+
+  AssertMacro(polyPointOut->GetNumberOfPoints() == polyPointIn->GetNumberOfPoints(),
+    polyPointOut->GetClassName(), "Incorrect number of points");
+  AssertMacro(polyPointOut->GetNumberOfCells() == polyPointIn->GetNumberOfCells(),
+    polyPointOut->GetClassName(), "Incorrect number of cells");
+
+  AssertMacro(polyPointOut->GetNumberOfVerts() == 1, polyPointOut->GetClassName(),
+    "Incorrect number of vertices");
+
+  vtkNew<vtkIdList> ptsOutVertex;
+  polyPointOut->GetCellPoints(0, ptsOutVertex);
+  AssertMacro(ptsOutVertex->GetId(0) == 0 && ptsOutVertex->GetId(1) == 1,
+    polyPointOut->GetClassName(), "Incorrect point ids in polyPoints");
+
+  AssertMacro(polyPointOut->GetPoint(0)[0] == 0 && polyPointOut->GetPoint(1)[0] == -1,
+    polyPointOut->GetClassName(), "Incorrect points");
+
+  vtkNew<vtkSphereSource> sphere;
+  vtkNew<vtkStripper> triangleStrips;
+  triangleStrips->SetInputConnection(sphere->GetOutputPort());
+  triangleStrips->Update();
+
+  vtkSmartPointer<vtkPartitionedDataSetCollection> output4 =
+    Reflect(triangleStrips->GetOutputPort(), true, false, vtkAxisAlignedReflectionFilter::X_MIN);
+  vtkPolyData* triangleStripsIn = vtkPolyData::SafeDownCast(output4->GetPartition(0, 0));
+  vtkPolyData* triangleStripsOut = vtkPolyData::SafeDownCast(output4->GetPartition(1, 0));
+
+  AssertMacro(triangleStripsOut->GetNumberOfPoints() == triangleStripsIn->GetNumberOfPoints(),
+    triangleStripsOut->GetClassName(), "Incorrect number of points");
+  AssertMacro(triangleStripsOut->GetNumberOfCells() == triangleStripsIn->GetNumberOfCells(),
+    triangleStripsOut->GetClassName(), "Incorrect number of cells");
+
+  AssertMacro(triangleStripsOut->GetNumberOfStrips() == 18, triangleStripsOut->GetClassName(),
+    "Incorrect number of strips");
 
   return EXIT_SUCCESS;
 }
@@ -361,18 +474,15 @@ int TestMultiBlockMultiPiece(int argc, char* argv[])
   AssertMacro(strcmp(assembly->GetNodeName(reflectionId), "Reflection") == 0,
     output->GetClassName(), "Incorrect assembly");
 
-  AssertMacro(strcmp(assembly->GetNodeName(assembly->GetChild(inputId, 0)), "Composite") == 0,
-    output->GetClassName(), "Incorrect assembly");
-  AssertMacro(strcmp(assembly->GetNodeName(assembly->GetChild(inputId, 1)), "Composite") == 0,
-    output->GetClassName(), "Incorrect assembly");
-  AssertMacro(strcmp(assembly->GetNodeName(assembly->GetChild(inputId, 2)), "Composite") == 0,
-    output->GetClassName(), "Incorrect assembly");
-  AssertMacro(strcmp(assembly->GetNodeName(assembly->GetChild(reflectionId, 0)), "Composite") == 0,
-    output->GetClassName(), "Incorrect assembly");
-  AssertMacro(strcmp(assembly->GetNodeName(assembly->GetChild(reflectionId, 1)), "Composite") == 0,
-    output->GetClassName(), "Incorrect assembly");
-  AssertMacro(strcmp(assembly->GetNodeName(assembly->GetChild(reflectionId, 2)), "Composite") == 0,
-    output->GetClassName(), "Incorrect assembly");
+  for (int i = 0; i < 3; i++)
+  {
+    std::string correct = "Block" + vtk::to_string(i);
+    AssertMacro(strcmp(assembly->GetNodeName(assembly->GetChild(inputId, i)), correct.c_str()) == 0,
+      output->GetClassName(), "Incorrect assembly");
+    AssertMacro(
+      strcmp(assembly->GetNodeName(assembly->GetChild(reflectionId, i)), correct.c_str()) == 0,
+      output->GetClassName(), "Incorrect assembly");
+  }
 
   return EXIT_SUCCESS;
 }
@@ -398,13 +508,11 @@ int TestMultiBlockOnlyDataSets(int argc, char* argv[])
 
   for (int i = 0; i < 10; i++)
   {
-    std::string inputCorrect = "Input_" + std::to_string(i);
-    AssertMacro(
-      strcmp(assembly->GetNodeName(assembly->GetChild(inputId, i)), inputCorrect.c_str()) == 0,
+    std::string correct = "Block" + vtk::to_string(i);
+    AssertMacro(strcmp(assembly->GetNodeName(assembly->GetChild(inputId, i)), correct.c_str()) == 0,
       output->GetClassName(), "Incorrect assembly");
-    std::string reflectionCorrect = "Reflection_" + std::to_string(i);
-    AssertMacro(strcmp(assembly->GetNodeName(assembly->GetChild(reflectionId, i)),
-                  reflectionCorrect.c_str()) == 0,
+    AssertMacro(
+      strcmp(assembly->GetNodeName(assembly->GetChild(reflectionId, i)), correct.c_str()) == 0,
       output->GetClassName(), "Incorrect assembly");
   }
 
@@ -424,6 +532,22 @@ int TestMultiBlockEmptyPiece(int argc, char* argv[])
     return EXIT_SUCCESS;
 }
 
+int TestUnstructuredGridWithGlobalIds(int argc, char* argv[])
+{
+  ReadFileMacro("Data/ugWithGlobalIds.vtu", vtkXMLUnstructuredGridReader);
+
+  vtkSmartPointer<vtkPartitionedDataSetCollection> output =
+    Reflect(reader->GetOutputPort(), true, true, vtkAxisAlignedReflectionFilter::Z_MAX);
+
+  vtkUnstructuredGrid* unstructuredOutput =
+    vtkUnstructuredGrid::SafeDownCast(output->GetPartition(0, 0));
+
+  AssertMacro(unstructuredOutput->GetCellData()->GetNumberOfArrays() == 2,
+    unstructuredOutput->GetClassName(), "Incorrect number of field arrays");
+
+  return EXIT_SUCCESS;
+}
+
 // This function tests all the input types, and each input type will test a different plane mode.
 int TestAxisAlignedReflectionFilter(int argc, char* argv[])
 {
@@ -431,5 +555,6 @@ int TestAxisAlignedReflectionFilter(int argc, char* argv[])
     TestRectilinearGrid(argc, argv) || TestExplicitStructuredGrid(argc, argv) ||
     TestStructuredGrid(argc, argv) || TestPolyData(argc, argv) || TestHyperTreeGrid(argc, argv) ||
     TestPartitionedDataSetCollection(argc, argv) || TestMultiBlockMultiPiece(argc, argv) ||
-    TestMultiBlockOnlyDataSets(argc, argv) || TestMultiBlockEmptyPiece(argc, argv);
+    TestMultiBlockOnlyDataSets(argc, argv) || TestMultiBlockEmptyPiece(argc, argv) ||
+    TestUnstructuredGridWithGlobalIds(argc, argv);
 }

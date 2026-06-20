@@ -27,14 +27,14 @@
 #ifndef vtkNativePartitioningStrategy_h
 #define vtkNativePartitioningStrategy_h
 
+#include "vtkFiltersParallelDIY2Module.h" // for export macro
 #include "vtkPartitioningStrategy.h"
-#include "vtkRedistributeDataSetFilter.h"
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkBoundingBox;
 class vtkDataObjectTree;
-class VTKFILTERSPARALLELDIY2_EXPORT vtkNativePartitioningStrategy final
-  : public vtkPartitioningStrategy
+class vtkDataObject;
+class VTKFILTERSPARALLELDIY2_EXPORT vtkNativePartitioningStrategy : public vtkPartitioningStrategy
 {
 public:
   static vtkNativePartitioningStrategy* New();
@@ -117,6 +117,19 @@ public:
   vtkBooleanMacro(LoadBalanceAcrossAllBlocks, bool);
   ///@}
 
+  ///@{
+  /**
+   * When set to true, cells that lie on the boundary of multiple partitions will be assigned
+   * to the partition with the smallest region id. This is only relevant when the boundary mode
+   * is set to ASSIGN_TO_ONE_REGION in the redistribute dataset filter.
+   *
+   * Default is false.
+   */
+  vtkSetMacro(AssignBoundaryCellsToSmallestRegionId, bool);
+  vtkGetMacro(AssignBoundaryCellsToSmallestRegionId, bool);
+  vtkBooleanMacro(AssignBoundaryCellsToSmallestRegionId, bool);
+  ///@}
+
   /**
    * This method is called to generate the partitions for the input dataset.
    * Subclasses should override this to generate partitions using preferred data
@@ -144,6 +157,8 @@ private:
   bool ExpandExplicitCuts = true;
 
   bool LoadBalanceAcrossAllBlocks = true;
+
+  bool AssignBoundaryCellsToSmallestRegionId = false;
 };
 VTK_ABI_NAMESPACE_END
 

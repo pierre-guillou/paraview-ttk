@@ -6,17 +6,14 @@
 #include "vtkObjectFactory.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMProperty.h"
-#include "vtkSMPropertyLink.h"
-#include "vtkSMProxyIterator.h"
 #include "vtkSMProxyLink.h"
 #include "vtkSMProxyLocator.h"
-#include "vtkSMProxyManager.h"
-#include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSettingsProxy.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSMStateVersionController.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringScanner.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -220,8 +217,7 @@ void vtkSMStateLoader::CreatedNewProxy(vtkTypeUInt32 id, vtkSMProxy* proxy)
   }
   if (this->Internal->DeferProxyRegistration)
   {
-    this->Internal->ProxyCreationOrder.push_back(
-      vtkSMStateLoaderInternals::ProxyCreationOrderItem(id, proxy));
+    this->Internal->ProxyCreationOrder.emplace_back(id, proxy);
   }
   else
   {
@@ -275,7 +271,8 @@ bool vtkSMStateLoader::UpdateRegistrationInfo(
   {
     // a helper proxy groupname, must update it.
     std::string pid = group.substr(len);
-    vtkTypeUInt32 gid = static_cast<vtkTypeUInt32>(std::atoi(pid.c_str()));
+    vtkTypeUInt32 gid;
+    VTK_FROM_CHARS_IF_ERROR_RETURN(pid, gid, false);
     if (vtkSMProxy* helpedProxy = this->ProxyLocator->LocateProxy(gid))
     {
       group = helper_proxies_prefix;
@@ -293,7 +290,8 @@ bool vtkSMStateLoader::UpdateRegistrationInfo(
       // This will change any "Separate_OLDGID_ArrayName" into "Separate_NEWGID_ArrayName"
       size_t gidLen = name.find_first_of('_', separateLen) - separateLen;
       std::string gidStr = name.substr(separateLen, gidLen);
-      vtkTypeUInt32 gid = static_cast<vtkTypeUInt32>(std::atoi(gidStr.c_str()));
+      vtkTypeUInt32 gid;
+      VTK_FROM_CHARS_IF_ERROR_RETURN(gidStr, gid, false);
       if (vtkSMProxy* helpedProxy = this->ProxyLocator->LocateProxy(gid))
       {
         name.replace(separateLen, gidLen, helpedProxy->GetGlobalIDAsString());
@@ -631,7 +629,7 @@ int vtkSMStateLoader::LoadStateInternal(vtkPVXMLElement* parent)
       const char* group_name = currentElement->GetAttributeOrEmpty("name");
       if (strcmp(group_name, "animation") == 0 || strcmp(group_name, "timekeeper") == 0)
       {
-        deferredCollections.push_back(currentElement);
+        deferredCollections.emplace_back(currentElement);
       }
       else if (!this->HandleProxyCollection(currentElement))
       {
@@ -733,5 +731,5 @@ void vtkSMStateLoader::PrintSelf(ostream& os, vtkIndent indent)
 vtkTypeUInt32* vtkSMStateLoader::GetMappingArray(int& size)
 {
   size = static_cast<int>(this->Internal->AlignedMappingIdTable.size());
-  return &this->Internal->AlignedMappingIdTable[0];
+  return this->Internal->AlignedMappingIdTable.data();
 }

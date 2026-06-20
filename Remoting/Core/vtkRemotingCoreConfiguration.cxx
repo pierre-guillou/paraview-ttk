@@ -8,7 +8,10 @@
 #include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 
+#include <iostream>
 #include <vtk_cli11.h>
 #include <vtksys/SystemInformation.hxx>
 #include <vtksys/SystemTools.hxx>
@@ -16,17 +19,17 @@
 namespace
 {
 // Redefined from vtkRenderWindow.h
-static const int VTK_STEREO_CRYSTAL_EYES = 1;
-static const int VTK_STEREO_RED_BLUE = 2;
-static const int VTK_STEREO_INTERLACED = 3;
-static const int VTK_STEREO_LEFT = 4;
-static const int VTK_STEREO_RIGHT = 5;
-static const int VTK_STEREO_DRESDEN = 6;
-static const int VTK_STEREO_ANAGLYPH = 7;
-static const int VTK_STEREO_CHECKERBOARD = 8;
-static const int VTK_STEREO_SPLITVIEWPORT_HORIZONTAL = 9;
-static const int VTK_STEREO_FAKE = 10;
-static const int VTK_STEREO_EMULATE = 11;
+const int VTK_STEREO_CRYSTAL_EYES = 1;
+const int VTK_STEREO_RED_BLUE = 2;
+const int VTK_STEREO_INTERLACED = 3;
+const int VTK_STEREO_LEFT = 4;
+const int VTK_STEREO_RIGHT = 5;
+const int VTK_STEREO_DRESDEN = 6;
+const int VTK_STEREO_ANAGLYPH = 7;
+const int VTK_STEREO_CHECKERBOARD = 8;
+const int VTK_STEREO_SPLITVIEWPORT_HORIZONTAL = 9;
+const int VTK_STEREO_FAKE = 10;
+const int VTK_STEREO_EMULATE = 11;
 
 int ParseStereoType(const std::string& value)
 {
@@ -163,15 +166,9 @@ int vtkRemotingCoreConfiguration::GetEGLDeviceIndex()
   const auto display = this->GetDisplay();
   if (!display.empty())
   {
-    try
-    {
-      this->EGLDeviceIndex = std::stoi(display);
-      vtkLogF(TRACE, "Setting EGLDeviceIndex to %d", this->EGLDeviceIndex);
-      return this->EGLDeviceIndex;
-    }
-    catch (std::invalid_argument&)
-    {
-    }
+    VTK_FROM_CHARS_IF_ERROR_RETURN(display, this->EGLDeviceIndex, -1);
+    vtkLogF(TRACE, "Setting EGLDeviceIndex to %d", this->EGLDeviceIndex);
+    return this->EGLDeviceIndex;
   }
   return -1;
 }
@@ -219,6 +216,17 @@ double vtkRemotingCoreConfiguration::GetEyeSeparation() const
   }
 
   return this->EyeSeparation;
+}
+
+//----------------------------------------------------------------------------
+bool vtkRemotingCoreConfiguration::GetUseOffAxisProjection() const
+{
+  if (this->DisplayConfiguration)
+  {
+    return this->DisplayConfiguration->GetUseOffAxisProjection();
+  }
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -270,7 +278,9 @@ bool vtkRemotingCoreConfiguration::PopulatePluginOptions(
   // the one that handles loading the plugins. we should fix that at some point.
   // I am leaving these arguments as is since tests seems to pass them to server
   // processes.
-  groupPlugins->add_option("--plugins", this->Plugins, "Specify plugins to load on startup.");
+  groupPlugins->add_option("--plugins", this->Plugins,
+    "Specify plugins to load on startup. Libraries (.so and .dll), xml and Python plugins are "
+    "supported");
 
   groupPlugins->add_option(
     "--test-plugin,--test-plugins", this->Plugins, "Use '--plugins' instead.");
@@ -435,23 +445,28 @@ bool vtkRemotingCoreConfiguration::PopulateRenderingOptions(
         // no error when values are empty or accepted strings
         if (value.empty())
         {
-          return std::to_string(vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_DEFAULT);
+          return vtk::to_string(
+            static_cast<int>(vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_DEFAULT));
         }
         if (value == "GLX")
         {
-          return std::to_string(vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_GLX);
+          return vtk::to_string(
+            static_cast<int>(vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_GLX));
         }
         if (value == "EGL")
         {
-          return std::to_string(vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_EGL);
+          return vtk::to_string(
+            static_cast<int>(vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_EGL));
         }
         if (value == "OSMesa")
         {
-          return std::to_string(vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_OSMESA);
+          return vtk::to_string(
+            static_cast<int>(vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_OSMESA));
         }
         if (value == "Win32")
         {
-          return std::to_string(vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_WIN32);
+          return vtk::to_string(
+            static_cast<int>(vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_WIN32));
         }
         else
         {
@@ -483,11 +498,11 @@ bool vtkRemotingCoreConfiguration::PopulateRenderingOptions(
       {
         if (value == "contiguous")
         {
-          return std::to_string(vtkRemotingCoreConfiguration::CONTIGUOUS);
+          return vtk::to_string(static_cast<int>(vtkRemotingCoreConfiguration::CONTIGUOUS));
         }
         if (value == "round-robin")
         {
-          return std::to_string(vtkRemotingCoreConfiguration::ROUNDROBIN);
+          return vtk::to_string(static_cast<int>(vtkRemotingCoreConfiguration::ROUNDROBIN));
         }
         throw CLI::ValidationError("Invalid displays-assignment-mode specified.");
       })
@@ -503,7 +518,7 @@ bool vtkRemotingCoreConfiguration::PopulateRenderingOptions(
       "'Red-Blue', 'Interlaced', 'Dresden', 'Anaglyph', 'Checkerboard', or "
       "'SplitViewportHorizontal'.")
     ->needs("--stereo")
-    ->transform([](const std::string& value) { return std::to_string(::ParseStereoType(value)); });
+    ->transform([](const std::string& value) { return vtk::to_string(::ParseStereoType(value)); });
 
   stereoGroup
     ->add_option("--eye-separation", this->EyeSeparation, "Specify eye separation distance.")
@@ -643,5 +658,5 @@ void vtkRemotingCoreConfiguration::PrintSelf(ostream& os, vtkIndent indent)
   }
 
   os << indent << "DisplayConfiguration: " << endl;
-  this->DisplayConfiguration->PrintSelf(cout, indent.GetNextIndent());
+  this->DisplayConfiguration->PrintSelf(std::cout, indent.GetNextIndent());
 }

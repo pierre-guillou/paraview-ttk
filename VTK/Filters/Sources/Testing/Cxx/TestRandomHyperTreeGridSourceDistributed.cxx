@@ -16,10 +16,14 @@
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextActor.h"
 #include "vtkTextProperty.h"
 
 #include <sstream>
+
+#include <iostream>
+
 double colors[8][3] = { { 1.0, 1.0, 1.0 }, { 0.0, 1.0, 1.0 }, { 1.0, 0.0, 1.0 }, { 1.0, 1.0, 0.0 },
   { 1.0, 0.0, 0.0 }, { 0.0, 1.0, 0.0 }, { 0.0, 0.0, 1.0 }, { 0.7, 0.3, 0.3 } };
 
@@ -32,9 +36,9 @@ int TestRandomHyperTreeGridSourceDistributed(int argc, char* argv[])
 
   const int myId = controller->GetLocalProcessId();
   const int numProcs = controller->GetNumberOfProcesses();
-  std::string threadName = "rank-" + std::to_string(controller->GetLocalProcessId());
+  std::string threadName = "rank-" + vtk::to_string(controller->GetLocalProcessId());
   threadName += "\n";
-  std::cout << threadName << endl;
+  std::cout << threadName << std::endl;
   vtkLogger::SetThreadName(threadName);
   //=======================================================
 

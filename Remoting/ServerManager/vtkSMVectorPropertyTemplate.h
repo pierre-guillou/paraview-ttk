@@ -9,13 +9,9 @@
 #ifndef vtkSMVectorPropertyTemplate_h
 #define vtkSMVectorPropertyTemplate_h
 
-#include "vtkCommand.h"      // for vtkCommand enums
-#include "vtkPVXMLElement.h" // for vtkPVXMLElement
-
-// clang-format off
-#include "vtk_doubleconversion.h" // for double conversion
-#include VTK_DOUBLECONVERSION_HEADER(double-conversion.h)
-// clang-format on
+#include "vtkCommand.h"         // for vtkCommand enums
+#include "vtkPVXMLElement.h"    // for vtkPVXMLElement
+#include "vtkStringFormatter.h" // for vtk::to_string
 
 #include <algorithm> // for std::equal
 #include <cassert>   // for assert
@@ -27,40 +23,30 @@ class vtkSMProperty;
 
 namespace
 {
-
 template <typename T>
 std::string AsString(const T& var)
 {
-  std::ostringstream str;
-  str << var;
-  return str.str();
+  return vtk::to_string(var);
 }
 
 template <>
-vtkMaybeUnused("not used in non-double specializations") inline std::string
-  AsString(const double& var)
+[[maybe_unused]] inline std::string AsString(const std::string& var)
 {
-  char buf[256];
-  const double_conversion::DoubleToStringConverter& converter =
-    double_conversion::DoubleToStringConverter::EcmaScriptConverter();
-  double_conversion::StringBuilder builder(buf, sizeof(buf));
-  builder.Reset();
-  converter.ToShortest(var, &builder);
-  return builder.Finalize();
+  return var;
 }
 
-template <class B>
-B vtkSMVPConvertFromString(const std::string& string_representation)
+template <class T>
+T vtkSMVPConvertFromString(const std::string& string_representation)
 {
-  B value = B();
+  T value = T();
   std::istringstream buffer(string_representation);
   buffer >> value;
   return value;
 }
 
 template <>
-vtkMaybeUnused("not used in non-string specializations") inline std::string
-  vtkSMVPConvertFromString<std::string>(const std::string& string_representation)
+[[maybe_unused]] inline std::string vtkSMVPConvertFromString<std::string>(
+  const std::string& string_representation)
 {
   return string_representation;
 }
@@ -152,12 +138,12 @@ public:
   }
 
   //---------------------------------------------------------------------------
-  T* GetElements() { return !this->Values.empty() ? &this->Values[0] : nullptr; }
+  T* GetElements() { return !this->Values.empty() ? this->Values.data() : nullptr; }
 
   //---------------------------------------------------------------------------
   T* GetUncheckedElements()
   {
-    return (!this->UncheckedValues.empty()) ? &this->UncheckedValues[0] : nullptr;
+    return (!this->UncheckedValues.empty()) ? this->UncheckedValues.data() : nullptr;
   }
   //---------------------------------------------------------------------------
   T& GetUncheckedElement(unsigned int idx)
@@ -392,7 +378,7 @@ public:
     }
     if (!new_values.empty())
     {
-      this->SetElements(&new_values[0], static_cast<unsigned int>(new_values.size()));
+      this->SetElements(new_values.data(), static_cast<unsigned int>(new_values.size()));
     }
     else
     {

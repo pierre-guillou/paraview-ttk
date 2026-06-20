@@ -12,8 +12,8 @@
  *
  * default date formats parsed include
  *
- *   "%Y-%m-%d %H:%M:%S"
- *   "%d/%m/%Y %H:%M:%S"
+ *   "{:%Y-%m-%d %H:%M:%S}"
+ *   "{:%d/%m/%Y %H:%M:%S}"
  */
 
 #ifndef vtkDateToNumeric_h
@@ -35,10 +35,10 @@ public:
   ///@{
   /**
    * You can specify your own format to parse dates by. This string
-   * follows the formatting conventions of std::get_time
+   * follows the formatting conventions of std::format or std::get_time.
    */
-  vtkGetStringMacro(DateFormat);
   vtkSetStringMacro(DateFormat);
+  vtkGetStringMacro(DateFormat);
   ///@}
 
 protected:

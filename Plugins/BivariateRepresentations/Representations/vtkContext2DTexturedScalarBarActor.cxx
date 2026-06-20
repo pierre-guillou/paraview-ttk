@@ -5,18 +5,14 @@
 #include "vtkAxis.h"
 #include "vtkBoundingRectContextDevice2D.h"
 #include "vtkBrush.h"
-#include "vtkColorTransferFunction.h"
 #include "vtkContext2D.h"
 #include "vtkContextActor.h"
 #include "vtkContextDevice2D.h"
 #include "vtkContextItem.h"
 #include "vtkContextScene.h"
-#include "vtkDiscretizableColorTransferFunction.h"
 #include "vtkDoubleArray.h"
 #include "vtkFloatArray.h"
 #include "vtkImageData.h"
-#include "vtkLookupTable.h"
-#include "vtkMath.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLContextDevice2D.h"
@@ -29,20 +25,12 @@
 #include "vtkScalarsToColors.h"
 #include "vtkTextProperty.h"
 #include "vtkTransform2D.h"
-#include "vtkUnsignedCharArray.h"
 #include "vtkViewport.h"
 
 #include "vtkNetworkImageSource.h"
 #include "vtkPVLogoSource.h"
 
 #include <limits>
-#include <map>
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#define SNPRINTF _snprintf
-#else
-#define SNPRINTF snprintf
-#endif
 
 /**
  * NOTE FOR DEVELOPERS
@@ -150,7 +138,7 @@ void vtkContext2DTexturedScalarBarActor::SetCustomLabel(vtkIdType index, double 
     return;
   }
 
-  this->CustomLabels->SetTypedTuple(index, &value);
+  this->CustomLabels->SetValue(index, value);
 }
 
 //----------------------------------------------------------------------------
@@ -337,7 +325,7 @@ void vtkContext2DTexturedScalarBarActor::PaintAxis(
 
   auto* range = orientation == VTK_ORIENT_VERTICAL ? this->FirstRange : this->SecondRange;
   auto notation =
-    this->AutomaticLabelFormat ? vtkAxis::STANDARD_NOTATION : vtkAxis::PRINTF_NOTATION;
+    this->AutomaticLabelFormat ? vtkAxis::STANDARD_NOTATION : vtkAxis::STD_FORMAT_NOTATION;
   auto* cutomLabels = this->UseCustomLabels ? this->CustomLabels : nullptr;
 
   // NOTE: the order of calls to this->Axis is important and should be
@@ -352,7 +340,6 @@ void vtkContext2DTexturedScalarBarActor::PaintAxis(
   this->Axis->SetGridVisible(false);
   this->Axis->SetNotation(notation);
   this->Axis->SetLabelFormat(std::string(this->LabelFormat));
-  this->Axis->AutoScale();
   this->Axis->SetRangeLabelsVisible(this->AddRangeLabels);
   this->Axis->SetRangeLabelFormat(std::string(this->RangeLabelFormat));
   this->Axis->SetCustomTickPositions(cutomLabels);

@@ -10,9 +10,12 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
+#include "vtkStringFormatter.h"
 #include "vtksys/FStream.hxx"
 
 #include <sstream>
+
+#include <iostream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGeoJSONWriter);
@@ -34,7 +37,7 @@ public:
   void Grow()
   {
     this->MaxBufferSize *= 2;
-    // cerr << "GROW " << this->MaxBufferSize << endl;
+    // std::cerr << "GROW " << this->MaxBufferSize << endl;
     char* biggerBuffer = new char[this->MaxBufferSize];
     size_t curSize = this->Top - this->Buffer;
     memcpy(biggerBuffer, this->Buffer, curSize);
@@ -48,18 +51,21 @@ public:
     {
       this->Grow();
     }
-    int nchars = snprintf(this->Top, this->MaxBufferSize, "%s", newcontent);
-    this->Top += nchars;
+    auto result = vtk::format_to_n(this->Top, this->MaxBufferSize, "{:s}", newcontent);
+    *result.out = '\0';
+    this->Top += result.size;
   }
   void append(const double newcontent)
   {
-    snprintf(this->NumBuffer, 64, "%g", newcontent);
+    auto result = vtk::format_to_n(this->NumBuffer, sizeof(NumBuffer), "{:g}", newcontent);
+    *result.out = '\0';
     while (this->Top + strlen(NumBuffer) >= this->Buffer + this->MaxBufferSize)
     {
       this->Grow();
     }
-    int nchars = snprintf(this->Top, this->MaxBufferSize, "%s", this->NumBuffer);
-    this->Top += nchars;
+    result = vtk::format_to_n(this->Top, this->MaxBufferSize, "{:s}", this->NumBuffer);
+    *result.out = '\0';
+    this->Top += result.size;
   }
   char* Buffer;
   char* Top;

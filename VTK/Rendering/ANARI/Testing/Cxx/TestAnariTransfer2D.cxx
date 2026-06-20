@@ -35,6 +35,8 @@
 #include "vtkAnariTestInteractor.h"
 #include "vtkAnariTestUtilities.h"
 
+#include <iostream>
+
 typedef vtkSmartPointer<vtkImageData> Transfer2DPtr;
 Transfer2DPtr Create2DTransfer()
 {
@@ -43,10 +45,8 @@ Transfer2DPtr Create2DTransfer()
   image->SetDimensions(bins[0], bins[1], 1);
   image->AllocateScalars(VTK_FLOAT, 4);
   vtkFloatArray* arr = vtkFloatArray::SafeDownCast(image->GetPointData()->GetScalars());
-
   // Initialize to zero
-  void* dataPtr = arr->GetVoidPointer(0);
-  memset(dataPtr, 0, bins[0] * bins[1] * 4 * sizeof(float));
+  arr->FillValue(0);
 
   // Setting RGBA [1.0, 0,0, 0.05] for a square in the histogram (known)
   // containing some of the interesting edges (e.g. tooth root).
@@ -88,7 +88,7 @@ int TestAnariTransfer2D(int argc, char* argv[])
     }
   }
 
-  cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << endl;
+  std::cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << std::endl;
 
   // Load data
   char* fname = vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/tooth.nhdr");

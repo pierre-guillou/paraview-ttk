@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include <maptypes.h>  // for CIStringSet, CIStringSetVector defs
 
 #if __GNUC__ >= 3
 #   define MUST_CHECK __attribute__ ((warn_unused_result))
@@ -49,6 +50,11 @@ namespace StringHelpers
                        const std::set<std::string> &stringList,
                        int numGroups,
                        std::vector<std::set<std::string> > &stringGroups);
+    // The following override has containers using CaseInsenstive comparator
+    void UTILITY_API GroupStringsFixedAlpha(
+                       const CIStringSet &stringList,
+                       int numGroups,
+                       CIStringSetVector &stringGroups);
 
     int UTILITY_API FindRE(const std::string &s, const std::string &re);
     int UTILITY_API FindRE(const char *stringToSearch, const char *re);
@@ -64,11 +70,15 @@ namespace StringHelpers
     std::string UTILITY_API cdr(const std::string, const char separator);
     void UTILITY_API append(std::vector<std::string> &,
                             std::vector<std::string>);
-    std::vector<std::string> UTILITY_API split(const std::string,
+
+    std::vector<std::string> UTILITY_API split(const std::string &input,
                                                const char separator);
+
     void UTILITY_API rtrim(std::string &var);
     void UTILITY_API ltrim(std::string &var);
     void UTILITY_API  trim(std::string &var);
+    // name aligns with C++20 std::string::ends_with
+    bool UTILITY_API ends_with(const std::string &var, const std::string &test);
 
     std::string UTILITY_API Replace(const std::string &source,
                                     const std::string &before,
@@ -78,12 +88,19 @@ namespace StringHelpers
     std::string UTILITY_API HumanReadableList(const std::vector<std::string>&);
     bool UTILITY_API IsPureASCII(const std::string &txt);
     bool UTILITY_API IsPureASCII(const char *const txt, size_t length);
-    bool UTILITY_API CaseInsenstiveEqual(const std::string &str_a,
-                                         const std::string &str_b);
+    bool UTILITY_API CaseInsensitiveEqual(char const *str_a,
+                                         char const *str_b,
+                                         size_t n = 0);
+    bool UTILITY_API CaseInsensitiveEqual(const std::string &str_a,
+                                         const std::string &str_b,
+                                         size_t n = 0);
     std::string UTILITY_API UpperCase(const std::string &src);
 
     bool UTILITY_API StringToInt(const std::string &, int &);
-    bool UTILITY_API ParseRange(const std::string , std::vector<int> &);
+    bool UTILITY_API ParseRange(const std::string &, std::vector<int> &);
+
+    std::string UTILITY_API  EscapeSpecialChars(const std::string &str);
+
 // ****************************************************************************
 //  Function: str_to_u_numeric
 //

@@ -24,6 +24,8 @@
  *     <DataAssemblyDomain name="data_assembly" (optional)entity_type=3>
  *       <RequiredProperties>
  *         <Property function="Input" name="Input" />
+ *         <Property function="ActiveAssembly" name="Assembly" />
+ *         <Property function="Mode" name="ArraySelectionMode" />
  *       </RequiredProperties>
  *     </DataAssemblyDomain>
  *     <Documentation>
@@ -32,6 +34,30 @@
  *   </StringVectorProperty>
  * </SourceProxy>
  * @endcode
+ *
+ * The `entity_type` attribute is optional and can be used to specify the
+ * default IOSS selector (based on vtkIOSSReader::EntityTypes) to use when
+ * building the data assembly. If not specified, the default is nothing.
+ *
+ * `Input` property is required to be present, if not in reader mode to query
+ * the dataset's data information and obtain the hierarchy or data assembly.
+ *
+ * The `ActiveAssembly` property is optional and is used to determine which
+ * data assembly to use. If not specified, the domain uses the hierarchy
+ * from the input data information. If specified, it is expected to be a
+ * string vector property that contains the name of the assembly to use.
+ *
+ * The `Mode` property is optional and can be used to specify the type of
+ * selectors that the property can have. The possible values are:
+ * 1. `ALL` = 0, which means the property can have selectors for all nodes
+ *    in the data assembly.
+ * 2. `LEAVES` which can be used to restrict the property to only have
+ * selectors for leaf nodes in the data assembly.
+ *
+ * The `Mode` property also affects what the default value will be set to.
+ * If the `Mode` is set to `LEAVES`, then the default value will be set to
+ * the first leaf node in the data assembly. If the `Mode` is set to `ALL`,
+ * then the default value will be what the user has provided in the xml.
  *
  * vtkSMDataAssemblyDomain can also be used on readers. In that case, it uses
  * vtkPVDataAssemblyInformation to obtain the data assembly from the reader. The
@@ -115,6 +141,21 @@ public:
 
   void Update(vtkSMProperty* requestingProperty) override;
 
+  enum Modes
+  {
+    ALL = 0,
+    LEAVES = 1,
+  };
+
+  ///@{
+  /**
+   * Mode indicates if the property is interested in all nodes, leaves only or
+   * non-leaves only. Can be configured in XML using the "mode" attribute.
+   * Values can be "all", "leaves". Default is all nodes.
+   */
+  vtkGetMacro(Mode, int);
+  ///@}
+
   int SetDefaultValues(vtkSMProperty* prop, bool use_unchecked_values) override;
 
 protected:
@@ -135,12 +176,15 @@ private:
    */
   int ReadXMLAttributes(vtkSMProperty* prop, vtkPVXMLElement* element) override;
 
+  void OnDomainModified();
+
   int LastTag = 0;
 
   vtkSmartPointer<vtkDataAssembly> Assembly;
   std::string AssemblyXMLContents;
   std::string Name;
   int EntityType = -1;
+  int Mode = ALL;
 };
 
 #endif

@@ -3,9 +3,6 @@
 #ifndef vtkDataArrayPrivate_txx
 #define vtkDataArrayPrivate_txx
 
-#ifndef VTK_GDA_TEMPLATE_EXTERN
-
-#include "vtkAssume.h"
 #include "vtkDataArray.h"
 #include "vtkDataArrayRange.h"
 #include "vtkMathUtilities.h"
@@ -15,124 +12,60 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert> // for assert()
-#include <limits>
 #include <vector>
 
 namespace vtkDataArrayPrivate
 {
 VTK_ABI_NAMESPACE_BEGIN
-#if (defined(_MSC_VER) && (_MSC_VER < 2000)) ||                                                    \
-  (defined(__INTEL_COMPILER) && (__INTEL_COMPILER < 1700))
-namespace msvc
-{
-//----------------------------------------------------------------------------
-// Those min and max functions replace std ones because their
-// implementation used to generate very slow code with MSVC.
-// See https://randomascii.wordpress.com/2013/11/24/stdmin-causing-three-times-slowdown-on-vc/
-// The comparison expression in min/max are written so that if the "condition" is false,
-// the "left" value is returned. This is consistent with STL's implementations
-// and also handles the cases where the right value may be a NaN properly.
-// All code using these methods should ensure that the "left" value is never
-// NaN.
-// We use _MSC_VER < 2000 instead of 1900 not due to performance issues, but
-// because MSVC 2015 (_MSC_VER=1900) doesn't handle NaNs properly in optimized
-// builds.
-// icpc version 16 also doesn't handle NaNs properly.
-// The order is correct in icpc version 17.
-template <class ValueType>
-ValueType max(const ValueType& left, const ValueType& right)
-{
-  return right > left ? right : left;
-}
 
-template <class ValueType>
-ValueType min(const ValueType& left, const ValueType& right)
-{
-  return right <= left ? right : left;
-}
-}
-#endif
-
-namespace detail
-{
-#if (defined(_MSC_VER) && (_MSC_VER < 2000)) ||                                                    \
-  (defined(__INTEL_COMPILER) && (__INTEL_COMPILER < 1700))
-using msvc::max;
-using msvc::min;
-#else
-using std::max;
-using std::min;
-#endif
-}
-
-// avoid checking types that don't contain infinity.
-namespace detail
-{
-template <typename T, bool>
-struct has_infinity;
-
-template <typename T>
-struct has_infinity<T, true>
-{
-  static bool isinf(T x) { return std::isinf(x); }
-};
-
-template <typename T>
-struct has_infinity<T, false>
-{
-  static bool isinf(T) { return false; }
-};
-
-template <typename T>
-bool isinf(T x)
-{
-  // Select the correct partially specialized type.
-  return has_infinity<T, std::numeric_limits<T>::has_infinity>::isinf(x);
-}
-}
-
-template <typename APIType, int NumComps>
+template <typename ArrayT, typename APIType, int RangeNumComps>
 class MinAndMax
 {
 protected:
-  APIType ReducedRange[2 * NumComps];
-  vtkSMPThreadLocal<std::array<APIType, 2 * NumComps>> TLRange;
+  ArrayT* Array;
+  APIType ReducedRange[2 * RangeNumComps];
+  vtkSMPThreadLocal<std::array<APIType, 2 * RangeNumComps>> TLRange;
+  const unsigned char* Ghosts;
+  unsigned char GhostsToSkip;
 
 public:
-  MinAndMax()
+  MinAndMax(ArrayT* array, const unsigned char* ghosts, unsigned char ghostsToSkip)
+    : Array(array)
+    , Ghosts(ghosts)
+    , GhostsToSkip(ghostsToSkip)
   {
-    for (int i = 0, j = 0; i < NumComps; ++i, j += 2)
+    for (int i = 0, j = 0; i < RangeNumComps; ++i, j += 2)
     {
       this->ReducedRange[j] = vtkTypeTraits<APIType>::Max();
       this->ReducedRange[j + 1] = vtkTypeTraits<APIType>::Min();
     }
   }
-  void Initialize()
+  virtual ~MinAndMax() = default;
+  virtual void Initialize()
   {
     auto& range = this->TLRange.Local();
-    for (int i = 0, j = 0; i < NumComps; ++i, j += 2)
+    for (int i = 0, j = 0; i < RangeNumComps; ++i, j += 2)
     {
       range[j] = vtkTypeTraits<APIType>::Max();
       range[j + 1] = vtkTypeTraits<APIType>::Min();
     }
   }
-  void Reduce()
+  virtual void Reduce()
   {
     for (auto itr = this->TLRange.begin(); itr != this->TLRange.end(); ++itr)
     {
       auto& range = *itr;
-      for (int i = 0, j = 0; i < NumComps; ++i, j += 2)
+      for (int i = 0, j = 0; i < RangeNumComps; ++i, j += 2)
       {
-        this->ReducedRange[j] = detail::min(this->ReducedRange[j], range[j]);
-        this->ReducedRange[j + 1] = detail::max(this->ReducedRange[j + 1], range[j + 1]);
+        this->ReducedRange[j] = std::min(this->ReducedRange[j], range[j]);
+        this->ReducedRange[j + 1] = std::max(this->ReducedRange[j + 1], range[j + 1]);
       }
     }
   }
   template <typename T>
   void CopyRanges(T* ranges)
   {
-    for (int i = 0, j = 0; i < NumComps; ++i, j += 2)
+    for (int i = 0, j = 0; i < RangeNumComps; ++i, j += 2)
     {
       ranges[j] = static_cast<T>(this->ReducedRange[j]);
       ranges[j + 1] = static_cast<T>(this->ReducedRange[j + 1]);
@@ -141,111 +74,90 @@ public:
 };
 
 template <int NumComps, typename ArrayT, typename APIType = typename vtk::GetAPIType<ArrayT>>
-class AllValuesMinAndMax : public MinAndMax<APIType, NumComps>
+class AllValuesMinAndMax : public MinAndMax<ArrayT, APIType, NumComps>
 {
 private:
-  using MinAndMaxT = MinAndMax<APIType, NumComps>;
-  ArrayT* Array;
-  const unsigned char* Ghosts;
-  unsigned char GhostsToSkip;
+  using MinAndMaxT = MinAndMax<ArrayT, APIType, NumComps>;
 
 public:
   AllValuesMinAndMax(ArrayT* array, const unsigned char* ghosts, unsigned char ghostsToSkip)
-    : MinAndMaxT()
-    , Array(array)
-    , Ghosts(ghosts)
-    , GhostsToSkip(ghostsToSkip)
+    : MinAndMaxT(array, ghosts, ghostsToSkip)
   {
   }
   // Help vtkSMPTools find Initialize() and Reduce()
-  void Initialize() { MinAndMaxT::Initialize(); }
-  void Reduce() { MinAndMaxT::Reduce(); }
+  void Initialize() override { MinAndMaxT::Initialize(); }
+  void Reduce() override { MinAndMaxT::Reduce(); }
   void operator()(vtkIdType begin, vtkIdType end)
   {
     const auto tuples = vtk::DataArrayTupleRange<NumComps>(this->Array, begin, end);
-    auto& range = MinAndMaxT::TLRange.Local();
+    auto& range = this->TLRange.Local();
     const unsigned char* ghostIt = this->Ghosts ? this->Ghosts + begin : nullptr;
     for (const auto tuple : tuples)
     {
+      // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
       if (ghostIt && (*(ghostIt++) & this->GhostsToSkip))
       {
         continue;
       }
-      size_t j = 0;
-      for (const APIType value : tuple)
+      for (int i = 0, j = 0; i < NumComps; ++i, j += 2)
       {
+        const APIType value = tuple[i];
         vtkMathUtilities::UpdateRange(range[j], range[j + 1], value);
-        j += 2;
       }
     }
   }
 };
 
 template <int NumComps, typename ArrayT, typename APIType = typename vtk::GetAPIType<ArrayT>>
-class FiniteMinAndMax : public MinAndMax<APIType, NumComps>
+class FiniteMinAndMax : public MinAndMax<ArrayT, APIType, NumComps>
 {
 private:
-  using MinAndMaxT = MinAndMax<APIType, NumComps>;
-  ArrayT* Array;
-  const unsigned char* Ghosts;
-  unsigned char GhostsToSkip;
+  using MinAndMaxT = MinAndMax<ArrayT, APIType, NumComps>;
 
 public:
   FiniteMinAndMax(ArrayT* array, const unsigned char* ghosts, unsigned char ghostsToSkip)
-    : MinAndMaxT()
-    , Array(array)
-    , Ghosts(ghosts)
-    , GhostsToSkip(ghostsToSkip)
+    : MinAndMaxT(array, ghosts, ghostsToSkip)
   {
   }
   // Help vtkSMPTools find Initialize() and Reduce()
-  void Initialize() { MinAndMaxT::Initialize(); }
-  void Reduce() { MinAndMaxT::Reduce(); }
+  void Initialize() override { MinAndMaxT::Initialize(); }
+  void Reduce() override { MinAndMaxT::Reduce(); }
   void operator()(vtkIdType begin, vtkIdType end)
   {
     const auto tuples = vtk::DataArrayTupleRange<NumComps>(this->Array, begin, end);
-    auto& range = MinAndMaxT::TLRange.Local();
+    auto& range = this->TLRange.Local();
     const unsigned char* ghostIt = this->Ghosts ? this->Ghosts + begin : nullptr;
     for (const auto tuple : tuples)
     {
+      // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
       if (ghostIt && (*(ghostIt++) & this->GhostsToSkip))
       {
         continue;
       }
-      size_t j = 0;
-      for (const APIType value : tuple)
+      for (int i = 0, j = 0; i < NumComps; ++i, j += 2)
       {
-        if (!detail::isinf(value))
-        {
-          vtkMathUtilities::UpdateRange(range[j], range[j + 1], value);
-        }
-        j += 2;
+        const APIType value = tuple[i];
+        vtkMathUtilities::UpdateRangeFinite(range[j], range[j + 1], value);
       }
     }
   }
 };
 
-template <typename ArrayT, typename APIType = typename vtk::GetAPIType<ArrayT>>
-class MagnitudeAllValuesMinAndMax : public MinAndMax<APIType, 1>
+template <int NumComps, typename ArrayT, typename APIType = vtk::GetAPIType<ArrayT>>
+class MagnitudeAllValuesMinAndMax : public MinAndMax<ArrayT, APIType, 1>
 {
 private:
-  using MinAndMaxT = MinAndMax<APIType, 1>;
-  ArrayT* Array;
-  const unsigned char* Ghosts;
-  unsigned char GhostsToSkip;
+  using MinAndMaxT = MinAndMax<ArrayT, APIType, 1>;
 
 public:
   MagnitudeAllValuesMinAndMax(
     ArrayT* array, const unsigned char* ghosts, unsigned char ghostsToSkip)
-    : MinAndMaxT()
-    , Array(array)
-    , Ghosts(ghosts)
-    , GhostsToSkip(ghostsToSkip)
+    : MinAndMaxT(array, ghosts, ghostsToSkip)
   {
   }
   // Help vtkSMPTools find Initialize() and Reduce()
-  void Initialize() { MinAndMaxT::Initialize(); }
-  void Reduce() { MinAndMaxT::Reduce(); }
+  void Initialize() override { MinAndMaxT::Initialize(); }
+  void Reduce() override { MinAndMaxT::Reduce(); }
   template <typename T>
   void CopyRanges(T* ranges)
   {
@@ -257,47 +169,41 @@ public:
   }
   void operator()(vtkIdType begin, vtkIdType end)
   {
-    const auto tuples = vtk::DataArrayTupleRange(this->Array, begin, end);
-    auto& range = MinAndMaxT::TLRange.Local();
+    const auto tuples = vtk::DataArrayTupleRange<NumComps>(this->Array, begin, end);
+    auto& range = this->TLRange.Local();
     const unsigned char* ghostIt = this->Ghosts ? this->Ghosts + begin : nullptr;
     for (const auto tuple : tuples)
     {
+      // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
       if (ghostIt && (*(ghostIt++) & this->GhostsToSkip))
       {
         continue;
       }
       APIType squaredSum = 0.0;
-      for (const APIType value : tuple)
+      for (int i = 0; i < NumComps; ++i)
       {
+        const APIType value = tuple[i];
         squaredSum += value * value;
       }
-      range[0] = detail::min(range[0], squaredSum);
-      range[1] = detail::max(range[1], squaredSum);
+      vtkMathUtilities::UpdateRange(range[0], range[1], squaredSum);
     }
   }
 };
 
-template <typename ArrayT, typename APIType = typename vtk::GetAPIType<ArrayT>>
-class MagnitudeFiniteMinAndMax : public MinAndMax<APIType, 1>
+template <int NumComps, typename ArrayT, typename APIType = vtk::GetAPIType<ArrayT>>
+class MagnitudeFiniteMinAndMax : public MinAndMax<ArrayT, APIType, 1>
 {
 private:
-  using MinAndMaxT = MinAndMax<APIType, 1>;
-  ArrayT* Array;
-  const unsigned char* Ghosts;
-  unsigned char GhostsToSkip;
-  unsigned char GhsotsToKeep;
+  using MinAndMaxT = MinAndMax<ArrayT, APIType, 1>;
 
 public:
   MagnitudeFiniteMinAndMax(ArrayT* array, const unsigned char* ghosts, unsigned char ghostsToSkip)
-    : MinAndMaxT()
-    , Array(array)
-    , Ghosts(ghosts)
-    , GhostsToSkip(ghostsToSkip)
+    : MinAndMaxT(array, ghosts, ghostsToSkip)
   {
   }
   // Help vtkSMPTools find Initialize() and Reduce()
-  void Initialize() { MinAndMaxT::Initialize(); }
-  void Reduce() { MinAndMaxT::Reduce(); }
+  void Initialize() override { MinAndMaxT::Initialize(); }
+  void Reduce() override { MinAndMaxT::Reduce(); }
   template <typename T>
   void CopyRanges(T* ranges)
   {
@@ -309,25 +215,23 @@ public:
   }
   void operator()(vtkIdType begin, vtkIdType end)
   {
-    const auto tuples = vtk::DataArrayTupleRange(this->Array, begin, end);
-    auto& range = MinAndMaxT::TLRange.Local();
+    const auto tuples = vtk::DataArrayTupleRange<NumComps>(this->Array, begin, end);
+    auto& range = this->TLRange.Local();
     const unsigned char* ghostIt = this->Ghosts ? this->Ghosts + begin : nullptr;
     for (const auto tuple : tuples)
     {
+      // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
       if (ghostIt && (*(ghostIt++) & this->GhostsToSkip))
       {
         continue;
       }
       APIType squaredSum = 0.0;
-      for (const APIType value : tuple)
+      for (int i = 0; i < NumComps; ++i)
       {
+        const APIType value = tuple[i];
         squaredSum += value * value;
       }
-      if (!detail::isinf(squaredSum))
-      {
-        range[0] = detail::min(range[0], squaredSum);
-        range[1] = detail::max(range[1], squaredSum);
-      }
+      vtkMathUtilities::UpdateRangeFinite(range[0], range[1], squaredSum);
     }
   }
 };
@@ -356,57 +260,87 @@ struct ComputeScalarRange
   }
 };
 
+//----------------------------------------------------------------------------
+template <int NumComps>
+struct ComputeVectorRange
+{
+  template <class ArrayT, typename RangeValueType>
+  bool operator()(ArrayT* array, RangeValueType* ranges, AllValues, const unsigned char* ghosts,
+    unsigned char ghostsToSkip)
+  {
+    using APIType =
+      std::conditional_t<std::is_floating_point_v<vtk::GetAPIType<ArrayT>>, double, vtkTypeInt64>;
+    MagnitudeAllValuesMinAndMax<NumComps, ArrayT, APIType> minmax(array, ghosts, ghostsToSkip);
+    vtkSMPTools::For(0, array->GetNumberOfTuples(), minmax);
+    minmax.CopyRanges(ranges);
+    return true;
+  }
+  template <class ArrayT, typename RangeValueType>
+  bool operator()(ArrayT* array, RangeValueType* ranges, FiniteValues, const unsigned char* ghosts,
+    unsigned char ghostsToSkip)
+  {
+    using APIType =
+      std::conditional_t<std::is_floating_point_v<vtk::GetAPIType<ArrayT>>, double, vtkTypeInt64>;
+    MagnitudeFiniteMinAndMax<NumComps, ArrayT, APIType> minmax(array, ghosts, ghostsToSkip);
+    vtkSMPTools::For(0, array->GetNumberOfTuples(), minmax);
+    minmax.CopyRanges(ranges);
+    return true;
+  }
+};
+
 template <typename ArrayT, typename APIType>
 class GenericMinAndMax
 {
 protected:
   ArrayT* Array;
-  vtkIdType NumComps;
+  int RangeNumComps;
   vtkSMPThreadLocal<std::vector<APIType>> TLRange;
   std::vector<APIType> ReducedRange;
   const unsigned char* Ghosts;
   unsigned char GhostsToSkip;
 
 public:
-  GenericMinAndMax(ArrayT* array, const unsigned char* ghosts, unsigned char ghostsToSkip)
+  GenericMinAndMax(
+    ArrayT* array, int rangeNumComps, const unsigned char* ghosts, unsigned char ghostsToSkip)
     : Array(array)
-    , NumComps(Array->GetNumberOfComponents())
-    , ReducedRange(2 * NumComps)
+    , RangeNumComps(rangeNumComps)
+    , ReducedRange(2 * RangeNumComps)
     , Ghosts(ghosts)
     , GhostsToSkip(ghostsToSkip)
   {
-    for (int i = 0, j = 0; i < this->NumComps; ++i, j += 2)
+    for (int i = 0, j = 0; i < this->RangeNumComps; ++i, j += 2)
     {
       this->ReducedRange[j] = vtkTypeTraits<APIType>::Max();
       this->ReducedRange[j + 1] = vtkTypeTraits<APIType>::Min();
     }
   }
-  void Initialize()
+  virtual ~GenericMinAndMax() = default;
+  virtual void Initialize()
   {
     auto& range = this->TLRange.Local();
-    range.resize(2 * this->NumComps);
-    for (int i = 0, j = 0; i < this->NumComps; ++i, j += 2)
+    range.resize(2 * this->RangeNumComps);
+    for (int i = 0, j = 0; i < this->RangeNumComps; ++i, j += 2)
     {
       range[j] = vtkTypeTraits<APIType>::Max();
       range[j + 1] = vtkTypeTraits<APIType>::Min();
     }
   }
-  void Reduce()
+  virtual void Reduce()
   {
     for (auto itr = this->TLRange.begin(); itr != this->TLRange.end(); ++itr)
     {
       auto& range = *itr;
-      for (int i = 0, j = 0; i < this->NumComps; ++i, j += 2)
+      for (int i = 0, j = 0; i < this->RangeNumComps; ++i, j += 2)
       {
-        this->ReducedRange[j] = detail::min(this->ReducedRange[j], range[j]);
-        this->ReducedRange[j + 1] = detail::max(this->ReducedRange[j + 1], range[j + 1]);
+        this->ReducedRange[j] = std::min(this->ReducedRange[j], range[j]);
+        this->ReducedRange[j + 1] = std::max(this->ReducedRange[j + 1], range[j + 1]);
       }
     }
   }
   template <typename T>
   void CopyRanges(T* ranges)
   {
-    for (int i = 0, j = 0; i < NumComps; ++i, j += 2)
+    for (int i = 0, j = 0; i < this->RangeNumComps; ++i, j += 2)
     {
       ranges[j] = static_cast<T>(this->ReducedRange[j]);
       ranges[j + 1] = static_cast<T>(this->ReducedRange[j + 1]);
@@ -422,19 +356,20 @@ private:
 
 public:
   AllValuesGenericMinAndMax(ArrayT* array, const unsigned char* ghosts, unsigned char ghostsToSkip)
-    : MinAndMaxT(array, ghosts, ghostsToSkip)
+    : MinAndMaxT(array, array->GetNumberOfComponents(), ghosts, ghostsToSkip)
   {
   }
   // Help vtkSMPTools find Initialize() and Reduce()
-  void Initialize() { MinAndMaxT::Initialize(); }
-  void Reduce() { MinAndMaxT::Reduce(); }
+  void Initialize() override { MinAndMaxT::Initialize(); }
+  void Reduce() override { MinAndMaxT::Reduce(); }
   void operator()(vtkIdType begin, vtkIdType end)
   {
     const auto tuples = vtk::DataArrayTupleRange(this->Array, begin, end);
-    auto& range = MinAndMaxT::TLRange.Local();
+    auto& range = this->TLRange.Local();
     const unsigned char* ghostIt = this->Ghosts ? this->Ghosts + begin : nullptr;
     for (const auto tuple : tuples)
     {
+      // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
       if (ghostIt && (*(ghostIt++) & this->GhostsToSkip))
       {
         continue;
@@ -442,8 +377,7 @@ public:
       size_t j = 0;
       for (const APIType value : tuple)
       {
-        range[j] = detail::min(range[j], value);
-        range[j + 1] = detail::max(range[j + 1], value);
+        vtkMathUtilities::UpdateRange(range[j], range[j + 1], value);
         j += 2;
       }
     }
@@ -458,19 +392,20 @@ private:
 
 public:
   FiniteGenericMinAndMax(ArrayT* array, const unsigned char* ghosts, unsigned char ghostsToSkip)
-    : MinAndMaxT(array, ghosts, ghostsToSkip)
+    : MinAndMaxT(array, array->GetNumberOfComponents(), ghosts, ghostsToSkip)
   {
   }
   // Help vtkSMPTools find Initialize() and Reduce()
-  void Initialize() { MinAndMaxT::Initialize(); }
-  void Reduce() { MinAndMaxT::Reduce(); }
+  void Initialize() override { MinAndMaxT::Initialize(); }
+  void Reduce() override { MinAndMaxT::Reduce(); }
   void operator()(vtkIdType begin, vtkIdType end)
   {
     const auto tuples = vtk::DataArrayTupleRange(this->Array, begin, end);
-    auto& range = MinAndMaxT::TLRange.Local();
+    auto& range = this->TLRange.Local();
     const unsigned char* ghostIt = this->Ghosts ? this->Ghosts + begin : nullptr;
     for (const auto tuple : tuples)
     {
+      // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
       if (ghostIt && (*(ghostIt++) & this->GhostsToSkip))
       {
         continue;
@@ -478,17 +413,106 @@ public:
       size_t j = 0;
       for (const APIType value : tuple)
       {
-        if (!detail::isinf(value))
-        {
-          range[j] = detail::min(range[j], value);
-          range[j + 1] = detail::max(range[j + 1], value);
-        }
+        vtkMathUtilities::UpdateRangeFinite(range[j], range[j + 1], value);
         j += 2;
       }
     }
   }
 };
 
+template <typename ArrayT, typename APIType = vtk::GetAPIType<ArrayT>>
+class MagnitudeAllValuesGenericMinAndMax : public GenericMinAndMax<ArrayT, APIType>
+{
+private:
+  using MinAndMaxT = GenericMinAndMax<ArrayT, APIType>;
+
+public:
+  MagnitudeAllValuesGenericMinAndMax(
+    ArrayT* array, const unsigned char* ghosts, unsigned char ghostsToSkip)
+    : MinAndMaxT(array, 1, ghosts, ghostsToSkip)
+  {
+  }
+  // Help vtkSMPTools find Initialize() and Reduce()
+  void Initialize() override { MinAndMaxT::Initialize(); }
+  void Reduce() override { MinAndMaxT::Reduce(); }
+  template <typename T>
+  void CopyRanges(T* ranges)
+  {
+    MinAndMaxT::CopyRanges(ranges);
+    // now that we have computed the smallest and largest value, take the
+    // square root of that value.
+    ranges[0] = std::sqrt(ranges[0]);
+    ranges[1] = std::sqrt(ranges[1]);
+  }
+  void operator()(vtkIdType begin, vtkIdType end)
+  {
+    const auto tuples = vtk::DataArrayTupleRange(this->Array, begin, end);
+    auto& range = this->TLRange.Local();
+    const unsigned char* ghostIt = this->Ghosts ? this->Ghosts + begin : nullptr;
+    for (const auto tuple : tuples)
+    {
+      // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
+      if (ghostIt && (*(ghostIt++) & this->GhostsToSkip))
+      {
+        continue;
+      }
+      APIType squaredSum = 0.0;
+      for (const APIType value : tuple)
+      {
+        squaredSum += value * value;
+      }
+      vtkMathUtilities::UpdateRange(range[0], range[1], squaredSum);
+    }
+  }
+};
+
+template <typename ArrayT, typename APIType = vtk::GetAPIType<ArrayT>>
+class MagnitudeFiniteGenericMinAndMax : public GenericMinAndMax<ArrayT, APIType>
+{
+private:
+  using MinAndMaxT = GenericMinAndMax<ArrayT, APIType>;
+
+public:
+  MagnitudeFiniteGenericMinAndMax(
+    ArrayT* array, const unsigned char* ghosts, unsigned char ghostsToSkip)
+    : MinAndMaxT(array, 1, ghosts, ghostsToSkip)
+  {
+  }
+  // Help vtkSMPTools find Initialize() and Reduce()
+  void Initialize() override { MinAndMaxT::Initialize(); }
+  void Reduce() override { MinAndMaxT::Reduce(); }
+  template <typename T>
+  void CopyRanges(T* ranges)
+  {
+    MinAndMaxT::CopyRanges(ranges);
+    // now that we have computed the smallest and largest value, take the
+    // square root of that value.
+    ranges[0] = std::sqrt(ranges[0]);
+    ranges[1] = std::sqrt(ranges[1]);
+  }
+  void operator()(vtkIdType begin, vtkIdType end)
+  {
+    const auto tuples = vtk::DataArrayTupleRange(this->Array, begin, end);
+    auto& range = this->TLRange.Local();
+    const unsigned char* ghostIt = this->Ghosts ? this->Ghosts + begin : nullptr;
+    for (const auto tuple : tuples)
+    {
+      // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
+      if (ghostIt && (*(ghostIt++) & this->GhostsToSkip))
+      {
+        continue;
+      }
+      APIType squaredSum = 0.0;
+      for (const APIType value : tuple)
+      {
+        squaredSum += value * value;
+      }
+      vtkMathUtilities::UpdateRangeFinite(range[0], range[1], squaredSum);
+    }
+  }
+};
+
+//----------------------------------------------------------------------------
 template <class ArrayT, typename RangeValueType>
 bool GenericComputeScalarRange(ArrayT* array, RangeValueType* ranges, AllValues,
   const unsigned char* ghosts, unsigned char ghostsToSkip)
@@ -499,6 +523,7 @@ bool GenericComputeScalarRange(ArrayT* array, RangeValueType* ranges, AllValues,
   return true;
 }
 
+//----------------------------------------------------------------------------
 template <class ArrayT, typename RangeValueType>
 bool GenericComputeScalarRange(ArrayT* array, RangeValueType* ranges, FiniteValues,
   const unsigned char* ghosts, unsigned char ghostsToSkip)
@@ -510,8 +535,34 @@ bool GenericComputeScalarRange(ArrayT* array, RangeValueType* ranges, FiniteValu
 }
 
 //----------------------------------------------------------------------------
+template <class ArrayT, typename RangeValueType>
+bool GenericComputeVectorRange(ArrayT* array, RangeValueType* ranges, AllValues,
+  const unsigned char* ghosts, unsigned char ghostsToSkip)
+{
+  using APIType =
+    std::conditional_t<std::is_floating_point_v<vtk::GetAPIType<ArrayT>>, double, vtkTypeInt64>;
+  MagnitudeAllValuesGenericMinAndMax<ArrayT, APIType> minmax(array, ghosts, ghostsToSkip);
+  vtkSMPTools::For(0, array->GetNumberOfTuples(), minmax);
+  minmax.CopyRanges(ranges);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+template <class ArrayT, typename RangeValueType>
+bool GenericComputeVectorRange(ArrayT* array, RangeValueType* ranges, FiniteValues,
+  const unsigned char* ghosts, unsigned char ghostsToSkip)
+{
+  using APIType =
+    std::conditional_t<std::is_floating_point_v<vtk::GetAPIType<ArrayT>>, double, vtkTypeInt64>;
+  MagnitudeFiniteGenericMinAndMax<ArrayT, APIType> minmax(array, ghosts, ghostsToSkip);
+  vtkSMPTools::For(0, array->GetNumberOfTuples(), minmax);
+  minmax.CopyRanges(ranges);
+  return true;
+}
+
+//----------------------------------------------------------------------------
 template <typename ArrayT, typename RangeValueType, typename ValueType>
-bool DoComputeScalarRange(ArrayT* array, RangeValueType* ranges, ValueType tag,
+bool DoComputeScalarRange(ArrayT* array, RangeValueType* ranges, ValueType,
   const unsigned char* ghosts, unsigned char ghostsToSkip)
 {
   const int numComp = array->GetNumberOfComponents();
@@ -531,50 +582,92 @@ bool DoComputeScalarRange(ArrayT* array, RangeValueType* ranges, ValueType tag,
 
   // Special case for single value scalar range. This is done to help the
   // compiler detect it can perform loop optimizations.
-  if (numComp == 1)
+  auto tag0 = AllValues{};
+  bool result;
+  switch (numComp)
   {
-    return ComputeScalarRange<1>()(array, ranges, tag, ghosts, ghostsToSkip);
+    case 1:
+      result = ComputeScalarRange<1>()(array, ranges, tag0, ghosts, ghostsToSkip);
+      break;
+    case 2:
+      result = ComputeScalarRange<2>()(array, ranges, tag0, ghosts, ghostsToSkip);
+      break;
+    case 3:
+      result = ComputeScalarRange<3>()(array, ranges, tag0, ghosts, ghostsToSkip);
+      break;
+    case 4:
+      result = ComputeScalarRange<4>()(array, ranges, tag0, ghosts, ghostsToSkip);
+      break;
+    case 5:
+      result = ComputeScalarRange<5>()(array, ranges, tag0, ghosts, ghostsToSkip);
+      break;
+    case 6:
+      result = ComputeScalarRange<6>()(array, ranges, tag0, ghosts, ghostsToSkip);
+      break;
+    case 7:
+      result = ComputeScalarRange<7>()(array, ranges, tag0, ghosts, ghostsToSkip);
+      break;
+    case 8:
+      result = ComputeScalarRange<8>()(array, ranges, tag0, ghosts, ghostsToSkip);
+      break;
+    case 9:
+      result = ComputeScalarRange<9>()(array, ranges, tag0, ghosts, ghostsToSkip);
+      break;
+    default:
+      result = GenericComputeScalarRange(array, ranges, tag0, ghosts, ghostsToSkip);
+      break;
   }
-  else if (numComp == 2)
+  // Attempt to use all values range, if it is valid, because it avoids std::isinf calls
+  // and therefore is faster.
+  if constexpr (std::is_floating_point_v<RangeValueType> && std::is_same_v<ValueType, FiniteValues>)
   {
-    return ComputeScalarRange<2>()(array, ranges, tag, ghosts, ghostsToSkip);
-  }
-  else if (numComp == 3)
-  {
-    return ComputeScalarRange<3>()(array, ranges, tag, ghosts, ghostsToSkip);
-  }
-  else if (numComp == 4)
-  {
-    return ComputeScalarRange<4>()(array, ranges, tag, ghosts, ghostsToSkip);
-  }
-  else if (numComp == 5)
-  {
-    return ComputeScalarRange<5>()(array, ranges, tag, ghosts, ghostsToSkip);
-  }
-  else if (numComp == 6)
-  {
-    return ComputeScalarRange<6>()(array, ranges, tag, ghosts, ghostsToSkip);
-  }
-  else if (numComp == 7)
-  {
-    return ComputeScalarRange<7>()(array, ranges, tag, ghosts, ghostsToSkip);
-  }
-  else if (numComp == 8)
-  {
-    return ComputeScalarRange<8>()(array, ranges, tag, ghosts, ghostsToSkip);
-  }
-  else if (numComp == 9)
-  {
-    return ComputeScalarRange<9>()(array, ranges, tag, ghosts, ghostsToSkip);
+    bool allFinite = true;
+    for (int i = 0, j = 0; i < numComp; ++i, j += 2)
+    {
+      if (std::isinf(ranges[j]) || std::isinf(ranges[j + 1]))
+      {
+        allFinite = false;
+        break;
+      }
+    }
+    if (allFinite)
+    {
+      return result;
+    }
+    // Special case for single value scalar range. This is done to help the
+    // compiler detect it can perform loop optimizations.
+    auto tag = FiniteValues{};
+    switch (numComp)
+    {
+      case 1:
+        return ComputeScalarRange<1>()(array, ranges, tag, ghosts, ghostsToSkip);
+      case 2:
+        return ComputeScalarRange<2>()(array, ranges, tag, ghosts, ghostsToSkip);
+      case 3:
+        return ComputeScalarRange<3>()(array, ranges, tag, ghosts, ghostsToSkip);
+      case 4:
+        return ComputeScalarRange<4>()(array, ranges, tag, ghosts, ghostsToSkip);
+      case 5:
+        return ComputeScalarRange<5>()(array, ranges, tag, ghosts, ghostsToSkip);
+      case 6:
+        return ComputeScalarRange<6>()(array, ranges, tag, ghosts, ghostsToSkip);
+      case 7:
+        return ComputeScalarRange<7>()(array, ranges, tag, ghosts, ghostsToSkip);
+      case 8:
+        return ComputeScalarRange<8>()(array, ranges, tag, ghosts, ghostsToSkip);
+      case 9:
+        return ComputeScalarRange<9>()(array, ranges, tag, ghosts, ghostsToSkip);
+      default:
+        return GenericComputeScalarRange(array, ranges, tag, ghosts, ghostsToSkip);
+    }
   }
   else
   {
-    return GenericComputeScalarRange(array, ranges, tag, ghosts, ghostsToSkip);
+    return result;
   }
 }
 
 //----------------------------------------------------------------------------
-// generic implementation that operates on ValueType.
 template <typename ArrayT, typename RangeValueType>
 bool DoComputeVectorRange(ArrayT* array, RangeValueType range[2], AllValues,
   const unsigned char* ghosts, unsigned char ghostsToSkip)
@@ -589,13 +682,33 @@ bool DoComputeVectorRange(ArrayT* array, RangeValueType range[2], AllValues,
     return false;
   }
 
-  // Always compute at double precision for vector magnitudes. This will
-  // give precision errors on large 64-bit ints, but magnitudes aren't usually
-  // computed for those.
-  MagnitudeAllValuesMinAndMax<ArrayT, double> MinAndMax(array, ghosts, ghostsToSkip);
-  vtkSMPTools::For(0, numTuples, MinAndMax);
-  MinAndMax.CopyRanges(range);
-  return true;
+  // Special case for vector range. This is done to help the
+  // compiler detect it can perform loop optimizations.
+  auto tag = AllValues{};
+  const int numComp = array->GetNumberOfComponents();
+  switch (numComp)
+  {
+    case 1:
+      return ComputeVectorRange<1>()(array, range, tag, ghosts, ghostsToSkip);
+    case 2:
+      return ComputeVectorRange<2>()(array, range, tag, ghosts, ghostsToSkip);
+    case 3:
+      return ComputeVectorRange<3>()(array, range, tag, ghosts, ghostsToSkip);
+    case 4:
+      return ComputeVectorRange<4>()(array, range, tag, ghosts, ghostsToSkip);
+    case 5:
+      return ComputeVectorRange<5>()(array, range, tag, ghosts, ghostsToSkip);
+    case 6:
+      return ComputeVectorRange<6>()(array, range, tag, ghosts, ghostsToSkip);
+    case 7:
+      return ComputeVectorRange<7>()(array, range, tag, ghosts, ghostsToSkip);
+    case 8:
+      return ComputeVectorRange<8>()(array, range, tag, ghosts, ghostsToSkip);
+    case 9:
+      return ComputeVectorRange<9>()(array, range, tag, ghosts, ghostsToSkip);
+    default:
+      return GenericComputeVectorRange(array, range, tag, ghosts, ghostsToSkip);
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -614,17 +727,52 @@ bool DoComputeVectorRange(ArrayT* array, RangeValueType range[2], FiniteValues,
     return false;
   }
 
-  // Always compute at double precision for vector magnitudes. This will
-  // give precision errors on large 64-bit ints, but magnitudes aren't usually
-  // computed for those.
-  MagnitudeFiniteMinAndMax<ArrayT, double> MinAndMax(array, ghosts, ghostsToSkip);
-  vtkSMPTools::For(0, numTuples, MinAndMax);
-  MinAndMax.CopyRanges(range);
-  return true;
+  auto allValuesTag = AllValues{};
+  const bool result = DoComputeVectorRange(array, range, allValuesTag, ghosts, ghostsToSkip);
+  // Attempt to use all values range, if it is valid, because it avoids std::isinf calls
+  // and therefore is faster.
+  if constexpr (std::is_floating_point_v<RangeValueType>)
+  {
+    if (!std::isinf(range[0]) && !std::isinf(range[1]))
+    {
+      return result;
+    }
+    // Special case for vector range. This is done to help the
+    // compiler detect it can perform loop optimizations.
+    auto tag = FiniteValues{};
+    const int numComp = array->GetNumberOfComponents();
+    switch (numComp)
+    {
+      case 1:
+        return ComputeVectorRange<1>()(array, range, tag, ghosts, ghostsToSkip);
+      case 2:
+        return ComputeVectorRange<2>()(array, range, tag, ghosts, ghostsToSkip);
+      case 3:
+        return ComputeVectorRange<3>()(array, range, tag, ghosts, ghostsToSkip);
+      case 4:
+        return ComputeVectorRange<4>()(array, range, tag, ghosts, ghostsToSkip);
+      case 5:
+        return ComputeVectorRange<5>()(array, range, tag, ghosts, ghostsToSkip);
+      case 6:
+        return ComputeVectorRange<6>()(array, range, tag, ghosts, ghostsToSkip);
+      case 7:
+        return ComputeVectorRange<7>()(array, range, tag, ghosts, ghostsToSkip);
+      case 8:
+        return ComputeVectorRange<8>()(array, range, tag, ghosts, ghostsToSkip);
+      case 9:
+        return ComputeVectorRange<9>()(array, range, tag, ghosts, ghostsToSkip);
+      default:
+        return GenericComputeVectorRange(array, range, tag, ghosts, ghostsToSkip);
+    }
+  }
+  else
+  {
+    return result;
+  }
 }
 
 VTK_ABI_NAMESPACE_END
 } // end namespace vtkDataArrayPrivate
-#endif // VTK_GDA_TEMPLATE_EXTERN
+
 #endif
 // VTK-HeaderTest-Exclude: vtkDataArrayPrivate.txx

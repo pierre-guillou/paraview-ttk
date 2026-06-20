@@ -20,11 +20,13 @@
 #include "vtkHyperTreeGrid.h"
 #include "vtkHyperTreeGridNonOrientedCursor.h"
 #include "vtkImageData.h"
+#include "vtkMemoryResourceStream.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkOverlappingAMR.h"
 #include "vtkPartitionedDataSet.h"
 #include "vtkPartitionedDataSetCollection.h"
 #include "vtkPolyData.h"
+#include "vtkStringFormatter.h"
 #include "vtkUniformGrid.h"
 #include "vtkUnstructuredGrid.h"
 
@@ -98,8 +100,55 @@ bool vtkHDFReader::Implementation::Open(const char* fileName)
 }
 
 //------------------------------------------------------------------------------
+bool vtkHDFReader::Implementation::Open(vtkResourceStream* stream)
+{
+  if (!stream)
+  {
+    vtkErrorWithObjectMacro(this->Reader, "Stream is nullptr");
+    return false;
+  }
+
+  if (!this->Stream || this->Stream != stream || this->File < 0)
+  {
+    this->Stream = stream;
+    if (this->File >= 0)
+    {
+      this->Close();
+    }
+
+    auto memStream = vtkMemoryResourceStream::SafeDownCast(stream);
+    if (!memStream)
+    {
+      // Copy to a mem stream if needed
+      stream->Seek(0, vtkResourceStream::SeekDirection::End);
+      std::size_t size = stream->Tell();
+      stream->Seek(0, vtkResourceStream::SeekDirection::Begin);
+      std::vector<std::byte> tempBuffer;
+      tempBuffer.resize(size);
+      stream->Read(tempBuffer.data(), size);
+      this->LocalMemStream->SetBuffer(std::move(tempBuffer));
+      memStream = this->LocalMemStream;
+    }
+
+    if (!vtkHDFUtilities::Open(memStream, this->File))
+    {
+      return false;
+    }
+
+    return this->RetrieveHDFInformation(vtkHDFUtilities::VTKHDF_ROOT_PATH);
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 bool vtkHDFReader::Implementation::OpenGroupAsVTKGroup(const std::string& groupPath)
 {
+  if (this->VTKGroup >= 0)
+  {
+    H5Gclose(this->VTKGroup);
+    this->VTKGroup = -1;
+  }
   if ((this->VTKGroup = H5Gopen(this->File, groupPath.c_str(), H5P_DEFAULT)) < 0)
   {
     // the file doesn't exist or we try to read a non-VTKHDF file
@@ -112,6 +161,7 @@ bool vtkHDFReader::Implementation::OpenGroupAsVTKGroup(const std::string& groupP
 //------------------------------------------------------------------------------
 bool vtkHDFReader::Implementation::RetrieveHDFInformation(const std::string& rootName)
 {
+  this->CloseMemberGroups();
   return vtkHDFUtilities::RetrieveHDFInformation(this->File, this->VTKGroup, rootName,
     this->Version, this->DataSetType, this->NumberOfPieces, this->AttributeDataGroup);
 }
@@ -151,20 +201,8 @@ void vtkHDFReader::Implementation::Close()
 {
   this->DataSetType = -1;
   this->NumberOfPieces = 0;
+  this->CloseMemberGroups();
   std::fill(this->Version.begin(), this->Version.end(), 0);
-  for (size_t i = 0; i < this->AttributeDataGroup.size(); ++i)
-  {
-    if (this->AttributeDataGroup[i] >= 0)
-    {
-      H5Gclose(this->AttributeDataGroup[i]);
-      this->AttributeDataGroup[i] = -1;
-    }
-  }
-  if (this->VTKGroup >= 0)
-  {
-    H5Gclose(this->VTKGroup);
-    this->VTKGroup = -1;
-  }
   if (this->File >= 0)
   {
     H5Fclose(this->File);
@@ -173,9 +211,27 @@ void vtkHDFReader::Implementation::Close()
 }
 
 //------------------------------------------------------------------------------
+void vtkHDFReader::Implementation::CloseMemberGroups()
+{
+  if (this->VTKGroup >= 0)
+  {
+    H5Gclose(this->VTKGroup);
+    this->VTKGroup = -1;
+  }
+  for (size_t i = 0; i < this->AttributeDataGroup.size(); ++i)
+  {
+    if (this->AttributeDataGroup[i] >= 0)
+    {
+      H5Gclose(this->AttributeDataGroup[i]);
+      this->AttributeDataGroup[i] = -1;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 bool vtkHDFReader::Implementation::GetPartitionExtent(hsize_t partitionIndex, int* extent)
 {
-  const int RANK = 2;
+  constexpr int RANK = 2;
   const char* datasetName = "/VTKHDF/Extents";
 
   // create the memory space
@@ -241,6 +297,12 @@ bool vtkHDFReader::Implementation::HasAttribute(const char* groupName, const cha
     return false;
   }
   return H5Aexists(groupID, attributeName) > 0;
+}
+
+//------------------------------------------------------------------------------
+bool vtkHDFReader::Implementation::HasDataset(const char* datasetName)
+{
+  return H5Lexists(this->VTKGroup, datasetName, H5P_DEFAULT) > 0;
 }
 
 //------------------------------------------------------------------------------
@@ -770,11 +832,11 @@ bool vtkHDFReader::Implementation::ReadLevelData(unsigned int level,
       // Iterate over all datasets, read data and assign attribute
       hsize_t dataOffset = 0;
       hsize_t dataSize = 0;
-      unsigned int numberOfDatasets = data->GetNumberOfDataSets(level);
+      unsigned int numberOfDatasets = data->GetNumberOfBlocks(level);
       for (unsigned int dataSetIndex = 0; dataSetIndex < numberOfDatasets; ++dataSetIndex)
       {
         const vtkAMRBox& amrBox = data->GetAMRBox(level, dataSetIndex);
-        auto dataSet = data->GetDataSet(level, dataSetIndex);
+        vtkImageData* dataSet = data->GetDataSetAsImageData(level, dataSetIndex);
         if (dataSet == nullptr)
         {
           vtkErrorWithObjectMacro(this->Reader,
@@ -964,14 +1026,19 @@ bool vtkHDFReader::Implementation::ReadAMRTopology(vtkOverlappingAMR* data, unsi
       std::min(this->AMRInformation.BlocksPerLevel.size(), static_cast<size_t>(maxLevel));
   }
 
-  data->Initialize(
-    static_cast<int>(numberOfLoadedLevels), this->AMRInformation.BlocksPerLevel.data());
+  std::vector<unsigned int> blocksPerLevel;
+  blocksPerLevel.reserve(numberOfLoadedLevels);
+  for (size_t i = 0; i < numberOfLoadedLevels; i++)
+  {
+    blocksPerLevel.emplace_back(this->AMRInformation.BlocksPerLevel[i]);
+  }
+  data->Initialize(blocksPerLevel);
   data->SetOrigin(origin);
-  data->SetGridDescription(VTK_XYZ_GRID);
+  data->SetGridDescription(vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
 
   while (level < maxLevel)
   {
-    std::string levelGroupName = "Level" + std::to_string(level);
+    std::string levelGroupName = "Level" + vtk::to_string(level);
     if (H5Lexists(this->VTKGroup, levelGroupName.c_str(), H5P_DEFAULT) <= 0)
     {
       break;
@@ -995,7 +1062,7 @@ bool vtkHDFReader::Implementation::ReadAMRData(vtkOverlappingAMR* data, unsigned
 {
   while (level < maxLevel)
   {
-    std::string levelGroupName = "Level" + std::to_string(level);
+    std::string levelGroupName = "Level" + vtk::to_string(level);
     if (H5Lexists(this->VTKGroup, levelGroupName.c_str(), H5P_DEFAULT) <= 0)
     {
       break;
@@ -1379,7 +1446,8 @@ VTK_ABI_NAMESPACE_END
 vtkSmartPointer<vtkDataObject> vtkHDFReader::Implementation::GetNewDataSet(
   int dataSetType, int numPieces)
 {
-  const std::array partitionedTypes = { VTK_UNSTRUCTURED_GRID, VTK_POLY_DATA, VTK_HYPER_TREE_GRID };
+  constexpr std::array partitionedTypes = { VTK_UNSTRUCTURED_GRID, VTK_POLY_DATA,
+    VTK_HYPER_TREE_GRID };
   vtkSmartPointer<vtkDataObject> newOutput = nullptr;
   if (numPieces > 1 &&
     std::find(partitionedTypes.begin(), partitionedTypes.end(), dataSetType) !=

@@ -16,7 +16,7 @@
    <string>Main Controls</string>
   </property>
   <property name="orientation">
-   <enum>Qt::Horizontal</enum>
+   <enum>Qt::Orientation::Horizontal</enum>
   </property>
   <action name="actionOpenData">
    <property name="icon">
@@ -120,18 +120,6 @@
     <string>Find data matching various criteria from the current source (v)</string>
    </property>
   </action>
-  <action name="actionLoadPalette">
-   <property name="icon">
-    <iconset resource="../../../Components/Resources/pqComponents.qrc">
-     <normaloff>:/pqWidgets/Icons/pqPalette.svg</normaloff>:/pqWidgets/Icons/pqPalette.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Load Palette</string>
-   </property>
-   <property name="toolTip">
-    <string>Load a color palette</string>
-   </property>
-  </action>
   <action name="actionDelete">
    <property name="icon">
     <iconset resource="../../../Components/Resources/pqComponents.qrc">
@@ -157,6 +145,19 @@
    </property>
    <property name="toolTip">
     <string>Save Extracts</string>
+   </property>
+  </action>
+  <action name="actionLoadState">
+   <property name="icon">
+    <iconset resource="../../../Components/Resources/pqComponents.qrc">
+     <normaloff>:/pqWidgets/Icons/pqLoadState.svg</normaloff>:/pqWidgets/Icons/pqLoadState.svg
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Load State...</string>
+   </property>
+   <property name="toolTip">
+    <string>Load State</string>
    </property>
   </action>
   <action name="actionSaveState">
@@ -185,6 +186,7 @@
   </action>
   <addaction name="actionOpenData"/>
   <addaction name="actionSaveData"/>
+  <addaction name="actionLoadState"/>
   <addaction name="actionSaveState"/>
   <addaction name="actionGenerateExtracts"/>
   <addaction name="actionSaveCatalystState"/>
@@ -198,7 +200,6 @@
   <addaction name="separator"/>
   <addaction name="actionAutoApply"/>
   <addaction name="actionQuery"/>
-  <addaction name="actionLoadPalette"/>
  </widget>
  <resources>
   <include location="../../../Components/Resources/pqComponents.qrc"/>

@@ -3,6 +3,7 @@
 #include "vtkImprintFilter.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkAtomicMutex.h"
 #include "vtkBoundingBox.h"
 #include "vtkCellArray.h"
@@ -496,9 +497,11 @@ struct vtkTriEdgeList : public std::vector<vtkTriEdge>
     {
       vtkTriEdge& triEdge = triEdgeList[offset];
       vtkIdType currentId = triEdge.V0;
-      currentOffset = offset;
-      while (++currentOffset < numEdges && triEdgeList[currentOffset].V0 == currentId)
-        ; // advance
+      currentOffset = offset + 1;
+      while (currentOffset < numEdges && triEdgeList[currentOffset].V0 == currentId)
+      {
+        ++currentOffset;
+      }
       vtkIdType num = currentOffset - offset;
       this->Map.emplace(currentId, vtkTriEdgeOffset(offset, num));
       offset += num;
@@ -1651,7 +1654,7 @@ struct ProduceIntersectionPoints
   // producing duplicate intersection points.)
   int IntersectEdge(vtkPointInfo* pStart, vtkPointInfo* pEnd, vtkIdType u0, vtkIdType u1,
     double x0[3], double x1[3], vtkIdType v0, vtkIdType v1, vtkIdList* neighbors,
-    vtkEdgeIntersectionList& eIntList)
+    vtkEdgeIntersectionList& eIntList, vtkPointList& newPts)
   {
     // If the imprint edge is colinear with the target edge being intersected
     // (i.e., the imprint edge is on the boundary of the target cell), then
@@ -1720,7 +1723,6 @@ struct ProduceIntersectionPoints
       vtkIdType vtkPtId =
         ((vtkMath::Distance2BetweenPoints(xInt, y0) <= this->MergeTol2) ? v0 : v1);
 
-      vtkPointList& newPts = this->LocalIntData.Local().NewPoints;
       newPts.emplace_back();
       vtkPointInfo& pt = newPts.back();
       pt.Classification = PointClassification::OnVertex;
@@ -1734,7 +1736,6 @@ struct ProduceIntersectionPoints
     // We can add a new point to the output of this thread. Later, a new
     // VTK point id will be set, and the new points composited together
     // during the Reduce() process.
-    vtkPointList& newPts = this->LocalIntData.Local().NewPoints;
     vtkIdType cells[2];
     // The (-1) trick is used to get all cells using this edge.
     target->GetCellEdgeNeighbors(-1, v0, v1, neighbors);
@@ -1833,10 +1834,9 @@ struct ProduceIntersectionPoints
   // to the cell, but actually on the boundary of the cell. Hence there
   // are many topological checks in this method that insure that only
   // interior edge fragments are inserted.
-  void ProduceInteriorEdgeFragments(vtkEdgeIntersectionList& edgeIntList)
+  void ProduceInteriorEdgeFragments(
+    vtkEdgeIntersectionList& edgeIntList, vtkEdgeFragmentList& newEdges)
   {
-    vtkEdgeFragmentList& newEdges = this->LocalIntData.Local().NewEdges;
-
     // Now process pairs of points to define edge fragments. These fragments
     // are classified, and if interior to a target cell, added as an edge
     // fragment.
@@ -1970,6 +1970,7 @@ struct ProduceIntersectionPoints
 
     // Keep track of intersections along the imprint edge
     vtkEdgeFragmentList& newEdges = this->LocalIntData.Local().NewEdges;
+    vtkPointList& newPoints = this->LocalIntData.Local().NewPoints;
     vtkEdgeIntersectionList edgeIntList;
     bool isFirst = vtkSMPTools::GetSingleThread();
 
@@ -2063,7 +2064,7 @@ struct ProduceIntersectionPoints
           {
             tEdge = tEdges.data() + tOffsets[teNum];
             produceFragments |= this->IntersectEdge(pStart, pEnd, viStart, viEnd, xStart, xEnd,
-              tEdge->V0, tEdge->V1, edgeNeighbors, edgeIntList);
+              tEdge->V0, tEdge->V1, edgeNeighbors, edgeIntList, newPoints);
           } // for potential intersecting target edges
 
           // Collect edge fragments if intersections have been found. In
@@ -2080,7 +2081,7 @@ struct ProduceIntersectionPoints
             }
 
             // For this intersected target edge
-            this->ProduceInteriorEdgeFragments(edgeIntList);
+            this->ProduceInteriorEdgeFragments(edgeIntList, newEdges);
           } // if imprint edge intersects target edge
         }   // if should process this edge
       }     // for each imprint cell edge
@@ -2283,6 +2284,7 @@ struct Triangulate
     {
       npts = cInfo->OutCellsNPts[i];
       pts = conn + offset;
+      // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
       cellType = (npts == 3 ? VTK_TRIANGLE : (npts == 4 ? VTK_QUAD : VTK_POLYGON));
       this->DebugOutput->InsertNextCell(cellType, npts, pts);
       offset += npts;
@@ -2442,7 +2444,8 @@ struct Triangulate
   // output. This may require triangulation of the loop, and produce more
   // than one cell. Later (in Reduce()), the output from all of these
   // candidate cells will be combined to create the final VTK output.
-  void AddCell(vtkCandidateInfo* cInfo, vtkOutCellsConn& outCell)
+  void AddCell(
+    vtkCandidateInfo* cInfo, vtkOutCellsConn& outCell, vtkPolygon* poly, vtkIdList* outTris)
   {
     auto npts = outCell.size();
     CellClassification cellClassification = this->ClassifyCell(outCell);
@@ -2451,8 +2454,6 @@ struct Triangulate
     if (cellClassification == CellClassification::TransitionCell ||
       (npts > 3 && this->TriangulateOutput))
     {
-      vtkPolygon* poly = this->Polygon.Local();
-      vtkIdList* outTris = this->OutTris.Local();
       poly->PointIds->SetNumberOfIds(npts);
       poly->Points->SetNumberOfPoints(npts);
 
@@ -2487,7 +2488,8 @@ struct Triangulate
   // and to help choose a "turning" direction when required. Recall that the
   // edge network consists of oriented edges (i.e., edge uses) in the
   // direction of (v0,v1).
-  void BuildCells(vtkIdType cellId, vtkTriEdgeList& triEdgeList, double normal[3])
+  void BuildCells(vtkIdType cellId, vtkTriEdgeList& triEdgeList, double normal[3], vtkPolygon* poly,
+    vtkIdList* outTris)
   {
     // Local arrays and variables to collect information about loop building.
     vtkCandidateInfo*& cInfo = (*this->CandidateList)[cellId];
@@ -2536,7 +2538,7 @@ struct Triangulate
         // successfully built. If so, append it to the output cells.
         if (success && outCell.size() >= 3)
         {
-          this->AddCell(cInfo, outCell);
+          this->AddCell(cInfo, outCell, poly, outTris);
         } // if valid loop built
 
       } // if edge has not yet been visited
@@ -2556,6 +2558,8 @@ struct Triangulate
   // may then be triangulated.
   void operator()(vtkIdType cellId, vtkIdType endCellId)
   {
+    vtkPolygon* poly = this->Polygon.Local();
+    vtkIdList* outTris = this->OutTris.Local();
     vtkTriEdgeList triEdgeList(this->OutPts);
     double normal[3];
     bool isFirst = vtkSMPTools::GetSingleThread();
@@ -2619,7 +2623,7 @@ struct Triangulate
         // cells.  Note that loop/cell building requires an orientation
         // normal in some cases.
         vtkPolygon::ComputeNormal(this->OutPts, npts, pts, normal);
-        this->BuildCells(cellId, triEdgeList, normal);
+        this->BuildCells(cellId, triEdgeList, normal, poly, outTris);
 
         // Produce the requested debugging output
         if (this->DebugOption == vtkImprintFilter::TRIANGULATION_OUTPUT &&
@@ -2679,6 +2683,7 @@ struct Triangulate
         {
           npts = cInfo->OutCellsNPts[i];
           pts = conn + offset;
+          // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
           cellType = (npts == 3 ? VTK_TRIANGLE : (npts == 4 ? VTK_QUAD : VTK_POLYGON));
           if (outputType != vtkImprintFilter::IMPRINTED_REGION ||
             cInfo->OutCellsClass[i] == ImprintCell)
@@ -2785,10 +2790,7 @@ struct ComputeEdgeLength
       auto lEnd = this->MinLength2.end();
       for (auto lItr = this->MinLength2.begin(); lItr != lEnd; ++lItr)
       {
-        if (*lItr < minLength2)
-        {
-          minLength2 = *lItr;
-        }
+        minLength2 = std::min(*lItr, minLength2);
       }
       this->MinEdgeLength = sqrt(minLength2);
     } // computing min edge length
@@ -3038,7 +3040,7 @@ int vtkImprintFilter::RequestData(vtkInformation* vtkNotUsed(request),
   // all projected imprint points are placed in the vtkPointList; later the
   // output vtkPoints points array will grow as the edge intersection points
   // are computed and inserted.
-  using ProjPointsDispatch = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
+  using ProjPointsDispatch = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
   ProjPointsWorker ppWorker;
   if (!ProjPointsDispatch::Execute(imprintPts->GetData(), ppWorker, candidateOutput,
         candidateCellLocator, &pList, projTol, mergeTol, &tpc, this))

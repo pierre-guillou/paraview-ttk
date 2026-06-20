@@ -26,16 +26,16 @@
 #include "vtkLongArray.h"
 #include "vtkLongLongArray.h"
 #include "vtkSOADataArrayTemplate.h"
+#include "vtkScaledSOADataArrayTemplate.h"
 #include "vtkShortArray.h"
 #include "vtkSignedCharArray.h"
-#ifdef VTK_USE_SCALED_SOA_ARRAYS
-#include "vtkScaledSOADataArrayTemplate.h"
-#endif
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
 #include "vtkUnsignedLongLongArray.h"
 #include "vtkUnsignedShortArray.h"
+
+#include <iostream>
 
 // About this test:
 //
@@ -119,7 +119,6 @@ int TestGenericDataArrayAPI(int, char*[])
   errors += ExerciseGenericDataArray<vtkIdType, vtkSOADataArrayTemplate<vtkIdType>>();
 
   // Explicit scale SoA arrays:
-#ifdef VTK_USE_SCALED_SOA_ARRAYS
   errors += ExerciseGenericDataArray<char, vtkScaledSOADataArrayTemplate<char>>();
   errors += ExerciseGenericDataArray<double, vtkScaledSOADataArrayTemplate<double>>();
   errors += ExerciseGenericDataArray<float, vtkScaledSOADataArrayTemplate<float>>();
@@ -136,7 +135,6 @@ int TestGenericDataArrayAPI(int, char*[])
   errors +=
     ExerciseGenericDataArray<unsigned short, vtkScaledSOADataArrayTemplate<unsigned short>>();
   errors += ExerciseGenericDataArray<vtkIdType, vtkScaledSOADataArrayTemplate<vtkIdType>>();
-#endif
 
   if (errors > 0)
   {

@@ -34,7 +34,7 @@
 #include "vtkRenderer.h"
 #include "vtkSMCollaborationManager.h"
 #include "vtkSMDataDeliveryManagerProxy.h"
-#include "vtkSMInputProperty.h"
+#include "vtkSMIntVectorProperty.h"
 #include "vtkSMMaterialLibraryProxy.h"
 #include "vtkSMOutputPort.h"
 #include "vtkSMProperty.h"
@@ -149,6 +149,15 @@ public:
     return info->GetEyeSeparation();
   }
 
+  bool GetUseOffAxisProjection(vtkSMSession* session)
+  {
+    vtkPVCAVEConfigInformation* info = GetOrCreateServerInfo(session);
+
+    vtkCheckCAVEModeMacro(info, -1);
+
+    return info->GetUseOffAxisProjection();
+  }
+
   bool GetShowBorders(vtkSMSession* session)
   {
     vtkPVCAVEConfigInformation* info = GetOrCreateServerInfo(session);
@@ -177,6 +186,16 @@ public:
     vtkCheckNumDisplaysMacro(info, index, errorResult);
 
     return info->GetGeometry(index);
+  }
+
+  bool GetShow2DOverlays(vtkSMSession* session, int index)
+  {
+    vtkPVCAVEConfigInformation* info = GetOrCreateServerInfo(session);
+
+    vtkCheckCAVEModeMacro(info, false);
+    vtkCheckNumDisplaysMacro(info, index, false);
+
+    return info->GetShow2DOverlays(index);
   }
 
   bool GetHasCorners(vtkSMSession* session, int index)
@@ -335,7 +354,9 @@ const char* vtkSMRenderViewProxy::IsSelectVisiblePointsAvailable()
 //-----------------------------------------------------------------------------
 void vtkSMRenderViewProxy::Update()
 {
-  this->NeedsUpdateLOD |= this->NeedsUpdate;
+  // As resizing window updates the "ViewSize" property, we need to check whether or not we are in
+  // this case. If we are, we don"t need to compute the LOD again.
+  this->NeedsUpdateLOD |= this->NeedsUpdate && !this->ResizingWindow;
   this->Superclass::Update();
 }
 
@@ -405,10 +426,10 @@ vtkTypeUInt32 vtkSMRenderViewProxy::PreRender(bool interactive)
 
   vtkPVRenderView* rv = vtkPVRenderView::SafeDownCast(this->GetClientSideObject());
   assert(rv != nullptr);
-  if (interactive && rv->GetUseLODForInteractiveRender())
+  if (rv->GetUseLODForInteractiveRender())
   {
-    // for interactive renders, we need to determine if we are going to use LOD.
-    // If so, we may need to update the LOD geometries.
+    // We trigger the update of the LOD data in non interactive render to catch the moment when the
+    // user updates the pipeline data.
     this->UpdateLOD();
   }
 
@@ -1138,8 +1159,47 @@ void vtkSMRenderViewProxy::UpdateVTKObjects()
       mlp->LoadDefaultMaterials();
     }
   }
-
+  this->UpdateAnariProperties();
   this->Superclass::UpdateVTKObjects();
+}
+
+//----------------------------------------------------------------------------
+void vtkSMRenderViewProxy::UpdateAnariProperties()
+{
+  bool updateANARIRendererNames = false;
+  bool updateANARIRendererParameters = false;
+  auto itEnableANARI = this->Internals->Properties.find("EnableANARI");
+  auto* propEnableANARI = vtkSMIntVectorProperty::SafeDownCast(this->GetProperty("EnableANARI"));
+  auto itANARILibrary = this->Internals->Properties.find("ANARILibrary");
+  if (itEnableANARI->second.ModifiedFlag && propEnableANARI->GetElement(0) ||
+    itANARILibrary->second.ModifiedFlag)
+  {
+    updateANARIRendererNames = true;
+  }
+  auto itANARIRenderer = this->Internals->Properties.find("ANARIRenderer");
+  if (itEnableANARI->second.ModifiedFlag && propEnableANARI->GetElement(0) ||
+    itANARILibrary->second.ModifiedFlag || itANARIRenderer->second.ModifiedFlag)
+  {
+    updateANARIRendererParameters = true;
+  }
+
+  // update ANARI properties in the correct order
+  this->UpdateProperty("EnableANARI");
+  this->UpdateProperty("ANARILibrary");
+  if (updateANARIRendererNames)
+  {
+    vtkSMStringVectorProperty* propRendererNames =
+      vtkSMStringVectorProperty::SafeDownCast(this->GetProperty("ANARIRendererNames"));
+    this->UpdatePropertyInformation(propRendererNames);
+  }
+  this->UpdateProperty("ANARIRenderer");
+  if (updateANARIRendererParameters)
+  {
+    vtkSMStringVectorProperty* propRendererParameters =
+      vtkSMStringVectorProperty::SafeDownCast(this->GetProperty("ANARIRendererParametersInfo"));
+    this->UpdatePropertyInformation(propRendererParameters);
+  }
+  this->UpdateProperty("ANARIRendererParameter");
 }
 
 //----------------------------------------------------------------------------
@@ -1694,6 +1754,12 @@ double vtkSMRenderViewProxy::GetEyeSeparation()
 }
 
 //----------------------------------------------------------------------------
+bool vtkSMRenderViewProxy::GetUseOffAxisProjection()
+{
+  return this->Internal->GetUseOffAxisProjection(this->GetSession());
+}
+
+//----------------------------------------------------------------------------
 bool vtkSMRenderViewProxy::GetShowBorders()
 {
   return this->Internal->GetShowBorders(this->GetSession());
@@ -1709,6 +1775,12 @@ bool vtkSMRenderViewProxy::GetFullScreen()
 vtkTuple<int, 4> vtkSMRenderViewProxy::GetGeometry(int index)
 {
   return this->Internal->GetGeometry(this->GetSession(), index);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSMRenderViewProxy::GetShow2DOverlays(int index)
+{
+  return this->Internal->GetShow2DOverlays(this->GetSession(), index);
 }
 
 //----------------------------------------------------------------------------

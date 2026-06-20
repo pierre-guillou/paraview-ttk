@@ -5,7 +5,6 @@
 #include "vtkExtractFunctionalBagPlot.h"
 #include "vtkIntArray.h"
 #include "vtkMath.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkNew.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
@@ -19,8 +18,10 @@
 
 #include <vtksys/SystemTools.hxx>
 
+#include <iostream>
+
 //------------------------------------------------------------------------------
-const double densities[] = {
+constexpr double densities[] = {
   0.00013383,
   0.000611902,
   0.00238409,
@@ -49,8 +50,8 @@ int TestExtractFunctionalBagPlot(int, char*[])
   // Create a table with some points in it...
   vtkNew<vtkTable> table;
 
-  const int numCols = 20;
-  const int numPoints = 20;
+  constexpr int numCols = 20;
+  constexpr int numPoints = 20;
 
   for (int j = 0; j < numCols; j++)
   {
@@ -152,21 +153,21 @@ int TestExtractFunctionalBagPlot(int, char*[])
   if (!q3Points || !q2Points)
   {
     outBPTable->Dump();
-    cout << "## Failure: Missing Q3Points or QMedPoints columns!" << endl;
+    std::cout << "## Failure: Missing Q3Points or QMedPoints columns!" << std::endl;
     return EXIT_FAILURE;
   }
 
   if (q3Points->GetNumberOfTuples() != numPoints || q2Points->GetNumberOfTuples() != numPoints)
   {
     outBPTable->Dump();
-    cout << "## Failure: Bad number of tuples in Q3Points or QMedPoints columns!" << endl;
+    std::cout << "## Failure: Bad number of tuples in Q3Points or QMedPoints columns!" << std::endl;
     return EXIT_FAILURE;
   }
 
   if (q3Points->GetNumberOfComponents() != 2 || q2Points->GetNumberOfComponents() != 2)
   {
     outBPTable->Dump();
-    cout << "## Failure: Q3Points or QMedPoints does not have 2 components!" << endl;
+    std::cout << "## Failure: Q3Points or QMedPoints does not have 2 components!" << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -179,7 +180,7 @@ int TestExtractFunctionalBagPlot(int, char*[])
   if (q3v[0] != 114 || q3v[1] != 285 || q2v[0] != 171 || q2v[1] != 209)
   {
     outBPTable->Dump();
-    cout << "## Failure: bad values found in Q3Points or QMedPoints" << endl;
+    std::cout << "## Failure: bad values found in Q3Points or QMedPoints" << std::endl;
     return EXIT_FAILURE;
   }
   return status;

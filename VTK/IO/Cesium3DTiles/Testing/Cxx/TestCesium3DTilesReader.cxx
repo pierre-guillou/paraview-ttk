@@ -4,9 +4,6 @@
  * This tests reading a file using a PDAL reader.
  */
 
-// VTK_DEPRECATED_IN_9_4_0()
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkAppendPolyData.h"
 #include "vtkCamera.h"
 #include "vtkCesium3DTilesReader.h"
@@ -53,7 +50,7 @@ void AddActors(
         actor->SetPropertyKeys(info);
       }
       double mat[] = { 1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1 };
-      actor->GetPropertyKeys()->Set(vtkProp::GeneralTextureTransform(), mat, 16);
+      actor->GetPropertyKeys()->Set(vtkProp::GENERAL_TEXTURE_TRANSFORM(), mat, 16);
 
       actor->SetTexture(texture);
     }

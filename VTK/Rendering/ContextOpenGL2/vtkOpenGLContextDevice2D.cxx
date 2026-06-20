@@ -201,7 +201,7 @@ void PostDraw(vtkOpenGLHelper& helper, vtkRenderer* ren, unsigned char col[4])
 inline bool IsFullCircle(float startAngle, float stopAngle)
 {
   // A small number practical for rendering purposes.
-  const float TOL = 1e-5f;
+  constexpr float TOL = 1e-5f;
 
   return std::fabs(stopAngle - startAngle) + TOL >= 360.f;
 }
@@ -1597,11 +1597,8 @@ int vtkOpenGLContextDevice2D::GetNumberOfArcIterations(
     maxRadius = rY;
   }
 
-  if (error > maxRadius)
-  {
-    // to make sure the argument of asin() is in a valid range.
-    error = maxRadius;
-  }
+  // to make sure the argument of asin() is in a valid range.
+  error = std::min(error, maxRadius);
 
   // Angle of a sector so that its chord is `error' pixels.
   // This is will be our maximum angle step.
@@ -2323,7 +2320,7 @@ vtkImageData* vtkOpenGLContextDevice2D::GenerateMarker(int shape, int width, boo
     }
     default: // Maintaining old behavior, which produces plus for unknown shape
       vtkWarningMacro(<< "Invalid marker shape: " << shape);
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
     case VTK_MARKER_PLUS:
     {
       int center = (width + 1) / 2;
@@ -2400,15 +2397,15 @@ void vtkOpenGLContextDevice2D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Renderer: ";
   if (this->Renderer)
   {
-    os << endl;
+    os << std::endl;
     this->Renderer->PrintSelf(os, indent.GetNextIndent());
   }
   else
   {
-    os << "(none)" << endl;
+    os << "(none)" << std::endl;
   }
-  os << indent << "MaximumMarkerCacheSize: " << this->MaximumMarkerCacheSize << endl;
-  os << indent << "MarkerCache: " << this->MarkerCache.size() << " entries." << endl;
+  os << indent << "MaximumMarkerCacheSize: " << this->MaximumMarkerCacheSize << std::endl;
+  os << indent << "MarkerCache: " << this->MarkerCache.size() << " entries." << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -2479,7 +2476,7 @@ void vtkOpenGLContextDevice2D::DrawCrossMarkersGL2PS(
           break;
         case 2:
           color[3] = colors[i * nc_comps + 1];
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         case 1:
           memset(color, colors[i * nc_comps], 3);
           break;
@@ -2552,7 +2549,7 @@ void vtkOpenGLContextDevice2D::DrawPlusMarkersGL2PS(
           break;
         case 2:
           color[3] = colors[i * nc_comps + 1];
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         case 1:
           memset(color, colors[i * nc_comps], 3);
           break;
@@ -2615,7 +2612,7 @@ void vtkOpenGLContextDevice2D::DrawSquareMarkersGL2PS(
           break;
         case 2:
           color[3] = colors[i * nc_comps + 1];
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         case 1:
           memset(color, colors[i * nc_comps], 3);
           break;
@@ -2668,7 +2665,7 @@ void vtkOpenGLContextDevice2D::DrawCircleMarkersGL2PS(
           break;
         case 2:
           color[3] = colors[i * nc_comps + 1];
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         case 1:
           memset(color, colors[i * nc_comps], 3);
           break;
@@ -2717,7 +2714,7 @@ void vtkOpenGLContextDevice2D::DrawDiamondMarkersGL2PS(
           break;
         case 2:
           color[3] = colors[i * nc_comps + 1];
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         case 1:
           memset(color, colors[i * nc_comps], 3);
           break;
@@ -2759,7 +2756,7 @@ void vtkOpenGLContextDevice2D::DrawImageGL2PS(float p[2], vtkImageData* input)
   image->ShallowCopy(input);
   vtkDataArray* s = image->GetPointData()->GetScalars();
   size_t numVals = (s->GetNumberOfComponents() * s->GetNumberOfTuples());
-  unsigned char* vals = static_cast<unsigned char*>(s->GetVoidPointer(0));
+  unsigned char* vals = vtkAOSDataArrayTemplate<unsigned char>::FastDownCast(s)->GetPointer(0);
   vtkNew<vtkFloatArray> scalars;
   scalars->SetNumberOfComponents(s->GetNumberOfComponents());
   scalars->SetNumberOfTuples(s->GetNumberOfTuples());

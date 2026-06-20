@@ -19,7 +19,6 @@
 #include "vtkMPIController.h"
 #include "vtkMath.h"
 #include "vtkMultiProcessController.h"
-#include "vtkMultiProcessStream.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOverlappingAMR.h"
@@ -39,6 +38,8 @@
 #include <numeric>
 #include <vector>
 
+#include <iostream>
+
 #ifndef NDEBUG
 // #define DEBUGTRACE
 // #define LOGTRACE
@@ -48,20 +49,20 @@
 #ifdef DEBUGTRACE
 #define PRINT(x)                                                                                   \
   {                                                                                                \
-    cout << this->Rank << ")" << x << endl;                                                        \
+    std::cout << this->Rank << ")" << x << endl;                                                   \
   }
 #define ALLPRINT(x)                                                                                \
   for (int rank = 0; rank < NumProcs; rank++)                                                      \
   {                                                                                                \
     Controller->Barrier();                                                                         \
     if (rank == Rank)                                                                              \
-      cout << "(" << this->Rank << ")" << x << endl;                                               \
+      std::cout << "(" << this->Rank << ")" << x << endl;                                          \
   }
 #define Assert(a, msg)                                                                             \
   {                                                                                                \
     if (!a)                                                                                        \
     {                                                                                              \
-      cerr << msg << endl;                                                                         \
+      std::cerr << msg << endl;                                                                    \
       assert(false);                                                                               \
     }                                                                                              \
   }
@@ -70,7 +71,7 @@
   {                                                                                                \
     if (a != b)                                                                                    \
     {                                                                                              \
-      cerr << a << " != " << b << endl;                                                            \
+      std::cerr << a << " != " << b << endl;                                                       \
       assert(false);                                                                               \
     }                                                                                              \
   }
@@ -79,7 +80,7 @@
   {                                                                                                \
     if (a == b)                                                                                    \
     {                                                                                              \
-      cerr << a << " == " << b << endl;                                                            \
+      std::cerr << a << " == " << b << endl;                                                       \
       assert(false);                                                                               \
     }                                                                                              \
   }
@@ -88,7 +89,7 @@
   {                                                                                                \
     if (a < b)                                                                                     \
     {                                                                                              \
-      cerr << a << " < " << b << endl;                                                             \
+      std::cerr << a << " < " << b << endl;                                                        \
       assert(false);                                                                               \
     }                                                                                              \
   }
@@ -97,7 +98,7 @@
   {                                                                                                \
     if (a <= b)                                                                                    \
     {                                                                                              \
-      cerr << a << " < " << b << endl;                                                             \
+      std::cerr << a << " < " << b << endl;                                                        \
       assert(false);                                                                               \
     }                                                                                              \
   }
@@ -190,17 +191,11 @@ inline void UpdateBB(double* a, const double* b)
 {
   for (int i = 0; i <= 4; i += 2)
   {
-    if (b[i] < a[i])
-    {
-      a[i] = b[i];
-    }
+    a[i] = std::min(a[i], b[i]);
   }
   for (int i = 1; i <= 5; i += 2)
   {
-    if (b[i] > a[i])
-    {
-      a[i] = b[i];
-    }
+    a[i] = std::max(a[i], b[i]);
   }
 }
 }
@@ -463,14 +458,14 @@ public:
     this->Controller->AllGather(bb, this->BoundingBoxes.data(), 6);
 
 #ifdef DEBUGTRACE
-    cout << "(" << Rank << ") BoundingBoxes: ";
+    std::cout << "(" << Rank << ") BoundingBoxes: ";
     for (int i = 0; i < NumProcs; i++)
     {
       double* box = this->GetBoundingBox(i);
-      cout << box[0] << " " << box[1] << " " << box[2] << " " << box[3] << " " << box[4] << " "
-           << box[5] << ";  ";
+      std::cout << box[0] << " " << box[1] << " " << box[2] << " " << box[3] << " " << box[4] << " "
+                << box[5] << ";  ";
     }
-    cout << endl;
+    std::cout << endl;
 #endif
   }
 
@@ -733,7 +728,8 @@ public:
     {
       amrFunc->SetLastDataSet(amrPoint->GetLevel(), amrPoint->GetGridId());
 #ifdef DEBUGTRACE
-      vtkUniformGrid* grid = this->AMR->GetDataSet(amrPoint->GetLevel(), amrPoint->GetGridId());
+      vtkCartesianGrid* grid =
+        this->AMR->GetDataSetAsCartesianGrid(amrPoint->GetLevel(), amrPoint->GetGridId());
       if (!grid || !InBB(amrPoint->GetSeed(), grid->GetBounds()))
       {
         PRINT("WARNING: Bad AMR Point "
@@ -753,7 +749,7 @@ public:
     {
       amrPoint->SetLevel(level);
       amrPoint->SetId(id);
-      int blockIndex = this->AMR->GetCompositeIndex(level, id);
+      int blockIndex = this->AMR->GetAbsoluteBlockIndex(level, id);
       amrPoint->SetRank(this->BlockProcess[blockIndex]);
       return true;
     }
@@ -779,7 +775,8 @@ public:
       return false;
     }
     AssertNe(amrp, nullptr);
-    vtkUniformGrid* grid = this->AMR->GetDataSet(amrp->GetLevel(), amrp->GetGridId());
+    vtkCartesianGrid* grid =
+      this->AMR->GetDataSetAsCartesianGrid(amrp->GetLevel(), amrp->GetGridId());
     return grid != nullptr;
   }
 
@@ -802,7 +799,7 @@ public:
       {
         amrp->SetLevel((int)level);
         amrp->SetGridId((int)gridId);
-        int blockIndex = this->AMR->GetCompositeIndex(level, gridId);
+        int blockIndex = this->AMR->GetAbsoluteBlockIndex(level, gridId);
         int process = this->BlockProcess[blockIndex];
         AssertGe(process, 0);
         amrp->SetRank(process);
@@ -888,8 +885,8 @@ inline bool SameShape(vtkPointData* a, vtkPointData* b)
 
   if (a->GetNumberOfArrays() != b->GetNumberOfArrays())
   {
-    PrintNames(cerr, a);
-    PrintNames(cerr, b);
+    PrintNames(std::cerr, a);
+    PrintNames(std::cerr, b);
     return false;
   }
 

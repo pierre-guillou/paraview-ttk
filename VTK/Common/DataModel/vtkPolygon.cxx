@@ -3,13 +3,12 @@
 #include "vtkPolygon.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkArrayRange.h"
 #include "vtkBoundingBox.h"
 #include "vtkBox.h"
 #include "vtkCellArray.h"
-#include "vtkDataSet.h"
 #include "vtkDoubleArray.h"
-#include "vtkIncrementalPointLocator.h"
 #include "vtkLine.h"
 #include "vtkLogger.h"
 #include "vtkMath.h"
@@ -25,6 +24,7 @@
 #include "vtkTriangle.h"
 #include "vtkVector.h"
 
+#include <algorithm>
 #include <limits> // For DBL_MAX
 #include <vector>
 
@@ -136,10 +136,32 @@ struct NormalWorker
     auto points = vtk::DataArrayTupleRange<3>(p);
     using PointType = typename decltype(points)::ConstTupleReferenceType;
     double v1[3], v2[3];
-    PointType p0 = points[::GetPointId<PointIdRedirection>(pts, 0)];
-    vtkMath::Subtract(points[::GetPointId<PointIdRedirection>(pts, 1)], p0, v1);
+    vtkIdType pointId;
+    vtkIdType commonPointId = -1;
+    for (pointId = 0; pointId < (numPts - 2); ++pointId)
+    {
+      PointType p0 = points[::GetPointId<PointIdRedirection>(pts, pointId)];
+      vtkMath::Subtract(points[::GetPointId<PointIdRedirection>(pts, pointId + 1)], p0, v1);
+      if (vtkMath::SquaredNorm(v1) > 0)
+      {
+        commonPointId = pointId;
+        pointId += 2; // consume the two points we just used to obtain a non-zero v1
+        break;
+      }
+    }
 
-    for (vtkIdType pointId = 2; pointId < numPts; ++pointId)
+    if (pointId >= numPts || commonPointId < 0)
+    {
+      // Either all the points in the loop were coincident or we used
+      // all the points to obtain v1 and have nothing left for v2.
+      n[0] = 0;
+      n[1] = 0;
+      n[2] = 0;
+      return;
+    }
+
+    PointType p0 = points[::GetPointId<PointIdRedirection>(pts, commonPointId)];
+    for (; pointId < numPts; ++pointId)
     {
       vtkMath::Subtract(points[::GetPointId<PointIdRedirection>(pts, pointId)], p0, v2);
       vtkMath::Cross(v1, v2, v1);
@@ -153,7 +175,7 @@ struct NormalWorker
 template <bool PointIdRedirection>
 void ComputeNormal(vtkPoints* p, int numPts, const vtkIdType* pts, double* n)
 {
-  using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
+  using Dispatcher = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
   ::NormalWorker<PointIdRedirection> worker;
   if (!Dispatcher::Execute(p->GetData(), worker, numPts, pts, n))
   {
@@ -173,7 +195,7 @@ void ComputeNormal(vtkPoints* p, int numPts, const vtkIdType* pts, double* n)
 // that index into the points list. Parameter pts can be nullptr, indicating that
 // the polygon indexing is {0, 1, ..., numPts-1}. This version will handle
 // non-convex polygons.
-void vtkPolygon::ComputeNormal(vtkPoints* p, int numPts, const vtkIdType* pts, double* n)
+vtkCellStatus vtkPolygon::ComputeNormal(vtkPoints* p, int numPts, const vtkIdType* pts, double* n)
 {
   //
   // Check for special triangle case. Saves extra work.
@@ -181,7 +203,7 @@ void vtkPolygon::ComputeNormal(vtkPoints* p, int numPts, const vtkIdType* pts, d
   n[0] = n[1] = n[2] = 0.0;
   if (numPts < 3)
   {
-    return;
+    return vtkCellStatus::WrongNumberOfPoints;
   }
 
   if (pts)
@@ -193,36 +215,41 @@ void vtkPolygon::ComputeNormal(vtkPoints* p, int numPts, const vtkIdType* pts, d
     ::ComputeNormal<false>(p, numPts, pts, n);
   }
 
-  vtkMath::Normalize(n);
+  return (vtkMath::Normalize(n) == 0) ? vtkCellStatus::DegenerateFaces : vtkCellStatus::Valid;
 }
 
 //------------------------------------------------------------------------------
 // Compute the polygon normal from a points list, and a list of point ids
 // that index into the points list. This version will handle non-convex
 // polygons.
-void vtkPolygon::ComputeNormal(vtkIdTypeArray* ids, vtkPoints* p, double n[3])
+vtkCellStatus vtkPolygon::ComputeNormal(vtkIdTypeArray* ids, vtkPoints* p, double n[3])
 {
-  vtkPolygon::ComputeNormal(p, ids->GetNumberOfTuples(), ids->GetPointer(0), n);
+  return vtkPolygon::ComputeNormal(p, ids->GetNumberOfTuples(), ids->GetPointer(0), n);
 }
 
 //------------------------------------------------------------------------------
 // Compute the polygon normal from a list of doubleing points. This version
 // will handle non-convex polygons.
-void vtkPolygon::ComputeNormal(vtkPoints* p, double* n)
+vtkCellStatus vtkPolygon::ComputeNormal(vtkPoints* p, double* n)
 {
-  vtkPolygon::ComputeNormal(p, p->GetNumberOfPoints(), nullptr, n);
+  return vtkPolygon::ComputeNormal(p, p->GetNumberOfPoints(), nullptr, n);
 }
 
 //------------------------------------------------------------------------------
 // Compute the polygon normal from an array of points. This version assumes
 // that the polygon is convex, and looks for the first valid normal.
-void vtkPolygon::ComputeNormal(int numPts, double* pts, double n[3])
+vtkCellStatus vtkPolygon::ComputeNormal(int numPts, double* pts, double n[3])
 {
   int i;
   double *v1, *v2, *v3;
   double length;
   double ax, ay, az;
   double bx, by, bz;
+
+  if (numPts < 3)
+  {
+    return vtkCellStatus::WrongNumberOfPoints;
+  }
 
   //  Because some polygon vertices are colinear, need to make sure
   //  first non-zero normal is found.
@@ -250,7 +277,7 @@ void vtkPolygon::ComputeNormal(int numPts, double* pts, double n[3])
       n[0] /= length;
       n[1] /= length;
       n[2] /= length;
-      return;
+      return vtkCellStatus::Valid;
     }
     else
     {
@@ -259,6 +286,7 @@ void vtkPolygon::ComputeNormal(int numPts, double* pts, double n[3])
       v3 += 3;
     }
   } // over all points
+  return vtkCellStatus::DegenerateFaces;
 }
 
 //------------------------------------------------------------------------------
@@ -834,30 +862,12 @@ int vtkPolygon::NonDegenerateTriangulate(vtkIdList* outTris)
   {
     this->Points->GetPoint(i, pt);
 
-    if (pt[0] < bounds[0])
-    {
-      bounds[0] = pt[0];
-    }
-    if (pt[1] < bounds[2])
-    {
-      bounds[2] = pt[1];
-    }
-    if (pt[2] < bounds[4])
-    {
-      bounds[4] = pt[2];
-    }
-    if (pt[0] > bounds[1])
-    {
-      bounds[1] = pt[0];
-    }
-    if (pt[1] > bounds[3])
-    {
-      bounds[3] = pt[1];
-    }
-    if (pt[2] > bounds[5])
-    {
-      bounds[5] = pt[2];
-    }
+    bounds[0] = std::min(pt[0], bounds[0]);
+    bounds[2] = std::min(pt[1], bounds[2]);
+    bounds[4] = std::min(pt[2], bounds[4]);
+    bounds[1] = std::max(pt[0], bounds[1]);
+    bounds[3] = std::max(pt[1], bounds[3]);
+    bounds[5] = std::max(pt[2], bounds[5]);
   }
 
   outTris->Reset();
@@ -1252,6 +1262,7 @@ double vtkPolyVertexList::ComputeMeasure(vtkLocalPolyVertex* vtx)
     double l1 = vtkMath::Norm(v1);
     double l2 = vtkMath::Norm(v2);
     double l3 = vtkMath::Norm(v3);
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     int longestEdge = (l1 > l2 ? (l1 > l3 ? 1 : 3) : (l2 > l3 ? 2 : 3));
     double shortest, longest;
     if (longestEdge == 1)
@@ -1320,6 +1331,7 @@ int vtkPolyVertexList::CanRemoveVertex(vtkLocalPolyVertex* currentVtx)
   // the split line.
   int oneNegative = 0;
   val = vtkPlane::Evaluate(sN, sPt, next->next->x);
+  // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
   currentSign = (val > tolerance ? 1 : (val < -tolerance ? -1 : 0));
   oneNegative = (currentSign < 0 ? 1 : 0); // very important
 
@@ -1327,6 +1339,7 @@ int vtkPolyVertexList::CanRemoveVertex(vtkLocalPolyVertex* currentVtx)
   for (vtx = next->next->next; vtx != previous; vtx = vtx->next)
   {
     val = vtkPlane::Evaluate(sN, sPt, vtx->x);
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     sign = (val > tolerance ? 1 : (val < -tolerance ? -1 : 0));
     if (sign != currentSign)
     {
@@ -1615,6 +1628,9 @@ int vtkPolygon::EarCutTriangulation(vtkIdList* outTris, int measure)
   {
     return (this->SuccessfulTriangulation = 1);
   }
+
+  // If npts is 4 and ::SimpleTriangulation() failed, the quad is poorly shaped.
+  // Triangulate by the shorter diagonal
 
   // Establish a more convenient structure for the triangulation process
   vtkPolyVertexList poly(this->PointIds, this->Points, this->Tol * this->Tol, measure);
@@ -1913,7 +1929,18 @@ int vtkPolygon::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
   int success = this->EarCutTriangulation(ptIds);
   if (!success) // Indicate possible failure
   {
-    vtkDebugMacro(<< "Possible triangulation failure");
+    // Non-planar quads can cause the ear cut triangulation algorithm to fail.
+    // If that happens, use vtkQuad specifically to triangulate the quad.
+    if (this->PointIds->GetNumberOfIds() == 4)
+    {
+      vtkNew<vtkQuad> quad;
+      quad->DeepCopy(this);
+      quad->TriangulateLocalIds(0, ptIds);
+    }
+    else
+    {
+      vtkDebugMacro(<< "Possible triangulation failure");
+    }
   }
   return this->SuccessfulTriangulation;
 }
@@ -2159,6 +2186,7 @@ double vtkPolygon::ComputeArea(vtkPoints* p, vtkIdType numPts, const vtkIdType* 
     ny = (n[1] > 0.0 ? n[1] : -n[1]); // abs y-coord
     nz = (n[2] > 0.0 ? n[2] : -n[2]); // abs z-coord
 
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     coord = (nx > ny ? (nx > nz ? 0 : 2) : (ny > nz ? 1 : 2));
 
     // compute area of the 2D projection
@@ -2235,19 +2263,19 @@ void vtkPolygon::PrintSelf(ostream& os, vtkIndent indent)
 // Compute the polygon centroid from a points list, the number of points, and an
 // array of point ids that index into the points list. Returns false if the
 // computation is invalid.
-bool vtkPolygon::ComputeCentroid(
+vtkCellStatus vtkPolygon::ComputeCentroid(
   vtkPoints* p, int numPts, const vtkIdType* ids, double c[3], double tolerance)
 {
   if (numPts < 2)
   {
-    return false;
+    return vtkCellStatus::WrongNumberOfPoints;
   }
 
   vtkVector3d normal;
-  vtkPolygon::ComputeNormal(p, numPts, ids, normal.GetData());
-  if (normal.Normalize() <= 0.0)
+  auto status = vtkPolygon::ComputeNormal(p, numPts, ids, normal.GetData());
+  if (!status)
   {
-    return false;
+    return status;
   }
 
   // Set xx to be the average coordinate. This is not necessarily the centroid
@@ -2294,20 +2322,14 @@ bool vtkPolygon::ComputeCentroid(
     // ip2 will both be half-distances; their ratio will be correct
     // for comparison to tolerance.
     double oop = std::abs(dqx.Dot(normal)); // out-of-plane distance
-    if (oop > outOfPlane)
-    {
-      outOfPlane = oop;
-    }
+    outOfPlane = std::max(oop, outOfPlane);
     double ip2 = (dqx - oop * normal).SquaredNorm();
-    if (ip2 > inPlane2)
-    {
-      inPlane2 = ip2;
-    }
+    inPlane2 = std::max(ip2, inPlane2);
   }
   // Fail if the polygon is too far from planarity and the tolerance is "active":
   if (tolerance > 0. && outOfPlane / std::sqrt(inPlane2) > tolerance)
   {
-    return false;
+    return vtkCellStatus::NonPlanarFaces;
   }
   // Divide the accumulated product of weighted centroids by the total area
   // of all the triangles. This produces the final centroid.
@@ -2315,12 +2337,12 @@ bool vtkPolygon::ComputeCentroid(
   c[0] = accum[0];
   c[1] = accum[1];
   c[2] = accum[2];
-  return true;
+  return vtkCellStatus::Valid;
 }
 
 bool vtkPolygon::ComputeCentroid(vtkPoints* p, int numPts, const vtkIdType* pts, double centroid[3])
 {
-  return vtkPolygon::ComputeCentroid(p, numPts, pts, centroid, VTK_DEFAULT_PLANARITY_TOLERANCE);
+  return !!vtkPolygon::ComputeCentroid(p, numPts, pts, centroid, VTK_DEFAULT_PLANARITY_TOLERANCE);
 }
 
 //------------------------------------------------------------------------------
@@ -2328,7 +2350,7 @@ bool vtkPolygon::ComputeCentroid(vtkPoints* p, int numPts, const vtkIdType* pts,
 // that index into the points list. Returns false if the computation is invalid.
 bool vtkPolygon::ComputeCentroid(vtkIdTypeArray* ids, vtkPoints* p, double c[3])
 {
-  return vtkPolygon::ComputeCentroid(
+  return !!vtkPolygon::ComputeCentroid(
     p, ids->GetNumberOfTuples(), ids->GetPointer(0), c, VTK_DEFAULT_PLANARITY_TOLERANCE);
 }
 

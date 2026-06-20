@@ -5,10 +5,10 @@
 #include "vtkAxisActor2D.h"
 #include "vtkCellArray.h"
 #include "vtkFieldData.h"
-#include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper2D.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextMapper.h"
 #include "vtkTextProperty.h"
 #include "vtkTrivialProducer.h"
@@ -78,8 +78,9 @@ vtkParallelCoordinatesActor::vtkParallelCoordinatesActor()
   this->TitleTextProperty = vtkTextProperty::New();
   this->TitleTextProperty->ShallowCopy(this->LabelTextProperty);
 
-  this->LabelFormat = new char[8];
-  snprintf(this->LabelFormat, 8, "%s", "%-#6.3g");
+  this->LabelFormat = new char[10];
+  auto result = vtk::format_to_n(this->LabelFormat, 10, "{:s}", "{:<#6.3g}");
+  *result.out = '\0';
 
   this->LastPosition[0] = this->LastPosition[1] = this->LastPosition2[0] = this->LastPosition2[1] =
     0;
@@ -356,10 +357,7 @@ int vtkParallelCoordinatesActor::PlaceAxes(vtkViewport* viewport, const int* vtk
     }
     numColumns += array->GetNumberOfComponents();
     numTuples = array->GetNumberOfTuples();
-    if (numTuples < numRows)
-    {
-      numRows = numTuples;
-    }
+    numRows = std::min(numTuples, numRows);
   }
 
   // Determine the number of independent variables
@@ -405,14 +403,8 @@ int vtkParallelCoordinatesActor::PlaceAxes(vtkViewport* viewport, const int* vtk
       {
         // v = field->GetComponent(i,j);
         ::vtkParallelCoordinatesActorGetComponent(field, i, j, &v);
-        if (v < this->Mins[k])
-        {
-          this->Mins[k] = v;
-        }
-        if (v > this->Maxs[k])
-        {
-          this->Maxs[k] = v;
-        }
+        this->Mins[k] = std::min(v, this->Mins[k]);
+        this->Maxs[k] = std::max(v, this->Maxs[k]);
       }
       k++;
     }
@@ -429,14 +421,8 @@ int vtkParallelCoordinatesActor::PlaceAxes(vtkViewport* viewport, const int* vtk
           // non-numeric component, simply skip.
           continue;
         }
-        if (v < this->Mins[j])
-        {
-          this->Mins[j] = v;
-        }
-        if (v > this->Maxs[j])
-        {
-          this->Maxs[j] = v;
-        }
+        this->Mins[j] = std::min(v, this->Mins[j]);
+        this->Maxs[j] = std::max(v, this->Maxs[j]);
       }
     }
   }

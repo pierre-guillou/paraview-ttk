@@ -47,6 +47,7 @@
 
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkEdgeTable;
@@ -55,7 +56,7 @@ class vtkPointData;
 class vtkPriorityQueue;
 class vtkDoubleArray;
 
-class VTKFILTERSCORE_EXPORT vtkQuadricDecimation : public vtkPolyDataAlgorithm
+class VTKFILTERSCORE_EXPORT VTK_MARSHALAUTO vtkQuadricDecimation : public vtkPolyDataAlgorithm
 {
 public:
   vtkTypeMacro(vtkQuadricDecimation, vtkPolyDataAlgorithm);
@@ -269,9 +270,33 @@ protected:
 
   ///@{
   /**
+   * Helper function to set the new point coordinates.
+   * @see SetPointActiveAttributes, SetPointAttributeArray
+   * @see MapPointData ComputeCost2 ComputeCost
+   */
+  void SetPointCoordinates(vtkIdType ptId, const double* x);
+
+  /**
+   * Helper function to set the point coordinates and it's attributes.
+   *
+   * New point attributes are stored in `x` after point coordinates.
+   * Not all point attributes are set, only activate attribute arrays.
+   * @see SetPointCoordinates, SetPointAttributeArray
+   * @see MapPointData
+   */
+  void SetPointActiveAttributes(vtkIdType ptId, const double* x);
+
+  /**
    * Helper function to set and get the point and it's attributes as an array
    *
-   * The setter needs the entire edge for interpolation of point data
+   * The setter needs the entire edge for interpolation of point data.
+   * Attributes in `x` are ignored.
+   *
+   * FIXME a linear interpolation is used instead of a quadratic interpolation.
+   * FIXME new point coordinates may be far away from the edge.
+   * FIXME shouldn't the attributes be scaled with AttributeScale?
+   * @see SetPointCoordinates, SetPointActiveAttributes
+   * @see MapPointData
    */
   void SetPointAttributeArray(vtkIdType ptId[2], const double* x);
   void GetPointAttributeArray(vtkIdType ptId, double* x);

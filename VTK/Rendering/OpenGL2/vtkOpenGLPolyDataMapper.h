@@ -118,6 +118,7 @@ public:
   vtkSetMacro(UseProgramPointSize, bool);
   vtkBooleanMacro(UseProgramPointSize, bool);
 
+  // NOLINTNEXTLINE(readability-enum-initial-value)
   enum PrimitiveTypes
   {
     PrimitiveStart = 0,
@@ -338,17 +339,20 @@ protected:
   virtual bool HaveWideLines(vtkRenderer*, vtkActor*);
 
   // do we have textures that require special handling
-  virtual bool HaveTextures(vtkActor* actor);
+  bool HaveTextures(vtkActor* actor);
 
   // how many textures do we have
-  virtual unsigned int GetNumberOfTextures(vtkActor* actor);
+  unsigned int GetNumberOfTextures(vtkActor* actor);
 
-  // populate a vector with the textures we have
-  // the order is always
-  //  ColorInternalTexture
-  //  Actors texture
-  //  Properties textures
   typedef std::pair<vtkTexture*, std::string> texinfo;
+  /**
+   * Recover current texture informations on the provided actor into a vector.
+   * This helps building the shader with the right texture code.
+   * The order is always:
+   *  - ColorInternalTexture
+   *  - Actors texture
+   *  - Properties textures
+   */
   virtual std::vector<texinfo> GetTextures(vtkActor* actor);
 
   // do we have textures coordinates that require special handling
@@ -452,6 +456,7 @@ protected:
   bool DrawingSpheres(vtkOpenGLHelper& cellBO, vtkActor* actor);
   bool DrawingTubes(vtkOpenGLHelper& cellBO, vtkActor* actor);
   bool DrawingTubesOrSpheres(vtkOpenGLHelper& cellBO, vtkActor* actor);
+  bool DrawingPoints(vtkOpenGLHelper& cellBO, vtkActor* actor);
 
   // get which opengl mode to use to draw the primitive
   int GetOpenGLMode(int representation, int primType);

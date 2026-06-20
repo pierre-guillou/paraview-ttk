@@ -18,6 +18,7 @@ vtk_add_test_cxx(vtkFiltersGeneralCxxTests tests
   TestCellValidator.cxx,NO_VALID
   TestCellValidatorFilter.cxx,NO_VALID
   TestCleanUnstructuredGridStrategies.cxx,NO_VALID
+  TestClipDatasetPolyhedrons.cxx,NO_VALID
   TestContourTriangulator.cxx
   TestContourTriangulatorBadData.cxx
   TestContourTriangulatorCutter.cxx
@@ -50,6 +51,7 @@ vtk_add_test_cxx(vtkFiltersGeneralCxxTests tests
   TestPassArrays.cxx,NO_VALID
   TestPassSelectedArrays.cxx,NO_VALID
   TestPassThrough.cxx,NO_VALID
+  TestPointsMatchingTransformFilter.cxx,NO_VALID
   TestRandomAttributeGeneratorFilter.cxx,NO_VALID
   TestRandomAttributeGeneratorHTG.cxx,NO_VALID,NO_OUTPUT
   TestRectilinearGridToPointSet.cxx,NO_VALID
@@ -90,6 +92,12 @@ if (TARGET VTK::IOIOSS)
     TestAnimateModes.cxx
     )
 endif()
+
+if (VTK_SMP_ENABLE_STDTHREAD)
+  vtk_add_test_cxx(vtkFiltersGeneralCxxTests tests
+    TestGradientSMP.cxx,NO_VALID
+  )
+endif ()
 
 set(all_tests
   ${tests}

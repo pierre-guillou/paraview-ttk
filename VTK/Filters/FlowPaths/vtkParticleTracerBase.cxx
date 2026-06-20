@@ -37,10 +37,11 @@
 #include <algorithm>
 #include <atomic>
 #include <functional>
+#include <iostream>
 #include <mutex>
 #ifdef DEBUGPARTICLETRACE
 #define Assert(x) assert(x)
-#define PRINT(x) cout << __LINE__ << ": " << x << endl;
+#define PRINT(x) std::cout << __LINE__ << ": " << x << std::endl;
 #else
 #define PRINT(x)
 #define Assert(x)
@@ -112,18 +113,6 @@ vtkParticleTracerBase::vtkParticleTracerBase()
   this->Interpolator = vtkSmartPointer<vtkTemporalInterpolatedVelocityField>::New();
   this->SetNumberOfInputPorts(2);
 
-#ifdef JB_H5PART_PARTICLE_OUTPUT
-#ifdef _WIN32
-  vtkDebugMacro(<< "Setting vtkH5PartWriter");
-  vtkH5PartWriter* writer = vtkH5PartWriter::New();
-#else
-  vtkDebugMacro(<< "Setting vtkXMLParticleWriter");
-  vtkXMLParticleWriter* writer = vtkXMLParticleWriter::New();
-#endif
-  this->SetParticleWriter(writer);
-  writer->Delete();
-#endif
-
   this->SetIntegratorType(RUNGE_KUTTA4);
   this->ForceSerialExecution = false;
 
@@ -175,13 +164,10 @@ void vtkParticleTracerBase::RemoveAllSources()
 //------------------------------------------------------------------------------
 void vtkParticleTracerBase::SetMeshOverTime(int meshOverTime)
 {
-  if (this->MeshOverTime !=
-    (meshOverTime < DIFFERENT ? DIFFERENT
-                              : (meshOverTime > SAME_TOPOLOGY ? SAME_TOPOLOGY : meshOverTime)))
+  meshOverTime = std::clamp<int>(meshOverTime, DIFFERENT, SAME_TOPOLOGY);
+  if (this->MeshOverTime != meshOverTime)
   {
-    this->MeshOverTime =
-      (meshOverTime < DIFFERENT ? DIFFERENT
-                                : (meshOverTime > SAME_TOPOLOGY ? SAME_TOPOLOGY : meshOverTime));
+    this->MeshOverTime = meshOverTime;
     this->Modified();
     // Needed since the value needs to be set at the same time.
     this->Interpolator->SetMeshOverTime(this->MeshOverTime);
@@ -509,7 +495,7 @@ bool vtkParticleTracerBase::SendReceiveParticles(
   this->Controller->AllGather(&numParticles, allNumParticles.data(), 1);
 
   // write the message
-  const int typeSize = sizeof(ParticleInformation);
+  constexpr int typeSize = sizeof(ParticleInformation);
 
   vtkIdType messageSize = numParticles * typeSize;
   std::vector<char> sendMessage(messageSize, 0);
@@ -1156,30 +1142,30 @@ void vtkParticleTracerBase::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 
-  os << indent << "ParticleWriter: " << this->ParticleWriter << endl;
+  os << indent << "ParticleWriter: " << this->ParticleWriter << std::endl;
   os << indent << "ParticleFileName: " << (this->ParticleFileName ? this->ParticleFileName : "None")
-     << endl;
-  os << indent << "ForceReinjectionEveryNSteps: " << this->ForceReinjectionEveryNSteps << endl;
-  os << indent << "EnableParticleWriting: " << this->EnableParticleWriting << endl;
-  os << indent << "IgnorePipelineTime: " << this->IgnorePipelineTime << endl;
-  os << indent << "StaticSeeds: " << this->StaticSeeds << endl;
+     << std::endl;
+  os << indent << "ForceReinjectionEveryNSteps: " << this->ForceReinjectionEveryNSteps << std::endl;
+  os << indent << "EnableParticleWriting: " << this->EnableParticleWriting << std::endl;
+  os << indent << "IgnorePipelineTime: " << this->IgnorePipelineTime << std::endl;
+  os << indent << "StaticSeeds: " << this->StaticSeeds << std::endl;
   os << indent << "MeshOverTime: ";
   switch (this->MeshOverTime)
   {
     case MeshOverTimeTypes::DIFFERENT:
-      os << "DIFFERENT" << endl;
+      os << "DIFFERENT" << std::endl;
       break;
     case MeshOverTimeTypes::STATIC:
-      os << "STATIC" << endl;
+      os << "STATIC" << std::endl;
       break;
     case MeshOverTimeTypes::LINEAR_TRANSFORMATION:
-      os << "LINEAR_TRANSFORMATION" << endl;
+      os << "LINEAR_TRANSFORMATION" << std::endl;
       break;
     case MeshOverTimeTypes::SAME_TOPOLOGY:
-      os << "SAME_TOPOLOGY" << endl;
+      os << "SAME_TOPOLOGY" << std::endl;
       break;
     default:
-      os << "UNKNOWN" << endl;
+      os << "UNKNOWN" << std::endl;
       break;
   }
 }
@@ -1605,13 +1591,13 @@ vtkFloatArray* vtkParticleTracerBase::GetParticleAngularVel(vtkPointData* pd)
 //------------------------------------------------------------------------------
 void vtkParticleTracerBase::PrintParticleHistories()
 {
-  cout << "Particle id, ages: " << endl;
+  std::cout << "Particle id, ages: " << std::endl;
   for (ParticleListIterator itr = this->ParticleHistories.begin();
        itr != this->ParticleHistories.end(); itr++)
   {
     ParticleInformation& info(*itr);
-    cout << info.InjectedPointId << " " << info.age << " " << endl;
+    std::cout << info.InjectedPointId << " " << info.age << " " << std::endl;
   }
-  cout << endl;
+  std::cout << std::endl;
 }
 VTK_ABI_NAMESPACE_END

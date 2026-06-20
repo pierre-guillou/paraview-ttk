@@ -7,10 +7,8 @@
 #include "vtkCompositeDataWriter.h"
 #include "vtkNew.h"
 #include "vtkOverlappingAMR.h"
-#include "vtkSetGet.h"
 #include "vtkSmartPointer.h"
 #include "vtkTestUtilities.h"
-#include "vtkUniformGrid.h"
 
 int TestAMRReadWrite(int argc, char* argv[])
 {
@@ -25,7 +23,10 @@ int TestAMRReadWrite(int argc, char* argv[])
 
   vtkSmartPointer<vtkOverlappingAMR> amr;
   amr = vtkOverlappingAMR::SafeDownCast(reader->GetOutputDataObject(0));
-  amr->Audit();
+  if (!amr->CheckValidity())
+  {
+    return EXIT_FAILURE;
+  }
 
   vtkNew<vtkCompositeDataWriter> writer;
   writer->SetFileName();

@@ -8,6 +8,7 @@
 #include "vtkInformationVector.h"
 #include "vtkObjectFactory.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringScanner.h"
 
 #include <algorithm>
 #include <vector>
@@ -87,7 +88,8 @@ void vtkPVDReader::ReadXMLData()
       bool found = false;
       while (cnt2 < tsLength && !found)
       {
-        double val = strtod(this->GetAttributeValue("timestep", cnt2), nullptr);
+        double val;
+        VTK_FROM_CHARS_IF_ERROR_RETURN(this->GetAttributeValue("timestep", cnt2), val, );
         if (val == steps[cnt])
         {
           found = true;
@@ -166,9 +168,9 @@ int vtkPVDReader::RequestInformation(
   for (int i = 0; i < numTimeSteps; i++)
   {
     const char* attr = this->GetAttributeValue(index, i);
-    char* res = nullptr;
-    double val = strtod(attr, &res);
-    if (res == attr)
+    double val;
+    auto res = vtk::from_chars(attr, val);
+    if (res.ptr == attr)
     {
       vtkErrorMacro("Could not parse timestep string: " << attr << " Setting time value to 0");
       timeSteps[i] = 0.0;
@@ -181,7 +183,7 @@ int vtkPVDReader::RequestInformation(
   std::sort(timeSteps.begin(), timeSteps.end());
   if (!timeSteps.empty())
   {
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &timeSteps[0], numTimeSteps);
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), timeSteps.data(), numTimeSteps);
     double timeRange[2];
     timeRange[0] = timeSteps[0];
     timeRange[1] = timeSteps[numTimeSteps - 1];

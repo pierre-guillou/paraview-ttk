@@ -60,11 +60,14 @@
 #include "vtkCellGridShaderUtil.h"
 #include "vtkCellGridShaderVertex.h"
 
-// Uncomment to print shader/color info to cout
+// Uncomment to print shader/color info to std::cout
 // #define vtkDGRenderResponder_DEBUG
 
 #ifdef vtkDGRenderResponder_DEBUG
 #include <sstream>
+
+#include <iostream>
+
 #endif
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -450,8 +453,10 @@ void vtkDGRenderResponder::CacheEntry::PrepareHelper(
     colorInfo ? colorInfo->GetNumberOfBasisFunctions() * colorInfo->GetBasisValueSize() : 1));
   // When we have a vector-valued basis function, we should scale by the shape's inverse Jacobian.
   store.push_back(fmt::arg("ColorScaleInverseJacobian",
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     this->Color ? (colorTypeInfo.FunctionSpace == "HCURL"_token ? 1 : 0) : 0));
   store.push_back(fmt::arg("ColorScaleScaledJacobian",
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     this->Color ? (colorTypeInfo.FunctionSpace == "HDIV"_token ? 1 : 0) : 0));
   this->RenderHelper->SetIncludeColormap(!!this->Color);
 #ifdef vtkDGRenderResponder_DEBUG
@@ -559,9 +564,16 @@ void vtkDGRenderResponder::CacheEntry::PrepareHelper(
     int colorComp = -2;
     if (cmap)
     {
-      colorComp = cmap->GetVectorMode() == vtkScalarsToColors::VectorModes::COMPONENT
-        ? cmap->GetVectorComponent()
-        : -2;
+      if (this->Color->GetNumberOfComponents() > 1)
+      {
+        colorComp = cmap->GetVectorMode() == vtkScalarsToColors::VectorModes::COMPONENT
+          ? cmap->GetVectorComponent()
+          : -2;
+      }
+      else
+      {
+        colorComp = 0;
+      }
     }
     else
     {

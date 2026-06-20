@@ -13,7 +13,7 @@
 #include VTK_NLOHMANN_JSON(json.hpp)
 
 #include "vtkArrayDispatch.h"
-#include "vtkAssemblyPath.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkBase64OutputStream.h"
 #include "vtkByteSwap.h"
 #include "vtkCamera.h"
@@ -23,7 +23,6 @@
 #include "vtkDataObjectTreeIterator.h"
 #include "vtkFloatArray.h"
 #include "vtkImageData.h"
-#include "vtkImageReader.h"
 #include "vtkInformation.h"
 #include "vtkJPEGReader.h"
 #include "vtkLogger.h"
@@ -38,8 +37,8 @@
 #include "vtkProperty.h"
 #include "vtkRenderWindow.h"
 #include "vtkRendererCollection.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
 #include "vtkTexture.h"
 #include "vtkTransform.h"
 #include "vtkTransformFilter.h"
@@ -140,8 +139,7 @@ void FlipYTCoords(vtkDataArray* inOutArray)
 {
   // Create an alias for a dispatcher that handles three arrays and only
   // generates code for cases where all three arrays use float or double:
-  using FastPathTypes = vtkArrayDispatch::Reals;
-  using Dispatcher = vtkArrayDispatch::DispatchByValueType<FastPathTypes>;
+  using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
 
   // Create the functor:
   FlipYTCoordsWorker worker;
@@ -328,7 +326,7 @@ std::string WriteTextureBufferAndView(const std::string& gltfFullDir,
 
 int CopyStream(std::istream& in, std::ostream& out)
 {
-  const int BUF_SIZE = 4096;
+  constexpr int BUF_SIZE = 4096;
   char buf[BUF_SIZE];
   int streamSize = 0;
   do
@@ -561,6 +559,7 @@ void WriteMesh(nlohmann::json& accessors, nlohmann::json& buffers, nlohmann::jso
     acc["byteOffset"] = 0;
     acc["type"] = da->GetNumberOfComponents() == 4
       ? "VEC4"
+      // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
       : (da->GetNumberOfComponents() == 3 ? "VEC3" : "SCALAR");
     acc["componentType"] = GetGLType(da);
     acc["count"] = da->GetNumberOfTuples();
@@ -705,7 +704,7 @@ void WriteMesh(nlohmann::json& accessors, nlohmann::json& buffers, nlohmann::jso
   }
 
   nlohmann::json amesh;
-  std::string meshName = "mesh" + std::to_string(meshes.size());
+  std::string meshName = "mesh" + vtk::to_string(meshes.size());
   amesh["name"] = meshName;
   amesh["primitives"] = prims;
   meshes.emplace_back(amesh);
@@ -1008,7 +1007,7 @@ void vtkGLTFWriter::WriteToStreamMultiBlock(ostream& output, vtkMultiBlockDataSe
           {
             for (size_t i = 0; i < textureFileNames.size(); ++i)
             {
-              std::string textureFileName = textureFileNames[i];
+              const auto& textureFileName = textureFileNames[i];
               WriteTexture(buffers, bufferViews, textures, samplers, images, this->InlineData,
                 this->CopyTextures, textureMap, this->TextureBaseDirectory, textureFileName,
                 this->FileName, this->Binary, binChunkOut, &binChunkOffset);

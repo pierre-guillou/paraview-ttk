@@ -5,6 +5,7 @@
 #include "vtkParseSystem.h"
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,9 @@
   This file handles preprocessor directives via a simple
   recursive-descent parser that only evaluates integers.
 */
+
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
 
 #define PREPROC_DEBUG 0
 
@@ -981,7 +985,14 @@ static int preproc_evaluate_bitshift(
     {
       if (op == TOK_LSHIFT)
       {
-        *val = (preproc_int_t)((preproc_uint_t)*val << rval);
+        if (rval >= (preproc_int_t)(CHAR_BIT * sizeof(*val)))
+        {
+          result = VTK_PARSE_OUT_OF_BOUNDS;
+        }
+        else
+        {
+          *val = (preproc_int_t)((preproc_uint_t)*val << rval);
+        }
       }
       else if (op == TOK_RSHIFT)
       {
@@ -992,7 +1003,15 @@ static int preproc_evaluate_bitshift(
     {
       if (op == TOK_LSHIFT)
       {
-        *val = *val << rval;
+        if (rval < 0 || rval >= (int)(sizeof(preproc_int_t) * CHAR_BIT))
+        {
+          // handle overflow/invalid shift safely
+          *val = 0;
+        }
+        else
+        {
+          *val = *val << rval;
+        }
       }
       else if (op == TOK_RSHIFT)
       {
@@ -1953,7 +1972,7 @@ void preproc_escape_string(char** linep, size_t* linelenp, size_t* jp, size_t d,
           line[j++] = '\"';
           break;
         default:
-          sprintf(&line[j], "\\%3.3o", r[i]);
+          snprintf(&line[j], linelen - j, "\\%3.3o", r[i]);
           j += 4;
           break;
       }
@@ -4807,3 +4826,6 @@ void vtkParsePreprocess_Free(PreprocessInfo* info)
 
   free(info);
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

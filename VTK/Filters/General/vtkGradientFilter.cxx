@@ -7,10 +7,12 @@
 #include "vtkCell.h"
 #include "vtkCellData.h"
 #include "vtkCellDataToPointData.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkDataArray.h"
 #include "vtkDataArrayRange.h"
 #include "vtkDataSet.h"
 #include "vtkDataSetAttributes.h"
+#include "vtkDoubleArray.h"
 #include "vtkGenericCell.h"
 #include "vtkIdList.h"
 #include "vtkImageData.h"
@@ -137,6 +139,7 @@ void Fill(vtkDataArray* array, DataT vtkNotUsed(data), int replacementValueOptio
       return;
   }
 }
+
 template <class DataT>
 int GetOutputDataType(DataT vtkNotUsed(data))
 {
@@ -146,7 +149,6 @@ int GetOutputDataType(DataT vtkNotUsed(data))
   }
   return VTK_FLOAT;
 }
-
 } // end anonymous namespace
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -477,7 +479,7 @@ struct PointGradients : public GradientsBase<TData>
         {
           const auto cellType =
             static_cast<unsigned char>(input->GetCellType(cellsOnPoint[neighbor]));
-          int cellDimension = vtkCellTypes::GetDimension(cellType);
+          int cellDimension = vtkCellTypeUtilities::GetDimension(cellType);
           if (cellDimension > maxSpatialDimension)
           {
             maxSpatialDimension = cellDimension;
@@ -519,7 +521,7 @@ struct PointGradients : public GradientsBase<TData>
               }
 
               // Get derivative of cell at point.
-              cell->Derivatives(subId, parametricCoord, &values[0], 1, derivative);
+              cell->Derivatives(subId, parametricCoord, values.data(), 1, derivative);
 
               g[comp * 3] += derivative[0];
               g[comp * 3 + 1] += derivative[1];
@@ -539,17 +541,17 @@ struct PointGradients : public GradientsBase<TData>
         if (this->Vorticity)
         {
           auto vorticity = vtk::DataArrayTupleRange(this->Vorticity);
-          ComputeVorticityFromGradient(&g[0], vorticity[ptId]);
+          ComputeVorticityFromGradient(g.data(), vorticity[ptId]);
         }
         if (this->QCriterion)
         {
           auto qCriterion = vtk::DataArrayTupleRange(this->QCriterion);
-          ComputeQCriterionFromGradient(&g[0], qCriterion[ptId]);
+          ComputeQCriterionFromGradient(g.data(), qCriterion[ptId]);
         }
         if (this->Divergence)
         {
           auto divergence = vtk::DataArrayTupleRange(this->Divergence);
-          ComputeDivergenceFromGradient(&g[0], divergence[ptId]);
+          ComputeDivergenceFromGradient(g.data(), divergence[ptId]);
         }
         if (this->Gradients)
         {
@@ -641,7 +643,7 @@ struct CellGradients : public GradientsBase<TData>
           values[i] = a[comp];
         }
 
-        cell->Derivatives(subId, cellCenter, &values[0], 1, derivative);
+        cell->Derivatives(subId, cellCenter, values.data(), 1, derivative);
         cellGrad[comp * 3] = derivative[0];
         cellGrad[comp * 3 + 1] = derivative[1];
         cellGrad[comp * 3 + 2] = derivative[2];
@@ -659,19 +661,18 @@ struct CellGradients : public GradientsBase<TData>
       if (this->Vorticity)
       {
         auto vorticity = vtk::DataArrayTupleRange(this->Vorticity);
-        ComputeVorticityFromGradient(&cellGrad[0], vorticity[cellId]);
+        ComputeVorticityFromGradient(cellGrad.data(), vorticity[cellId]);
       }
       if (this->QCriterion)
       {
         auto qCriterion = vtk::DataArrayTupleRange(this->QCriterion);
-        ComputeQCriterionFromGradient(&cellGrad[0], qCriterion[cellId]);
+        ComputeQCriterionFromGradient(cellGrad.data(), qCriterion[cellId]);
       }
       if (this->Divergence)
       {
         auto divergence = vtk::DataArrayTupleRange(this->Divergence);
-        ComputeDivergenceFromGradient(&cellGrad[0], divergence[cellId]);
+        ComputeDivergenceFromGradient(cellGrad.data(), divergence[cellId]);
       }
-
     } // for all cells
   }   // operator()
 
@@ -723,7 +724,6 @@ struct StructuredGradientsWorker
     }
   }
 };
-
 } // end anonymous namespace
 
 //------------------------------------------------------------------------------
@@ -823,6 +823,12 @@ int vtkGradientFilter::ComputeUnstructuredGridGradient(vtkDataArray* array, int 
       vtkNew<vtkStaticCellLinks> cellLinks;
       cellLinks->SetDataSet(input);
       cellLinks->BuildLinks();
+
+      auto pd = vtkPolyData::SafeDownCast(input);
+      if (pd != nullptr && pd->NeedToBuildCells())
+      {
+        pd->BuildCells();
+      }
 
       using PointGradientsDispatch = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
       PointGradientsWorker pgWorker;
@@ -1132,7 +1138,6 @@ VTK_ABI_NAMESPACE_END
 
 namespace // anonymous
 {
-
 //------------------------------------------------------------------------------
 int GetCellParametricData(
   vtkIdType pointId, double pointCoord[3], vtkCell* cell, int& subId, double parametricCoord[3])
@@ -1154,14 +1159,33 @@ int GetCellParametricData(
     return 0;
   }
 
+  double* parametricCoords = cell->GetParametricCoords();
+  // check because some cells return nullptr for parametric coords
+  if (parametricCoords)
+  {
+    // the given point is a cell point so we can quickly return its parametric coords
+    // use float epsilon to avoid issues with double precision
+    constexpr double epsilon = std::numeric_limits<float>::epsilon();
+    auto points = vtkDoubleArray::FastDownCast(cell->GetPoints()->GetData())->GetPointer(0);
+    for (int i = 0; i < cell->GetNumberOfPoints(); i++)
+    {
+      const double* point = points + 3 * i;
+      if (vtkMath::Distance2BetweenPoints(point, pointCoord) < epsilon)
+      {
+        subId = 0;
+        std::copy_n(parametricCoords + 3 * i, 3, parametricCoord);
+        return 1;
+      }
+    }
+  }
+  // Fallback: use EvaluatePosition to get parametric coords.
   double dummy;
   int numpoints = cell->GetNumberOfPoints();
   std::vector<double> values(numpoints);
   // Get parametric position of point.
-  cell->EvaluatePosition(
+  int result = cell->EvaluatePosition(
     pointCoord, nullptr, subId, parametricCoord, dummy, values.data() /*Really another dummy.*/);
-
-  return 1;
+  return result == 1 ? 1 : 0;
 }
 
 //------------------------------------------------------------------------------
@@ -1536,5 +1560,4 @@ void ComputeGradientsSG(GridT* output, int* dims, DataT* array, DataT* gradients
 
   vtkSMPTools::For(0, dims[2], structuredSliceWorker);
 }
-
 } // end anonymous namespace

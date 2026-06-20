@@ -28,6 +28,10 @@
  * group of sources have in common, and to copy tuples from a source into
  * the destination, for only those attributes that are held by all.
  *
+ * Note that each data array is assumed to have the same number of tuples,
+ * which typically corresponds to the number of
+ * points or cells in a dataset.
+ *
  * @warning
  * vtkDataSetAttributes is not in general thread safe due to the use of its
  * vtkFieldData::BasicIterator RequiredArrays data member. The class
@@ -103,7 +107,7 @@ public:
     RATIONALWEIGHTS = 9,
     HIGHERORDERDEGREES = 10,
     PROCESSIDS = 11,
-    NUM_ATTRIBUTES
+    NUM_ATTRIBUTES = 12
   };
 
   enum AttributeLimitTypes
@@ -119,26 +123,19 @@ public:
 
   enum CellGhostTypes
   {
-    DUPLICATECELL = 1,        // the cell is present on multiple processors
-    HIGHCONNECTIVITYCELL = 2, // the cell has more neighbors than in a regular mesh
-    LOWCONNECTIVITYCELL = 4,  // the cell has less neighbors than in a regular mesh
-    REFINEDCELL = 8,          // other cells are present that refines it.
-    EXTERIORCELL = 16,        // the cell is on the exterior of the data set
-    HIDDENCELL =
-      32 // the cell is needed to maintain connectivity, but the data values should be ignored.
+    DUPLICATECELL = 1,        // The cell is present on multiple partitions/ranks.
+    HIGHCONNECTIVITYCELL = 2, // The cell has more neighbors than in a regular mesh.
+    LOWCONNECTIVITYCELL = 4,  // The cell has less neighbors than in a regular mesh.
+    REFINEDCELL = 8,          // Other cells are present that refines it.
+    EXTERIORCELL = 16,        // The cell is on the exterior of the data set.
+    HIDDENCELL = 32           // The cell is only present for connectivity; ignore data values.
   };
 
   enum PointGhostTypes
   {
-    DUPLICATEPOINT = 1, // the cell is present on multiple processors
-    HIDDENPOINT =
-      2 // the point is needed to maintain connectivity, but the data values should be ignored.
+    DUPLICATEPOINT = 1, // The point is present in multiple partitions/ranks.
+    HIDDENPOINT = 2     // The point is only present for connectivity; ignore data values.
   };
-
-  // A vtkDataArray with this name must be of type vtkUnsignedCharArray.
-  // Each value must be assigned according to the bit fields described in
-  // PointGhostTypes or CellGhostType
-  static const char* GhostArrayName() { return "vtkGhostType"; }
 
   //-----------------------------------------------------------------------------------
 
@@ -298,7 +295,7 @@ public:
   /**
    * Determine whether a data array of index idx is considered a data set
    * attribute (i.e., scalar, vector, tensor, etc). Return less-than zero
-   * if it is, otherwise an index 0<=idx<NUM_ATTRIBUTES to indicate
+   * if it is not, otherwise an index 0<=idx<NUM_ATTRIBUTES to indicate
    * which attribute.
    */
   int IsArrayAnAttribute(int idx);
@@ -364,6 +361,7 @@ public:
 
   // -- attribute copy properties ------------------------------------------
 
+  // NOLINTNEXTLINE(readability-enum-initial-value)
   enum AttributeCopyOperations
   {
     COPYTUPLE = 0,

@@ -7,7 +7,6 @@
 #include "vtkCompositeDataReader.h"
 
 #include "vtkAMRBox.h"
-#include "vtkAMRInformation.h"
 #include "vtkDataAssembly.h"
 #include "vtkDataObjectTypes.h"
 #include "vtkDoubleArray.h"
@@ -22,6 +21,7 @@
 #include "vtkNonOverlappingAMR.h"
 #include "vtkObjectFactory.h"
 #include "vtkOverlappingAMR.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include "vtkPartitionedDataSet.h"
 #include "vtkPartitionedDataSetCollection.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
@@ -328,7 +328,7 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkOverlappingAMR* oamr)
     return false;
   }
 
-  std::vector<int> blocksPerLevel;
+  std::vector<unsigned int> blocksPerLevel;
   blocksPerLevel.resize(num_levels);
 
   std::vector<double> spacing;
@@ -352,12 +352,12 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkOverlappingAMR* oamr)
   }
 
   // initialize the AMR.
-  oamr->Initialize(num_levels, blocksPerLevel.data());
+  oamr->Initialize(blocksPerLevel);
   oamr->SetGridDescription(description);
   oamr->SetOrigin(origin);
   for (int cc = 0; cc < num_levels; cc++)
   {
-    oamr->GetAMRInfo()->SetSpacing(cc, &spacing[3 * cc]);
+    oamr->SetSpacing(cc, &spacing[3 * cc]);
   }
 
   // read in the amr boxes0
@@ -385,7 +385,7 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkOverlappingAMR* oamr)
       idata.TakeReference(
         vtkArrayDownCast<vtkIntArray>(this->ReadArray("int", num_tuples, num_components)));
       if (!idata || idata->GetNumberOfComponents() != 6 ||
-        idata->GetNumberOfTuples() != static_cast<vtkIdType>(oamr->GetTotalNumberOfBlocks()))
+        idata->GetNumberOfTuples() != static_cast<vtkIdType>(oamr->GetNumberOfBlocks()))
       {
         vtkErrorMacro("Failed to read meta-data");
         return false;
@@ -394,7 +394,7 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkOverlappingAMR* oamr)
       unsigned int metadata_index = 0;
       for (int level = 0; level < num_levels; level++)
       {
-        unsigned int num_datasets = oamr->GetNumberOfDataSets(level);
+        unsigned int num_datasets = oamr->GetNumberOfBlocks(level);
         for (unsigned int index = 0; index < num_datasets; index++, metadata_index++)
         {
           int tuple[6];

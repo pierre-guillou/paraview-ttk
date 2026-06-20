@@ -3,6 +3,7 @@
 #include "vtkPolyDataPlaneCutter.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkArrayListTemplate.h" // For processing attribute data
 #include "vtkBatch.h"
 #include "vtkCellArray.h"
@@ -24,7 +25,6 @@
 #include "vtkSMPThreadLocal.h"
 #include "vtkSMPTools.h"
 #include "vtkStaticEdgeLocatorTemplate.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkPolyDataPlaneCutter);
@@ -88,6 +88,8 @@ struct EvaluatePoints
     bool isFirst = vtkSMPTools::GetSingleThread();
     vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
+    auto& belowPlane = this->BelowPlane.Local();
+    auto& abovePlane = this->AbovePlane.Local();
     for (; ptId < endPtId; ++ptId)
     {
       if (ptId % checkAbortInterval == 0)
@@ -112,12 +114,12 @@ struct EvaluatePoints
       if (val > 0.0)
       {
         this->PtMap[ptId] = 1;
-        this->AbovePlane.Local() = 1;
+        abovePlane = 1;
       }
       else
       {
         this->PtMap[ptId] = 0;
-        this->BelowPlane.Local() = 1;
+        belowPlane = 1;
       }
     }
   }
@@ -320,15 +322,14 @@ struct ExtractLines
   vtkIdType NumCells;
   const std::vector<unsigned char>& CellMap;
   vtkIdType* LineConn;
-  vtkIdType* LineOffsets;
   std::vector<EdgeTupleType>& Edges;
   ArrayList* Arrays;
   vtkSMPThreadLocal<vtkSmartPointer<vtkCellArrayIterator>> CellIterator;
   vtkPolyDataPlaneCutter* Filter;
 
   ExtractLines(EvaluateCells& ec, const std::vector<unsigned char>& ptMap, vtkCellArray* cells,
-    std::vector<unsigned char>& cellMap, vtkIdTypeArray* lineConn, vtkIdTypeArray* lineOffsets,
-    std::vector<EdgeTupleType>& e, ArrayList* arrays, vtkPolyDataPlaneCutter* filter)
+    std::vector<unsigned char>& cellMap, vtkIdTypeArray* lineConn, std::vector<EdgeTupleType>& e,
+    ArrayList* arrays, vtkPolyDataPlaneCutter* filter)
     : EC(ec)
     , PtMap(ptMap)
     , Cells(cells)
@@ -339,7 +340,6 @@ struct ExtractLines
   {
     this->NumCells = this->Cells->GetNumberOfCells();
     this->LineConn = lineConn->GetPointer(0);
-    this->LineOffsets = lineOffsets->GetPointer(0);
   }
 
   void Initialize() { this->CellIterator.Local().TakeReference(this->Cells->NewIterator()); }
@@ -375,8 +375,6 @@ struct ExtractLines
       // the output point ids.
       vtkIdType lineNum = batch.Data.LinesOffset;
       vtkIdType lineConnIdx = 2 * lineNum;
-      vtkIdType* lineOffsets = this->LineOffsets + lineNum;
-      vtkIdType lineOffset = 2 * lineNum;
 
       // For all cells in this batch
       for (vtkIdType cellId = batch.BeginId; cellId < batch.EndId; ++cellId)
@@ -400,9 +398,7 @@ struct ExtractLines
               edge.Data.LIdx = lineConnIdx++;
             } // if edge cut
 
-          } // over all cell edges, with no more than 2 cuts
-          *lineOffsets++ = lineOffset;
-          lineOffset += 2;
+          }           // over all cell edges, with no more than 2 cuts
           if (arrays) // generate cell data if requested
           {
             arrays->Copy(cellId, lineNum);
@@ -612,7 +608,7 @@ int vtkPolyDataPlaneCutter::RequestData(vtkInformation* vtkNotUsed(request),
 
   // Evaluate the plane equation across all points.
   vtkPoints* inPts = input->GetPoints();
-  using EvaluatePointsDispatch = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
+  using EvaluatePointsDispatch = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
   EvaluatePointsWorker epWorker;
   std::vector<unsigned char> ptMap(numPts);
   if (!EvaluatePointsDispatch::Execute(inPts->GetData(), epWorker, this->Plane, ptMap, this))
@@ -640,8 +636,6 @@ int vtkPolyDataPlaneCutter::RequestData(vtkInformation* vtkNotUsed(request),
   std::vector<EdgeTupleType> mergeEdges(2 * numLines);
   vtkNew<vtkIdTypeArray> lineConn;
   lineConn->SetNumberOfTuples(2 * numLines);
-  vtkNew<vtkIdTypeArray> lineOffsets;
-  lineOffsets->SetNumberOfTuples(numLines + 1);
 
   // If requested, each line segment has cell data copied from the
   // intersected cell.
@@ -654,10 +648,9 @@ int vtkPolyDataPlaneCutter::RequestData(vtkInformation* vtkNotUsed(request),
   }
 
   // Extract the line segments.
-  ExtractLines extLines(evalCells, ptMap, cells, evalCells.CellMap, lineConn, lineOffsets,
-    mergeEdges, (this->InterpolateAttributes ? &cellArrays : nullptr), this);
+  ExtractLines extLines(evalCells, ptMap, cells, evalCells.CellMap, lineConn, mergeEdges,
+    (this->InterpolateAttributes ? &cellArrays : nullptr), this);
   extLines.Execute();
-  lineOffsets->SetComponent(numLines, 0, 2 * numLines);
 
   // New points are generated from groups of duplicate edges. The groups are
   // formed via sorting. The number of points in a group represents the number
@@ -673,7 +666,7 @@ int vtkPolyDataPlaneCutter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkNew<vtkCellArray> outLines;
   OutputLines ol(numOutPts, mergeEdges.data(), mergeOffsets, lineConn, this);
   ol.Execute();
-  outLines->SetData(lineOffsets, lineConn);
+  outLines->SetData(2, lineConn);
 
   // Now output the cut lines.
   output->SetLines(outLines);
@@ -705,8 +698,8 @@ int vtkPolyDataPlaneCutter::RequestData(vtkInformation* vtkNotUsed(request),
   }
 
   // Generate the new points coordinates, and interpolate point data.
-  using OutputPointsDispatch =
-    vtkArrayDispatch::Dispatch2ByValueType<vtkArrayDispatch::Reals, vtkArrayDispatch::Reals>;
+  using OutputPointsDispatch = vtkArrayDispatch::Dispatch2ByArray<vtkArrayDispatch::PointArrays,
+    vtkArrayDispatch::AOSPointArrays>;
   OutputPointsWorker opWorker;
   if (!OutputPointsDispatch::Execute(inPts->GetData(), outPts->GetData(), opWorker, numOutPts,
         mergeEdges.data(), mergeOffsets, this->Plane,
@@ -752,7 +745,7 @@ struct CheckConvex
   unsigned char IsConvex; // final, reduced result
 
   vtkSMPThreadLocal<vtkSmartPointer<vtkCellArrayIterator>> PolyIterator;
-  vtkSMPThreadLocal<unsigned char> isConvex; // per thread result
+  vtkSMPThreadLocal<unsigned char> TLIsConvex; // per thread result
 
   CheckConvex(vtkPoints* pts, vtkCellArray* ca)
     : Points(pts)
@@ -765,7 +758,7 @@ struct CheckConvex
   void Initialize()
   {
     this->PolyIterator.Local().TakeReference(this->Polys->NewIterator());
-    this->isConvex.Local() = 1;
+    this->TLIsConvex.Local() = 1;
   }
 
   void operator()(vtkIdType cellId, vtkIdType endCellId)
@@ -775,12 +768,14 @@ struct CheckConvex
     vtkCellArrayIterator* polyIter = this->PolyIterator.Local();
     vtkPoints* p = this->Points;
 
-    for (; cellId < endCellId && this->isConvex.Local(); ++cellId)
+    auto& isConvex = this->TLIsConvex.Local();
+    for (; cellId < endCellId && isConvex; ++cellId)
     {
       polyIter->GetCellAtId(cellId, npts, pts);
       if (!vtkPolygon::IsConvex(p, npts, pts))
       {
-        this->isConvex.Local() = 0;
+        isConvex = 0;
+        break;
       }
     }
   }
@@ -788,9 +783,9 @@ struct CheckConvex
   void Reduce()
   {
     this->IsConvex = 1;
-    for (auto cItr = this->isConvex.begin(); cItr != this->isConvex.end(); ++cItr)
+    for (const auto& isConvex : this->TLIsConvex)
     {
-      if (!*cItr)
+      if (!isConvex)
       {
         this->IsConvex = 0;
       }

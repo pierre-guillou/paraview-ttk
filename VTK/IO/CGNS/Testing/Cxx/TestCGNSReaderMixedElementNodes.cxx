@@ -3,12 +3,13 @@
 
 #include "vtkCGNSReader.h"
 
-#include "vtkCellTypes.h"
-#include "vtkInformation.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkNew.h"
 #include "vtkTestUtilities.h"
 #include "vtkUnstructuredGrid.h"
+
+#include <iostream>
 
 int TestCGNSReaderMixedElementNodes(int argc, char* argv[])
 {
@@ -56,14 +57,15 @@ int TestCGNSReaderMixedElementNodes(int argc, char* argv[])
   if (internal->GetCellType(0) != VTK_HEXAHEDRON)
   {
     std::cerr << "Wrong type of cell in main mesh. Expected VTK_HEXAHEDRON for cell 0 but got "
-              << vtkCellTypes::GetClassNameFromTypeId(internal->GetCellType(0)) << "." << std::endl;
+              << vtkCellTypeUtilities::GetClassNameFromTypeId(internal->GetCellType(0)) << "."
+              << std::endl;
     return EXIT_FAILURE;
   }
 
   if (internal->GetCellType(4000) != VTK_POLYHEDRON)
   {
     std::cerr << "Wrong type of cell in main mesh. Expected VTK_POLYHEDRON for cell 4000 but got "
-              << vtkCellTypes::GetClassNameFromTypeId(internal->GetCellType(4000)) << "."
+              << vtkCellTypeUtilities::GetClassNameFromTypeId(internal->GetCellType(4000)) << "."
               << std::endl;
     return EXIT_FAILURE;
   }

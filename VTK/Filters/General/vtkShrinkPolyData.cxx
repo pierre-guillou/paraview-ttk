@@ -3,6 +3,7 @@
 #include "vtkShrinkPolyData.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkDataArrayRange.h"
@@ -12,12 +13,14 @@
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 
+#include <algorithm>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkShrinkPolyData);
 
 vtkShrinkPolyData::vtkShrinkPolyData(double sf)
 {
-  sf = (sf < 0.0 ? 0.0 : (sf > 1.0 ? 1.0 : sf));
+  sf = std::min(std::max(sf, 0.0), 1.0);
   this->ShrinkFactor = sf;
 }
 
@@ -279,10 +282,8 @@ int vtkShrinkPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   }
 
   // Use a fast-path for float/double points
-  using vtkArrayDispatch::Reals;
-  using Dispatcher = vtkArrayDispatch::DispatchByValueType<Reals>;
   ShrinkWorker worker;
-  if (!Dispatcher::Execute(
+  if (!vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>::Execute(
         input->GetPoints()->GetData(), worker, this, this->ShrinkFactor, inInfo, outInfo))
   { // Fallback to slowpath for other array types:
     worker(input->GetPoints()->GetData(), this, this->ShrinkFactor, inInfo, outInfo);

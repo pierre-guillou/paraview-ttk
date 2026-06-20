@@ -8,6 +8,7 @@
 #include "vtkMarshalContext.h"
 #include "vtkObjectFactory.h"
 #include "vtkSerializer.h"
+#include "vtkStringFormatter.h"
 #include "vtkTypeUInt8Array.h"
 
 // clang-format off
@@ -20,12 +21,32 @@
 #include <unordered_set>
 
 VTK_ABI_NAMESPACE_BEGIN
-
-//------------------------------------------------------------------------------
-extern "C"
+namespace
 {
-  int RegisterLibraries_vtkObjectManagerDefaultSerDes(
-    void* ser, void* deser, void* invoker, const char** error);
+//----------------------------------------------------------------------------
+/// output adapter for vtkUnsignedCharArray
+template <typename CharType, typename ArrayType = vtkUnsignedCharArray>
+class output_vtk_buffer_adapter : public nlohmann::detail::output_adapter_protocol<CharType>
+{
+  vtkSmartPointer<ArrayType> Array;
+
+public:
+  explicit output_vtk_buffer_adapter(vtkSmartPointer<ArrayType> array) noexcept
+    : Array(array)
+  {
+  }
+
+  void write_character(CharType value) override { this->Array->InsertNextValue(value); }
+
+  void write_characters(const CharType* values, std::size_t length) override
+  {
+    for (std::size_t i = 0; i < length; ++i)
+    {
+      this->Array->InsertNextValue(values[i]);
+    }
+  }
+};
+
 }
 
 //------------------------------------------------------------------------------
@@ -110,7 +131,7 @@ bool vtkObjectManager::Initialize()
 bool vtkObjectManager::InitializeDefaultHandlers()
 {
   const char* error = nullptr;
-  if (!RegisterLibraries_vtkObjectManagerDefaultSerDes(
+  if (!vtkMarshalContext::CallRegistrars(
         this->Serializer.Get(), this->Deserializer.Get(), this->Invoker.Get(), &error))
   {
     vtkErrorMacro(<< "Failed to register a default VTK SerDes handler. error=\"" << error << "\"");
@@ -121,12 +142,19 @@ bool vtkObjectManager::InitializeDefaultHandlers()
 
 //------------------------------------------------------------------------------
 bool vtkObjectManager::InitializeExtensionModuleHandlers(
-  const std::vector<RegistrarType>& registrars)
+  const std::vector<vtkSessionObjectManagerRegistrarFunc>& registrars)
 {
-  for (const auto& registrar : registrars)
+  return this->InitializeExtensionModuleHandlers(registrars.data(), registrars.size());
+}
+
+//------------------------------------------------------------------------------
+bool vtkObjectManager::InitializeExtensionModuleHandlers(
+  const vtkSessionObjectManagerRegistrarFunc* registrars, std::size_t count)
+{
+  for (std::size_t i = 0; i < count; ++i)
   {
     const char* error = nullptr;
-    if (!registrar(this->Serializer, this->Deserializer, this->Invoker, &error))
+    if (!registrars[i](this->Serializer, this->Deserializer, this->Invoker, &error))
     {
       vtkErrorMacro(<< "Failed to register an extension SerDes handler. error=\"" << error << "\"");
       return false;
@@ -169,17 +197,85 @@ void vtkObjectManager::Export(const std::string& filename, int indent, char inde
 }
 
 //------------------------------------------------------------------------------
+std::vector<vtkTypeUInt32> vtkObjectManager::ImportFromJSON(const nlohmann::json& importJson)
+{
+  std::vector<vtkTypeUInt32> strongObjectIds;
+  try
+  {
+    // Register all the states.
+    auto statesIter = importJson.find("States");
+    if (statesIter != importJson.end())
+    {
+      for (const auto& state : statesIter->items())
+      {
+        this->Context->RegisterState(state.value());
+        const auto identifier = state.value().at("Id").get<vtkTypeUInt32>();
+        if (state.value().find("vtk-object-manager-kept-alive") != state.value().end() &&
+          (state.value().at("vtk-object-manager-kept-alive").get<bool>() == true))
+        {
+          strongObjectIds.emplace_back(identifier);
+        }
+      }
+    }
+  }
+  catch (nlohmann::json::exception& e)
+  {
+    vtkErrorMacro(<< "Failed to import states from byte array. message=" << e.what());
+  }
+  try
+  {
+    // Register all the blobs.
+    auto blobsIter = importJson.find("Blobs");
+    if (blobsIter != importJson.end())
+    {
+      for (const auto& blob : blobsIter->items())
+      {
+        auto hash = blob.key();
+        auto byteArray = vtk::TakeSmartPointer(vtkTypeUInt8Array::New());
+        if (blob.value().is_object())
+        {
+          // when import json from a file, the type is object, and values must be copied into a
+          // vector.
+          const auto values = blob.value().at("bytes").get<std::vector<vtkTypeUInt8>>();
+          if (!values.empty())
+          {
+            auto* bytePtr = const_cast<vtkTypeUInt8*>(values.data());
+            const vtkIdType numValues = static_cast<vtkIdType>(values.size());
+            byteArray->SetArray(bytePtr, numValues, /*save=*/1);
+          }
+        }
+        else
+        {
+          const auto& values = blob.value().get_binary();
+          if (!values.empty())
+          {
+            auto* bytePtr = const_cast<vtkTypeUInt8*>(values.data());
+            const vtkIdType numValues = static_cast<vtkIdType>(values.size());
+            byteArray->SetArray(bytePtr, numValues, /*save=*/1);
+          }
+        }
+        this->Context->RegisterBlob(byteArray, hash);
+      }
+    }
+    // Creates objects and deserializes states.
+    this->UpdateObjectsFromStates();
+  }
+  catch (nlohmann::json::exception& e)
+  {
+    vtkErrorMacro(<< "Failed to import blobs from byte array. message=" << e.what());
+  }
+  return strongObjectIds;
+}
+
+//------------------------------------------------------------------------------
 void vtkObjectManager::Import(const std::string& stateFileName, const std::string& blobFileName)
 {
   this->Clear();
   // Register all the states.
+  nlohmann::json importJson;
   try
   {
-    nlohmann::json states = nlohmann::json::parse(std::ifstream(stateFileName));
-    for (const auto& state : states.items())
-    {
-      this->Context->RegisterState(state.value());
-    }
+    importJson["States"] = nlohmann::json::parse(std::ifstream(stateFileName));
   }
   catch (nlohmann::json::type_error& e)
   {
@@ -188,27 +284,68 @@ void vtkObjectManager::Import(const std::string& stateFileName, const std::strin
   // Register all the blobs.
   try
   {
-    nlohmann::json blobs = nlohmann::json::parse(std::ifstream(blobFileName));
-    for (const auto& blob : blobs.items())
-    {
-      auto hash = blob.key();
-      const auto& values = blob.value().at("bytes").get<std::vector<vtkTypeUInt8>>();
-      if (!values.empty())
-      {
-        auto byteArray = vtk::TakeSmartPointer(vtkTypeUInt8Array::New());
-        byteArray->SetNumberOfValues(values.size());
-        auto blobRange = vtk::DataArrayValueRange(byteArray);
-        std::copy(values.begin(), values.end(), blobRange.begin());
-        this->Context->RegisterBlob(byteArray, hash);
-      }
-    }
+    importJson["Blobs"] = nlohmann::json::parse(std::ifstream(blobFileName));
   }
   catch (nlohmann::json::type_error& e)
   {
     vtkErrorMacro(<< "Failed to parse blobs from " << blobFileName << ". message=" << e.what());
   }
-  // Creates objects and deserializes states.
-  this->UpdateObjectsFromStates();
+  const auto strongObjectIds = this->ImportFromJSON(importJson);
+  if (strongObjectIds.empty())
+  {
+    vtkWarningMacro(<< "No strong objects were imported from the files: " << stateFileName << ", "
+                    << blobFileName
+                    << ". Check whether the states contain the key "
+                       "\"vtk-object-manager-kept-alive\": true");
+  }
+}
+
+//------------------------------------------------------------------------------
+vtkSmartPointer<vtkUnsignedCharArray> vtkObjectManager::ExportToBytes()
+{
+  nlohmann::json exportJson;
+  exportJson["States"] = this->Context->States();
+  exportJson["Blobs"] = this->Context->Blobs();
+  auto exportBytes = nlohmann::json::to_cbor(exportJson);
+  auto byteArray = vtk::TakeSmartPointer(vtkUnsignedCharArray::New());
+  using OutputAdapterType = ::output_vtk_buffer_adapter<unsigned char>;
+  using CBORWriter = nlohmann::detail::binary_writer<nlohmann::json, unsigned char>;
+  auto adapter = std::make_shared<OutputAdapterType>(byteArray);
+  CBORWriter writer(adapter);
+  writer.write_cbor(exportJson);
+  return byteArray;
+}
+
+//------------------------------------------------------------------------------
+std::vector<vtkSmartPointer<vtkObjectBase>> vtkObjectManager::ImportFromBytes(
+  vtkSmartPointer<vtkUnsignedCharArray> inputByteArray)
+{
+  this->Clear();
+  std::vector<vtkSmartPointer<vtkObjectBase>> strongObjects;
+  if (inputByteArray == nullptr || inputByteArray->GetNumberOfValues() == 0)
+  {
+    return strongObjects;
+  }
+  nlohmann::json importJson;
+  try
+  {
+    auto byteRange = vtk::DataArrayValueRange(inputByteArray);
+    importJson = nlohmann::json::from_cbor(byteRange.begin(), byteRange.end());
+  }
+  catch (nlohmann::json::exception& e)
+  {
+    vtkErrorMacro(<< "Failed to parse json from byte array. message=" << e.what());
+  }
+  const auto strongObjectIds = this->ImportFromJSON(importJson);
+  // Collect strong objects
+  for (const auto& id : strongObjectIds)
+  {
+    if (auto object = this->Context->GetObjectAtId(id))
+    {
+      strongObjects.emplace_back(object);
+    }
+  }
+  return strongObjects;
 }
 
 //------------------------------------------------------------------------------
@@ -245,6 +382,7 @@ bool vtkObjectManager::RegisterState(const std::string& state)
     vtkErrorMacro(<< "Failed to parse state!");
     return false;
   }
+  vtkVLog(this->GetObjectManagerLogVerbosity(), << "Registering state: " << stateJson.dump());
   return this->RegisterState(stateJson);
 }
 
@@ -256,12 +394,14 @@ bool vtkObjectManager::RegisterState(const nlohmann::json& stateJson)
     vtkErrorMacro(<< "Failed to register state!");
     return false;
   }
+  vtkVLog(this->GetObjectManagerLogVerbosity(), << "Registering state: " << stateJson.dump());
   return true;
 }
 
 //------------------------------------------------------------------------------
 bool vtkObjectManager::UnRegisterState(vtkTypeUInt32 identifier)
 {
+  vtkVLog(this->GetObjectManagerLogVerbosity(), << "Unregistering state at id=" << identifier);
   return this->Context->UnRegisterState(identifier);
 }
 
@@ -291,7 +431,30 @@ std::string vtkObjectManager::Invoke(
 nlohmann::json vtkObjectManager::Invoke(
   vtkTypeUInt32 identifier, const std::string& methodName, const nlohmann::json& args)
 {
-  return this->Invoker->Invoke(identifier, methodName, args);
+  auto resultJson = this->Invoker->Invoke(identifier, methodName, args);
+  if (!resultJson["Success"])
+  {
+    vtkErrorMacro(<< "Invoker failed to call " << methodName << " on object with ID: " << identifier
+                  << " Error message: " << resultJson["Message"].get<std::string>());
+    return {};
+  }
+  // Check if the result contains a "Value" or "Id" key
+  if (const auto valueIter = resultJson.find("Value"); valueIter != resultJson.end())
+  {
+    return *valueIter;
+  }
+  if (const auto idIter = resultJson.find("Id"); idIter != resultJson.end())
+  {
+    const auto resultObjectHandle = idIter->get<vtkTypeUInt32>();
+    if (resultObjectHandle != 0)
+    {
+      // Synchronize the state of the object and return it.
+      // This is necessary because the object may have been modified by the method call
+      this->UpdateStateFromObject(resultObjectHandle);
+    }
+    return this->Context->GetState(resultObjectHandle);
+  }
+  return {};
 }
 
 //------------------------------------------------------------------------------
@@ -331,7 +494,7 @@ std::vector<std::string> vtkObjectManager::GetBlobHashes(const std::vector<vtkTy
   }
   for (const auto& id : ids)
   {
-    auto stateIter = states.find(std::to_string(id));
+    auto stateIter = states.find(vtk::to_string(id));
     if (stateIter != states.end())
     {
       const auto iter = stateIter.value().find("Hash");
@@ -354,9 +517,10 @@ std::vector<std::string> vtkObjectManager::GetBlobHashes(const std::vector<vtkTy
 }
 
 //------------------------------------------------------------------------------
-vtkSmartPointer<vtkTypeUInt8Array> vtkObjectManager::GetBlob(const std::string& hash) const
+vtkSmartPointer<vtkTypeUInt8Array> vtkObjectManager::GetBlob(
+  const std::string& hash, bool copy /*=false*/) const
 {
-  return this->Context->GetBlob(hash);
+  return this->Context->GetBlob(hash, copy);
 }
 
 //------------------------------------------------------------------------------
@@ -403,7 +567,7 @@ void vtkObjectManager::PruneUnusedObjects()
     for (const auto& object : iter.second)
     {
       auto identifier = this->Context->GetId(object);
-      auto key = std::to_string(identifier);
+      auto key = vtk::to_string(identifier);
       if (!this->Context->States().contains(key))
       {
         staleStrongObjects[iter.first].insert(object);
@@ -476,6 +640,36 @@ std::vector<vtkTypeUInt32> vtkObjectManager::GetAllDependencies(vtkTypeUInt32 id
       (front != vtkObjectManager::ROOT())) // avoids placing the 0 in result
     {
       result.emplace_back(front);
+    }
+    for (auto& dep : this->Context->GetDirectDependencies(front))
+    {
+      if (visited.count(dep) == 0)
+      {
+        traversealDeque.push_back(dep);
+      }
+    }
+  }
+  return result;
+}
+
+//------------------------------------------------------------------------------
+vtkSmartPointer<vtkTypeUInt32Array> vtkObjectManager::GetAllDependenciesAsVTKDataArray(
+  vtkTypeUInt32 identifier)
+{
+  auto root = identifier;
+  std::deque<vtkTypeUInt32> traversealDeque;
+  std::unordered_set<vtkTypeUInt32> visited;
+  auto result = vtk::TakeSmartPointer(vtkTypeUInt32Array::New());
+  result->SetNumberOfComponents(1);
+  traversealDeque.push_back(root);
+  while (!traversealDeque.empty())
+  {
+    const auto front = traversealDeque.front();
+    traversealDeque.pop_front();
+    if (visited.insert(front).second &&
+      (front != vtkObjectManager::ROOT())) // avoids placing the 0 in result
+    {
+      result->InsertNextValue(front);
     }
     for (auto& dep : this->Context->GetDirectDependencies(front))
     {

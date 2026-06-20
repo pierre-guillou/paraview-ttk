@@ -61,19 +61,19 @@ foreach(value_type ${value_types})
     "${value_type}"
     "vtkSOADataArrayTemplate<${value_type}>")
 
-  if(VTK_BUILD_SCALED_SOA_ARRAYS)
-    add_data_array_test(
-      "ScaleAoS_${pretty_value_type}"
-      vtkScaleAOSDataArrayTemplate.h
-      "${value_type}"
-      "vtkScaleAOSDataArrayTemplate<${value_type}>")
-    add_data_array_test(
-      "ScaleSoA_${pretty_value_type}"
-      vtkScaledSOADataArrayTemplate.h
-      "${value_type}"
-      "vtkScaledSOADataArrayTemplate<${value_type}>")
-  endif()
+  add_data_array_test(
+    "ScaleSoA_${pretty_value_type}"
+    vtkScaledSOADataArrayTemplate.h
+    "${value_type}"
+    "vtkScaledSOADataArrayTemplate<${value_type}>")
 endforeach()
+
+set(serdes_data_array_tests)
+if (VTK_WRAP_SERIALIZATION)
+  list(APPEND serdes_data_array_tests
+    TestDataArraySerDesDemangledNames.cxx
+  )
+endif ()
 
 # Tell TestSystemInformation where to find the build trees.
 set(TestSystemInformation_ARGS ${CMAKE_BINARY_DIR})
@@ -89,11 +89,6 @@ set(TestSMP_ARGS
   --TBB=$<OR:$<BOOL:${VTK_SMP_ENABLE_TBB}>,$<STREQUAL:"${VTK_SMP_IMPLEMENTATION_TYPE}","TBB">>
   --OpenMP=$<OR:$<BOOL:${VTK_SMP_ENABLE_OPENMP}>,$<STREQUAL:"${VTK_SMP_IMPLEMENTATION_TYPE}","OpenMP">>)
 
-if (VTK_BUILD_SCALED_SOA_ARRAYS)
-  set(scale_soa_test TestScaledSOADataArrayTemplate.cxx)
-endif ()
-
-
 vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   NO_DATA NO_VALID NO_OUTPUT
   ExampleDataArrayRangeAPI.cxx
@@ -105,6 +100,7 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestArrayAPIDense.cxx
   TestArrayAPISparse.cxx
   TestArrayBool.cxx
+  TestArrayComponents.cxx
   TestArrayDispatchers.cxx
   TestAtomic.cxx
   TestScalarsToColors.cxx
@@ -148,9 +144,11 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestObserversPerformance.cxx
   TestOStreamWrapper.cxx
   TestPrintArrayValues.cxx
+  TestPrintfToStdFormatConversion.cxx
   TestSCN.cxx
   TestSMP.cxx
   TestSmartPointer.cxx
+  TestScaledSOADataArrayTemplate.cxx
   TestSOADataArray.cxx
   TestSortDataArray.cxx
   TestSparseArrayValidation.cxx
@@ -174,8 +172,7 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   otherStringArray.cxx
 
   ${data_array_tests}
-
-  ${scale_soa_test}
+  ${serdes_data_array_tests}
 
   TestAffineArray.cxx
   TestCompositeArray.cxx
@@ -186,6 +183,7 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestImplicitArrayTraits.cxx
   TestIndexedArray.cxx
   TestIndexedImplicitBackend.cxx
+  TestStridedArray.cxx
   TestStdFunctionArray.cxx
   TestStructuredPointArray.cxx)
 

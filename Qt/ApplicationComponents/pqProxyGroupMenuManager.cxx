@@ -2,15 +2,11 @@
 // SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
-// Hide PARAVIEW_DEPRECATED_IN_5_13_0() warnings for this class.
-#define PARAVIEW_DEPRECATION_LEVEL 0
-
 #include "pqProxyGroupMenuManager.h"
 
 #include "pqActiveObjects.h"
 #include "pqAddToFavoritesReaction.h"
 #include "pqCoreUtilities.h"
-#include "pqManageFavoritesReaction.h"
 #include "pqPVApplicationCore.h"
 #include "pqProxyAction.h"
 #include "pqProxyCategory.h"
@@ -19,6 +15,7 @@
 #include "pqSetData.h"
 #include "pqSetName.h"
 #include "pqSettings.h"
+#include "pqWidgetUtilities.h"
 #include "vtkPVProxyDefinitionIterator.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMProxy.h"
@@ -72,66 +69,6 @@ struct pqProxyGroupMenuManager::pqInternal
   bool allowSettingsUpdate()
   {
     return this->ClientEnvironmentDone && !this->SettingsCategory->isEmpty();
-  }
-
-  // PARAVIEW_DEPRECATED_IN_5_13_0()
-  // This is a copy of the deprecated member method.
-  // As this is still used, but only in deprecated methods, we kept this here to avoid deprecation
-  // warnings.
-  void deprecatedLoadFavoritesItems(const QString& resourceTagName)
-  {
-    this->DeprecatedFavorites.clear();
-    pqSettings* settings = pqApplicationCore::instance()->settings();
-    QString key = QString("favorites.%1/").arg(resourceTagName);
-    if (settings->contains(key))
-    {
-      QString list = settings->value(key).toString();
-      QStringList parts = list.split("|", PV_QT_SKIP_EMPTY_PARTS);
-      for (const QString& part : parts)
-      {
-        QStringList pieces = part.split(";", PV_QT_SKIP_EMPTY_PARTS);
-        if (pieces.size() >= 2)
-        {
-          QString group = pieces.takeFirst();
-          QString path = pieces.join(";");
-          QPair<QString, QString> aKey(group, path);
-          this->DeprecatedFavorites.push_back(aKey);
-        }
-      }
-    }
-  }
-
-  // PARAVIEW_DEPRECATED_IN_5_13_0()
-  // This is a copy of the deprecated member method.
-  // As this is still used, but only in deprecated methods, we kept this here to avoid deprecation
-  // warnings.
-  QAction* deprecatedGetAddToFavoritesAction(const QString& path, pqProxyGroupMenuManager* self)
-  {
-    QAction* actionAddToFavorites = new QAction(self);
-    actionAddToFavorites->setObjectName(QString("actionAddTo:%1").arg(path));
-    actionAddToFavorites->setText(QCoreApplication::translate(
-      "pqPipelineBrowserContextMenu", "&Add current filter", Q_NULLPTR));
-    actionAddToFavorites->setData(path);
-
-    // get filters list for current category
-    QVector<QString> filters;
-    for (const QPair<QString, QString>& key : this->DeprecatedFavorites)
-    {
-      if (key.first == "filters")
-      {
-        QStringList categories = key.second.split(";", PV_QT_SKIP_EMPTY_PARTS);
-        QString filter = categories.takeLast();
-        categories.removeLast();
-        if (path == categories.join(";"))
-        {
-          filters << filter;
-        }
-      }
-    }
-
-    new pqAddToFavoritesReaction(actionAddToFavorites, filters);
-
-    return actionAddToFavorites;
   }
 
   /**
@@ -274,7 +211,6 @@ pqProxyGroupMenuManager::pqProxyGroupMenuManager(
   QMenu* mainMenu, const QString& resourceTagName, bool quickLaunchable, bool enableFavorites)
   : Superclass(mainMenu)
   , ResourceTagName(resourceTagName)
-  , Enabled(true)
   , EnableFavorites(enableFavorites)
   , Internal(new pqInternal())
   , SupportsQuickLaunch(quickLaunchable)
@@ -544,7 +480,7 @@ void pqProxyGroupMenuManager::populateCategoryMenu(QMenu* parentMenu, pqProxyCat
 //-----------------------------------------------------------------------------
 void pqProxyGroupMenuManager::clearCategoriesMenus()
 {
-  for (auto menu : this->Internal->CategoriesMenus)
+  for (const auto& menu : this->Internal->CategoriesMenus)
   {
     if (menu)
     {
@@ -590,93 +526,11 @@ void pqProxyGroupMenuManager::populateCategoriesMenus()
 }
 
 //-----------------------------------------------------------------------------
-void pqProxyGroupMenuManager::populateFavoritesMenu()
-{
-  this->Internal->deprecatedLoadFavoritesItems(this->ResourceTagName);
-  this->updateMenuStyle();
-  if (!this->Internal->DeprecatedFavoritesMenu)
-  {
-    return;
-  }
-
-  this->Internal->DeprecatedFavoritesMenu->clear();
-  this->Internal->DeprecatedFavoritesMenu->menuAction()->setVisible(false);
-
-  QAction* manageFavoritesAction =
-    this->Internal->DeprecatedFavoritesMenu->addAction(tr("&Manage Favorites..."))
-    << pqSetName("actionManage_Favorites");
-  new pqManageFavoritesReaction(manageFavoritesAction, this);
-
-  this->Internal->DeprecatedFavoritesMenu->addAction(
-    this->Internal->deprecatedGetAddToFavoritesAction(QString(), this));
-  this->Internal->DeprecatedFavoritesMenu->addSeparator();
-
-  if (!this->Internal->DeprecatedFavorites.empty())
-  {
-    for (const QPair<QString, QString>& key : this->Internal->DeprecatedFavorites)
-    {
-      QStringList categories = key.second.split(";", PV_QT_SKIP_EMPTY_PARTS);
-      bool isCategory = key.first.compare("categories") == 0;
-      QString filter = isCategory ? QString("") : categories.takeLast();
-      if (!isCategory)
-      {
-        categories.removeLast();
-      }
-
-      QMenu* submenu = this->Internal->DeprecatedFavoritesMenu;
-      for (const QString& category : categories)
-      {
-        bool submenuExists = false;
-        for (QAction* submenuAction : submenu->actions())
-        {
-          if (submenuAction->menu() && submenuAction->menu()->objectName() == category)
-          {
-            // if category menu already exists, use it
-            submenu = submenuAction->menu();
-            submenuExists = true;
-            break;
-          }
-        }
-        if (!submenuExists)
-        {
-          submenu = submenu->addMenu(category) << pqSetName(category);
-          QString path = categories.join(";");
-          submenu->addAction(this->Internal->deprecatedGetAddToFavoritesAction(path, this));
-          submenu->addSeparator();
-        }
-      }
-
-      // if favorite does not exist (e.g. filter from an unloaded plugin)
-      // no action will be created. (but favorite stays in memory)
-      auto action = isCategory ? nullptr : this->getAction(key.first, filter);
-      if (action)
-      {
-        action->setObjectName(filter);
-        submenu->addAction(action);
-      }
-    }
-  }
-}
-
-//-----------------------------------------------------------------------------
-QAction* pqProxyGroupMenuManager::getAddToFavoritesAction(const QString& path)
-{
-  return this->Internal->deprecatedGetAddToFavoritesAction(path, this);
-}
-
-//-----------------------------------------------------------------------------
-void pqProxyGroupMenuManager::loadFavoritesItems()
-{
-  this->Internal->deprecatedLoadFavoritesItems(this->ResourceTagName);
-  this->updateMenuStyle();
-}
-
-//-----------------------------------------------------------------------------
 QMenu* pqProxyGroupMenuManager::getFavoritesMenu()
 {
   if (this->EnableFavorites)
   {
-    for (auto menu : this->Internal->CategoriesMenus)
+    for (const auto& menu : this->Internal->CategoriesMenus)
     {
       if (menu && menu->objectName() == pqInternal::FAVORITES_CATEGORY())
       {
@@ -751,7 +605,8 @@ void pqProxyGroupMenuManager::populateMenu()
   {
     auto* rmenu = mainMenu->addMenu(tr("&Recent")) << pqSetName("Recent");
     this->Internal->RecentMenu = rmenu;
-    this->connect(rmenu, SIGNAL(aboutToShow()), SLOT(populateRecentlyUsedMenu()));
+
+    this->populateRecentlyUsedMenu();
   }
 
   if (this->EnableFavorites)
@@ -868,7 +723,7 @@ QAction* pqProxyGroupMenuManager::createAction(pqProxyInfo* proxyInfo)
     return nullptr;
   }
 
-  QString tooltip = pqProxyAction::GetProxyDocumentation(action);
+  QString tooltip = pqWidgetUtilities::formatTooltip(pqProxyAction::GetProxyDocumentation(action));
   action->setToolTip(tooltip);
 
   // Add action in the pool for the QuickSearch...
@@ -941,9 +796,6 @@ void pqProxyGroupMenuManager::triggered()
       this->Internal->RecentlyUsed.pop_back();
     }
     this->saveRecentlyUsedItems();
-
-    // while this is not necessary, this overcomes a limitation of our testing
-    // framework where it doesn't trigger "aboutToShow" signal.
     this->populateRecentlyUsedMenu();
   }
 }
@@ -967,12 +819,6 @@ QWidget* pqProxyGroupMenuManager::widgetActionsHolder() const
 QList<QAction*> pqProxyGroupMenuManager::actions() const
 {
   return this->widgetActionsHolder()->actions();
-}
-
-//-----------------------------------------------------------------------------
-vtkSMProxy* pqProxyGroupMenuManager::getPrototype(QAction* action) const
-{
-  return pqProxyAction::GetProxyPrototype(action);
 }
 
 //-----------------------------------------------------------------------------
@@ -1036,7 +882,7 @@ QList<QAction*> pqProxyGroupMenuManager::categoryActions(pqProxyCategory* catego
   auto proxies = category->getRootProxies();
   QStringList proxiesOriginalOrdering = category->getOrderedRootProxiesNames();
 
-  for (auto proxyName : proxiesOriginalOrdering)
+  for (const auto& proxyName : proxiesOriginalOrdering)
   {
     auto proxy = category->findProxy(proxyName);
     QAction* action = this->getAction(proxy);

@@ -5,7 +5,6 @@
 #include "vtkGPUVolumeRayCastMapper.h"
 #include "vtkImageData.h"
 #include "vtkPiecewiseFunction.h"
-#include "vtkRegressionTestImage.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
@@ -16,9 +15,11 @@
 #include "vtkVolume16Reader.h"
 #include "vtkVolumeProperty.h"
 
+#include <iostream>
+
 int TestGPURayCastMIPBinaryMask(int argc, char* argv[])
 {
-  cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << endl;
+  std::cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << std::endl;
 
   char* fname = vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/headsq/quarter");
 
@@ -55,15 +56,7 @@ int TestGPURayCastMIPBinaryMask(int argc, char* argv[])
   // min spacing divided by 2. Nyquist-Shannon theorem says so.
   // sample distance could be bigger if we compute the actual max frequency
   // in the data.
-  double distance = spacing[0];
-  if (distance > spacing[1])
-  {
-    distance = spacing[1];
-  }
-  if (distance > spacing[2])
-  {
-    distance = spacing[2];
-  }
+  double distance = std::min({ spacing[0], spacing[1], spacing[2] });
   distance = distance / 2.0;
 
   // This does not take the screen size of a cell into account.
@@ -103,7 +96,7 @@ int TestGPURayCastMIPBinaryMask(int argc, char* argv[])
 
   // Create a simple mask that's split along the X axis
   unsigned char* ptr = static_cast<unsigned char*>(mask->GetScalarPointer());
-  const double radiusSq = 70 * 70; // 7cm spherical mask
+  constexpr double radiusSq = 70 * 70; // 7cm spherical mask
   center[0] -= origin[0];
   center[1] -= origin[1];
   center[2] -= origin[2];
@@ -137,7 +130,7 @@ int TestGPURayCastMIPBinaryMask(int argc, char* argv[])
 
   if (!mapper->IsRenderSupported(renWin, property))
   {
-    cout << "Required extensions not supported." << endl;
+    std::cout << "Required extensions not supported." << std::endl;
     return EXIT_SUCCESS;
   }
 

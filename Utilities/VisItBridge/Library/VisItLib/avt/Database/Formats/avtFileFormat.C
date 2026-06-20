@@ -64,6 +64,9 @@ const double avtFileFormat::FORMAT_INVALID_TIME  = INVALID_TIME / 10.0;
 //    Hank Childs, Sun Dec 26 12:13:19 PST 2010
 //    Initialize doingStreaming.
 //
+//    Alister Maguire, Thu May 20 08:45:10 PDT 2021
+//    Initialize hasAmrMesh.
+//
 // ****************************************************************************
 
 avtFileFormat::avtFileFormat()
@@ -77,6 +80,7 @@ avtFileFormat::avtFileFormat()
     closingFile = false;
     resultMustBeProducedOnlyOnThisProcessor = false;
     strictMode = false;
+    hasAmrMesh = false;
 }
 
 
@@ -111,12 +115,52 @@ avtFileFormat::~avtFileFormat()
 //  Programmer:  Hank Childs
 //  Creation:    March 12, 2002
 //
+//  Modifications:
+//
+//      Alister Maguire, Thu May 20 14:24:03 PDT 2021
+//      Check to see if the metadata has any AMR meshes in it.
+//
 // ****************************************************************************
 
 void
 avtFileFormat::RegisterDatabaseMetaData(avtDatabaseMetaData *md)
 {
+    //
+    // Make note when we encounter AMR meshes as these are special cases.
+    //
+    int numMeshes = md->GetNumMeshes();
+    for (int i = 0; i < numMeshes; ++i)
+    {
+        const avtMeshMetaData *meshMD = md->GetMesh(i);
+        if (meshMD->meshType == AVT_AMR_MESH)
+        {
+            hasAmrMesh = true;
+        }
+    }
+
     metadata = md;
+}
+
+// ****************************************************************************
+//  Method: avtFileFormat::HasInvariantSIL
+//
+//  Purpose:
+//      Is our SIL invariant across timesteps/databases?
+//
+//  Programmer: Alister Maguire
+//  Creation:   May 20, 2021
+//
+// ****************************************************************************
+
+bool
+avtFileFormat::HasInvariantSIL(void) const
+{
+    //
+    // Because AMR meshes tend to vary between states, we just assume
+    // that they will by default. Note that this will return true if
+    // ANY of the plugin meshes are AMR.
+    //
+    return !hasAmrMesh;
 }
 
 
@@ -542,7 +586,7 @@ avtFileFormat::AddArrayVarToMetaData(avtDatabaseMetaData *md, string name,
     for (int i = 0 ; i < ncomps ; i++)
     {
         char name[16];
-        snprintf(name, 16, "comp%02d", i);
+        snprintf(name, sizeof(name), "comp%02d", i);
         st->compNames[i] = name;
     }
     st->meshName = mesh;
@@ -583,7 +627,7 @@ avtFileFormat::AddMaterialToMetaData(avtDatabaseMetaData *md, string name,
     {
         for (int i = 0; i < nmats; i++)
         {
-            char num[8];
+            char num[12];
             snprintf(num, sizeof(num), "%d", i);
             matnames.push_back(num);
         }
@@ -627,7 +671,7 @@ avtFileFormat::AddMaterialToMetaData(avtDatabaseMetaData *md, string name,
     {
         for (int i = 0; i < nmats; i++)
         {
-            char num[8];
+            char num[12];
             snprintf(num, sizeof(num), "%d", i);
             matnames.push_back(num);
         }
@@ -693,6 +737,14 @@ avtFileFormat::AddSpeciesToMetaData(avtDatabaseMetaData *md, string name,
 //
 //    Mark C. Miller, Wed Aug  8 13:34:53 PDT 2007
 //    Adjusted regular expression to take last group of digits.
+//
+//    Mark C. Miller, Wed Dec 13 15:23:05 PST 2023
+//    Adjusted regular expression to take last group of digits BEFORE
+//    any extension if present.
+//
+//    Mark C. Miller, Mon Dec  2 11:30:21 PST 2024
+//    Adjust default logic to search for longer strings of digits first and
+//    then for shorter strings of digits.
 // ****************************************************************************
 
 int
@@ -701,13 +753,34 @@ avtFileFormat::GuessCycle(const char *fname, const char *re)
     string reToUse = avtDatabaseMetaData::GetCycleFromFilenameRegex();
     if (reToUse == "")
         reToUse = re ? re : "";
-    if (reToUse == "")
-        reToUse = "<([0-9]+)[^0-9]*$> \\0";
+    if (reToUse != "")
+    {
+        double d = GuessCycleOrTime(fname, reToUse.c_str());
+        if (d == INVALID_TIME) return INVALID_CYCLE;
+        return (int) d;
+    }
 
-    double d = GuessCycleOrTime(fname, reToUse.c_str());
+    //
+    // The above logic will compute cycle from filename for cases where
+    // a specific regular expression has been provided.
+    //
+    // The logic below attempts to do so in the absence of any specific
+    // information about how to do it. It is the "default" case.
+    //
+    // Search for a string of 6 or more digits, then 5 or more,
+    // then 4 or more and finally 3 or more. Stop with the longest
+    // found and use that.
+    //
+    for (int i = 6; i > 2; i--)
+    {
+        char tmp[32];
+        snprintf(tmp, sizeof(tmp), "<([0-9]{%d,})> \\1", i);
+        double d = GuessCycleOrTime(fname, tmp);
+        if (d == INVALID_TIME) continue;
+        return (int) d;
+    }
 
-    if (d == INVALID_TIME) return INVALID_CYCLE;
-    return (int) d;
+    return INVALID_CYCLE;
 }
 
 // ****************************************************************************

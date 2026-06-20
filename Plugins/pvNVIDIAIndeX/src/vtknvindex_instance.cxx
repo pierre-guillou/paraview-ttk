@@ -154,14 +154,16 @@ bool is_compatible_revision(const std::string& build_revision_str,
       library_revision.push_back(component);
     }
 
-    std::vector<std::string> build_revision = { std::to_string(
+    std::vector<std::string> build_revision = { std::to_string( // NOLINT(bugprone-unsafe-functions)
       NVIDIA_INDEX_LIBRARY_REVISION_MAJOR) };
     if (NVIDIA_INDEX_LIBRARY_REVISION_MINOR > 0)
     {
-      build_revision.push_back(std::to_string(NVIDIA_INDEX_LIBRARY_REVISION_MINOR));
+      build_revision.push_back(
+        std::to_string(NVIDIA_INDEX_LIBRARY_REVISION_MINOR)); // NOLINT(bugprone-unsafe-functions)
       if (NVIDIA_INDEX_LIBRARY_REVISION_SUBMINOR > 0)
       {
-        build_revision.push_back(std::to_string(NVIDIA_INDEX_LIBRARY_REVISION_SUBMINOR));
+        build_revision.push_back(std::to_string( // NOLINT(bugprone-unsafe-functions)
+          NVIDIA_INDEX_LIBRARY_REVISION_SUBMINOR));
       }
     }
 
@@ -381,7 +383,7 @@ void vtknvindex_instance::build_cluster_info()
   rank_ids.resize(nb_ranks);
 
   mi::Sint32 cur_rank_id = controller->GetLocalProcessId();
-  controller->AllGather(&cur_rank_id, &rank_ids[0], 1);
+  controller->AllGather(&cur_rank_id, rank_ids.data(), 1);
 
   // Gather host names from all the ranks.
   std::vector<std::string> host_names;

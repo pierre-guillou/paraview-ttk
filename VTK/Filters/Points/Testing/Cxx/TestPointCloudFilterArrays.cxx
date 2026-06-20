@@ -17,14 +17,16 @@
 #include <vtkUnsignedLongArray.h>
 #include <vtkUnsignedShortArray.h>
 
+#include <iostream>
+
 template <typename T>
 vtkSmartPointer<T> MakeArray(const std::string& name);
 
 int TestPointCloudFilterArrays(int, char*[])
 {
-  const double pt1[3] = { 0, 0, 0 };
-  const double pt2[3] = { 1, 0, 0 };
-  const double pt3[3] = { 2, 0, 0 };
+  constexpr double pt1[3] = { 0, 0, 0 };
+  constexpr double pt2[3] = { 1, 0, 0 };
+  constexpr double pt3[3] = { 2, 0, 0 };
 
   vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
   points->SetDataTypeToDouble();

@@ -46,24 +46,24 @@ void vtkSMDimensionsDomain::Update(vtkSMProxyProperty* pp, vtkSMIntVectorPropert
     int direction = this->GetDirection(ivp);
     switch (direction)
     {
-      case VTK_YZ_PLANE:
-        entries.push_back(vtkEntry(0, extent[1] - extent[0]));
+      case vtkStructuredData::VTK_STRUCTURED_YZ_PLANE:
+        entries.emplace_back(0, extent[1] - extent[0]);
         break;
 
-      case VTK_XZ_PLANE:
-        entries.push_back(vtkEntry(0, extent[3] - extent[2]));
+      case vtkStructuredData::VTK_STRUCTURED_XZ_PLANE:
+        entries.emplace_back(0, extent[3] - extent[2]);
         break;
 
-      case VTK_XY_PLANE:
+      case vtkStructuredData::VTK_STRUCTURED_XY_PLANE:
       default:
-        entries.push_back(vtkEntry(0, extent[5] - extent[4]));
+        entries.emplace_back(0, extent[5] - extent[4]);
     }
   }
   else
   {
-    entries.push_back(vtkEntry(0, extent[1] - extent[0]));
-    entries.push_back(vtkEntry(0, extent[3] - extent[2]));
-    entries.push_back(vtkEntry(0, extent[5] - extent[4]));
+    entries.emplace_back(0, extent[1] - extent[0]);
+    entries.emplace_back(0, extent[3] - extent[2]);
+    entries.emplace_back(0, extent[5] - extent[4]);
   }
   this->SetEntries(entries);
 }

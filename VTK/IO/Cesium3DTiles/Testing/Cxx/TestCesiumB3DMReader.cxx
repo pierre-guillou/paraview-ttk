@@ -6,21 +6,15 @@
 // this program tests the CityGML Reader and setting of textures to
 // individual datasets of the multiblock tree.
 
-// VTK_DEPRECATED_IN_9_4_0()
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkActor.h"
 #include "vtkCamera.h"
 #include "vtkCesiumB3DMReader.h"
 #include "vtkDataObjectTreeRange.h"
-#include "vtkFieldData.h"
 #include "vtkGLTFDocumentLoader.h"
 #include "vtkGLTFReader.h"
 #include "vtkGLTFTexture.h"
-#include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkMultiBlockDataSet.h"
-#include "vtkPNGWriter.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkRegressionTestImage.h"
@@ -29,6 +23,8 @@
 #include "vtkRenderer.h"
 #include "vtkTestUtilities.h"
 #include "vtkTexture.h"
+
+#include <iostream>
 
 void AddActors(vtkRenderer* renderer, vtkMultiBlockDataSet* mb, vtkGLTFReader* reader)
 {
@@ -53,7 +49,7 @@ void AddActors(vtkRenderer* renderer, vtkMultiBlockDataSet* mb, vtkGLTFReader* r
       actor->SetPropertyKeys(info);
     }
     double mat[] = { 1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1 };
-    actor->GetPropertyKeys()->Set(vtkProp::GeneralTextureTransform(), mat, 16);
+    actor->GetPropertyKeys()->Set(vtkProp::GENERAL_TEXTURE_TRANSFORM(), mat, 16);
 
     actor->SetTexture(texture);
     ++partitionIndex;

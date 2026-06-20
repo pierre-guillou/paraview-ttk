@@ -2,49 +2,42 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAMREnzoReader.h"
+#include "vtkAMRBox.h"
+#include "vtkAMREnzoReaderInternal.h"
+#include "vtkCellData.h"
 #include "vtkDataArray.h"
 #include "vtkDataArraySelection.h"
+#include "vtkDataSet.h"
 #include "vtkIndent.h"
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
 #include "vtkOverlappingAMR.h"
 #include "vtkPolyData.h"
+#include "vtkStringScanner.h"
 #include "vtkUniformGrid.h"
+#include "vtkUnsignedShortArray.h"
+
 #include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
-
-#include "vtkCellData.h"
-#include "vtkDataSet.h"
-#include "vtkDoubleArray.h"
-#include "vtkFloatArray.h"
-#include "vtkIntArray.h"
-#include "vtkLongArray.h"
-#include "vtkLongLongArray.h"
-#include "vtkShortArray.h"
-#include "vtkUnsignedCharArray.h"
-#include "vtkUnsignedIntArray.h"
-#include "vtkUnsignedShortArray.h"
 
 #define H5_USE_16_API
 #include "vtk_hdf5.h"
 
+#include <algorithm>
 #include <cassert>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "vtkAMREnzoReaderInternal.h"
-
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMREnzoReader);
 
 VTK_ABI_NAMESPACE_END
-#include "vtkAMRInformation.h"
 #include <limits>
 
 VTK_ABI_NAMESPACE_BEGIN
 void vtkAMREnzoReader::ComputeStats(
-  vtkEnzoReaderInternal* internal, std::vector<int>& numBlocks, double min[3])
+  vtkEnzoReaderInternal* internal, std::vector<unsigned int>& numBlocks, double min[3])
 {
   min[0] = min[1] = min[2] = std::numeric_limits<double>::max();
   numBlocks.resize(this->Internal->NumberOfLevels, 0);
@@ -53,18 +46,9 @@ void vtkAMREnzoReader::ComputeStats(
   {
     vtkEnzoReaderBlock& theBlock = internal->Blocks[i + 1];
     double* gridMin = theBlock.MinBounds;
-    if (gridMin[0] < min[0])
-    {
-      min[0] = gridMin[0];
-    }
-    if (gridMin[1] < min[1])
-    {
-      min[1] = gridMin[1];
-    }
-    if (gridMin[2] < min[2])
-    {
-      min[2] = gridMin[2];
-    }
+    min[0] = std::min(gridMin[0], min[0]);
+    min[1] = std::min(gridMin[1], min[1]);
+    min[2] = std::min(gridMin[2], min[2]);
     numBlocks[theBlock.Level]++;
   }
 }
@@ -99,7 +83,9 @@ int vtkAMREnzoReader::GetIndexFromArrayName(std::string arrayName)
   char stringIdx[2];
   stringIdx[0] = arrayName.at(arrayName.size() - 2);
   stringIdx[1] = '\0';
-  return (atoi(stringIdx));
+  int value = 0;
+  vtk::from_chars(stringIdx, stringIdx + 2, value);
+  return value;
 }
 
 //------------------------------------------------------------------------------
@@ -156,7 +142,7 @@ void vtkAMREnzoReader::ParseCFactor(const std::string& labelString, int& idx, do
   }
 
   idx = this->GetIndexFromArrayName(strings[0]);
-  factor = atof(strings[strings.size() - 1].c_str());
+  VTK_FROM_CHARS_IF_ERROR_BREAK(strings[strings.size() - 1], factor);
 }
 
 //------------------------------------------------------------------------------
@@ -337,11 +323,11 @@ int vtkAMREnzoReader::FillMetaData()
   this->Internal->ReadMetaData();
 
   double origin[3];
-  std::vector<int> blocksPerLevel;
+  std::vector<unsigned int> blocksPerLevel;
   this->ComputeStats(this->Internal, blocksPerLevel, origin);
 
-  this->Metadata->Initialize(static_cast<int>(blocksPerLevel.size()), blocksPerLevel.data());
-  this->Metadata->SetGridDescription(VTK_XYZ_GRID);
+  this->Metadata->Initialize(blocksPerLevel);
+  this->Metadata->SetGridDescription(vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
   this->Metadata->SetOrigin(origin);
 
   std::vector<int> b2level(this->Internal->NumberOfLevels + 1, 0);
@@ -361,7 +347,8 @@ int vtkAMREnzoReader::FillMetaData()
         : 1.0;
     }
     // compute AMRBox
-    vtkAMRBox box(theBlock.MinBounds, theBlock.BlockNodeDimensions, spacing, origin, VTK_XYZ_GRID);
+    vtkAMRBox box(theBlock.MinBounds, theBlock.BlockNodeDimensions, spacing, origin,
+      vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
 
     // set meta data
     this->Metadata->SetSpacing(level, spacing);

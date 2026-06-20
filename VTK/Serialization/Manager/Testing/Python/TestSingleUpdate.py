@@ -1,13 +1,16 @@
+from pathlib import Path
+
 from vtkmodules.test import Testing as vtkTesting
 
-class TestObjectManagerRendering(vtkTesting.vtkTest):
+import vtkmodules.vtkInteractionStyle
+import vtkmodules.vtkRenderingOpenGL2
+
+class TestSingleUpdate(vtkTesting.vtkTest):
 
     def testSceneManagement(self):
         from vtkmodules.vtkSerializationManager import vtkObjectManager
         from vtkmodules.vtkFiltersSources import vtkSphereSource
         from vtkmodules.vtkRenderingCore import vtkActor, vtkPolyDataMapper, vtkRenderer, vtkRenderWindow, vtkRenderWindowInteractor
-
-        id_rwi = 0
 
         def serialize():
             global id_rwi
@@ -29,16 +32,15 @@ class TestObjectManagerRendering(vtkTesting.vtkTest):
             r.ResetCamera()
             rw.Render()
 
-            id_rwi = manager.RegisterObject(rwi)
+            self.id_rwi = manager.RegisterObject(rwi)
             manager.UpdateStatesFromObjects()
             active_ids = manager.GetAllDependencies(0)
 
             states = map(manager.GetState, active_ids)
-            hash_to_blob_map = { blob_hash: manager.GetBlob(blob_hash) for blob_hash in manager.GetBlobHashes(active_ids) }
+            hash_to_blob_map = { blob_hash: manager.GetBlob(blob_hash, True) for blob_hash in manager.GetBlobHashes(active_ids) }
             return states, hash_to_blob_map
 
         def deserialize(states, hash_to_blob_map):
-            global id_rwi
 
             manager = vtkObjectManager()
             manager.Initialize()
@@ -48,11 +50,13 @@ class TestObjectManagerRendering(vtkTesting.vtkTest):
                 manager.RegisterBlob(hash_text, blob)
 
             manager.UpdateObjectsFromStates()
-            active_ids = manager.GetAllDependencies(0)
-            manager.GetObjectAtId(id_rwi).Render()
+            interactor = manager.GetObjectAtId(self.id_rwi)
+            interactor.render_window.Render()
+            vtkTesting.compareImage(interactor.render_window, Path(vtkTesting.getAbsImagePath(f"{__class__.__name__}.png")).as_posix())
+
 
         deserialize(*serialize())
 
 
 if __name__ == "__main__":
-    vtkTesting.main([(TestObjectManagerRendering, 'testSceneManagement')])
+    vtkTesting.main([(TestSingleUpdate, 'testSceneManagement')])

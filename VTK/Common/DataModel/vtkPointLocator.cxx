@@ -15,7 +15,7 @@
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPointLocator);
 
-static const int VTK_INITIAL_SIZE = 1000;
+static constexpr int VTK_INITIAL_SIZE = 1000;
 
 //------------------------------------------------------------------------------
 // Utility class to store an array of ijk values
@@ -349,10 +349,7 @@ vtkIdType vtkPointLocator::FindClosestPointWithinRadius(
   for (i = 0; i < 3; i++)
   {
     radiusLevels[i] = static_cast<int>(refinedRadius / this->H[i]);
-    if (radiusLevels[i] > this->Divisions[i] / 2)
-    {
-      radiusLevels[i] = this->Divisions[i] / 2;
-    }
+    radiusLevels[i] = std::min(radiusLevels[i], this->Divisions[i] / 2);
   }
 
   radiusLevel = radiusLevels[0];
@@ -407,10 +404,7 @@ vtkIdType vtkPointLocator::FindClosestPointWithinRadius(
     if (refinedRadius < currentRadius && ii > 2) // always check ii==1
     {
       ii = static_cast<int>(static_cast<double>(ii) * (refinedRadius / currentRadius)) + 1;
-      if (ii < 2)
-      {
-        ii = 2;
-      }
+      ii = std::max(ii, 2);
     }
   } // for each radius in the radius schedule
 
@@ -485,10 +479,7 @@ static int GetMin(const int foo[8])
 
   for (i = 1; i < 8; i++)
   {
-    if (foo[i] < result)
-    {
-      result = foo[i];
-    }
+    result = std::min(foo[i], result);
   }
   return result;
 }
@@ -501,10 +492,7 @@ static double GetMax(const double foo[8])
 
   for (i = 1; i < 8; i++)
   {
-    if (foo[i] > result)
-    {
-      result = foo[i];
-    }
+    result = std::max(foo[i], result);
   }
   return result;
 }
@@ -581,10 +569,7 @@ void vtkPointLocator::FindDistributedPoints(int N, const double x[3], vtkIdList*
           {
             res[oct][currentCount[oct]].Dist2 = dist2;
             res[oct][currentCount[oct]].PtId = ptId;
-            if (dist2 > maxDistance[oct])
-            {
-              maxDistance[oct] = dist2;
-            }
+            maxDistance[oct] = std::max(dist2, maxDistance[oct]);
             currentCount[oct] = currentCount[oct] + 1;
             // compute new minCurrentCount
             minCurrentCount = GetMin(currentCount);
@@ -704,10 +689,7 @@ void vtkPointLocator::FindClosestNPoints(int N, const double x[3], vtkIdList* re
           {
             res[currentCount].Dist2 = dist2;
             res[currentCount].PtId = ptId;
-            if (dist2 > maxDistance)
-            {
-              maxDistance = dist2;
-            }
+            maxDistance = std::max(dist2, maxDistance);
             currentCount++;
             if (currentCount == N)
             {
@@ -905,8 +887,7 @@ void vtkPointLocator::BuildLocatorInternal()
 
   // Allocate the bins/buckets and initialize
   this->HashTable = new vtkIdListPtr[numBuckets];
-  // NOLINTNEXTLINE(bugprone-sizeof-expression)
-  memset(this->HashTable, 0, numBuckets * sizeof(*this->HashTable));
+  std::fill_n(this->HashTable, numBuckets, nullptr);
 
   // Compute local variables (for performance reasons)
   // Setup internal data members for more efficient processing.
@@ -986,7 +967,7 @@ void vtkPointLocator::GetBucketNeighbors(
 
 //------------------------------------------------------------------------------
 // Internal method to find those buckets that are within distance specified
-// only those buckets outside of level radiuses of ijk are returned
+// only those buckets within level radiuses of ijk are returned
 void vtkPointLocator::GetOverlappingBuckets(
   vtkNeighborPoints* buckets, const double x[3], const int ijk[3], double dist, int level)
 {
@@ -1029,7 +1010,7 @@ void vtkPointLocator::GetOverlappingBuckets(
 
 //------------------------------------------------------------------------------
 // Internal method to find those buckets that are within distance specified
-// only those buckets outside of level radiuses of ijk are returned
+// only those buckets within level radiuses of ijk are returned
 void vtkPointLocator::GetOverlappingBuckets(vtkNeighborPoints* buckets, const double x[3],
   double dist, int prevMinLevel[3], int prevMaxLevel[3])
 {
@@ -1175,8 +1156,7 @@ int vtkPointLocator::InitPointInsertion(
 
   // Initialize bins/buckets
   this->HashTable = new vtkIdListPtr[this->NumberOfBuckets];
-  // NOLINTNEXTLINE(bugprone-sizeof-expression)
-  memset(this->HashTable, 0, this->NumberOfBuckets * sizeof(*this->HashTable));
+  std::fill_n(this->HashTable, this->NumberOfBuckets, nullptr);
 
   //  Compute width of bucket in three directions
   //
@@ -1197,6 +1177,11 @@ int vtkPointLocator::InitPointInsertion(
 
   // Update internal performance variables
   this->ComputePerformanceFactors();
+
+  // Allow to initialize the locator with a non-empty vtkPoints instance.
+  // Note that pre-existing points in the input are not registered by the locator.
+  // Useful in workflows where points are aggregated from different algorithms.
+  this->InsertionPointId = newPts->GetNumberOfPoints();
 
   return 1;
 }

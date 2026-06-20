@@ -124,6 +124,15 @@
           Set the spacing to use for the image output by this reader.
         </Documentation>
       </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetDataOrigin"
+                            default_values="0.0 0.0 0.0"
+                            name="DataOrigin"
+                            number_of_elements="3">
+        <DoubleRangeDomain name="range" />
+        <Documentation>
+          Set the coordinates of the first pixel of the image.
+        </Documentation>
+      </DoubleVectorProperty>
       <StringVectorProperty command="GetTextKeys"
                             information_only="1"
                             name="TextKeys">
@@ -365,14 +374,20 @@
         <Documentation>This property indicates whether the file(s) in this
         dataset contain slices (2D) or volumes (3D).</Documentation>
       </IntVectorProperty>
-      <IntVectorProperty command="SetDataExtent"
-                         default_values="0 0 0 0 0 0"
-                         name="DataExtent"
-                         number_of_elements="6">
+      <IntVectorProperty command="SetDimensions"
+                         default_values="0 0 0"
+                         name="Dimensions"
+                         number_of_elements="3">
         <IntRangeDomain name="range" />
-        <Documentation>This property specifies the minimum and maximum index
-        values of the data in each dimension (xmin, xmax, ymin, ymax, zmin,
-        zmax).</Documentation>
+        <Documentation>This property specifies number of elements in each dimension.</Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetMinimumIndex"
+                       default_values="0 0 0"
+                       name="MinimumIndex"
+                       number_of_elements="3"
+                       panel_visibility="advanced">
+          <IntRangeDomain name="range" />
+          <Documentation>This property specifies the minimum index values of the data in each dimension (xmin, ymin, zmin).</Documentation>
       </IntVectorProperty>
       <Hints>
         <ReaderFactory extensions="raw"
@@ -497,6 +512,7 @@
                proxyname="PNGReader"></Proxy>
         <ExposedProperties>
           <Property name="DataSpacing" />
+          <Property name="DataOrigin" />
           <Property name="TextKeys" />
           <Property name="TextValues" />
         </ExposedProperties>

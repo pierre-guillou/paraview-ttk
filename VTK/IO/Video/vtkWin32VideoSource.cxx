@@ -3,6 +3,7 @@
 #include "vtkWin32VideoSource.h"
 
 #include "vtkObjectFactory.h"
+#include "vtkStringFormatter.h"
 #include "vtkTimerLog.h"
 #include "vtkUnsignedCharArray.h"
 
@@ -16,6 +17,8 @@
 #include "vtkWindows.h"
 #include <vfw.h>
 #include <winuser.h>
+
+#include <iostream>
 
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -90,20 +93,20 @@ LONG FAR PASCAL vtkWin32VideoSourceWinProc(HWND hwnd, UINT message, WPARAM wPara
   {
 
     case WM_MOVE:
-      // cerr << "WM_MOVE\n";
+      // std::cerr << "WM_MOVE\n";
       break;
 
     case WM_SIZE:
-      // cerr << "WM_SIZE\n";
+      // std::cerr << "WM_SIZE\n";
       break;
 
     case WM_DESTROY:
-      // cerr << "WM_DESTROY\n";
+      // std::cerr << "WM_DESTROY\n";
       self->OnParentWndDestroy();
       break;
 
     case WM_CLOSE:
-      // cerr << "WM_CLOSE\n";
+      // std::cerr << "WM_CLOSE\n";
       self->PreviewOff();
       return 0;
   }
@@ -118,12 +121,12 @@ LRESULT PASCAL vtkWin32VideoSourceCapControlProc(HWND hwndC, int nState)
 
   if (nState == CONTROLCALLBACK_PREROLL)
   {
-    // cerr << "controlcallback preroll\n";
+    // std::cerr << "controlcallback preroll\n";
     self->SetStartTimeStamp(vtkTimerLog::GetUniversalTime());
   }
   else if (nState == CONTROLCALLBACK_CAPTURING)
   {
-    // cerr << "controlcallback capturing\n";
+    // std::cerr << "controlcallback capturing\n";
   }
 
   return TRUE;
@@ -147,12 +150,12 @@ LRESULT PASCAL vtkWin32VideoSourceStatusCallbackProc(
 
   if (nID == IDS_CAP_BEGIN)
   {
-    // cerr << "start of capture\n";
+    // std::cerr << "start of capture\n";
   }
 
   if (nID == IDS_CAP_END)
   {
-    // cerr << "end of capture\n";
+    // std::cerr << "end of capture\n";
   }
 
   return 1;
@@ -164,7 +167,8 @@ LRESULT PASCAL vtkWin32VideoSourceErrorCallbackProc(HWND hwndC, int ErrID, LPSTR
   if (ErrID)
   {
     char buff[84];
-    snprintf(buff, sizeof(buff), "Error# %d", ErrID);
+    auto result = vtk::format_to_n(buff, sizeof(buff), "Error# {:d}", ErrID);
+    *result.out = '\0';
     MessageBox(hwndC, lpErrorText, buff, MB_OK | MB_ICONEXCLAMATION);
     // vtkGenericWarningMacro(<< buff << ' ' << lpErrorText);
   }
@@ -213,7 +217,8 @@ void vtkWin32VideoSource::Initialize()
       break;
     }
     // try again with a slightly different name
-    snprintf(this->WndClassName, 16, "VTKVideo %d", i);
+    auto result = vtk::format_to_n(this->WndClassName, 16, "VTKVideo {:d}", i);
+    *result.out = '\0';
   }
 
   if (i > 10)
@@ -444,7 +449,7 @@ void vtkWin32VideoSource::OnParentWndDestroy()
 void vtkWin32VideoSource::LocalInternalGrab(void* lpptr)
 {
   LPVIDEOHDR lpVHdr = static_cast<LPVIDEOHDR>(lpptr);
-  // cerr << "Grabbed\n";
+  // std::cerr << "Grabbed\n";
 
   // the VIDEOHDR has the following contents, for quick ref:
   //
@@ -1046,8 +1051,8 @@ void vtkWin32VideoSource::DoVFWFormatCheck()
   }
   else
   {
-    char fourcchex[16], fourcc[8];
-    snprintf(fourcchex, sizeof(fourcchex), "0x%08x", compression);
+    char fourcc[8];
+    auto fourcchex = vtk::format("0x{:08x}", compression);
     for (int i = 0; i < 4; i++)
     {
       fourcc[i] = (compression >> (8 * i)) & 0xff;

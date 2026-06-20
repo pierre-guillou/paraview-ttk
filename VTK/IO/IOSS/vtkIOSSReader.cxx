@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkIOSSReader.h"
 #include "vtkIOSSFilesScanner.h"
 #include "vtkIOSSReaderCommunication.h"
@@ -21,26 +23,14 @@
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
 #include "vtkUnstructuredGrid.h"
 
 // clang-format off
 #include VTK_IOSS(Ionit_Initializer.h)
 #include VTK_IOSS(Ioss_Assembly.h)
-#include VTK_IOSS(Ioss_DatabaseIO.h)
-#include VTK_IOSS(Ioss_EdgeBlock.h)
-#include VTK_IOSS(Ioss_EdgeSet.h)
-#include VTK_IOSS(Ioss_ElementBlock.h)
-#include VTK_IOSS(Ioss_ElementSet.h)
-#include VTK_IOSS(Ioss_ElementTopology.h)
-#include VTK_IOSS(Ioss_FaceBlock.h)
-#include VTK_IOSS(Ioss_FaceSet.h)
 #include VTK_IOSS(Ioss_IOFactory.h)
-#include VTK_IOSS(Ioss_NodeBlock.h)
-#include VTK_IOSS(Ioss_NodeSet.h)
 #include VTK_IOSS(Ioss_Region.h)
-#include VTK_IOSS(Ioss_SideBlock.h)
-#include VTK_IOSS(Ioss_SideSet.h)
-#include VTK_IOSS(Ioss_StructuredBlock.h)
 // clang-format on
 
 #include <array>
@@ -73,15 +63,17 @@ vtkIOSSReader::vtkIOSSReader()
   , RemoveUnusedPoints(true)
   , ApplyDisplacements(true)
   , ReadAllFilesToDetermineStructure(false)
-  , ReadGlobalFields(true)
   , ReadQAAndInformationRecords(true)
   , DatabaseTypeOverride(nullptr)
   , FileRange{ 0, -1 }
   , FileStride{ 1 }
+  , IncludeGhostNodes(true)
 {
   this->SetController(vtkMultiProcessController::GetGlobalController());
   // default - treat numeric suffixes as separate vtk data arrays.
   this->AddProperty("IGNORE_REALN_FIELDS", "on");
+  // default - treat x, y, z scalars as components of vector arrays
+  this->AddProperty("ENABLE_FIELD_RECOGNITION", "on");
   // default - empty field suffix separators, fieldX, fieldY, fieldZ are recognized
   this->AddProperty("FIELD_SUFFIX_SEPARATOR", "");
 }
@@ -132,9 +124,22 @@ bool vtkIOSSReader::GetGroupNumericVectorFieldComponents()
 }
 
 //----------------------------------------------------------------------------
+void vtkIOSSReader::SetGroupAlphabeticVectorFieldComponents(bool value)
+{
+  // enable implies recognizing fields with suffixes such as X, Y, Z
+  // disable implies not recognizing those fields.
+  this->AddProperty("ENABLE_FIELD_RECOGNITION", value ? "on" : "off");
+}
+
+//----------------------------------------------------------------------------
+bool vtkIOSSReader::GetGroupAlphabeticVectorFieldComponents()
+{
+  return this->Internals->DatabaseProperties.get("ENABLE_FIELD_RECOGNITION").get_string() == "on";
+}
+
+//----------------------------------------------------------------------------
 void vtkIOSSReader::SetFieldSuffixSeparator(const char* value)
 {
-  vtkDebugMacro("Setting FIELD_SUFFIX_SEPARATOR " << (value ? "on" : "off"));
   this->AddProperty("FIELD_SUFFIX_SEPARATOR", value);
 }
 
@@ -142,6 +147,23 @@ void vtkIOSSReader::SetFieldSuffixSeparator(const char* value)
 std::string vtkIOSSReader::GetFieldSuffixSeparator()
 {
   return this->Internals->DatabaseProperties.get("FIELD_SUFFIX_SEPARATOR").get_string();
+}
+
+//----------------------------------------------------------------------------
+void vtkIOSSReader::SetCatalystConduitChannelName(const std::string& newString)
+{
+  this->AddProperty("CATALYST_INPUT_NAME", newString.c_str());
+}
+
+//----------------------------------------------------------------------------
+std::string vtkIOSSReader::GetCatalystConduitChannelName()
+{
+  std::string retVal;
+  if (this->Internals->DatabaseProperties.exists("CATALYST_INPUT_NAME"))
+  {
+    retVal = this->Internals->DatabaseProperties.get("CATALYST_INPUT_NAME").get_string();
+  }
+  return retVal;
 }
 
 //----------------------------------------------------------------------------
@@ -367,7 +389,7 @@ int vtkIOSSReader::ReadMesh(
     if (needToUpdate && rank == 0)
     {
       vtkWarningMacro(
-        "Dataset's Structure is not consistent from rank to rank or timestep to timestep."
+        "Dataset's Structure is not consistent from rank to rank or timestep to timestep. "
         "Please enable 'ReadAllFilesToDetermineStructure' to read all files to determine "
         "the structure.");
     }
@@ -406,10 +428,8 @@ int vtkIOSSReader::ReadMesh(
     // Read global data. Since global data is expected to be identical on all
     // files in a partitioned collection, we can read it from the first
     // dbaseHandle alone.
-    if (this->ReadGlobalFields)
-    {
-      internals.GetGlobalFields(collection->GetFieldData(), dbaseHandles[0], timestep);
-    }
+    internals.GetGlobalFields(
+      this->GetGlobalFieldSelection(), collection->GetFieldData(), dbaseHandles[0], timestep);
 
     if (this->ReadQAAndInformationRecords)
     {
@@ -426,25 +446,25 @@ int vtkIOSSReader::ReadMesh(
     this->GetMergeExodusEntityBlocks();
   if (!mergeEntityBlocks)
   {
-    for (unsigned int pdsIdx = 0; pdsIdx < collection->GetNumberOfPartitionedDataSets(); ++pdsIdx)
+    for (const auto& handle : dbaseHandles)
     {
-      const std::string blockName(
-        collection->GetMetaData(pdsIdx)->Get(vtkCompositeDataSet::NAME()));
-      const auto entity_type = collection->GetMetaData(pdsIdx)->Get(ENTITY_TYPE());
-      const auto vtk_entity_type = static_cast<vtkIOSSReader::EntityType>(entity_type);
-
-      auto selection = this->GetEntitySelection(vtk_entity_type);
-      if (!selection->ArrayIsEnabled(blockName.c_str()) &&
-        selectedAssemblyIndices.find(pdsIdx) == selectedAssemblyIndices.end())
+      for (unsigned int pdsIdx = 0; pdsIdx < collection->GetNumberOfPartitionedDataSets(); ++pdsIdx)
       {
-        // skip disabled blocks.
-        continue;
-      }
+        const std::string blockName(
+          collection->GetMetaData(pdsIdx)->Get(vtkCompositeDataSet::NAME()));
+        const auto entity_type = collection->GetMetaData(pdsIdx)->Get(ENTITY_TYPE());
+        const auto vtk_entity_type = static_cast<vtkIOSSReader::EntityType>(entity_type);
 
-      auto pds = collection->GetPartitionedDataSet(pdsIdx);
-      assert(pds != nullptr);
-      for (const auto& handle : dbaseHandles)
-      {
+        auto selection = this->GetEntitySelection(vtk_entity_type);
+        if (!selection->ArrayIsEnabled(blockName.c_str()) &&
+          selectedAssemblyIndices.find(pdsIdx) == selectedAssemblyIndices.end())
+        {
+          // skip disabled blocks.
+          continue;
+        }
+
+        auto pds = collection->GetPartitionedDataSet(pdsIdx);
+        assert(pds != nullptr);
         try
         {
           auto datasets = internals.GetDataSets(blockName, vtk_entity_type, handle, timestep, this);
@@ -466,32 +486,32 @@ int vtkIOSSReader::ReadMesh(
   }
   else
   {
-    for (unsigned int pdsIdx = 0; pdsIdx < collection->GetNumberOfPartitionedDataSets(); ++pdsIdx)
+    for (const auto& handle : dbaseHandles)
     {
-      const auto entity_type = collection->GetMetaData(pdsIdx)->Get(ENTITY_TYPE());
-      const auto vtk_entity_type = static_cast<vtkIOSSReader::EntityType>(entity_type);
-      auto selection = this->GetEntitySelection(vtk_entity_type);
-
-      // get all the active block names for this entity type.
-      std::vector<std::string> blockNames;
-      for (int i = 0; i < selection->GetNumberOfArrays(); ++i)
+      for (unsigned int pdsIdx = 0; pdsIdx < collection->GetNumberOfPartitionedDataSets(); ++pdsIdx)
       {
-        if (selection->ArrayIsEnabled(selection->GetArrayName(i)))
+        const auto entity_type = collection->GetMetaData(pdsIdx)->Get(ENTITY_TYPE());
+        const auto vtk_entity_type = static_cast<vtkIOSSReader::EntityType>(entity_type);
+        auto selection = this->GetEntitySelection(vtk_entity_type);
+
+        // get all the active block names for this entity type.
+        std::vector<std::string> blockNames;
+        for (int i = 0; i < selection->GetNumberOfArrays(); ++i)
         {
-          blockNames.emplace_back(selection->GetArrayName(i));
+          if (selection->ArrayIsEnabled(selection->GetArrayName(i)))
+          {
+            blockNames.emplace_back(selection->GetArrayName(i));
+          }
         }
-      }
 
-      if (blockNames.empty())
-      {
-        // skip disabled blocks.
-        continue;
-      }
+        if (blockNames.empty())
+        {
+          // skip disabled blocks.
+          continue;
+        }
 
-      auto pds = collection->GetPartitionedDataSet(pdsIdx);
-      assert(pds != nullptr);
-      for (const auto& handle : dbaseHandles)
-      {
+        auto pds = collection->GetPartitionedDataSet(pdsIdx);
+        assert(pds != nullptr);
         try
         {
           auto dataset =
@@ -563,6 +583,44 @@ vtkDataArraySelection* vtkIOSSReader::GetEntitySelection(int type)
 }
 
 //----------------------------------------------------------------------------
+vtkDataArraySelection* vtkIOSSReader::GetGlobalFieldSelection()
+{
+  return this->GlobalFieldSelection;
+}
+
+//----------------------------------------------------------------------------
+void vtkIOSSReader::SetReadGlobalFields(bool value)
+{
+  if (value)
+  {
+    this->GlobalFieldSelection->EnableAllArrays();
+  }
+  else
+  {
+    this->GlobalFieldSelection->DisableAllArrays();
+  }
+}
+
+//----------------------------------------------------------------------------
+bool vtkIOSSReader::GetReadGlobalFields()
+{
+  return this->GlobalFieldSelection->GetNumberOfArrays() ==
+    this->GlobalFieldSelection->GetNumberOfArraysEnabled();
+}
+
+//----------------------------------------------------------------------------
+void vtkIOSSReader::ReadGlobalFieldsOn()
+{
+  this->SetReadGlobalFields(true);
+}
+
+//----------------------------------------------------------------------------
+void vtkIOSSReader::ReadGlobalFieldsOff()
+{
+  this->SetReadGlobalFields(false);
+}
+
+//----------------------------------------------------------------------------
 vtkDataArraySelection* vtkIOSSReader::GetFieldSelection(int type)
 {
   if (type < 0 || type >= NUMBER_OF_ENTITY_TYPES)
@@ -625,7 +683,7 @@ vtkStringArray* vtkIOSSReader::GetEntityIdMapAsString(int type) const
   for (const auto& pair : map)
   {
     strings->SetValue(index++, pair.first);
-    strings->SetValue(index++, std::to_string(pair.second));
+    strings->SetValue(index++, vtk::to_string(pair.second));
   }
 
   return strings;
@@ -640,6 +698,7 @@ vtkMTimeType vtkIOSSReader::GetMTime()
     mtime = std::max(mtime, this->EntitySelection[cc]->GetMTime());
     mtime = std::max(mtime, this->EntityFieldSelection[cc]->GetMTime());
   }
+  mtime = std::max(mtime, this->GlobalFieldSelection->GetMTime());
   return mtime;
 }
 
@@ -659,6 +718,7 @@ void vtkIOSSReader::RemoveAllFieldSelections()
   {
     this->GetFieldSelection(cc)->RemoveAllArrays();
   }
+  this->GetGlobalFieldSelection()->RemoveAllArrays();
 }
 
 //----------------------------------------------------------------------------
@@ -926,7 +986,6 @@ void vtkIOSSReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "RemoveUnusedPoints: " << this->RemoveUnusedPoints << endl;
   os << indent << "ApplyDisplacements: " << this->ApplyDisplacements << endl;
   os << indent << "DisplacementMagnitude: " << this->Internals->GetDisplacementMagnitude() << endl;
-  os << indent << "ReadGlobalFields: " << this->ReadGlobalFields << endl;
   os << indent << "ReadQAAndInformationRecords: " << this->ReadQAAndInformationRecords << endl;
   os << indent << "DatabaseTypeOverride: "
      << (this->DatabaseTypeOverride ? this->DatabaseTypeOverride : "(nullptr)") << endl;
@@ -956,5 +1015,7 @@ void vtkIOSSReader::PrintSelf(ostream& os, vtkIndent indent)
   this->GetStructuredBlockFieldSelection()->PrintSelf(os, indent.GetNextIndent());
   os << indent << "NodeSetFieldSelection: " << endl;
   this->GetNodeSetFieldSelection()->PrintSelf(os, indent.GetNextIndent());
+  os << indent << "GlobalFieldSelection: " << endl;
+  this->GetGlobalFieldSelection()->PrintSelf(os, indent.GetNextIndent());
 }
 VTK_ABI_NAMESPACE_END

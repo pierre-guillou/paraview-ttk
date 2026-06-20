@@ -42,6 +42,8 @@
 #include "vtkTestUtilities.h"
 #include <vtksys/SystemTools.hxx>
 
+#include <iostream>
+
 #if !defined(TESTING_DEPRECATED_SUPRESS_SUPPORTED)
 #if defined(__GNUC__)
 #define TESTING_DEPRECATED_SUPRESS_SUPPORTED
@@ -88,7 +90,7 @@ bool compare_double(const double x, const double y, const double e)
 // A structured grid is converted to a polyhedral mesh.
 int TestPolyhedralCellsInUG(int argc, char* argv[])
 {
-  const double tol = 0.001;
+  constexpr double tol = 0.001;
   double p1[3] = { -100, 0, 0 };
   double p2[3] = { 100, 0, 0 };
   double t, x[3], pc[3];
@@ -102,7 +104,7 @@ int TestPolyhedralCellsInUG(int argc, char* argv[])
   cube->SetCenter(0, 0, 0);
   cube->Update();
 
-  // add scaler
+  // add scalar
   vtkNew<vtkElevationFilter> ele;
   ele->SetInputConnection(cube->GetOutputPort());
   ele->SetLowPoint(0, 0, -10);
@@ -146,35 +148,10 @@ int TestPolyhedralCellsInUG(int argc, char* argv[])
   vtkCellArray* facesHandle = ugrid0->GetPolyhedronFaces();
   vtkCellArray* faceLocationsHandle = ugrid0->GetPolyhedronFaceLocations();
 
-  vtkIdTypeArray* faceStream = nullptr;
-  vtkIdTypeArray* faceStreamLocations = nullptr;
-  // disable warning while testing backward compatibility layer
-  TESTING_DEPRECATED_SUPRESS_BEGIN
-  faceStreamLocations = ugrid0->GetFaceLocations();
-  faceStream = ugrid0->GetFaces();
-  TESTING_DEPRECATED_SUPRESS_END
-
-  // check Legacy cache is correct
-  if (faceStreamLocations->GetNumberOfTuples() != faceLocationsHandle->GetNumberOfCells())
-  {
-    std::cout << "Error Legacy backward compatibility layer is not coherent for faceLocations."
-              << std::endl;
-    return EXIT_FAILURE;
-  }
-  if (faceStream->GetValue(1) != facesHandle->GetCellSize(0))
-  {
-    std::cout << "Error Legacy backward compatibility layer is not coherent for faces."
-              << std::endl;
-    return EXIT_FAILURE;
-  }
-
   vtkNew<vtkUnstructuredGrid> ugrid1;
   ugrid1->SetPoints(poly->GetPoints());
   ugrid1->GetPointData()->DeepCopy(poly->GetPointData());
-  // disable warning because we are testing backward compatibility layer
-  TESTING_DEPRECATED_SUPRESS_BEGIN
-  ugrid1->SetCells(cellTypes, cells, faceStreamLocations, faceStream);
-  TESTING_DEPRECATED_SUPRESS_END
+  ugrid1->SetPolyhedralCells(cellTypes, cells, faceLocationsHandle, facesHandle);
 
   vtkPolyhedron* polyhedron = vtkPolyhedron::SafeDownCast(ugrid0->GetCell(0));
   if (!polyhedron)
@@ -271,7 +248,7 @@ int TestPolyhedralCellsInUG(int argc, char* argv[])
   int hit = polyhedron->IntersectWithLine(p1, p2, tol, t, x, pc, subId); // should hit
   if (!hit)
   {
-    cerr << "Expected  intersection, but missed." << std::endl;
+    std::cerr << "Expected  intersection, but missed." << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -279,8 +256,8 @@ int TestPolyhedralCellsInUG(int argc, char* argv[])
   int inside = polyhedron->IsInside(p1, tol); // should be out
   if (inside)
   {
-    cerr << "Expect point [" << p1[0] << ", " << p1[1] << ", " << p1[2]
-         << "] to be outside the polyhedral, but it's inside." << std::endl;
+    std::cerr << "Expect point [" << p1[0] << ", " << p1[1] << ", " << p1[2]
+              << "] to be outside the polyhedral, but it's inside." << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -290,8 +267,8 @@ int TestPolyhedralCellsInUG(int argc, char* argv[])
   inside = polyhedron->IsInside(p2, tol); // should be in
   if (!inside)
   {
-    cerr << "Expect point [" << p2[0] << ", " << p2[1] << ", " << p2[2]
-         << "] to be inside the polyhedral, but it's outside." << std::endl;
+    std::cerr << "Expect point [" << p2[0] << ", " << p2[1] << ", " << p2[2]
+              << "] to be inside the polyhedral, but it's outside." << std::endl;
     return EXIT_FAILURE;
   }
 

@@ -12,6 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
+
 /* add a class to the MergeInfo */
 int vtkParseMerge_PushClass(MergeInfo* info, const char* classname)
 {
@@ -302,6 +305,12 @@ static void merge_function(FileInfo* finfo, FunctionInfo* merge, const FunctionI
   if (func->Comment && !merge->Comment)
   {
     merge->Comment = func->Comment;
+  }
+
+  /* these special attributes are inherited */
+  if (func->IsUnblockThreads)
+  {
+    merge->IsUnblockThreads = func->IsUnblockThreads;
   }
 }
 
@@ -844,3 +853,6 @@ MergeInfo* vtkParseMerge_MergeSuperClasses(
 
   return info;
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

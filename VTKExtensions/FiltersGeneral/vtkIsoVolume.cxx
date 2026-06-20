@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkIsoVolume.h"
 
+#include "vtkAMRDataObject.h"
 #include "vtkCell.h"
 #include "vtkCellData.h"
 #include "vtkCompositeDataIterator.h"
@@ -19,7 +20,6 @@
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
-#include "vtkUniformGridAMR.h"
 #include "vtkUnstructuredGrid.h"
 
 #include <cassert>
@@ -152,12 +152,15 @@ int vtkIsoVolume::RequestDataObject(vtkInformation* vtkNotUsed(request),
   }
 
   vtkInformation* outInfo = outputVector->GetInformationObject(0);
-  if (auto dtree = vtkDataObjectTree::GetData(inInfo))
+  if (vtkAMRDataObject::GetData(inInfo))
   {
-    auto output = vtkDataObject::GetData(outInfo);
-    if (output == nullptr || !output->IsA(dtree->GetClassName()))
+    // Currently, we're creating a MB here since that's what the internal clip produce
+    // when it encounters an AMR. This will need to change in future to be a PDC
+    // instead.
+    vtkMultiBlockDataSet* output = vtkMultiBlockDataSet::GetData(outInfo);
+    if (!output)
     {
-      output = dtree->NewInstance();
+      output = vtkMultiBlockDataSet::New();
       outInfo->Set(vtkDataObject::DATA_OBJECT(), output);
       this->GetOutputPortInformation(0)->Set(
         vtkDataObject::DATA_EXTENT_TYPE(), output->GetExtentType());
@@ -165,15 +168,12 @@ int vtkIsoVolume::RequestDataObject(vtkInformation* vtkNotUsed(request),
     }
     return 1;
   }
-  else if (vtkUniformGridAMR::GetData(inInfo))
+  else if (auto dtree = vtkDataObjectTree::GetData(inInfo))
   {
-    // Currently, we're creating a MB here since that's what executive does when
-    // it encounters an AMR. This will need to change in future to be a PDC
-    // instead.
-    vtkMultiBlockDataSet* output = vtkMultiBlockDataSet::GetData(outInfo);
-    if (!output)
+    auto output = vtkDataObject::GetData(outInfo);
+    if (output == nullptr || !output->IsA(dtree->GetClassName()))
     {
-      output = vtkMultiBlockDataSet::New();
+      output = dtree->NewInstance();
       outInfo->Set(vtkDataObject::DATA_OBJECT(), output);
       this->GetOutputPortInformation(0)->Set(
         vtkDataObject::DATA_EXTENT_TYPE(), output->GetExtentType());

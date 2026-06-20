@@ -14,9 +14,8 @@
 
 #include "vtkNew.h" // needed for vtkNew.
 #include "vtkPVDataRepresentation.h"
-#include "vtkPVRenderView.h"        // needed for renderer enum
-#include "vtkParaViewDeprecation.h" // for PARAVIEW_DEPRECATED_IN_5_13_0
-#include "vtkWeakPointer.h"         // needed for vtkWeakPointer.
+#include "vtkPVRenderView.h" // needed for renderer enum
+#include "vtkWeakPointer.h"  // needed for vtkWeakPointer.
 
 class vtkPolarAxesActor;
 class vtkPolyData;
@@ -32,6 +31,7 @@ public:
   ///@{
   /**
    * Get/Set the Position to transform the data bounds.
+   * Default is (0, 0, 0)
    */
   vtkSetVector3Macro(Position, double);
   vtkGetVector3Macro(Position, double);
@@ -39,7 +39,17 @@ public:
 
   ///@{
   /**
+   * Get/Set the Translation to transform the data bounds.
+   * Default is (0, 0, 0)
+   */
+  vtkSetVector3Macro(Translation, double);
+  vtkGetVector3Macro(Translation, double);
+  ///@}
+
+  ///@{
+  /**
    * Get/Set the Orientation to transform the data bounds.
+   * Default is (0, 0, 0)
    */
   vtkSetVector3Macro(Orientation, double);
   vtkGetVector3Macro(Orientation, double);
@@ -48,6 +58,7 @@ public:
   ///@{
   /**
    * Get/Set the Scale to transform the data bounds.
+   * Default is (1, 1, 1)
    */
   vtkSetVector3Macro(Scale, double);
   vtkGetVector3Macro(Scale, double);
@@ -127,12 +138,8 @@ public:
    * Get/Set the use of custom min radius.
    * If off, min radius is computed relatively to pole position.
    */
-  PARAVIEW_DEPRECATED_IN_5_13_0("Use EnableCustomMinRadius instead")
-  virtual void SetEnableCustomRadius(bool enabled);
-  PARAVIEW_DEPRECATED_IN_5_13_0("Use EnableCustomMinRadius instead")
-  virtual bool GetEnableCustomRadius();
-  void SetEnableCustomMinRadius(bool enabled);
-  vtkGetMacro(EnableCustomMinRadius, double);
+  vtkSetMacro(EnableCustomMinRadius, bool);
+  vtkGetMacro(EnableCustomMinRadius, bool);
   ///@}
 
   ///@{
@@ -265,6 +272,7 @@ public:
   virtual void SetRadialTitleVisibility(int visible);
   virtual void SetPolarArcsVisibility(int visible);
   virtual void SetUse2DMode(int use);
+  void SetRasterizeText(int use);
   virtual void SetRatio(double ratio);
   virtual void SetPolarArcResolutionPerDegree(double resolution);
   virtual void SetDeltaRangeMinor(double delta);
@@ -310,6 +318,7 @@ protected:
   vtkNew<vtkPolarAxesActor> PolarAxesActor;
   vtkWeakPointer<vtkPVRenderView> RenderView;
   double Position[3] = { 0.0 };
+  double Translation[3] = { 0.0 };
   double Scale[3] = { 1.0 };
   double Orientation[3] = { 0.0 };
   double CustomBounds[6] = { 0.0, 1.0, 0.0, 1.0, 0.0, 1.0 };
@@ -320,8 +329,6 @@ protected:
   bool EnableCustomAngle = true;
   double MinAngle = 0.0;
   double MaxAngle = 90.0;
-  PARAVIEW_DEPRECATED_IN_5_13_0("Use Get/Set EnableCustomMinRadius methods instead")
-  bool EnableCustomRadius = true;
   double MinRadius = 0.0;
   bool EnableOverallColor = true;
   double OverallColor[3] = { 1.0 };

@@ -64,6 +64,11 @@ def _get_ns(self, do, association):
             ns["t_index"] = ns["time_index"]
         except ValueError:
             pass
+
+    current_time = calculator.get_pipeline_time(self)
+    if current_time is not None:
+        ns["current_time"] = current_time
+
     ns.update(arrays)
     return ns
 
@@ -89,7 +94,7 @@ def execute(self):
               "expression. Verify that the expression is valid.\n\n" \
               "Variables in current scope are %s \n" % (expression, list(ns)), file=sys.stderr)
         raise
-    self.SetComputedAnnotationValue("%s" % result)
+    self.SetComputedAnnotationValue(str(result))
     return True
 
 

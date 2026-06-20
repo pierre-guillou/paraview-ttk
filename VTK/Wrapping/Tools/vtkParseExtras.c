@@ -9,6 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
+
 /* skip over an expression in brackets */
 static size_t vtkparse_bracket_len(const char* text)
 {
@@ -1738,3 +1741,6 @@ const char** vtkParse_GetArrayTypes(void)
 
   return types;
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

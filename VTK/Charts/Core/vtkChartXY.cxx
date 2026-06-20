@@ -19,11 +19,9 @@
 #include "vtkContextScene.h"
 #include "vtkContextTransform.h"
 #include "vtkDataArray.h"
-#include "vtkDataSetAttributes.h"
 #include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
 #include "vtkMath.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkObjectFactory.h"
 #include "vtkPen.h"
 #include "vtkPlotArea.h"
@@ -38,9 +36,7 @@
 #include "vtkSelection.h"
 #include "vtkSelectionNode.h"
 #include "vtkSmartPointer.h"
-#include "vtkStringArray.h"
 #include "vtkTable.h"
-#include "vtkTextProperty.h"
 #include "vtkTooltipItem.h"
 #include "vtkTransform2D.h"
 #include "vtkVector.h"
@@ -450,7 +446,7 @@ bool vtkChartXY::Paint(vtkContext2D* painter)
   // Update the clipping if necessary
   // An extra padding of 1 pixel is taken into account such that lines near
   // the edge of the chart's patch are correctly shown.
-  const double pad = 1;
+  constexpr double pad = 1;
   this->ChartPrivate->Clip->SetClip(this->Point1[0] - pad, this->Point1[1] - pad,
     this->Point2[0] - this->Point1[0] + 2 * pad, this->Point2[1] - this->Point1[1] + 2 * pad);
 
@@ -549,10 +545,21 @@ void vtkChartXY::CalculateBarPlots()
       if (table)
       {
         vtkDataArray* x = bar->GetData()->GetInputArrayToProcess(0, table);
+        const vtkRectd ss = bar->GetShiftScale();
         if (x && x->GetNumberOfTuples() > 1)
         {
-          double x0 = x->GetTuple1(0);
-          double x1 = x->GetTuple1(1);
+          double x0 = 0;
+          double x1 = 0;
+          if (bar->GetOrientation() == vtkPlotBar::VERTICAL)
+          {
+            x0 = (x->GetTuple1(0) + ss[0]) * ss[2];
+            x1 = (x->GetTuple1(1) + ss[0]) * ss[2];
+          }
+          else
+          {
+            x0 = (x->GetTuple1(0) + ss[1]) * ss[3];
+            x1 = (x->GetTuple1(1) + ss[1]) * ss[3];
+          }
           float width = static_cast<float>(fabs(x1 - x0) * this->BarWidthFraction);
           barWidth = width / bars.size();
         }
@@ -2146,7 +2153,7 @@ bool vtkChartXY::MouseButtonReleaseEvent(const vtkContextMouseEvent& mouse)
     mouse.GetButton() == this->Actions.SelectPolygon())
   {
     // Modifiers or selection modes can affect how selection is performed.
-    int selectionMode = vtkChartXY::GetMouseSelectionMode(mouse, this->SelectionMode);
+    int selectionMode = this->GetSelectionModeFromMouseModifiers(mouse);
     bool polygonMode(mouse.GetButton() == this->Actions.SelectPolygon());
     this->Scene->SetDirty(true);
 
@@ -2364,8 +2371,7 @@ bool vtkChartXY::MouseButtonReleaseEvent(const vtkContextMouseEvent& mouse)
           }
         }
       }
-      vtkIdType* ptrSelection =
-        reinterpret_cast<vtkIdType*>(accumulateSelection->GetVoidPointer(0));
+      vtkIdType* ptrSelection = accumulateSelection->GetPointer(0);
       std::sort(ptrSelection, ptrSelection + accumulateSelection->GetNumberOfTuples());
       // Now add the accumulated selection to the old selection
       vtkChartXY::BuildSelection(
@@ -2681,8 +2687,8 @@ void vtkChartXY::MinusSelection(vtkIdTypeArray* selection, vtkIdTypeArray* oldSe
 {
   // We rely on the selection id arrays being sorted.
   std::vector<vtkIdType> output;
-  vtkIdType* ptrSelection = static_cast<vtkIdType*>(selection->GetVoidPointer(0));
-  vtkIdType* ptrOldSelection = static_cast<vtkIdType*>(oldSelection->GetVoidPointer(0));
+  vtkIdType* ptrSelection = selection->GetPointer(0);
+  vtkIdType* ptrOldSelection = oldSelection->GetPointer(0);
   vtkIdType oldSize = oldSelection->GetNumberOfTuples();
   vtkIdType size = selection->GetNumberOfTuples();
   vtkIdType iOld = 0;
@@ -2710,7 +2716,7 @@ void vtkChartXY::MinusSelection(vtkIdTypeArray* selection, vtkIdTypeArray* oldSe
     output.push_back(ptrOldSelection[iOld++]);
   }
   selection->SetNumberOfTuples(static_cast<vtkIdType>(output.size()));
-  ptrSelection = static_cast<vtkIdType*>(selection->GetVoidPointer(0));
+  ptrSelection = selection->GetPointer(0);
   for (std::vector<vtkIdType>::iterator it = output.begin(); it != output.end();
        ++it, ++ptrSelection)
   {
@@ -2722,15 +2728,15 @@ void vtkChartXY::MinusSelection(vtkIdTypeArray* selection, vtkIdTypeArray* oldSe
 void vtkChartXY::AddSelection(vtkIdTypeArray* selection, vtkIdTypeArray* oldSelection)
 {
   // Add all unique array indices to create a new combined array.
-  vtkIdType* ptrSelection = static_cast<vtkIdType*>(selection->GetVoidPointer(0));
-  vtkIdType* ptrOldSelection = static_cast<vtkIdType*>(oldSelection->GetVoidPointer(0));
+  vtkIdType* ptrSelection = selection->GetPointer(0);
+  vtkIdType* ptrOldSelection = oldSelection->GetPointer(0);
   std::vector<vtkIdType> output(selection->GetNumberOfTuples() + oldSelection->GetNumberOfTuples());
   std::vector<vtkIdType>::iterator it;
   it = std::set_union(ptrSelection, ptrSelection + selection->GetNumberOfTuples(), ptrOldSelection,
     ptrOldSelection + oldSelection->GetNumberOfTuples(), output.begin());
   int newSize = static_cast<int>(it - output.begin());
   selection->SetNumberOfTuples(newSize);
-  ptrSelection = static_cast<vtkIdType*>(selection->GetVoidPointer(0));
+  ptrSelection = selection->GetPointer(0);
   for (std::vector<vtkIdType>::iterator i = output.begin(); i != it; ++i, ++ptrSelection)
   {
     *ptrSelection = *i;
@@ -2742,8 +2748,8 @@ void vtkChartXY::ToggleSelection(vtkIdTypeArray* selection, vtkIdTypeArray* oldS
 {
   // We rely on the selection id arrays being sorted.
   std::vector<vtkIdType> output;
-  vtkIdType* ptrSelection = static_cast<vtkIdType*>(selection->GetVoidPointer(0));
-  vtkIdType* ptrOldSelection = static_cast<vtkIdType*>(oldSelection->GetVoidPointer(0));
+  vtkIdType* ptrSelection = selection->GetPointer(0);
+  vtkIdType* ptrOldSelection = oldSelection->GetPointer(0);
   vtkIdType oldSize = oldSelection->GetNumberOfTuples();
   vtkIdType size = selection->GetNumberOfTuples();
   vtkIdType i = 0;
@@ -2773,7 +2779,7 @@ void vtkChartXY::ToggleSelection(vtkIdTypeArray* selection, vtkIdTypeArray* oldS
     output.push_back(ptrOldSelection[iOld++]);
   }
   selection->SetNumberOfTuples(static_cast<vtkIdType>(output.size()));
-  ptrSelection = static_cast<vtkIdType*>(selection->GetVoidPointer(0));
+  ptrSelection = selection->GetPointer(0);
   for (std::vector<vtkIdType>::iterator it = output.begin(); it != output.end();
        ++it, ++ptrSelection)
   {
@@ -2881,22 +2887,11 @@ void vtkChartXY::BuildSelection(
 }
 
 //------------------------------------------------------------------------------
+// VTK_DEPRECATED_IN_9_6_0
+//------------------------------------------------------------------------------
 int vtkChartXY::GetMouseSelectionMode(const vtkContextMouseEvent& mouse, int selectionMode)
 {
-  // Mouse modifiers override the current selection mode.
-  if (mouse.GetModifiers() & vtkContextMouseEvent::SHIFT_MODIFIER &&
-    mouse.GetModifiers() & vtkContextMouseEvent::CONTROL_MODIFIER)
-  {
-    return vtkContextScene::SELECTION_TOGGLE;
-  }
-  else if (mouse.GetModifiers() & vtkContextMouseEvent::CONTROL_MODIFIER)
-  {
-    return vtkContextScene::SELECTION_ADDITION;
-  }
-  else if (mouse.GetModifiers() & vtkContextMouseEvent::SHIFT_MODIFIER)
-  {
-    return vtkContextScene::SELECTION_SUBTRACTION;
-  }
-  return selectionMode;
+  return vtkChart::GetSelectionModeFromMouseModifiers(mouse, selectionMode);
 }
+
 VTK_ABI_NAMESPACE_END

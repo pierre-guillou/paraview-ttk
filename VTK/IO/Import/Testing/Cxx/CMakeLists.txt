@@ -18,6 +18,14 @@ vtk_add_test_cxx(vtkIOImportCxxTests tests
 )
 
 vtk_add_test_cxx(vtkIOImportCxxTests tests
+  OBJImport-Stream,TestOBJImporterStream.cxx
+    DATA{../Data/Input/cube-scene.obj}
+    DATA{../Data/Input/cube-scene.mtl}
+    noise.png
+    DATA{../Data/Input/noise.png}
+)
+
+vtk_add_test_cxx(vtkIOImportCxxTests tests
   OBJImport-mtllib-texturepath,TestOBJImporter.cxx
     DATA{../Data/Input/cube-scene.obj}
 )
@@ -133,7 +141,11 @@ vtk_add_test_cxx(vtkIOImportCxxTests tests
 )
 
 vtk_add_test_cxx(vtkIOImportCxxTests tests
-  TestGLTFImporterArmature,TestGLTFImporter.cxx DATA{../Data/glTF/Armature.gltf} 0 -1 1 0 0 1
+  TestGLTFImporterAnimation,TestGLTFImporter.cxx DATA{../Data/glTF/BoxAnimated/BoxAnimated.gltf,BoxAnimated0.bin} 0 -1 2 0 0 1 4 1
+)
+
+vtk_add_test_cxx(vtkIOImportCxxTests tests
+  TestGLTFImporterArmature,TestGLTFImporter.cxx DATA{../Data/glTF/Armature.gltf} 0 -1 1 0 0 1 2 0.5
 )
 
 vtk_add_test_cxx(vtkIOImportCxxTests tests
@@ -150,7 +162,31 @@ vtk_add_test_cxx(vtkIOImportCxxTests tests
 )
 
 vtk_add_test_cxx(vtkIOImportCxxTests tests
+  TestGLTFImporterKHRTextureTransform,TestGLTFImporter.cxx DATA{../Data/glTF/TextureTransform.glb} 0 -1 1 0 0 0
+)
+
+vtk_add_test_cxx(vtkIOImportCxxTests tests
   TestGLTFImporterHierarchy,TestGLTFImporterHierarchy.cxx DATA{../Data/glTF/ABeautifulGame/ABeautifulGame.glb} -1
+)
+
+vtk_add_test_cxx(vtkIOImportCxxTests tests
+  TestGLTFImporterTextureSamplerDefaults,TestGLTFImporter.cxx DATA{../Data/glTF/texture-sampler-defaults.gltf} 0 -1 3 0 0 0
+)
+
+vtk_add_test_cxx(vtkIOImportCxxTests tests
+  TestGLTFImporterCameraMove,TestGLTFImporterCameraMove.cxx DATA{../Data/glTF/Cameras/Cameras.gltf} 0 30 20
+)
+
+vtk_add_test_cxx(vtkIOImportCxxTests tests
+  TestGLTFImporterMultipleBuffers,TestGLTFImporter.cxx DATA{../Data/glTF/world.glb} 0 -1 1 0 0 0
+)
+
+vtk_add_test_cxx(vtkIOImportCxxTests tests
+  TestGLTFImporterUnlitTexture,TestGLTFImporter.cxx DATA{../Data/glTF/unlit-texture.glb} 0 -1 2 0 0 0
+)
+
+vtk_add_test_cxx(vtkIOImportCxxTests tests
+  TestGLTFImporterUnlitTextureSRGB,TestGLTFImporter.cxx DATA{../Data/glTF/unlit-srgb.glb} 0 -1 1 0 0 0
 )
 
 vtk_add_test_cxx(vtkIOImportCxxTests tests

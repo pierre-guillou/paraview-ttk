@@ -11,6 +11,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   set(_vtk_test_cxx_wasm_enabled_in_browser ON)
 endif ()
 vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
+  TestBatchOrderRendering.cxx
   TestBlockVisibility.cxx
   TestBlurAndSobelPasses.cxx
   TestCameraShiftScale.cxx,NO_DATA
@@ -65,7 +66,9 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestPBRMaterials.cxx
   TestPBRMaterialsCoat.cxx
   TestPBRTextureInterpolateScalars.cxx
+  TestPBRMultipleScatteringIBL.cxx
   TestPointFillPass.cxx
+
   TestPointGaussianMapper.cxx
   TestPointGaussianMapperAnisotropic.cxx
   TestPointGaussianMapperOpacity.cxx
@@ -80,12 +83,17 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestSharedRenderWindow.cxx
   TestDirectSelectionRendering.cxx
   TestSimpleMotionBlur.cxx
+  TestSkyboxRotation.cxx
+  TestSkyboxCubeRotation.cxx
+  TestSkyboxRotationVectors.cxx
   TestSobelGradientMagnitudePass.cxx
   TestSphereMap.cxx
   TestSpherePoints.cxx
   TestSphereVertex.cxx
   TestSRGB.cxx
   TestSSAAPass.cxx
+  TestSSAAPassChangeRenderers.cxx,NO_VALID
+  TestSSAAPassMultiViewports.cxx
   TestSSAOPass.cxx
   TestSSAOPassWithRenderer.cxx
   TestSurfaceInterpolationSwitch.cxx
@@ -113,12 +121,6 @@ endif()
 set_tests_properties(VTK::RenderingOpenGL2Cxx-TestFramebufferHDR
   PROPERTIES TIMEOUT ${VTK_TEST_TIMEOUT_TestFramebufferHDR})
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-  if (VTK_USE_SDL2)
-    vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests TestSDL2.cxx)
-  endif ()
-endif ()
-
 if (NOT VTK_OPENGL_USE_GLES)
   # vtkFastLabeledDataMapper needs geometry shaders and GLES does not have them.
   vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
@@ -130,6 +132,11 @@ if (VTK_USE_WIN32_OPENGL)
     TestWin32OpenGLDXRenderWindow.cxx)
 endif ()
 
+if (VTK_OPENGL_HAS_EGL AND NOT WIN32)
+  vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
+    TestEGLRenderWindowResize.cxx)
+endif ()
+
 vtk_test_cxx_executable(vtkRenderingOpenGL2CxxTests tests
   DISABLE_FLOATING_POINT_EXCEPTIONS
   RENDERING_FACTORY
@@ -139,4 +146,13 @@ if (VTK_USE_WIN32_OPENGL)
   # TestWin32OpenGLDXRenderWindow requires DirectX
   find_package(DirectX REQUIRED)
   target_link_libraries(vtkRenderingOpenGL2CxxTests PRIVATE DirectX::d3d11 DirectX::dxgi)
+endif ()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  if (VTK_WEBASSEMBLY_THREADS)
+    # Proxy to pthreads is required to ensure threads can be created asynchronously.
+    target_link_options(vtkRenderingOpenGL2CxxTests
+      PRIVATE
+        "-sPROXY_TO_PTHREAD=1")
+  endif ()
 endif ()

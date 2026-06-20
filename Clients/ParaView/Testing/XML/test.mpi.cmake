@@ -9,6 +9,8 @@ list(APPEND TESTS_WITH_BASELINES
   ManyTypesXMLWriterReaderMPI.xml
   # Test Use Data Partitions for volume rendering
   #UseDataPartitions.xml
+  # This tests uses PIOReader which requires MPI
+  ReadPIOWithHTG.xml
   )
 
 list(APPEND TESTS_WITH_INLINE_COMPARES
@@ -116,6 +118,15 @@ paraview_add_client_server_tests(
   TEST_SCRIPTS HyperTreeGridGhostCellsGeneratorComposite.xml
   NUMSERVERS 2
   )
+paraview_add_client_server_tests(
+  BASELINE_DIR ${PARAVIEW_TEST_BASELINE_DIR}
+  TEST_SCRIPTS RedistributeHyperTreeGrid.xml
+  NUMSERVERS 4
+  )
+paraview_add_client_server_tests(
+  TEST_SCRIPTS GhostCellsHTGMultiblock.xml
+  NUMSERVERS 2
+)
 
 # AppendReduceFilter needs specifically four servers to generate duplicate points
 paraview_add_client_server_tests(

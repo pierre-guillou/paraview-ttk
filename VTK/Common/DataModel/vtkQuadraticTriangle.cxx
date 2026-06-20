@@ -10,6 +10,7 @@
 #include "vtkQuadraticEdge.h"
 #include "vtkTriangle.h"
 #include <algorithm> //std::copy
+#include <array>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQuadraticTriangle);
@@ -43,7 +44,8 @@ vtkQuadraticTriangle::~vtkQuadraticTriangle()
 //------------------------------------------------------------------------------
 vtkCell* vtkQuadraticTriangle::GetEdge(int edgeId)
 {
-  edgeId = (edgeId < 0 ? 0 : (edgeId > 2 ? 2 : edgeId));
+  edgeId = std::max(edgeId, 0);
+  edgeId = std::min(edgeId, 2);
   int p = (edgeId + 1) % 3;
 
   // load point id's
@@ -237,7 +239,8 @@ int vtkQuadraticTriangle::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* 
 {
   // Create four linear triangles
   ptIds->SetNumberOfIds(12);
-  std::copy(&LinearTris[0][0], &LinearTris[0][0] + 12, ptIds->begin());
+  constexpr std::array<vtkIdType, 12> localPtIds{ 0, 3, 5, 3, 1, 4, 5, 4, 2, 4, 5, 3 };
+  std::copy(localPtIds.begin(), localPtIds.end(), ptIds->begin());
   return 1;
 }
 
@@ -363,10 +366,7 @@ double vtkQuadraticTriangle::GetParametricDistance(const double pcoords[3])
     {
       pDist = 0.0;
     }
-    if (pDist > pDistMax)
-    {
-      pDistMax = pDist;
-    }
+    pDistMax = std::max(pDist, pDistMax);
   }
 
   return pDistMax;

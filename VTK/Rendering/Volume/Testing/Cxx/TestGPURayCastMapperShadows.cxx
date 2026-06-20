@@ -31,6 +31,8 @@
 #include <vtkVolume.h>
 #include <vtkVolumeProperty.h>
 
+#include <iostream>
+
 static inline void coordsToIdx(double coords[3], double spacing[3], double origin[3], int res[3])
 {
   for (int s = 0; s < 3; s++)
@@ -124,7 +126,7 @@ typedef std::vector<ImageDataAABox> BoxList;
 //-----------------------------
 int TestGPURayCastMapperShadows(int argc, char* argv[])
 {
-  cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << endl;
+  std::cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << std::endl;
 
   // grid is between 0 and 1 in world coords
   double origin[3] = { 0, 0, 0 };
@@ -150,8 +152,7 @@ int TestGPURayCastMapperShadows(int argc, char* argv[])
   dataArray->SetNumberOfTuples(static_cast<vtkIdType>(dimension[0] * dimension[1] * dimension[2]));
 
   // init to zero
-  memset(dataArray->GetVoidPointer(0), 0,
-    static_cast<long>(dimension[0] * dimension[1] * dimension[2]) * sizeof(float));
+  dataArray->FillValue(0.0);
 
   vtkNew<vtkUniformGrid> grid;
   grid->SetOrigin(origin);

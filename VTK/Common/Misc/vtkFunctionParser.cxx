@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFunctionParser.h"
 #include "vtkObjectFactory.h"
+#include "vtkStringScanner.h"
 
 #include <algorithm>
 #include <cctype>
@@ -611,17 +612,13 @@ bool vtkFunctionParser::Evaluate()
         this->Stack[stackPosition] = tanh(this->Stack[stackPosition]);
         break;
       case VTK_PARSER_MIN:
-        if (this->Stack[stackPosition] < this->Stack[stackPosition - 1])
-        {
-          this->Stack[stackPosition - 1] = this->Stack[stackPosition];
-        }
+        this->Stack[stackPosition - 1] =
+          std::min(this->Stack[stackPosition], this->Stack[stackPosition - 1]);
         stackPosition--;
         break;
       case VTK_PARSER_MAX:
-        if (this->Stack[stackPosition] > this->Stack[stackPosition - 1])
-        {
-          this->Stack[stackPosition - 1] = this->Stack[stackPosition];
-        }
+        this->Stack[stackPosition - 1] =
+          std::max(this->Stack[stackPosition], this->Stack[stackPosition - 1]);
         stackPosition--;
         break;
       case VTK_PARSER_CROSS:
@@ -1584,7 +1581,7 @@ int vtkFunctionParser::GetMathFunctionNumberByCheckingParenthesis(int currentInd
   // For addition of any new math function, please update NUMBFUNCS
   // and add an entry to each of the three arrays below.
 
-  const int NUMBFUNCS = 24;
+  constexpr int NUMBFUNCS = 24;
 
   static const int charsLens[NUMBFUNCS] = { 4, 4, 5, 6, 3, 6, 4, 5, 4, 5, 4, 5, 4, 5, 5, 5, 5, 4, 4,
     6, 5, 4, 5, 3 };
@@ -1716,7 +1713,8 @@ int vtkFunctionParser::FindEndOfMathFunction(int beginIndex)
   i++;
   for (parenthesisCount = 1; parenthesisCount > 0; ++i)
   {
-    parenthesisCount += (this->Function[i] == '(' ? 1 : (this->Function[i] == ')' ? -1 : 0));
+    parenthesisCount += this->Function[i] == '(';
+    parenthesisCount -= this->Function[i] == ')';
   }
   return i - 1;
 }
@@ -1795,7 +1793,8 @@ unsigned int vtkFunctionParser::GetOperandNumber(int currentIndex)
       this->Immediates[i] = tempImmediates[i];
     }
 
-    this->Immediates[this->ImmediatesSize] = atof(&this->Function[currentIndex]);
+    VTK_FROM_CHARS_IF_ERROR_BREAK(
+      &this->Function[currentIndex], this->Immediates[this->ImmediatesSize]);
     this->ImmediatesSize++;
     delete[] tempImmediates;
     return VTK_PARSER_IMMEDIATE;
@@ -1898,7 +1897,6 @@ void vtkFunctionParser::CheckExpression(int& pos, char** error)
   this->RemoveSpaces();
 
   int index = 0, parenthesisCount = 0, currentChar;
-  char* ptr;
   int functionNumber, constantNumber;
   int* expectCommaOnParenthesisCount = new int[this->FunctionLength];
   int* expectTwoCommasOnParenthesisCount = new int[this->FunctionLength];
@@ -1986,11 +1984,13 @@ void vtkFunctionParser::CheckExpression(int& pos, char** error)
     // Check for number
     if (isdigit(currentChar) || (currentChar == '.' && isdigit(this->Function[index + 1])))
     {
-      double value = strtod(&this->Function[index], &ptr);
+      double value;
+      auto result = vtk::from_chars(&this->Function[index], value);
+      VTK_FROM_CHARS_RESULT_IF_ERROR_BREAK(result, value);
       // ignore the return value, we just try to figure out
       // the position of the pointer after the double value.
       static_cast<void>(value);
-      index += int(ptr - &this->Function[index]);
+      index += int(result.ptr - &this->Function[index]);
       currentChar = this->Function[index];
     }
     // Check for named constant
@@ -2175,18 +2175,9 @@ vtkMTimeType vtkFunctionParser::GetMTime()
 {
   vtkMTimeType mTime = this->Superclass::GetMTime();
 
-  if (this->ParseMTime > mTime)
-  {
-    mTime = this->ParseMTime;
-  }
-  if (this->FunctionMTime > mTime)
-  {
-    mTime = this->FunctionMTime;
-  }
-  if (this->CheckMTime > mTime)
-  {
-    mTime = this->CheckMTime;
-  }
+  mTime = std::max<vtkMTimeType>(this->ParseMTime, mTime);
+  mTime = std::max<vtkMTimeType>(this->FunctionMTime, mTime);
+  mTime = std::max<vtkMTimeType>(this->CheckMTime, mTime);
 
   return mTime;
 }

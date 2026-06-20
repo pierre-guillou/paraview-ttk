@@ -67,8 +67,6 @@ vtkResliceCursor::vtkResliceCursor()
   this->PolyData->SetPoints(points);
   this->PolyData->SetLines(lines);
 
-  this->ReslicePlanes = vtkPlaneCollection::New();
-
   // Reslice planes along the X, Y and Z axes. And the centerline and slab
   // polydata.
 
@@ -100,7 +98,6 @@ vtkResliceCursor::~vtkResliceCursor()
 {
   this->SetImage(nullptr);
   this->PolyData->Delete();
-  this->ReslicePlanes->Delete();
 
   for (int i = 0; i < 3; i++)
   {
@@ -549,10 +546,7 @@ vtkMTimeType vtkResliceCursor::GetMTime()
   for (int i = 0; i < 3; i++)
   {
     vtkMTimeType time = this->GetPlane(i)->GetMTime();
-    if (time > mTime)
-    {
-      mTime = time;
-    }
+    mTime = std::max(time, mTime);
   }
 
   return mTime;

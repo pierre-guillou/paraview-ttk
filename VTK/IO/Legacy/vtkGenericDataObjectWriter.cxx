@@ -15,11 +15,13 @@
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkLegacyCellGridWriter.h"
+#include "vtkLegacyStatisticalModelWriter.h"
 #include "vtkObjectFactory.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataWriter.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkRectilinearGridWriter.h"
+#include "vtkStatisticalModel.h"
 #include "vtkStructuredGrid.h"
 #include "vtkStructuredGridWriter.h"
 #include "vtkStructuredPoints.h"
@@ -82,6 +84,7 @@ void vtkGenericDataObjectWriter::WriteData()
       vtkErrorMacro(<< "Cannot write hyper octree");
       return;
     case VTK_IMAGE_DATA:
+    case VTK_UNIFORM_GRID:
       writer = CreateWriter<vtkStructuredPointsWriter>(input);
       break;
     case VTK_MULTIBLOCK_DATA_SET:
@@ -108,6 +111,9 @@ void vtkGenericDataObjectWriter::WriteData()
     case VTK_RECTILINEAR_GRID:
       writer = CreateWriter<vtkRectilinearGridWriter>(input);
       break;
+    case VTK_STATISTICAL_MODEL:
+      writer = CreateWriter<vtkLegacyStatisticalModelWriter>(input);
+      break;
     case VTK_STRUCTURED_GRID:
       writer = CreateWriter<vtkStructuredGridWriter>(input);
       break;
@@ -122,9 +128,6 @@ void vtkGenericDataObjectWriter::WriteData()
       break;
     case VTK_TEMPORAL_DATA_SET:
       vtkErrorMacro(<< "Cannot write temporal data set");
-      return;
-    case VTK_UNIFORM_GRID:
-      vtkErrorMacro(<< "Cannot write uniform grid");
       return;
     case VTK_UNSTRUCTURED_GRID_BASE:
     case VTK_UNSTRUCTURED_GRID:

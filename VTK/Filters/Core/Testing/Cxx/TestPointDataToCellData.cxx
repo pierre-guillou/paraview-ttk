@@ -14,9 +14,11 @@
 #include <vtkThreshold.h>
 #include <vtkUnstructuredGrid.h>
 
+#include <iostream>
+
 int TestPointDataToCellData(int, char*[])
 {
-  char const name[] = "RTData";
+  constexpr char name[] = "RTData";
   vtkNew<vtkRTAnalyticSource> wavelet;
   wavelet->SetWholeExtent(-2, 2, -2, 2, -2, 2);
   wavelet->SetCenter(0, 0, 0);

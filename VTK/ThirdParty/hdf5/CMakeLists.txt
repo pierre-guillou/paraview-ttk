@@ -5,16 +5,19 @@ vtk_module_third_party(
     LICENSE_FILES
       "vtkhdf5/COPYING"
       "vtkhdf5/COPYING_LBNL_HDF5"
+      "vtkhdf5/src/H5FDsubfiling/mercury/LICENSE.txt"
     SPDX_LICENSE_IDENTIFIER
       "BSD-3-Clause"
     SPDX_COPYRIGHT_TEXT
       "Copyright 2006 by The HDF Group."
       "Copyright 1998-2006 by The Board of Trustees of the University of Illinois."
       "Copyright (c) 2016, The Regents of the University of California, through Lawrence Berkeley National Laboratory (subject to receipt of any required approvals from the U.S. Dept. of Energy)."
+      "Copyright (c) 2013-2022, UChicago Argonne, LLC and The HDF Group."
+      "Copyright (c) 2022-2023, Intel Corporation."
     SPDX_DOWNLOAD_LOCATION
-      "git+https://gitlab.kitware.com/third-party/hdf5.git@for/vtk-20220414-1.13.1"
+      "git+https://gitlab.kitware.com/third-party/hdf5.git@for/vtk-20251119-1.14.6"
     VERSION
-      "1.13.1"
+      "1.14.6"
     STANDARD_INCLUDE_DIRS
     INTERFACE
   EXTERNAL
@@ -38,6 +41,14 @@ if (VTK_MODULE_USE_EXTERNAL_vtkhdf5 AND HDF5_IS_PARALLEL)
     INTERFACE
       VTK::mpi)
 endif ()
+
+cmake_dependent_option(
+  VTK_HDF5_ENABLE_THREADSAFE
+  "Enable thread-safe HDF5"
+  OFF
+  "NOT VTK_MODULE_USE_EXTERNAL_vtkhdf5"
+  OFF)
+mark_as_advanced(VTK_HDF5_ENABLE_THREADSAFE)
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/vtk_hdf5.h.in"

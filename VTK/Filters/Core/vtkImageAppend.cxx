@@ -3,14 +3,18 @@
 #include "vtkImageAppend.h"
 
 #include "vtkAlgorithmOutput.h"
+#include "vtkArrayDispatch.h"
 #include "vtkCellData.h"
 #include "vtkDataArray.h"
+#include "vtkDataArrayRange.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+
+#include <iostream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageAppend);
@@ -104,30 +108,12 @@ int vtkImageAppend::RequestInformation(vtkInformation* vtkNotUsed(request),
     if (this->PreserveExtents)
     {
       // Compute union for preserving extents.
-      if (inExt[0] < unionExt[0])
-      {
-        unionExt[0] = inExt[0];
-      }
-      if (inExt[1] > unionExt[1])
-      {
-        unionExt[1] = inExt[1];
-      }
-      if (inExt[2] < unionExt[2])
-      {
-        unionExt[2] = inExt[2];
-      }
-      if (inExt[3] > unionExt[3])
-      {
-        unionExt[3] = inExt[3];
-      }
-      if (inExt[4] < unionExt[4])
-      {
-        unionExt[4] = inExt[4];
-      }
-      if (inExt[5] > unionExt[5])
-      {
-        unionExt[5] = inExt[5];
-      }
+      unionExt[0] = std::min(inExt[0], unionExt[0]);
+      unionExt[1] = std::max(inExt[1], unionExt[1]);
+      unionExt[2] = std::min(inExt[2], unionExt[2]);
+      unionExt[3] = std::max(inExt[3], unionExt[3]);
+      unionExt[4] = std::min(inExt[4], unionExt[4]);
+      unionExt[5] = std::max(inExt[5], unionExt[5]);
       this->Shifts[idx] = 0;
     }
     else
@@ -175,15 +161,9 @@ void vtkImageAppend::InternalComputeInputUpdateExtent(
 
   // now clip the outExtent against the outExtent for this input (intersect)
   tmp = outExt[this->AppendAxis * 2];
-  if (min < tmp)
-  {
-    min = tmp;
-  }
+  min = std::max(min, tmp);
   tmp = outExt[this->AppendAxis * 2 + 1];
-  if (max > tmp)
-  {
-    max = tmp;
-  }
+  max = std::min(max, tmp);
 
   // now if min > max, we do not need the input at all.  I assume
   // the pipeline will interpret this extent this way.
@@ -196,14 +176,8 @@ void vtkImageAppend::InternalComputeInputUpdateExtent(
   // do not ask for more than the whole extent of the other axes.
   for (idx = 0; idx < 3; ++idx)
   {
-    if (inExt[idx * 2] < inWextent[idx * 2])
-    {
-      inExt[idx * 2] = inWextent[idx * 2];
-    }
-    if (inExt[idx * 2 + 1] > inWextent[idx * 2 + 1])
-    {
-      inExt[idx * 2 + 1] = inWextent[idx * 2 + 1];
-    }
+    inExt[idx * 2] = std::max(inExt[idx * 2], inWextent[idx * 2]);
+    inExt[idx * 2 + 1] = std::min(inExt[idx * 2 + 1], inWextent[idx * 2 + 1]);
   }
 }
 
@@ -245,25 +219,13 @@ static void vtkImageAppendGetContinuousIncrements(int wExtent[6], int sExtent[6]
   int e0, e1, e2, e3;
   incX = 0;
   e0 = sExtent[0];
-  if (e0 < wExtent[0])
-  {
-    e0 = wExtent[0];
-  }
+  e0 = std::max(e0, wExtent[0]);
   e1 = sExtent[1];
-  if (e1 > wExtent[1])
-  {
-    e1 = wExtent[1];
-  }
+  e1 = std::min(e1, wExtent[1]);
   e2 = sExtent[2];
-  if (e2 < wExtent[2])
-  {
-    e2 = wExtent[2];
-  }
+  e2 = std::max(e2, wExtent[2]);
   e3 = sExtent[3];
-  if (e3 > wExtent[3])
-  {
-    e3 = wExtent[3];
-  }
+  e3 = std::min(e3, wExtent[3]);
 
   int ptAdjust = (forCells ? 0 : 1);
   int idx;
@@ -280,7 +242,7 @@ static void vtkImageAppendGetContinuousIncrements(int wExtent[6], int sExtent[6]
     nComp *= wholeJump;
   }
 
-  // cerr << "INCS "
+  // std::cerr << "INCS "
   // << increments[0] << " " << increments[1] << " " << increments[2] << endl;
   int dx = (e1 - e0 + ptAdjust);
   if (dx == 0)
@@ -292,95 +254,95 @@ static void vtkImageAppendGetContinuousIncrements(int wExtent[6], int sExtent[6]
   incY = increments[1] - dx * increments[0];
   incZ = increments[2] - dy * increments[1];
 
-  // cerr << "RETURN " << incX << " " << incY << " " << incZ << endl;
+  // std::cerr << "RETURN " << incX << " " << incY << " " << incZ << endl;
 }
 
 //------------------------------------------------------------------------------
 // This templated function executes the filter for any type of data.
-template <class T>
-void vtkImageAppendExecute(vtkImageAppend* self, int id, int inExt[6], vtkImageData* inData,
-  T* inPtr, int outExt[6], vtkImageData* outData, T* outPtr, vtkIdType numComp, bool forCells,
-  int nArrays)
+struct vtkImageAppendFunctor
 {
-  int idxR, idxY, idxZ;
-  int maxX, maxY, maxZ;
-  vtkIdType inIncX, inIncY, inIncZ;
-  vtkIdType outIncX, outIncY, outIncZ;
-  int rowLength;
-  unsigned long count = 0;
-  unsigned long target;
-  double dnArrays = (double)nArrays;
-
-  vtkImageAppendGetContinuousIncrements(
-    inData->GetExtent(), inExt, numComp, forCells, inIncX, inIncY, inIncZ);
-
-  // cerr << "IN INCS " << inIncX << " " << inIncY << " " << inIncZ << endl;
-  vtkImageAppendGetContinuousIncrements(
-    outData->GetExtent(), outExt, numComp, forCells, outIncX, outIncY, outIncZ);
-  // cerr << "OUT INCS " << outIncX << " " << outIncY << " " << outIncZ << endl;
-
-  int ptAdjust = (forCells ? 0 : 1);
-  // find the region to loop over
-  maxX = inExt[1] - inExt[0] + ptAdjust;
-  if (maxX == 0)
+  template <class TArrayIn, class TArrayOut>
+  void operator()(TArrayIn* inScalars, TArrayOut* outScalars, vtkIdType inIndex, vtkIdType outIndex,
+    vtkImageAppend* self, int threadId, int inExt[6], vtkImageData* inData, int outExt[6],
+    vtkImageData* outData, vtkIdType numComp, bool forCells, int nArrays)
   {
-    maxX = 1;
-  }
-  rowLength = maxX * numComp;
-  maxY = inExt[3] - inExt[2] + ptAdjust;
-  if (maxY == 0)
-  {
-    maxY = 1;
-  }
-  maxZ = inExt[5] - inExt[4] + ptAdjust;
-  if (maxZ == 0)
-  {
-    maxZ = 1;
-  }
-  // cerr << "SETUP " << endl;
-  // cerr << "IE0:" << inExt[0] << " IE1:" << inExt[1] << endl;
-  // cerr << "IE2:" << inExt[2] << " IE2:" << inExt[3] << endl;
-  // cerr << "IE4:" << inExt[4] << " IE5:" << inExt[5] << endl;
-  // cerr << "PTS:" << ptAdjust << " NCOMP:" << numComp << " RL:" << rowLength << endl;
+    int idxR, idxY, idxZ;
+    int maxX, maxY, maxZ;
+    vtkIdType inIncX, inIncY, inIncZ;
+    vtkIdType outIncX, outIncY, outIncZ;
+    int rowLength;
+    unsigned long count = 0;
+    unsigned long target;
+    double dnArrays = (double)nArrays;
+    auto inPtr = vtk::DataArrayValueRange(inScalars).begin() + inIndex;
+    auto outPtr = vtk::DataArrayValueRange(outScalars).begin() + outIndex;
 
-  target = static_cast<unsigned long>((maxZ + ptAdjust) * (maxY + ptAdjust) / 50.0 / dnArrays);
-  target++;
-  bool abort = false;
+    vtkImageAppendGetContinuousIncrements(
+      inData->GetExtent(), inExt, numComp, forCells, inIncX, inIncY, inIncZ);
 
-  // Loop through input pixels
-  for (idxZ = 0; idxZ < maxZ && !abort; idxZ++)
-  {
-    for (idxY = 0; !abort && idxY < maxY; idxY++)
+    // std::cerr << "IN INCS " << inIncX << " " << inIncY << " " << inIncZ << endl;
+    vtkImageAppendGetContinuousIncrements(
+      outData->GetExtent(), outExt, numComp, forCells, outIncX, outIncY, outIncZ);
+    // std::cerr << "OUT INCS " << outIncX << " " << outIncY << " " << outIncZ << endl;
+
+    int ptAdjust = (forCells ? 0 : 1);
+    // find the region to loop over
+    maxX = inExt[1] - inExt[0] + ptAdjust;
+    if (maxX == 0)
     {
-      if (!id)
-      {
-        if (!(count % target))
-        {
-          if (self->CheckAbort())
-          {
-            abort = true;
-            break;
-          }
-          self->UpdateProgress(count / (50.0 * target));
-        }
-        count++;
-      }
-      // cerr << "PTRS " << inPtr << " " << outPtr << endl;
-      for (idxR = 0; idxR < rowLength; idxR++)
-      {
-        // Pixel operation
-        // cerr << idxZ << "," << idxY << "," << idxR << " " << *inPtr << endl;
-        *outPtr = *inPtr;
-        outPtr++;
-        inPtr++;
-      }
-      outPtr += outIncY;
-      inPtr += inIncY;
+      maxX = 1;
     }
-    outPtr += outIncZ;
-    inPtr += inIncZ;
+    rowLength = maxX * numComp;
+    maxY = inExt[3] - inExt[2] + ptAdjust;
+    if (maxY == 0)
+    {
+      maxY = 1;
+    }
+    maxZ = inExt[5] - inExt[4] + ptAdjust;
+    if (maxZ == 0)
+    {
+      maxZ = 1;
+    }
+
+    target = static_cast<unsigned long>((maxZ + ptAdjust) * (maxY + ptAdjust) / 50.0 / dnArrays);
+    target++;
+    bool abort = false;
+
+    // Loop through input pixels
+    for (idxZ = 0; idxZ < maxZ && !abort; idxZ++)
+    {
+      for (idxY = 0; !abort && idxY < maxY; idxY++)
+      {
+        if (!threadId)
+        {
+          if (!(count % target))
+          {
+            if (self->CheckAbort())
+            {
+              abort = true;
+              break;
+            }
+            self->UpdateProgress(count / (50.0 * target));
+          }
+          count++;
+        }
+        // std::cerr << "PTRS " << inPtr << " " << outPtr << endl;
+        for (idxR = 0; idxR < rowLength; idxR++)
+        {
+          // Pixel operation
+          // std::cerr << idxZ << "," << idxY << "," << idxR << " " << *inPtr << endl;
+          *outPtr = *inPtr;
+          outPtr++;
+          inPtr++;
+        }
+        outPtr += outIncY;
+        inPtr += inIncY;
+      }
+      outPtr += outIncZ;
+      inPtr += inIncZ;
+    }
   }
-}
+};
 
 //------------------------------------------------------------------------------
 void vtkImageAppend::InitOutput(int outExt[6], vtkImageData* outData)
@@ -442,20 +404,18 @@ void vtkImageAppend::InitOutput(int outExt[6], vtkImageData* outData)
 // the regions data types.
 void vtkImageAppend::ThreadedRequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* vtkNotUsed(outputVector),
-  vtkImageData*** inData, vtkImageData** outData, int outExt[6], int id)
+  vtkImageData*** inData, vtkImageData** outData, int outExt[6], int threadId)
 {
   int idx1;
   int inExt[6], cOutExt[6];
   int c_in[3], c_out[3];
-  void* inPtr;
-  void* outPtr;
   int nArrays;
 
   this->InitOutput(outExt, outData[0]);
 
   for (idx1 = 0; idx1 < this->GetNumberOfInputConnections(0); ++idx1)
   {
-    // cerr << "INPUT " << idx1 << endl;
+    // std::cerr << "INPUT " << idx1 << endl;
 
     if (inData[0][idx1] != nullptr)
     {
@@ -492,7 +452,7 @@ void vtkImageAppend::ThreadedRequestData(vtkInformation* vtkNotUsed(request),
         // do point associated arrays
         for (ai = 0; ai < inData[0][idx1]->GetPointData()->GetNumberOfArrays(); ai++)
         {
-          // cerr << "POINT ARRAY " << ai << endl;
+          // std::cerr << "POINT ARRAY " << ai << endl;
 
           inArray = inData[0][idx1]->GetPointData()->GetArray(ai);
           outArray = outData[0]->GetPointData()->GetArray(ai);
@@ -512,25 +472,22 @@ void vtkImageAppend::ThreadedRequestData(vtkInformation* vtkNotUsed(request),
             return;
           }
 
-          inPtr = inData[0][idx1]->GetArrayPointerForExtent(inArray, inExt);
-          outPtr = outData[0]->GetArrayPointerForExtent(outArray, cOutExt);
-
-          // cerr << "INITIAL PTRS " << inPtr << " " << outPtr << endl;
-          switch (inArray->GetDataType())
+          vtkIdType inIndex = inData[0][idx1]->GetValueIndexForExtent(inArray, inExt);
+          vtkIdType outIndex = outData[0]->GetValueIndexForExtent(outArray, cOutExt);
+          vtkImageAppendFunctor functor;
+          if (!vtkArrayDispatch::Dispatch2SameValueType::Execute(inArray, outArray, functor,
+                inIndex, outIndex, this, threadId, inExt, inData[0][idx1], cOutExt, outData[0],
+                numComp, false, nArrays))
           {
-            vtkTemplateMacro(
-              vtkImageAppendExecute(this, id, inExt, inData[0][idx1], static_cast<VTK_TT*>(inPtr),
-                cOutExt, outData[0], static_cast<VTK_TT*>(outPtr), numComp, false, nArrays));
-            default:
-              vtkErrorMacro(<< "Execute: Unknown ScalarType");
-              return;
+            functor(inArray, outArray, inIndex, outIndex, this, threadId, inExt, inData[0][idx1],
+              cOutExt, outData[0], numComp, false, nArrays);
           }
         }
 
         // do cell associated arrays
         for (ai = 0; ai < inData[0][idx1]->GetCellData()->GetNumberOfArrays(); ai++)
         {
-          // cerr << "CELL ARRAY " << ai << endl;
+          // std::cerr << "CELL ARRAY " << ai << endl;
 
           inArray = inData[0][idx1]->GetCellData()->GetArray(ai);
           outArray = outData[0]->GetCellData()->GetArray(ai);
@@ -550,25 +507,15 @@ void vtkImageAppend::ThreadedRequestData(vtkInformation* vtkNotUsed(request),
             return;
           }
 
-          vtkIdType cellId;
-          cellId = vtkStructuredData::ComputeCellIdForExtent(inExt, c_in);
-          inPtr = inArray->GetVoidPointer(cellId * numComp);
-          cellId = vtkStructuredData::ComputeCellIdForExtent(outExt, c_out);
-          outPtr = outArray->GetVoidPointer(cellId * numComp);
-          // cerr << "INITIAL PTRS " << inPtr << " " << outPtr << " "
-          //     << c_out[0] << "," << c_out[1] << "," << c_out[2] << ":"
-          //     << outExt[0] << " " << outExt[1] << ", "
-          //     << outExt[2] << " " << outExt[3] << ", "
-          //     << outExt[4] << " " << outExt[5] << endl;
-
-          switch (inArray->GetDataType())
+          vtkIdType inIndex = vtkStructuredData::ComputeCellIdForExtent(inExt, c_in) * numComp;
+          vtkIdType outIndex = vtkStructuredData::ComputeCellIdForExtent(outExt, c_out) * numComp;
+          vtkImageAppendFunctor functor;
+          if (!vtkArrayDispatch::Dispatch2SameValueType::Execute(inArray, outArray, functor,
+                inIndex, outIndex, this, threadId, inExt, inData[0][idx1], cOutExt, outData[0],
+                numComp, true, nArrays))
           {
-            vtkTemplateMacro(
-              vtkImageAppendExecute(this, id, inExt, inData[0][idx1], static_cast<VTK_TT*>(inPtr),
-                cOutExt, outData[0], static_cast<VTK_TT*>(outPtr), numComp, true, nArrays));
-            default:
-              vtkErrorMacro(<< "Execute: Unknown ScalarType");
-              return;
+            functor(inArray, outArray, inIndex, outIndex, this, threadId, inExt, inData[0][idx1],
+              cOutExt, outData[0], numComp, true, nArrays);
           }
         }
       }

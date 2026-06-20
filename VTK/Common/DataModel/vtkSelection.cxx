@@ -4,8 +4,6 @@
 
 #include "vtkFieldData.h"
 #include "vtkInformation.h"
-#include "vtkInformationIntegerKey.h"
-#include "vtkInformationIterator.h"
 #include "vtkInformationObjectBaseKey.h"
 #include "vtkInformationStringKey.h"
 #include "vtkInformationVector.h"
@@ -14,6 +12,7 @@
 #include "vtkSMPTools.h"
 #include "vtkSelectionNode.h"
 #include "vtkSignedCharArray.h"
+#include "vtkStringFormatter.h"
 #include "vtkTable.h"
 
 #include <vtksys/RegularExpression.hxx>
@@ -21,11 +20,15 @@
 #include <atomic>
 #include <cassert>
 #include <cctype>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
+
+using std::cerr;
+using std::cout;
 
 //============================================================================
 namespace parser
@@ -410,10 +413,10 @@ std::string vtkSelection::AddNode(vtkSelectionNode* node)
   }
 
   static std::atomic<uint64_t> counter(0U);
-  std::string name = std::string("node") + std::to_string(++counter);
+  std::string name = std::string("node") + vtk::to_string(++counter);
   while (internals.Items.find(name) != internals.Items.end())
   {
-    name = std::string("node") + std::to_string(++counter);
+    name = std::string("node") + vtk::to_string(++counter);
   }
 
   this->SetNode(name, node);
@@ -758,14 +761,14 @@ vtkSmartPointer<vtkSignedCharArray> vtkSelection::Evaluate(vtkSignedCharArray* c
 //------------------------------------------------------------------------------
 void vtkSelection::Dump()
 {
-  this->Dump(cout);
+  this->Dump(std::cout);
 }
 
 //------------------------------------------------------------------------------
 void vtkSelection::Dump(ostream& os)
 {
   vtkSmartPointer<vtkTable> tmpTable = vtkSmartPointer<vtkTable>::New();
-  cerr << "==Selection==" << endl;
+  std::cerr << "==Selection==" << endl;
   size_t counter = 0;
   for (const auto& nodePair : this->Internals->Items)
   {

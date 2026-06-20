@@ -21,11 +21,14 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/mg_diff_0062/,REGEX:.*}"
   "DATA{${paraview_test_data_directory_input}/Data/glTF/NestedRings/NestedRings.glb}"
   "DATA{${paraview_test_data_directory_input}/Data/plotly_json_line_chart.json}"
+  "DATA{${paraview_test_data_directory_input}/Data/raw2DImage.raw}"
+  "DATA{${paraview_test_data_directory_input}/Data/raw3DImage.raw}"
   "DATA{${paraview_test_data_directory_input}/Data/WorldWithTexture.obj}"
   "DATA{${paraview_test_data_directory_input}/Data/WorldWithTexture.png}"
 
 
   # baselines
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/DisableUseOffAxisProjection.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPythonViewMatplotlibScript.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestHTGContourVoxelsPolyhedron.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestHTG3DContourPolyhedron.png}"
@@ -126,11 +129,13 @@ paraview_add_test_python(
 paraview_add_test_python(
   NO_VALID NO_RT
   ExportCSV.py
+  LegacyVTKFileVersion.py
   LoadStateWithOptions.py
   LoadStateWithDataSets.py
   Plot3DReader.py
   SaveDataWithArraySelection.py
   SaveDataWithArrayAndBlockSelection.py
+  RawImageDataReader.py
   ReadTimeArray.py
   ReplaceReaderFileName.py
   ReplaceReaderFileNameNoExtensions.py
@@ -140,7 +145,7 @@ paraview_add_test_python(
 set(PVBATCH_TESTS
   BatchAxesGrid.py
   TestXYChartOpacity.py
-  FontSize.py # BUG #19816
+  FontSize.py,LOOSE_VALID # BUG #19816
   PLYWriter.py
   VolumeCellSelection.py
   SaveDataWithArraySelection.py,NO_VALID
@@ -191,6 +196,11 @@ endif()
 paraview_add_test_driven(
   JUST_VALID
   TestCompositedGeometryCulling.py
+)
+
+paraview_add_test_driven(
+  NO_VALID NO_OUTPUT NO_RT
+  TestLoadRemoteState.py
 )
 
 # Python Multi-servers test
@@ -244,7 +254,7 @@ if (PARAVIEW_USE_MPI AND MPIEXEC_EXECUTABLE)
       -t 10
       --size 21
       --delay 2
-    --client $<TARGET_FILE:ParaView::pvpython> --force-offscreen-rendering -dr)
+    --client $<TARGET_FILE:ParaView::pvpython> --force-offscreen-rendering --dr)
   vtk_add_test_python(NO_DATA NO_RT TestCatalystClient.py)
   unset(_vtk_testing_python_exe)
   unset(_vtk_test_python_args)
@@ -268,12 +278,41 @@ if (PARAVIEW_USE_MPI AND MPIEXEC_EXECUTABLE AND TARGET pvserver AND TARGET pvpyt
         --enable-bt
         --force-offscreen-rendering
         --pvx
-        "${CMAKE_CURRENT_SOURCE_DIR}/../XML/LeftRight.pvx"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../XML/LeftRightHide2DOverlay.pvx"
       --client $<TARGET_FILE:ParaView::pvpython>
         --enable-bt
         --dr
         "${CMAKE_CURRENT_SOURCE_DIR}/TestPVXInfoAvailableInClient.py"
     TEST_NAME "TestPVXInfoAvailableInClient")
+endif()
+
+#------------------------------------------------------------------------------
+# Test if UseOffAxisProjection settings is working in pvx file
+if (PARAVIEW_USE_MPI AND MPIEXEC_EXECUTABLE AND TARGET pvserver AND TARGET pvpython)
+  set(num_procs 1)
+
+  _paraview_add_tests("paraview_add_cave_python_tests"
+    PREFIX "pv_cave_python"
+    SUFFIX "-${num_procs}"
+    ENVIRONMENT "VTK_TESTING=1;"
+      PV_SHARED_WINDOW_SIZE=400x300
+      SMTESTDRIVER_MPI_NUMPROCS=${num_procs}
+    NUMPROCS "${num_procs}"
+    _COMMAND_PATTERN
+      __paraview_smtesting_args__
+      --server "$<TARGET_FILE:ParaView::pvserver>"
+        --enable-bt
+        --force-offscreen-rendering
+        --pvx
+        "${CMAKE_CURRENT_SOURCE_DIR}/../XML/DisableUseOffAxisProjection.pvx"
+      --client $<TARGET_FILE:ParaView::pvpython>
+        --enable-bt
+        --dr
+        "${CMAKE_CURRENT_SOURCE_DIR}/TestPVXDisableUseOffAxisProjection.py"
+      -T "${_vtk_build_TEST_OUTPUT_DIRECTORY}"
+      -V "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/DisableUseOffAxisProjection.png,:}"
+      -D "${_vtk_build_TEST_OUTPUT_DATA_DIRECTORY}"
+    TEST_NAME "TestPVXDisableUseOffAxisProjection")
 endif()
 
 #------------------------------------------------------------------------------
@@ -308,3 +347,18 @@ paraview_add_test_python(
   TestHTG3DContourPolyhedron.py
   TestHTGContourMonoHT.py
 )
+
+#------------------------------------------------------------------------------
+# Add log file option and envvar tests
+set(paraview_python_args "--log=${CMAKE_BINARY_DIR}/Testing/Temporary/pv_option.log")
+paraview_add_test_python(
+  NO_DATA NO_VALID
+  LogFileOption.py
+)
+unset(paraview_python_args)
+
+paraview_add_test_python(
+  NO_DATA NO_VALID
+  LogFileEnvVar.py
+)
+set_tests_properties("paraviewPython-LogFileEnvVar" PROPERTIES ENVIRONMENT "PARAVIEW_LOG_FILE=${CMAKE_BINARY_DIR}/Testing/Temporary/pv_envvar.log")

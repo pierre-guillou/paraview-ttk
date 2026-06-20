@@ -30,8 +30,11 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <set>
 #include <vector>
+
+using std::cout;
 
 VTK_ABI_NAMESPACE_BEGIN
 double vtkGraph::DefaultPoint[3] = { 0, 0, 0 };
@@ -66,8 +69,6 @@ vtkCxxSetObjectMacro(vtkGraph, EdgeList, vtkIdTypeArray);
 //------------------------------------------------------------------------------
 vtkGraph::vtkGraph()
 {
-  this->VertexData = vtkDataSetAttributes::New();
-  this->EdgeData = vtkDataSetAttributes::New();
   this->Points = nullptr;
   vtkMath::UninitializeBounds(this->Bounds);
 
@@ -85,8 +86,6 @@ vtkGraph::vtkGraph()
 //------------------------------------------------------------------------------
 vtkGraph::~vtkGraph()
 {
-  this->VertexData->Delete();
-  this->EdgeData->Delete();
   if (this->Points)
   {
     this->Points->Delete();
@@ -203,20 +202,11 @@ vtkMTimeType vtkGraph::GetMTime()
 {
   vtkMTimeType doTime = vtkDataObject::GetMTime();
 
-  if (this->VertexData->GetMTime() > doTime)
-  {
-    doTime = this->VertexData->GetMTime();
-  }
-  if (this->EdgeData->GetMTime() > doTime)
-  {
-    doTime = this->EdgeData->GetMTime();
-  }
+  doTime = std::max(this->VertexData->GetMTime(), doTime);
+  doTime = std::max(this->EdgeData->GetMTime(), doTime);
   if (this->Points)
   {
-    if (this->Points->GetMTime() > doTime)
-    {
-      doTime = this->Points->GetMTime();
-    }
+    doTime = std::max(this->Points->GetMTime(), doTime);
   }
 
   return doTime;
@@ -1787,32 +1777,32 @@ vtkIdType vtkGraph::GetNumberOfElements(int type)
 //------------------------------------------------------------------------------
 void vtkGraph::Dump()
 {
-  cout << "vertex adjacency:" << endl;
+  std::cout << "vertex adjacency:" << endl;
   for (size_t v = 0; v < this->Internals->Adjacency.size(); ++v)
   {
-    cout << v << " (out): ";
+    std::cout << v << " (out): ";
     for (size_t eind = 0; eind < this->Internals->Adjacency[v].OutEdges.size(); ++eind)
     {
-      cout << "[" << this->Internals->Adjacency[v].OutEdges[eind].Id << ","
-           << this->Internals->Adjacency[v].OutEdges[eind].Target << "]";
+      std::cout << "[" << this->Internals->Adjacency[v].OutEdges[eind].Id << ","
+                << this->Internals->Adjacency[v].OutEdges[eind].Target << "]";
     }
-    cout << " (in): ";
+    std::cout << " (in): ";
     for (size_t eind = 0; eind < this->Internals->Adjacency[v].InEdges.size(); ++eind)
     {
-      cout << "[" << this->Internals->Adjacency[v].InEdges[eind].Id << ","
-           << this->Internals->Adjacency[v].InEdges[eind].Source << "]";
+      std::cout << "[" << this->Internals->Adjacency[v].InEdges[eind].Id << ","
+                << this->Internals->Adjacency[v].InEdges[eind].Source << "]";
     }
-    cout << endl;
+    std::cout << endl;
   }
   if (this->EdgeList)
   {
-    cout << "edge list:" << endl;
+    std::cout << "edge list:" << endl;
     for (vtkIdType e = 0; e < this->EdgeList->GetNumberOfTuples(); ++e)
     {
-      cout << e << ": (" << this->EdgeList->GetValue(2 * e + 0) << ","
-           << this->EdgeList->GetValue(2 * e + 1) << ")" << endl;
+      std::cout << e << ": (" << this->EdgeList->GetValue(2 * e + 0) << ","
+                << this->EdgeList->GetValue(2 * e + 1) << ")" << endl;
     }
-    cout << endl;
+    std::cout << endl;
   }
 }
 

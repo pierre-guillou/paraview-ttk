@@ -7,6 +7,8 @@
 // ************************************************************************* //
 
 #include <stdlib.h>
+#include <cmath>
+#include <algorithm>
 
 #ifdef PARALLEL
 #include <mpi.h>
@@ -26,14 +28,6 @@
 #include <vtkVisItUtility.h>
 
 #include <cmath>
-
-
-//
-// Macros
-//
-
-#define MIN(X, Y)  ((X) < (Y) ? (X) : (Y))
-#define MAX(X, Y)  ((X) > (Y) ? (X) : (Y))
 
 
 //
@@ -696,10 +690,10 @@ avtIntervalTree::SetIntervals()
         for (int k = 0 ; k < nDims ; k++)
         {
             nodeExtents[parent*vectorSize + 2*k] =
-                      MIN(nodeExtents[(i-1)*vectorSize + 2*k],
+                      std::min(nodeExtents[(i-1)*vectorSize + 2*k],
                           nodeExtents[i*vectorSize + 2*k]);
             nodeExtents[parent*vectorSize + 2*k + 1] =
-                      MAX(nodeExtents[(i-1)*vectorSize + 2*k + 1],
+                      std::max(nodeExtents[(i-1)*vectorSize + 2*k + 1],
                           nodeExtents[i*vectorSize + 2*k + 1]);
         }
         if (accelerateSizeQueries)
@@ -1125,7 +1119,7 @@ Intersects(const double *params, double solution, int block, int nDims,
 
     double  valAtMin  = EquationsValueAtPoint(params, block, 0, nDims,
                                              nodeExtents);
-    if (fabs(valAtMin-solution) < 1e-12)
+    if (std::fabs(valAtMin-solution) < 1e-12)
     {
         //
         // It happens to be that at the minimum extents the value of the
@@ -1284,7 +1278,7 @@ AxiallySymmetricLineIntersection(const double *P1, const double *D1,
     }
     else
     {
-        double root = sqrt(discriminant);
+        double root = std::sqrt(discriminant);
         double soln1 = (-B + root) / (2*A);
         double soln2 = (-B - root) / (2*A);
         if (soln1 == soln2)
@@ -1351,7 +1345,7 @@ AxiallySymmetricLineIntersection(const double *P1, const double *D1,
     }
     else
     {
-        double root = sqrt(discriminant);
+        double root = std::sqrt(discriminant);
         double soln1 = (-B + root) / (2*A);
         double soln2 = (-B - root) / (2*A);
         if (soln1 == soln2)

@@ -5,14 +5,17 @@
 #include "Private/vtkWebGPUBufferInternals.h"
 #include "Private/vtkWebGPUConfigurationInternals.h"
 #include "Private/vtkWebGPUTextureInternals.h"
+
 #include "vtkObjectFactory.h"
+#include "vtkStringFormatter.h"
 #include "vtkWebGPUHelpers.h"
 #include "vtkWebGPURenderWindow.h"
+
 #include "vtksys/SystemInformation.hxx"
 #include "vtksys/SystemTools.hxx"
 
+#include <cstdint>
 #include <sstream>
-#include <webgpu/webgpu_cpp.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -160,7 +163,7 @@ std::string AsHex(uint32_t val)
 
 std::string FormatNumber(uint64_t num)
 {
-  auto s = std::to_string(num);
+  auto s = vtk::to_string(num);
   std::stringstream ret;
   auto remainder = s.length() % 3;
   ret << s.substr(0, remainder);
@@ -943,7 +946,9 @@ wgpu::TextureView vtkWebGPUConfiguration::CreateView(
 
 //------------------------------------------------------------------------------
 void vtkWebGPUConfiguration::WriteTexture(wgpu::Texture texture, uint32_t bytesPerRow,
-  uint32_t sizeBytes, const void* data, const char* description /*= nullptr*/)
+  uint32_t sizeBytes, const void* data, uint32_t srcOffset /*=0*/,
+  wgpu::Origin3D dstOffset /*={0, 0, 0}*/, uint32_t dstMipLevel /*= 0*/,
+  const char* description /*= nullptr*/)
 {
   auto& internals = (*this->Internals);
   if (!internals.DeviceReady)
@@ -951,9 +956,11 @@ void vtkWebGPUConfiguration::WriteTexture(wgpu::Texture texture, uint32_t bytesP
     vtkWarningMacro(<< "Cannot write data into texture because device is not ready.");
     return;
   }
-  const auto copyTexture = vtkWebGPUTextureInternals::GetTexelCopyTextureInfo(texture);
+  const auto copyTexture =
+    vtkWebGPUTextureInternals::GetTexelCopyTextureInfo(texture, dstOffset, dstMipLevel);
 
-  const auto textureDataLayout = vtkWebGPUTextureInternals::GetDataLayout(texture, bytesPerRow);
+  const auto textureDataLayout =
+    vtkWebGPUTextureInternals::GetDataLayout(texture, bytesPerRow, srcOffset);
 
   wgpu::Extent3D textureExtents = { texture.GetWidth(), texture.GetHeight(),
     texture.GetDepthOrArrayLayers() };

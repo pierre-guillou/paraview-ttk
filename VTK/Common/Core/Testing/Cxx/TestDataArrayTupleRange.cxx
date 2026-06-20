@@ -8,15 +8,15 @@
 #include "vtkDebugRangeIterators.h"
 #include "vtkFloatArray.h"
 #include "vtkSOADataArrayTemplate.h"
-#ifdef VTK_USE_SCALED_SOA_ARRAYS
 #include "vtkScaledSOADataArrayTemplate.h"
-#endif
 #include "vtkVector.h"
 
 #include <algorithm>
 #include <numeric>
 #include <type_traits>
 #include <utility>
+
+#include <iostream>
 
 namespace
 {
@@ -2263,9 +2263,9 @@ struct UnitTestComponentReferenceAPI
     const APIType val1 = ref1;
     const APIType val2 = ref2;
 
-    const APIType one = static_cast<APIType>(1);
-    const APIType two = static_cast<APIType>(2);
-    const APIType bignum = static_cast<APIType>(120); // must fit in int8
+    constexpr APIType one = static_cast<APIType>(1);
+    constexpr APIType two = static_cast<APIType>(2);
+    constexpr APIType bignum = static_cast<APIType>(120); // must fit in int8
 
     // +=
     {
@@ -2400,8 +2400,8 @@ struct UnitTestComponentReferenceAPI
     const APIType val1 = ref1;
     const APIType val2 = ref2;
 
-    const APIType one = static_cast<APIType>(1);
-    const APIType bignum = static_cast<APIType>(120); // must fit in int8
+    constexpr APIType one = static_cast<APIType>(1);
+    constexpr APIType bignum = static_cast<APIType>(120); // must fit in int8
 
     // ==
     CHECK_TRUE(ref1 == val1);
@@ -2480,9 +2480,9 @@ struct UnitTestComponentReferenceAPI
     const APIType val1 = ref1;
     const APIType val2 = ref2;
 
-    const APIType one = static_cast<APIType>(1);
-    const APIType two = static_cast<APIType>(2);
-    const APIType bignum = static_cast<APIType>(120); // must fit in int8
+    constexpr APIType one = static_cast<APIType>(1);
+    constexpr APIType two = static_cast<APIType>(2);
+    constexpr APIType bignum = static_cast<APIType>(120); // must fit in int8
 
     // +
     {
@@ -2596,7 +2596,6 @@ struct UnitTestEdgeCases
     std::cerr << "AOS<float> <--> SOA<int>\n";
     DispatchTupleCompat<vtkAOSDataArrayTemplate<float>, vtkSOADataArrayTemplate<int>>();
 
-#ifdef VTK_USE_SCALED_SOA_ARRAYS
     std::cerr << "ScaleSOA<float> <--> AOS<float>\n";
     DispatchTupleCompat<vtkScaledSOADataArrayTemplate<float>, vtkAOSDataArrayTemplate<float>>();
 
@@ -2614,7 +2613,6 @@ struct UnitTestEdgeCases
 
     std::cerr << "AOS<float> <--> ScaleSOA<int>\n";
     DispatchTupleCompat<vtkAOSDataArrayTemplate<float>, vtkScaledSOADataArrayTemplate<int>>();
-#endif
   }
 
   static void TestSpecializations()
@@ -3092,10 +3090,8 @@ int TestDataArrayTupleRange(int, char*[])
   RunTestsForArray<vtkAOSDataArrayTemplate<float>>();
   std::cerr << "SOA:\n";
   RunTestsForArray<vtkSOADataArrayTemplate<float>>();
-#ifdef VTK_USE_SCALED_SOA_ARRAYS
   std::cerr << "ScaleSOA:\n";
   RunTestsForArray<vtkScaledSOADataArrayTemplate<float>>();
-#endif
   std::cerr << "vtkFloatArray:\n";
   RunTestsForArray<vtkFloatArray>();
 

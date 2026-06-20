@@ -84,11 +84,11 @@ public:
 
   ///@{
   /**
-   * Specify the format to use for labelling the distance. Note that an empty
-   * string results in no label, or a format string without a "%" character
-   * will not print the thickness value.
+   * Specify the std::format or printf style format to use for labelling the distance. Note that an
+   * empty string results in no label, or a format string without a "{}" character will not print
+   * the thickness value.
    */
-  vtkSetStringMacro(ThicknessLabelFormat);
+  void SetThicknessLabelFormat(const char* format);
   vtkGetStringMacro(ThicknessLabelFormat);
   ///@}
 
@@ -166,7 +166,9 @@ public:
    * scene by calling the filter's SetOutputFormatToRGB and
    * PassAlphaToOutputOff.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkGetObjectMacro(ColorMap, vtkImageMapToColors);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   virtual void SetColorMap(vtkImageMapToColors*);
   ///@}
 
@@ -183,6 +185,7 @@ public:
   double GetLevel() { return this->CurrentLevel; }
   ///@}
 
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   virtual vtkResliceCursor* GetResliceCursor() = 0;
 
   ///@{
@@ -261,6 +264,7 @@ public:
    * Get the plane source on which the texture (the thin/thick resliced
    * image is displayed)
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkGetObjectMacro(PlaneSource, vtkPlaneSource);
   ///@}
 

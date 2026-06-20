@@ -95,13 +95,7 @@ int vtkSMStringListDomain::IsInDomain(vtkSMProperty* property)
 //---------------------------------------------------------------------------
 int vtkSMStringListDomain::IsInDomain(const char* val, unsigned int& idx)
 {
-  unsigned int numStrings = this->GetNumberOfStrings();
-  if (numStrings == 0)
-  {
-    return 1;
-  }
-
-  for (unsigned int i = 0; i < numStrings; i++)
+  for (unsigned int i = 0, numStrings = this->GetNumberOfStrings(); i < numStrings; ++i)
   {
     if (strcmp(val, this->GetString(i)) == 0)
     {
@@ -123,7 +117,7 @@ void vtkSMStringListDomain::Update(vtkSMProperty* prop)
 
     if (this->NoneString)
     {
-      values.push_back(this->NoneString);
+      values.emplace_back(this->NoneString);
     }
     if (svp->GetNumberOfElementsPerCommand() == 2)
     {
@@ -132,14 +126,14 @@ void vtkSMStringListDomain::Update(vtkSMProperty* prop)
       // second is it's status.
       for (unsigned int i = 0; i < numStrings; i += 2)
       {
-        values.push_back(svp->GetElement(i));
+        values.emplace_back(svp->GetElement(i));
       }
     }
     else
     {
       for (unsigned int i = 0; i < numStrings; i++)
       {
-        values.push_back(svp->GetElement(i));
+        values.emplace_back(svp->GetElement(i));
       }
     }
     this->SetStrings(values);
@@ -162,7 +156,7 @@ int vtkSMStringListDomain::ReadXMLAttributes(vtkSMProperty* prop, vtkPVXMLElemen
   if (none_string)
   {
     this->SetNoneString(none_string);
-    values.push_back(none_string);
+    values.emplace_back(none_string);
   }
 
   // Loop over the top-level elements.
@@ -182,7 +176,7 @@ int vtkSMStringListDomain::ReadXMLAttributes(vtkSMProperty* prop, vtkPVXMLElemen
       return 0;
     }
 
-    values.push_back(value);
+    values.emplace_back(value);
   }
   this->SetStrings(values);
   return 1;
@@ -231,13 +225,7 @@ int vtkSMStringListDomain::SetDefaultValues(vtkSMProperty* prop, bool use_unchec
     unsigned int temp;
     vtkSMStringVectorProperty* infoProperty =
       vtkSMStringVectorProperty::SafeDownCast(svp->GetInformationProperty());
-    int exists = 0;
-    if (exists && this->IsInDomain(svp->GetDefaultValue(0), temp))
-    {
-      helper.Set(0, svp->GetDefaultValue(0));
-      return 1;
-    }
-    else if (this->NoneString)
+    if (this->NoneString)
     {
       return 1;
     }

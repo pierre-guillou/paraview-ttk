@@ -3,13 +3,14 @@
 
 #include "vtkComputeQuartiles.h"
 #include "vtkDoubleArray.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkNew.h"
 #include "vtkStatisticsAlgorithm.h"
 #include "vtkTable.h"
 
 #include "vtkExecutive.h"
 #include "vtkTestErrorObserver.h"
+
+#include <iostream>
 
 //------------------------------------------------------------------------------
 int TestComputeQuartiles(int, char*[])
@@ -25,10 +26,10 @@ int TestComputeQuartiles(int, char*[])
   table->AddColumn(arrFirstVariable);
   table->AddColumn(arrSecondVariable);
 
-  const int numNotes = 20;
+  constexpr int numNotes = 20;
   table->SetNumberOfRows(numNotes);
 
-  const double MathValue[] = {
+  constexpr double MathValue[] = {
     18, 20, 20, 16, //
     12, 14, 16, 14, //
     14, 13, 16, 18, //
@@ -36,7 +37,7 @@ int TestComputeQuartiles(int, char*[])
     4, 16, 16, 14   //
   };
 
-  const double FrenchValue[] = {
+  constexpr double FrenchValue[] = {
     14, 12, 14, 16, //
     12, 14, 16, 4,  //
     4, 10, 6, 20,   //
@@ -65,10 +66,10 @@ int TestComputeQuartiles(int, char*[])
 
   vtkTable* outTable = quartiles->GetOutput();
 
-  const double MathQuartiles[] = {
+  constexpr double MathQuartiles[] = {
     4, 13.5, 15, 16, 20 //
   };
-  const double FrenchQuartiles[] = {
+  constexpr double FrenchQuartiles[] = {
     2, 9, 14, 14, 20 //
   };
 
@@ -85,7 +86,7 @@ int TestComputeQuartiles(int, char*[])
 
   if (ret != EXIT_SUCCESS)
   {
-    cout << "Failure!" << endl;
+    std::cout << "Failure!" << std::endl;
     outTable->Dump();
   }
 

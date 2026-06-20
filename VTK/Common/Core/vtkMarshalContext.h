@@ -30,6 +30,9 @@
 #include <memory> // for unique_ptr
 #include <set>    // for set
 
+typedef int (*vtkMarshalContextRegistrarFunc)(
+  void* ser, void* deser, void* invoker, const char** error);
+
 VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONCORE_EXPORT vtkMarshalContext : public vtkObject
 {
@@ -40,6 +43,16 @@ public:
 
   using WeakObjectStore = std::map<vtkTypeUInt32, vtkWeakPointer<vtkObjectBase>>;
   using StrongObjectStore = std::map<std::string, std::set<vtkSmartPointer<vtkObjectBase>>>;
+
+  /**
+   * Add a serialization registrar to the static vector.
+   */
+  static void AddRegistrar(vtkMarshalContextRegistrarFunc registrar);
+
+  /**
+   * Call all registrars with the given arguments.
+   */
+  static bool CallRegistrars(void* ser, void* deser, void* invoker, const char** error);
 
   /**
    * Get blobs.
@@ -148,8 +161,11 @@ public:
 
   /**
    * Find and get the `blob` registered at `hash`.
+   * If `copy` is `true`, a copy of the blob is returned.
+   * If `copy` is `false`, the blob pointer is set in the array using `vtkTypeUInt8Array::SetArray`
+   * with the save flag set to `1`.
    */
-  vtkSmartPointer<vtkTypeUInt8Array> GetBlob(const std::string& hash);
+  vtkSmartPointer<vtkTypeUInt8Array> GetBlob(const std::string& hash, bool copy = false);
 
   /**
    * Return all direct dependencies of the object/state registered at `identifier`.
@@ -272,6 +288,8 @@ private:
 
   class vtkInternals;
   std::unique_ptr<vtkInternals> Internals;
+
+  static std::vector<vtkMarshalContextRegistrarFunc>& GetSerDesRegistrars();
 };
 
 VTK_ABI_NAMESPACE_END

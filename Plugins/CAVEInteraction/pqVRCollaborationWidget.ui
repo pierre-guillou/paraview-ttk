@@ -31,7 +31,7 @@
    <item row="0" column="3">
     <widget class="QPushButton" name="configureAvatarBtn">
      <property name="toolTip">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Map events to avatar head/hands.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      <string>Map events to avatar head/hands.</string>
      </property>
      <property name="text">
       <string>Edit Avatar</string>
@@ -131,43 +131,6 @@
     <widget class="QLineEdit" name="cPortValue">
      <property name="text">
       <string>5555</string>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="0">
-    <widget class="QLabel" name="cAvUpLabel">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="toolTip">
-      <string>Default up vector for new avatars</string>
-     </property>
-     <property name="text">
-      <string>Default Avatar Up</string>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="1">
-    <widget class="QLineEdit" name="cAvatarUpX">
-     <property name="text">
-      <string>0</string>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="2">
-    <widget class="QLineEdit" name="cAvatarUpY">
-     <property name="text">
-      <string>1</string>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="3">
-    <widget class="QLineEdit" name="cAvatarUpZ">
-     <property name="text">
-      <string>0</string>
      </property>
     </widget>
    </item>

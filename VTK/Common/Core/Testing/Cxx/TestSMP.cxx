@@ -7,6 +7,8 @@
 #include "vtkSMPThreadLocal.h"
 #include "vtkSMPThreadLocalObject.h"
 #include "vtkSMPTools.h"
+#include "vtkStringScanner.h"
+
 #include <cstdlib>
 #include <deque>
 #include <functional>
@@ -14,7 +16,9 @@
 #include <set>
 #include <vector>
 
-static const int Target = 10000;
+#include <iostream>
+
+static constexpr int Target = 10000;
 
 class ARangeFunctor
 {
@@ -196,7 +200,8 @@ int doTestSMP()
 
   if (total != Target)
   {
-    cerr << "Error: ARangeFunctor generated " << total << ", did not generate " << Target << endl;
+    std::cerr << "Error: ARangeFunctor generated " << total << ", did not generate " << Target
+              << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -218,7 +223,7 @@ int doTestSMP()
 
   if (total != newTarget)
   {
-    cerr << "Error: InitializableRangeFunctor did not generate " << newTarget << endl;
+    std::cerr << "Error: InitializableRangeFunctor did not generate " << newTarget << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -239,9 +244,9 @@ int doTestSMP()
 
   if (total != sumTarget)
   {
-    cerr << "Error: Invalid output for vtkSMPTools::For with iterators applied "
-            "on std::set!"
-         << endl;
+    std::cerr << "Error: Invalid output for vtkSMPTools::For with iterators applied "
+                 "on std::set!"
+              << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -265,8 +270,8 @@ int doTestSMP()
     }
     if (target != total)
     {
-      cerr << "Error: on vtkSMPTools::IsParallelScope got " << total << " instead of " << target
-           << endl;
+      std::cerr << "Error: on vtkSMPTools::IsParallelScope got " << total << " instead of "
+                << target << std::endl;
       return EXIT_FAILURE;
     }
   }
@@ -287,7 +292,8 @@ int doTestSMP()
     }
     if (sumTarget != total)
     {
-      cerr << "Error: on nested parallelism got " << total << " instead of " << sumTarget << endl;
+      std::cerr << "Error: on nested parallelism got " << total << " instead of " << sumTarget
+                << std::endl;
       return EXIT_FAILURE;
     }
   }
@@ -312,32 +318,33 @@ int doTestSMP()
 
     if (total >= Target)
     {
-      cerr << "Error: on GetSingleThread. " << total << " is greater than or equal to " << Target
-           << endl;
+      std::cerr << "Error: on GetSingleThread. " << total << " is greater than or equal to " <<
+  Target
+           << std::endl;
       return EXIT_FAILURE;
     }
   }*/
 
   // Test LocalScope
-  const int targetThreadNb = 2;
+  constexpr int targetThreadNb = 2;
   int scopeThreadNb = 0;
 
   auto lambdaScope0 = [&]() { scopeThreadNb = vtkSMPTools::GetEstimatedNumberOfThreads(); };
   vtkSMPTools::LocalScope(vtkSMPTools::Config{ targetThreadNb }, lambdaScope0);
   if (scopeThreadNb <= 0 || scopeThreadNb > targetThreadNb)
   {
-    cerr << "Error: on vtkSMPTools::LocalScope bad number of threads!" << endl;
+    std::cerr << "Error: on vtkSMPTools::LocalScope bad number of threads!" << std::endl;
     return EXIT_FAILURE;
   }
 
-  const bool isNestedTarget = true;
+  constexpr bool isNestedTarget = true;
   bool isNested = false;
 
   auto lambdaScope1 = [&]() { isNested = vtkSMPTools::GetNestedParallelism(); };
   vtkSMPTools::LocalScope(vtkSMPTools::Config{ isNestedTarget }, lambdaScope1);
   if (isNested != isNestedTarget)
   {
-    cerr << "Error: on vtkSMPTools::LocalScope bad nested initialisation!" << endl;
+    std::cerr << "Error: on vtkSMPTools::LocalScope bad nested initialisation!" << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -353,7 +360,7 @@ int doTestSMP()
   {
     if (myvector[i] != sdata[i])
     {
-      cerr << "Error: Bad vector sort!" << endl;
+      std::cerr << "Error: Bad vector sort!" << std::endl;
       return EXIT_FAILURE;
     }
   }
@@ -363,7 +370,7 @@ int doTestSMP()
   {
     if (data1[i] != sdata[i])
     {
-      cerr << "Error: Bad comparison sort!" << endl;
+      std::cerr << "Error: Bad comparison sort!" << std::endl;
       return EXIT_FAILURE;
     }
   }
@@ -395,9 +402,9 @@ int doTestSMP()
   {
     if (*it1 != *it0 * i)
     {
-      cerr << "Error: Invalid output for vtkSMPTools::Transform (binary op) applied on "
-              "vtk::DataArrayValueRange!"
-           << endl;
+      std::cerr << "Error: Invalid output for vtkSMPTools::Transform (binary op) applied on "
+                   "vtk::DataArrayValueRange!"
+                << std::endl;
       return EXIT_FAILURE;
     }
   }
@@ -409,8 +416,9 @@ int doTestSMP()
   {
     if (it3 != *it2 - 1)
     {
-      cerr << "Error: Invalid output for vtkSMPTools::Transform (unary op) applied on std::set!"
-           << endl;
+      std::cerr
+        << "Error: Invalid output for vtkSMPTools::Transform (unary op) applied on std::set!"
+        << std::endl;
       return EXIT_FAILURE;
     }
     it2++;
@@ -448,9 +456,9 @@ int doTestSMP()
     }
     if (result != *it5)
     {
-      cerr << "Error: Invalid output for vtkSMPTools::Transform (unary op) applied on "
-              "vtk::DataArrayTupleRange!"
-           << endl;
+      std::cerr << "Error: Invalid output for vtkSMPTools::Transform (unary op) applied on "
+                   "vtk::DataArrayTupleRange!"
+                << std::endl;
       return EXIT_FAILURE;
     }
     it5++;
@@ -471,19 +479,21 @@ int doTestSMP()
   {
     if (it != fillValue0)
     {
-      cerr << "Error: Invalid output for vtkSMPTools::Fill applied on vtk::DataArrayTupleRange!"
-           << endl;
+      std::cerr
+        << "Error: Invalid output for vtkSMPTools::Fill applied on vtk::DataArrayTupleRange!"
+        << std::endl;
       return EXIT_FAILURE;
     }
   }
 
-  const double fillValue1 = 42;
+  constexpr double fillValue1 = 42;
   vtkSMPTools::Fill(fillData1.begin(), fillData1.end(), fillValue1);
   for (auto& it : fillData1)
   {
     if (it != fillValue1)
     {
-      cerr << "Error: Invalid output for vtkSMPTools::Fill applied on std::deque!" << endl;
+      std::cerr << "Error: Invalid output for vtkSMPTools::Fill applied on std::deque!"
+                << std::endl;
       return EXIT_FAILURE;
     }
   }
@@ -498,7 +508,8 @@ int TestSMP(int argc, char* argv[])
     std::string argument(argv[i] + 2);
     std::size_t separator = argument.find('=');
     std::string backend = argument.substr(0, separator);
-    int value = std::atoi(argument.substr(separator + 1, argument.size()).c_str());
+    int value;
+    VTK_FROM_CHARS_IF_ERROR_RETURN(argument.substr(separator + 1), value, EXIT_FAILURE);
     if (value)
     {
       vtkSMPTools::SetBackend(backend.c_str());

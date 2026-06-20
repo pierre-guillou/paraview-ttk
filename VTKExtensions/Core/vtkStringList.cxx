@@ -5,7 +5,6 @@
 #include "vtkObjectFactory.h"
 
 #include <algorithm>
-#include <cstdarg>
 #include <iterator>
 #include <vector>
 
@@ -68,7 +67,7 @@ void vtkStringList::AddString(const char* str)
   }
 
   auto& internals = (*this->Internals);
-  internals.Strings.push_back(str);
+  internals.Strings.emplace_back(str);
 }
 
 //----------------------------------------------------------------------------
@@ -79,19 +78,6 @@ void vtkStringList::AddUniqueString(const char* str)
     return;
   }
   this->AddString(str);
-}
-
-//----------------------------------------------------------------------------
-void vtkStringList::AddFormattedString(const char* format, ...)
-{
-  static char event[16000];
-
-  va_list var_args;
-  va_start(var_args, format);
-  vsnprintf(event, sizeof(event), format, var_args);
-  va_end(var_args);
-
-  this->AddString(event);
 }
 
 //----------------------------------------------------------------------------

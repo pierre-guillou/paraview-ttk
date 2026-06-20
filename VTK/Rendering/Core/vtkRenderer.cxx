@@ -133,12 +133,9 @@ vtkRenderer::vtkRenderer()
 
   this->UseImageBasedLighting = false;
   this->EnvironmentTexture = nullptr;
-  this->EnvironmentUp[0] = 0.0;
-  this->EnvironmentUp[1] = 1.0;
-  this->EnvironmentUp[2] = 0.0;
-  this->EnvironmentRight[0] = 1.0;
-  this->EnvironmentRight[1] = 0.0;
-  this->EnvironmentRight[2] = 0.0;
+
+  this->EnvironmentRotationMatrix = vtk::TakeSmartPointer(vtkMatrix3x3::New());
+  this->EnvironmentRotationMatrix->Identity();
 
   vtkMatrix4x4::Identity(this->CompositeProjectionTransformationMatrix.data());
   this->LastCompositeProjectionTransformationMatrixTiledAspectRatio = VTK_DOUBLE_MIN;
@@ -979,30 +976,12 @@ void vtkRenderer::ComputeVisiblePropBounds(double allBounds[6])
       {
         nothingVisible = 0;
 
-        if (bounds[0] < allBounds[0])
-        {
-          allBounds[0] = bounds[0];
-        }
-        if (bounds[1] > allBounds[1])
-        {
-          allBounds[1] = bounds[1];
-        }
-        if (bounds[2] < allBounds[2])
-        {
-          allBounds[2] = bounds[2];
-        }
-        if (bounds[3] > allBounds[3])
-        {
-          allBounds[3] = bounds[3];
-        }
-        if (bounds[4] < allBounds[4])
-        {
-          allBounds[4] = bounds[4];
-        }
-        if (bounds[5] > allBounds[5])
-        {
-          allBounds[5] = bounds[5];
-        }
+        allBounds[0] = std::min(bounds[0], allBounds[0]);
+        allBounds[1] = std::max(bounds[1], allBounds[1]);
+        allBounds[2] = std::min(bounds[2], allBounds[2]);
+        allBounds[3] = std::max(bounds[3], allBounds[3]);
+        allBounds[4] = std::min(bounds[4], allBounds[4]);
+        allBounds[5] = std::max(bounds[5], allBounds[5]);
       } // not bogus
     }
   }
@@ -1025,8 +1004,9 @@ double* vtkRenderer::ComputeVisiblePropBounds()
 // The camera will reposition itself to view the center point of the actors,
 // and move along its initial view plane normal (i.e., vector defined from
 // camera position to focal point) so that all of the actors can be seen.
-void vtkRenderer::ResetCamera()
+bool vtkRenderer::ResetCamera()
 {
+  bool areBoundsInitialized = false;
   double allBounds[6];
 
   this->ComputeVisiblePropBounds(allBounds);
@@ -1038,11 +1018,13 @@ void vtkRenderer::ResetCamera()
   else
   {
     this->ResetCamera(allBounds);
+    areBoundsInitialized = true;
   }
 
   // Here to let parallel/distributed compositing intercept
   // and do the right thing.
   this->InvokeEvent(vtkCommand::ResetCameraEvent, this);
+  return areBoundsInitialized;
 }
 
 // Automatically set the clipping range of the camera based on the
@@ -1273,10 +1255,7 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
   }
 
   // Do not let the range behind the camera throw off the calculation.
-  if (range[0] < 0.0)
-  {
-    range[0] = 0.0;
-  }
+  range[0] = std::max(range[0], 0.0);
 
   // Give ourselves a little breathing room
   range[0] = 0.99 * range[0] - (range[1] - range[0]) * this->ClippingRangeExpansion;
@@ -1304,10 +1283,7 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
   // make sure the front clipping range is not too far from the far clippnig
   // range, this is to make sure that the zbuffer resolution is effectively
   // used
-  if (range[0] < this->NearClippingPlaneTolerance * range[1])
-  {
-    range[0] = this->NearClippingPlaneTolerance * range[1];
-  }
+  range[0] = std::max(range[0], this->NearClippingPlaneTolerance * range[1]);
 
   this->ActiveCamera->SetClippingRange(range);
 }
@@ -1330,8 +1306,9 @@ void vtkRenderer::ResetCameraClippingRange(
 
 // Automatically set up the camera based on the visible actors.
 // Use a screen space bounding box to zoom closer to the data.
-void vtkRenderer::ResetCameraScreenSpace(const double offsetRatio)
+bool vtkRenderer::ResetCameraScreenSpace(const double offsetRatio)
 {
+  bool areBoundsInitialized = false;
   double allBounds[6];
 
   this->ComputeVisiblePropBounds(allBounds);
@@ -1343,11 +1320,13 @@ void vtkRenderer::ResetCameraScreenSpace(const double offsetRatio)
   else
   {
     this->ResetCameraScreenSpace(allBounds, offsetRatio);
+    areBoundsInitialized = true;
   }
 
   // Here to let parallel/distributed compositing intercept
   // and do the right thing.
   this->InvokeEvent(vtkCommand::ResetCameraEvent, this);
+  return areBoundsInitialized;
 }
 
 // Alternative version of ResetCameraScreenSpace(bounds[6]);
@@ -1528,8 +1507,7 @@ double vtkRenderer::GetZ(int x, int y)
     {
       vtkSelectionNode* selnode = sel->GetNode(pIdx);
       double adepth = selnode->GetProperties()->Get(vtkSelectionNode::ZBUFFER_VALUE());
-      if (adepth < closestDepth)
-        closestDepth = adepth;
+      closestDepth = std::min(adepth, closestDepth);
     }
 
     return closestDepth;
@@ -1917,31 +1895,19 @@ vtkAssemblyPath* vtkRenderer::PickProp(double selectionX1, double selectionY1, d
     this->PickResultProps = nullptr;
   }
 
-  this->PickX1 = (selectionX1 < selectionX2) ? selectionX1 : selectionX2;
-  this->PickY1 = (selectionY1 < selectionY2) ? selectionY1 : selectionY2;
-  this->PickX2 = (selectionX1 > selectionX2) ? selectionX1 : selectionX2;
-  this->PickY2 = (selectionY1 > selectionY2) ? selectionY1 : selectionY2;
+  this->PickX1 = std::min(selectionX1, selectionX2);
+  this->PickY1 = std::min(selectionY1, selectionY2);
+  this->PickX2 = std::max(selectionX1, selectionX2);
+  this->PickY2 = std::max(selectionY1, selectionY2);
 
   // Do not let pick area go outside the viewport
   int lowerLeft[2];
   int usize, vsize;
   this->GetTiledSizeAndOrigin(&usize, &vsize, lowerLeft, lowerLeft + 1);
-  if (this->PickX1 < lowerLeft[0])
-  {
-    this->PickX1 = lowerLeft[0];
-  }
-  if (this->PickY1 < lowerLeft[1])
-  {
-    this->PickY1 = lowerLeft[1];
-  }
-  if (this->PickX2 >= lowerLeft[0] + usize)
-  {
-    this->PickX2 = lowerLeft[0] + usize - 1;
-  }
-  if (this->PickY2 >= lowerLeft[1] + vsize)
-  {
-    this->PickY2 = lowerLeft[1] + vsize - 1;
-  }
+  this->PickX1 = std::max<double>(this->PickX1, lowerLeft[0]);
+  this->PickY1 = std::max<double>(this->PickY1, lowerLeft[1]);
+  this->PickX2 = std::min<double>(this->PickX2, lowerLeft[0] + usize - 1);
+  this->PickY2 = std::min<double>(this->PickY2, lowerLeft[1] + vsize - 1);
 
   // if degenerate then return nullptr
   if (this->PickX1 > this->PickX2 || this->PickY1 > this->PickY2)
@@ -2067,10 +2033,8 @@ void vtkRenderer::ExpandBounds(double bounds[6], vtkMatrix4x4* matrix)
   {
     for (int j = 0; j < 3; ++j)
     {
-      if (min[j] > pt[i][j])
-        min[j] = pt[i][j];
-      if (max[j] < pt[i][j])
-        max[j] = pt[i][j];
+      min[j] = std::min(min[j], pt[i][j]);
+      max[j] = std::max(max[j], pt[i][j]);
     }
   }
 
@@ -2084,11 +2048,13 @@ void vtkRenderer::ExpandBounds(double bounds[6], vtkMatrix4x4* matrix)
   bounds[5] = max[2];
 }
 
+//------------------------------------------------------------------------------
 vtkTypeBool vtkRenderer::Transparent()
 {
   return this->PreserveColorBuffer;
 }
 
+//------------------------------------------------------------------------------
 double vtkRenderer::GetTiledAspectRatio()
 {
   int usize, vsize;
@@ -2114,10 +2080,11 @@ double vtkRenderer::GetTiledAspectRatio()
   return finalAspect;
 }
 
+//------------------------------------------------------------------------------
 int vtkRenderer::CaptureGL2PSSpecialProp(vtkProp* prop)
 {
   if (this->GL2PSSpecialPropCollection &&
-    this->GL2PSSpecialPropCollection->IndexOfFirstOccurence(prop) < 0)
+    this->GL2PSSpecialPropCollection->IndexOfFirstOccurrence(prop) < 0)
   {
     this->GL2PSSpecialPropCollection->AddItem(prop);
     return 1;
@@ -2126,8 +2093,10 @@ int vtkRenderer::CaptureGL2PSSpecialProp(vtkProp* prop)
   return 0;
 }
 
+//------------------------------------------------------------------------------
 vtkCxxSetObjectMacro(vtkRenderer, GL2PSSpecialPropCollection, vtkPropCollection);
 
+//------------------------------------------------------------------------------
 const std::array<double, 16>& vtkRenderer::GetViewTransformMatrix()
 {
   if (this->LastViewTransformCameraModified != this->ActiveCamera->GetMTime())
@@ -2140,6 +2109,7 @@ const std::array<double, 16>& vtkRenderer::GetViewTransformMatrix()
   return this->ViewTransformMatrix;
 }
 
+//------------------------------------------------------------------------------
 const std::array<double, 16>& vtkRenderer::GetCompositeProjectionTransformationMatrix()
 {
   const double tiledAspectRatio = this->GetTiledAspectRatio();
@@ -2157,6 +2127,7 @@ const std::array<double, 16>& vtkRenderer::GetCompositeProjectionTransformationM
   return this->CompositeProjectionTransformationMatrix;
 }
 
+//------------------------------------------------------------------------------
 const std::array<double, 16>& vtkRenderer::GetProjectionTransformationMatrix()
 {
   const double tiledAspectRatio = this->GetTiledAspectRatio();
@@ -2170,5 +2141,128 @@ const std::array<double, 16>& vtkRenderer::GetProjectionTransformationMatrix()
     this->LastProjectionTransformationMatrixCameraModified = this->ActiveCamera->GetMTime();
   }
   return this->ProjectionTransformationMatrix;
+}
+
+//------------------------------------------------------------------------------
+double* vtkRenderer::GetEnvironmentUp()
+{
+  this->EnvironmentUp[0] = this->EnvironmentRotationMatrix->GetElement(0, 1);
+  this->EnvironmentUp[1] = this->EnvironmentRotationMatrix->GetElement(1, 1);
+  this->EnvironmentUp[2] = this->EnvironmentRotationMatrix->GetElement(2, 1);
+  return this->EnvironmentUp;
+}
+
+//------------------------------------------------------------------------------
+void vtkRenderer::GetEnvironmentUp(double& vectorUpX, double& vectorUpY, double& vectorUpZ)
+{
+  vectorUpX = this->GetEnvironmentUp()[0];
+  vectorUpY = this->GetEnvironmentUp()[1];
+  vectorUpZ = this->GetEnvironmentUp()[2];
+}
+
+//------------------------------------------------------------------------------
+void vtkRenderer::GetEnvironmentUp(double vectorUp[3])
+{
+  this->GetEnvironmentUp(vectorUp[0], vectorUp[1], vectorUp[2]);
+}
+
+//------------------------------------------------------------------------------
+void vtkRenderer::SetEnvironmentUp(double vectorUpX, double vectorUpY, double vectorUpZ)
+{
+  if (this->EnvironmentRotationMatrix->GetElement(0, 1) != vectorUpX ||
+    this->EnvironmentRotationMatrix->GetElement(1, 1) != vectorUpY ||
+    this->EnvironmentRotationMatrix->GetElement(2, 1) != vectorUpZ)
+  {
+    this->EnvironmentRotationMatrix->SetElement(0, 1, vectorUpX);
+    this->EnvironmentRotationMatrix->SetElement(1, 1, vectorUpY);
+    this->EnvironmentRotationMatrix->SetElement(2, 1, vectorUpZ);
+
+    this->ComputeRotationMatrixForwardVector();
+    this->Modified();
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkRenderer::SetEnvironmentUp(double vectorUp[3])
+{
+  this->SetEnvironmentUp(vectorUp[0], vectorUp[1], vectorUp[2]);
+}
+
+//------------------------------------------------------------------------------
+double* vtkRenderer::GetEnvironmentRight()
+{
+  this->EnvironmentRight[0] = this->EnvironmentRotationMatrix->GetElement(0, 0);
+  this->EnvironmentRight[1] = this->EnvironmentRotationMatrix->GetElement(1, 0);
+  this->EnvironmentRight[2] = this->EnvironmentRotationMatrix->GetElement(2, 0);
+  return this->EnvironmentRight;
+}
+
+//------------------------------------------------------------------------------
+void vtkRenderer::GetEnvironmentRight(
+  double& vectorRightX, double& vectorRightY, double& vectorRightZ)
+{
+  vectorRightX = this->GetEnvironmentRight()[0];
+  vectorRightY = this->GetEnvironmentRight()[1];
+  vectorRightZ = this->GetEnvironmentRight()[2];
+}
+
+//------------------------------------------------------------------------------
+void vtkRenderer::GetEnvironmentRight(double vectorRight[3])
+{
+  this->GetEnvironmentRight(vectorRight[0], vectorRight[1], vectorRight[2]);
+}
+
+//------------------------------------------------------------------------------
+void vtkRenderer::SetEnvironmentRight(double vectorRightX, double vectorRightY, double vectorRightZ)
+{
+  if (this->EnvironmentRotationMatrix->GetElement(0, 0) != vectorRightX ||
+    this->EnvironmentRotationMatrix->GetElement(1, 0) != vectorRightY ||
+    this->EnvironmentRotationMatrix->GetElement(2, 0) != vectorRightZ)
+  {
+    this->EnvironmentRotationMatrix->SetElement(0, 0, vectorRightX);
+    this->EnvironmentRotationMatrix->SetElement(1, 0, vectorRightY);
+    this->EnvironmentRotationMatrix->SetElement(2, 0, vectorRightZ);
+
+    this->ComputeRotationMatrixForwardVector();
+    this->Modified();
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkRenderer::SetEnvironmentRight(double vectorRight[3])
+{
+  this->SetEnvironmentRight(vectorRight[0], vectorRight[1], vectorRight[2]);
+}
+
+//------------------------------------------------------------------------------
+void vtkRenderer::SetEnvironmentRotationMatrix(vtkMatrix3x3* rotationMatrix)
+{
+  if (!rotationMatrix)
+  {
+    vtkErrorMacro("SetEnvironmentRotationMatrix: rotationMatrix is nullptr");
+    return;
+  }
+  this->EnvironmentRotationMatrix = rotationMatrix;
+}
+
+//------------------------------------------------------------------------------
+void vtkRenderer::ComputeRotationMatrixForwardVector()
+{
+  double right[3] = { this->EnvironmentRotationMatrix->GetElement(0, 0),
+    this->EnvironmentRotationMatrix->GetElement(1, 0),
+    this->EnvironmentRotationMatrix->GetElement(2, 0) };
+
+  double up[3] = { this->EnvironmentRotationMatrix->GetElement(0, 1),
+    this->EnvironmentRotationMatrix->GetElement(1, 1),
+    this->EnvironmentRotationMatrix->GetElement(2, 1) };
+
+  double forward[3];
+  vtkMath::Cross(right, up, forward);
+  vtkMath::Normalize(forward);
+
+  for (int i = 0; i < 3; ++i)
+  {
+    this->EnvironmentRotationMatrix->SetElement(i, 2, forward[i]);
+  }
 }
 VTK_ABI_NAMESPACE_END

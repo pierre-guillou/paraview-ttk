@@ -301,11 +301,11 @@
                          number_of_elements="1"
                          panel_visibility="advanced">
         <Documentation>
-          Set a printf-style string to build custom tooltip labels from.
+          Set a std::format style string with name variables to build custom tooltip labels from.
           An empty string generates the default tooltip labels.
           The following case-sensitive format tags (without quotes) are recognized:
-          '%x' The X value of the plot element
-          '%y' The Y value of the plot element
+          '{x}' The X value of the plot element
+          '{y}' The Y value of the plot element
           Other characters may be supported depending on plot type. Other characters or
           unrecognized format tags are printed in the tooltip label verbatim.
         </Documentation>
@@ -423,7 +423,7 @@
         <Documentation>Set the axis title font file.</Documentation>
       </StringVectorProperty>
       <IntVectorProperty command="SetLeftAxisTitleFontSize"
-                            default_values="18"
+                            default_values="14"
                             name="LeftAxisTitleFontSize"
                             number_of_elements="1">
         <Documentation>Set the axis title font size.</Documentation>
@@ -710,7 +710,7 @@
         <Documentation>Set the axis title font file.</Documentation>
       </StringVectorProperty>
       <IntVectorProperty command="SetBottomAxisTitleFontSize"
-                            default_values="18"
+                            default_values="14"
                             name="BottomAxisTitleFontSize"
                             number_of_elements="1">
         <Documentation>Set the axis title font size.</Documentation>
@@ -1018,7 +1018,7 @@
         <Documentation>Set the axis title font file.</Documentation>
       </StringVectorProperty>
       <IntVectorProperty command="SetRightAxisTitleFontSize"
-                            default_values="18"
+                            default_values="14"
                             name="RightAxisTitleFontSize"
                             number_of_elements="1">
         <Documentation>Set the axis title font size.</Documentation>
@@ -1308,7 +1308,7 @@
         <Documentation>Set the axis title font file.</Documentation>
       </StringVectorProperty>
       <IntVectorProperty command="SetTopAxisTitleFontSize"
-                            default_values="18"
+                            default_values="14"
                             name="TopAxisTitleFontSize"
                             number_of_elements="1">
         <Documentation>Set the axis title font size.</Documentation>

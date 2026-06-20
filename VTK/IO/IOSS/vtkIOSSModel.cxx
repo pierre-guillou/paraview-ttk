@@ -3,6 +3,7 @@
 #include "vtkIOSSModel.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkCellData.h"
 #include "vtkDataArrayRange.h"
 #include "vtkDataArraySelection.h"
@@ -20,6 +21,7 @@
 #include "vtkPointData.h"
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringFormatter.h"
 #include "vtkTable.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
@@ -583,7 +585,7 @@ std::map<unsigned char, int64_t> GetElementCounts(
       case VTK_UNSTRUCTURED_GRID_BASE:
       {
         vtkNew<vtkCellTypes> cellTypesOfUnstructuredData;
-        ds->GetCellTypes(cellTypesOfUnstructuredData);
+        ds->GetDistinctCellTypes(cellTypesOfUnstructuredData);
         auto range = vtk::DataArrayValueRange(cellTypesOfUnstructuredData->GetCellTypesArray());
         std::copy(range.begin(), range.end(), std::inserter(cellTypes, cellTypes.end()));
         break;
@@ -935,7 +937,7 @@ protected:
       [](size_t sum, const std::vector<vtkIdType>& ids) { return sum + ids.size(); });
 
     using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::AllTypes>;
-    const bool createAOS = numComponents <= 3;
+    const bool createAOS = numComponents <= 3 || numComponents == 6;
     PutFieldWorker<T> worker(numComponents, totalSize, createAOS);
     for (size_t dsIndex = 0; dsIndex < datasets.size(); ++dsIndex)
     {
@@ -959,7 +961,7 @@ protected:
     {
       for (int comp = 0; comp < numComponents; ++comp)
       {
-        const auto compName = name + std::to_string(comp + 1);
+        const auto compName = name + vtk::to_string(comp + 1);
         block->put_field_data(compName, worker.SOAData[comp]);
       }
     }
@@ -992,11 +994,16 @@ protected:
           block->field_add(Ioss::Field(name, type, IOSS_VECTOR_3D(), role, elementCount));
           break;
         }
+        case 6:
+        {
+          block->field_add(Ioss::Field(name, type, IOSS_SYM_TENSOR(), role, elementCount));
+          break;
+        }
         default:
         {
           for (int comp = 0; comp < numComponents; ++comp)
           {
-            const auto compName = name + std::to_string(comp + 1);
+            const auto compName = name + vtk::to_string(comp + 1);
             block->field_add(Ioss::Field(compName, type, IOSS_SCALAR(), role, elementCount));
           }
         }
@@ -1100,8 +1107,7 @@ struct vtkNodeBlock : vtkGroupingEntity
     nodeBlock->put_field_data("ids", this->Ids);
 
     // add mesh coordinates
-    using Dispatcher = vtkArrayDispatch::DispatchByValueTypeUsingArrays<vtkArrayDispatch::AllArrays,
-      vtkArrayDispatch::Reals>;
+    using Dispatcher = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::AllPointArrays>;
     PutFieldWorker<double> worker(3, this->Ids.size(), false /* createAOS */);
     for (size_t dsIndex = 0; dsIndex < this->DataSets.size(); ++dsIndex)
     {
@@ -2115,7 +2121,7 @@ vtkIOSSModel::vtkIOSSModel(vtkPartitionedDataSetCollection* pdc, vtkIOSSWriter* 
   for (unsigned int pidx = 0; pidx < dataset->GetNumberOfPartitionedDataSets(); ++pidx)
   {
     blockIds[pidx] = pidx + 1;
-    blockNames[pidx] = "block_" + std::to_string(blockIds[pidx]);
+    blockNames[pidx] = "block_" + vtk::to_string(blockIds[pidx]);
     if (auto info = dataset->GetMetaData(pidx))
     {
       if (info->Has(vtkCompositeDataSet::NAME()))

@@ -21,13 +21,14 @@
 #include "vtkSmartPointer.h"        // needed for vtkSmartPointer
 #include "vtkWeakPointer.h"         // needed for vtkWeakPointer
 
-#include <map> // needed for map
-#include <set> //needed for ivars
+#include <map>    // needed for std::map
+#include <set>    // needed for std::set
+#include <vector> // needed for std::vector
 
 class vtkChartSelectionRepresentation;
 class vtkAbstractChartExporter;
 class vtkCSVExporter;
-class vtkMultiBlockDataSet;
+class vtkDataObjectTree;
 class vtkPVContextView;
 class vtkSelectionDeliveryFilter;
 class vtkTable;
@@ -69,11 +70,40 @@ public:
   vtkGetMacro(FieldAssociation, int);
   ///@}
 
-  // methods to control block selection.
-  // When changed, this will call MarkModified().
+  ///@{
+  /**
+   * Get/Set the name of the assembly to use for mapping block visibilities,
+   * colors and opacities.
+   *
+   * The default is Hierarchy.
+   */
+  vtkSetStringMacro(ActiveAssembly);
+  vtkGetStringMacro(ActiveAssembly);
+  ///@}
+
+  ///@{
+  /**
+   * Update list of selectors that determine the selected blocks.
+   */
+  void AddBlockSelector(const char* selector);
+  void RemoveAllBlockSelectors();
+  ///@}
+
+  ///@{
+  /**
+   * Methods to control block selection.
+   * When changed, this will call MarkModified().
+   */
+  PARAVIEW_DEPRECATED_IN_6_1_0("Use AddBlockSelector() with SetActiveAssembly instead. "
+                               "CompositeDataSetIndex is no longer used.")
   void SetCompositeDataSetIndex(unsigned int); // only used for single block selection
+  PARAVIEW_DEPRECATED_IN_6_1_0("Use AddBlockSelector() with SetActiveAssembly instead. "
+                               "CompositeDataSetIndex is no longer used.")
   void AddCompositeDataSetIndex(unsigned int);
+  PARAVIEW_DEPRECATED_IN_6_1_0("Use RemoveAllBlockSelectors() with SetActiveAssembly instead. "
+                               "CompositeDataSetIndex is no longer used.")
   void ResetCompositeDataSetIndices();
+  ///@}
 
   /**
    * Override because of internal selection representations that need to be
@@ -144,6 +174,38 @@ public:
    * to abort and raise an error. Default implementation simply returns false.
    */
   virtual bool Export(vtkAbstractChartExporter* vtkNotUsed(exporter)) { return false; }
+  ///@}
+
+  enum ArraySelectionModes
+  {
+    MERGED_BLOCKS = 0,
+    INDIVIDUAL_BLOCKS = 1,
+  };
+
+  ///@{
+  /**
+   * ArraySelectionMode controls how arrays are selected for charting in composite datasets.
+   * MERGED_BLOCKS means arrays are selected once and applied to all blocks.
+   * INDIVIDUAL_BLOCKS means arrays are selected independently for each leaf block.
+   */
+  vtkGetMacro(ArraySelectionMode, int);
+  void SetArraySelectionMode(int mode);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the placeholder data type.
+   *
+   * This value is set by the proxy and is needed to ensure that the client knows the type of the
+   * input that lives on the server.
+   *
+   * In the past, we were always creating a placeholder of type vtkMultiBlockDataSet when no
+   * input was available on the client. This is no longer valid.
+   *
+   * This can be potentially removed in the future once vtkMultiBlockDataSet is deprecated.
+   */
+  void SetPlaceHolderDataType(int datatype);
+  vtkGetMacro(PlaceHolderDataType, int);
   ///@}
 protected:
   vtkChartRepresentation();
@@ -223,18 +285,24 @@ protected:
    */
   virtual vtkSmartPointer<vtkDataObject> TransformTable(vtkSmartPointer<vtkDataObject> table);
 
-  typedef std::map<std::string, std::pair<vtkSmartPointer<vtkTable>, unsigned int>> MapOfTables;
+  using MapOfTables = std::map<std::string, std::pair<vtkSmartPointer<vtkTable>, unsigned int>>;
   /**
-   * Convenience method to get all vtkTable instances with their associated
-   * names.
+   * Convenience method to get all vtkTable instances with their associated names.
    */
   bool GetLocalOutput(MapOfTables& tables);
 
   int FieldAssociation;
   vtkWeakPointer<vtkPVContextView> ContextView;
   int FlattenTable;
+  int ArraySelectionMode = MERGED_BLOCKS;
 
-  vtkSmartPointer<vtkMultiBlockDataSet> LocalOutput;
+  // This is used to be able to create the correct placeHolder in RequestData for the client
+  int PlaceHolderDataType = VTK_PARTITIONED_DATA_SET_COLLECTION;
+
+  vtkSmartPointer<vtkDataObjectTree> LocalOutput;
+
+  char* ActiveAssembly = nullptr;
+  std::vector<std::string> BlockSelectors;
   std::set<unsigned int> CompositeIndices; // the selected blocks
 
   vtkWeakPointer<vtkChartSelectionRepresentation> SelectionRepresentation;
@@ -246,7 +314,7 @@ private:
   vtkTimeStamp PrepareForRenderingTime;
   vtkMTimeType LastLocalOutputMTime;
   vtkSmartPointer<vtkChartSelectionRepresentation> DummyRepresentation;
-  vtkSmartPointer<vtkMultiBlockDataSet> LocalOutputRequestData;
+  vtkSmartPointer<vtkDataObjectTree> LocalOutputRequestData;
 };
 
 #endif

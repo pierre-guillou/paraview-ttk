@@ -238,6 +238,7 @@ void vtkHyperTreeGridSource::SetDimensions(const unsigned int* dims)
       }
       break;
   }
+  this->Modified();
 }
 
 //------------------------------------------------------------------------------
@@ -299,10 +300,7 @@ unsigned int vtkHyperTreeGridSource::GetMaxDepth()
 //------------------------------------------------------------------------------
 void vtkHyperTreeGridSource::SetMaxDepth(unsigned int levels)
 {
-  if (levels < 1)
-  {
-    levels = 1;
-  }
+  levels = std::max<unsigned int>(levels, 1);
 
   if (this->MaxDepth == levels)
   {
@@ -328,12 +326,6 @@ int vtkHyperTreeGridSource::RequestInformation(
 {
   // Get the information objects
   vtkInformation* outInfo = outputVector->GetInformationObject(0);
-
-  // We cannot give the exact number of levels of the hypertrees
-  // because it is not generated yet and this process depends on the recursion formula.
-  // Just send an upper limit instead.
-  outInfo->Set(vtkHyperTreeGrid::LEVELS(), this->MaxDepth);
-  outInfo->Set(vtkHyperTreeGrid::DIMENSION(), this->Dimension);
 
   double origin[3];
   origin[0] = this->XCoordinates->GetTuple1(0);
@@ -1077,10 +1069,10 @@ int vtkHyperTreeGridSource::InitializeFromBitsDescriptor()
 {
   // Verify that grid and material specifications are consistent
   if (this->UseMask && !this->LevelZeroMaterialIndex &&
-    this->MaskBits->GetSize() != this->DescriptorBits->GetSize())
+    this->MaskBits->GetNumberOfValues() != this->DescriptorBits->GetNumberOfValues())
   {
-    vtkErrorMacro(<< "Material mask is used but has length " << this->MaskBits->GetSize()
-                  << " != " << this->DescriptorBits->GetSize()
+    vtkErrorMacro(<< "Material mask is used but has length " << this->MaskBits->GetNumberOfValues()
+                  << " != " << this->DescriptorBits->GetNumberOfValues()
                   << " which is the length of the grid descriptor.");
 
     return 0;
@@ -1419,10 +1411,10 @@ void vtkHyperTreeGridSource::SubdivideFromQuadric(vtkHyperTreeGrid* output,
     {
       case 3:
         newSize[2] = size[2] / this->BranchFactor;
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case 2:
         newSize[1] = size[1] / this->BranchFactor;
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case 1:
         newSize[0] = size[0] / this->BranchFactor;
         break;

@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+// NOLINTBEGIN(bugprone-unsafe-functions)
+
 /* -------------------------------------------------------------------- */
 /* The scope, attrib, and valstring parameters are optional and can be
    set to NULL.
@@ -196,7 +198,7 @@ void vtkWrapPython_AddPublicConstants(
   while (j < data->NumberOfConstants)
   {
     val = data->Constants[j];
-    if (val->Access != VTK_ACCESS_PUBLIC)
+    if (val->Access != VTK_ACCESS_PUBLIC && (val->Attributes & VTK_PARSE_WRAPEXCLUDE) == 0)
     {
       j++;
       continue;
@@ -223,7 +225,7 @@ void vtkWrapPython_AddPublicConstants(
     for (k = j; k < data->NumberOfConstants; k++)
     {
       val = data->Constants[k];
-      if (val->Access == VTK_ACCESS_PUBLIC)
+      if (val->Access == VTK_ACCESS_PUBLIC && (val->Attributes & VTK_PARSE_WRAPEXCLUDE) == 0)
       {
         tname = (val->IsEnum ? val->Class : vtkWrap_GetTypeName(val));
         if (val->Type != valtype || strcmp(tname, typeName) != 0)
@@ -292,7 +294,7 @@ void vtkWrapPython_AddPublicConstants(
     while (j < k)
     {
       val = data->Constants[j++];
-      if (val->Access == VTK_ACCESS_PUBLIC)
+      if (val->Access == VTK_ACCESS_PUBLIC && (val->Attributes & VTK_PARSE_WRAPEXCLUDE) == 0)
       {
         fprintf(fp, "%s      { \"%s%s\", %s%s%s },%s\n", indent, val->Name,
           (vtkWrapText_IsPythonKeyword(val->Name) ? "_" : ""), (scopeValue ? scope : ""),
@@ -321,3 +323,5 @@ void vtkWrapPython_AddConstant(FILE* fp, const char* indent, const char* dictvar
 {
   vtkWrapPython_AddConstantHelper(fp, indent, dictvar, objvar, scope, scope, NULL, NULL, val);
 }
+
+// NOLINTEND(bugprone-unsafe-functions)

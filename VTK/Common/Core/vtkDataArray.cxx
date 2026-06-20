@@ -1,40 +1,24 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+// VTK_DEPRECATED_IN_9_5_0()
+// VTK_DEPRECATED_IN_9_6_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkDataArray.h"
-#include "vtkAOSDataArrayTemplate.h" // For fast paths
-#include "vtkBitArray.h"
-#include "vtkCharArray.h"
-#include "vtkDataArrayPrivate.txx"
+
 #include "vtkDoubleArray.h"
-#include "vtkFloatArray.h"
-#include "vtkGenericDataArray.h"
-#include "vtkIdList.h"
-#include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationDoubleVectorKey.h"
 #include "vtkInformationInformationVectorKey.h"
 #include "vtkInformationStringKey.h"
 #include "vtkInformationVector.h"
-#include "vtkIntArray.h"
-#include "vtkLongArray.h"
 #include "vtkLookupTable.h"
 #include "vtkMath.h"
-#include "vtkSOADataArrayTemplate.h" // For fast paths
-#ifdef VTK_USE_SCALED_SOA_ARRAYS
-#include "vtkScaledSOADataArrayTemplate.h" // For fast paths
-#endif
-#include "vtkSMPTools.h"
-#include "vtkShortArray.h"
-#include "vtkSignedCharArray.h"
 #include "vtkTypeTraits.h"
-#include "vtkUnsignedCharArray.h"
-#include "vtkUnsignedIntArray.h"
-#include "vtkUnsignedLongArray.h"
-#include "vtkUnsignedShortArray.h"
 
 #include <algorithm> // for min(), max()
-#include <vector>
+#include <vector>    // for std::vector
 
 namespace
 {
@@ -89,6 +73,41 @@ vtkDataArray::~vtkDataArray()
     this->LookupTable->Delete();
   }
   this->SetName(nullptr);
+}
+
+//------------------------------------------------------------------------------
+vtkDataArray* vtkDataArray::FastDownCast(vtkAbstractArray* source)
+{
+  if (source)
+  {
+    switch (source->GetArrayType())
+    {
+      case vtkArrayTypes::VTK_DATA_ARRAY:
+      // DataArray subclasses
+      case vtkArrayTypes::VTK_BIT_ARRAY:
+      // GenericDataArray subclasses
+      case vtkArrayTypes::VTK_AOS_DATA_ARRAY:
+      case vtkArrayTypes::VTK_SOA_DATA_ARRAY:
+      case vtkAbstractArray::TypedDataArray:
+      case vtkAbstractArray::MappedDataArray:
+      case vtkArrayTypes::VTK_SCALED_SOA_DATA_ARRAY:
+      case vtkArrayTypes::VTKM_DATA_ARRAY:
+      case vtkArrayTypes::VTK_PERIODIC_DATA_ARRAY:
+      case vtkArrayTypes::VTK_IMPLICIT_ARRAY:
+      // ImplicitArray subclasses/typedefs
+      case vtkArrayTypes::VTK_AFFINE_ARRAY:
+      case vtkArrayTypes::VTK_COMPOSITE_ARRAY:
+      case vtkArrayTypes::VTK_CONSTANT_ARRAY:
+      case vtkArrayTypes::VTK_INDEXED_ARRAY:
+      case vtkArrayTypes::VTK_STD_FUNCTION_ARRAY:
+      case vtkArrayTypes::VTK_STRIDED_ARRAY:
+      case vtkArrayTypes::VTK_STRUCTURED_POINT_ARRAY:
+        return static_cast<vtkDataArray*>(source);
+      default:
+        break;
+    }
+  }
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -689,6 +708,21 @@ vtkDataArray* vtkDataArray::CreateDataArray(int dataType)
 }
 
 //------------------------------------------------------------------------------
+vtkSmartPointer<vtkDataArray> vtkDataArray::ToAOSDataArray()
+{
+  if (this->HasStandardMemoryLayout())
+  {
+    return this;
+  }
+  else
+  {
+    auto aos = vtk::TakeSmartPointer(vtkDataArray::CreateDataArray(this->GetDataType()));
+    aos->DeepCopy(this);
+    return aos;
+  }
+}
+
+//------------------------------------------------------------------------------
 void vtkDataArray::FillComponent(int compIdx, double value)
 {
   if (compIdx < 0 || compIdx >= this->GetNumberOfComponents())
@@ -727,10 +761,7 @@ double vtkDataArray::GetMaxNorm()
   for (i = 0; i < this->GetNumberOfTuples(); i++)
   {
     norm = vtkMath::Norm(this->GetTuple(i), nComponents);
-    if (norm > maxNorm)
-    {
-      maxNorm = norm;
-    }
+    maxNorm = std::max(norm, maxNorm);
   }
 
   return maxNorm;

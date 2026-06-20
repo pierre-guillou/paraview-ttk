@@ -96,10 +96,7 @@ void vtkXMLTableReader::SetupUpdateExtent(int piece, int numberOfPieces)
 
   // If more pieces are requested than available, just return empty
   // pieces for the extra ones.
-  if (this->UpdateNumberOfPieces > this->NumberOfPieces)
-  {
-    this->UpdateNumberOfPieces = this->NumberOfPieces;
-  }
+  this->UpdateNumberOfPieces = std::min(this->UpdateNumberOfPieces, this->NumberOfPieces);
 
   // Find the range of pieces to read.
   if (this->UpdatedPiece < this->UpdateNumberOfPieces)
@@ -351,29 +348,42 @@ void vtkXMLTableReader::SetupOutputData()
   this->RowDataOffset.clear();
   if (eRowData)
   {
+    std::vector<vtkXMLDataElement*> elementsToRemove;
     for (int i = 0; i < eRowData->GetNumberOfNestedElements(); i++)
     {
       vtkXMLDataElement* eNested = eRowData->GetNestedElement(i);
       const char* ename = eNested->GetAttribute("Name");
-      if (this->ColumnIsEnabled(eNested) && !rowData->HasArray(ename))
+      if (this->ColumnIsEnabled(eNested))
       {
-        this->NumberOfColumns++;
-        this->RowDataTimeStep[ename] = -1;
-        this->RowDataOffset[ename] = -1;
-        vtkAbstractArray* array = this->CreateArray(eNested);
-        if (array)
+        if (!rowData->HasArray(ename))
         {
-          array->SetNumberOfTuples(rowTuples);
-          // Manipulate directly RowData may have unexpected results
-          // passing by AddColumn() instead of AddArray()
-          output->AddColumn(array);
-          array->Delete();
+          this->NumberOfColumns++;
+          this->RowDataTimeStep[ename] = -1;
+          this->RowDataOffset[ename] = -1;
+          vtkAbstractArray* array = this->CreateArray(eNested);
+          if (array)
+          {
+            array->SetNumberOfTuples(rowTuples);
+            // Manipulate directly RowData may have unexpected results
+            // passing by AddColumn() instead of AddArray()
+            output->AddColumn(array);
+            array->Delete();
+          }
+          else
+          {
+            this->DataError = 1;
+          }
         }
         else
         {
-          this->DataError = 1;
+          vtkWarningMacro("Another row data array named " << ename << " already exists. Ignoring.");
+          elementsToRemove.push_back(eNested);
         }
       }
+    }
+    for (const auto& elem : elementsToRemove)
+    {
+      eRowData->RemoveNestedElement(elem);
     }
   }
 

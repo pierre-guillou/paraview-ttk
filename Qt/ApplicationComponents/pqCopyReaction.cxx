@@ -34,9 +34,15 @@
 #include <stack>
 #include <unordered_map>
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+using pqHashType = uint;
+#else
+using pqHashType = size_t;
+#endif
+
 // necessary for using QPointer in a QSet
 template <class T>
-static uint qHash(QPointer<T> p)
+static pqHashType qHash(QPointer<T> p)
 {
   return qHash(static_cast<T*>(p));
 }
@@ -183,6 +189,7 @@ pqProxy* getPipelineRoot(const pqProxySelection& sel)
   }
 
   // Count the number of input connections of each source
+  // NOLINTNEXTLINE(bugprone-nondeterministic-pointer-iteration-order)
   for (auto& pair : connections)
   {
     pqProxy* proxy = pair.first;
@@ -212,6 +219,7 @@ pqProxy* getPipelineRoot(const pqProxySelection& sel)
   }
 
   pqProxy* root = nullptr;
+  // NOLINTNEXTLINE(bugprone-nondeterministic-pointer-iteration-order)
   for (auto& pair : connections)
   {
     pqProxy* proxy = pair.first;

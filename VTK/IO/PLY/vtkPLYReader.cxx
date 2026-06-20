@@ -212,6 +212,7 @@ int vtkPLYReader::RequestData(vtkInformation* vtkNotUsed(request),
   {
     vtkErrorMacro(<< "Cannot read geometry");
     vtkPLY::ply_close(ply);
+    return 0;
   }
 
   // Check for optional attribute data. We can handle intensity; and the
@@ -613,7 +614,8 @@ int vtkPLYReader::RequestData(vtkInformation* vtkNotUsed(request),
     free(elist[i]); // allocated by ply_open_for_reading
     elist[i] = nullptr;
 
-  }            // for all elements of the PLY file
+  } // for all elements of the PLY file
+  // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
   free(elist); // allocated by ply_open_for_reading
 
   vtkDebugMacro(<< "Read: " << numPts << " points, " << numPolys << " polygons");

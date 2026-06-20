@@ -7,6 +7,7 @@
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataPipeline.h"
 #include "vtkDoubleArray.h"
+#include "vtkFloatArray.h"
 #include "vtkImageMandelbrotSource.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -67,7 +68,7 @@ public:
   }
   void CreateOutput(vtkOverlappingAMR* oamr)
   {
-    std::vector<int> blocksPerLevel;
+    std::vector<unsigned int> blocksPerLevel;
     int gridDescription(-1);
     double origin[3] = { DBL_MAX, DBL_MAX, DBL_MAX };
     for (size_t i = 0; i < this->Levels.size(); i++)
@@ -79,10 +80,7 @@ public:
       double* gridOrigin = grid->GetOrigin();
       for (int d = 0; d < 3; d++)
       {
-        if (gridOrigin[d] < origin[d])
-        {
-          origin[d] = gridOrigin[d];
-        }
+        origin[d] = std::min(gridOrigin[d], origin[d]);
       }
       for (unsigned int j = static_cast<unsigned int>(blocksPerLevel.size()); j <= level; j++)
       {
@@ -93,7 +91,7 @@ public:
 
     std::vector<unsigned int> blockIds(
       blocksPerLevel.size(), 0); // keep track of the id at each level
-    oamr->Initialize(static_cast<int>(blocksPerLevel.size()), blocksPerLevel.data());
+    oamr->Initialize(blocksPerLevel);
     oamr->SetOrigin(origin);
     oamr->SetGridDescription(gridDescription);
     for (size_t i = 0; i < this->Levels.size(); i++)
@@ -964,12 +962,12 @@ void vtkTemporalFractal::AddTestArray(vtkOverlappingAMR* output)
   int level = 0;
   while (level < levels)
   {
-    int blocks = output->GetNumberOfDataSets(level);
+    int blocks = output->GetNumberOfBlocks(level);
     int block = 0;
     while (block < blocks)
     {
       vtkUniformGrid* grid;
-      grid = vtkUniformGrid::SafeDownCast(output->GetDataSet(level, block));
+      grid = vtkUniformGrid::SafeDownCast(output->GetDataSetAsCartesianGrid(level, block));
       assert("check: grid_exists" && grid != nullptr);
 
       vtkDoubleArray* array = vtkDoubleArray::New();
@@ -1028,12 +1026,12 @@ void vtkTemporalFractal::AddVectorArray(vtkOverlappingAMR* output)
   int level = 0;
   while (level < levels)
   {
-    int blocks = output->GetNumberOfDataSets(level);
+    int blocks = output->GetNumberOfBlocks(level);
     int block = 0;
     while (block < blocks)
     {
       vtkUniformGrid* grid;
-      grid = vtkUniformGrid::SafeDownCast(output->GetDataSet(level, block));
+      grid = vtkUniformGrid::SafeDownCast(output->GetDataSetAsCartesianGrid(level, block));
       assert("check: grid_exists" && grid != nullptr);
 
       vtkDoubleArray* array = vtkDoubleArray::New();
@@ -1133,9 +1131,9 @@ void vtkTemporalFractal::AddFractalArray(vtkCompositeDataSet* output)
         origin[2] + (spacing[2] * 0.5), this->CurrentTime / 10.0);
       fractalSource->SetSampleCX(spacing[0], spacing[1], spacing[2], 0.1);
       fractalSource->Update();
-      vtkDataArray* fractal;
-      fractal = fractalSource->GetOutput()->GetPointData()->GetScalars();
-      float* fractalPtr = static_cast<float*>(fractal->GetVoidPointer(0));
+      auto* fractal =
+        vtkFloatArray::FastDownCast(fractalSource->GetOutput()->GetPointData()->GetScalars());
+      float* fractalPtr = fractal->GetPointer(0);
 
       for (int i = 0; i < fractal->GetNumberOfTuples(); ++i)
       {
@@ -1176,12 +1174,12 @@ void vtkTemporalFractal::AddBlockIdArray(vtkOverlappingAMR* output)
   int blockId = 0;
   while (level < levels)
   {
-    int blocks = output->GetNumberOfDataSets(level);
+    int blocks = output->GetNumberOfBlocks(level);
     int block = 0;
     while (block < blocks)
     {
       vtkUniformGrid* grid;
-      grid = vtkUniformGrid::SafeDownCast(output->GetDataSet(level, block));
+      grid = vtkUniformGrid::SafeDownCast(output->GetDataSetAsCartesianGrid(level, block));
       assert("check: grid_exists" && grid != nullptr);
 
       vtkIntArray* array = vtkIntArray::New();
@@ -1210,12 +1208,12 @@ void vtkTemporalFractal::AddDepthArray(vtkOverlappingAMR* output)
   int level = 0;
   while (level < levels)
   {
-    int blocks = output->GetNumberOfDataSets(level);
+    int blocks = output->GetNumberOfBlocks(level);
     int block = 0;
     while (block < blocks)
     {
       vtkUniformGrid* grid;
-      grid = vtkUniformGrid::SafeDownCast(output->GetDataSet(level, block));
+      grid = vtkUniformGrid::SafeDownCast(output->GetDataSetAsCartesianGrid(level, block));
       assert("check: grid_exists" && grid != nullptr);
 
       vtkIntArray* array = vtkIntArray::New();
@@ -1267,7 +1265,7 @@ void vtkTemporalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], int on
   int iLevel, jLevel, kLevel, tmp;
   unsigned char* ptr;
 
-  ptr = (unsigned char*)(array->GetVoidPointer(0));
+  ptr = array->GetPointer(0);
 
   for (k = 0; k < dims[2]; ++k)
   {
@@ -1289,10 +1287,7 @@ void vtkTemporalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], int on
     {
       tmp = k - dims[2] + 1 + this->GhostLevels;
     }
-    if (tmp > kLevel)
-    {
-      kLevel = tmp;
-    }
+    kLevel = std::max(tmp, kLevel);
     if (this->TwoDimensional)
     {
       kLevel = 0;
@@ -1308,10 +1303,7 @@ void vtkTemporalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], int on
       {
         tmp = this->GhostLevels - j;
       }
-      if (tmp > jLevel)
-      {
-        jLevel = tmp;
-      }
+      jLevel = std::max(tmp, jLevel);
       if (onFace[3])
       {
         tmp = j - dims[1] + 1 + this->GhostLevels - 1;
@@ -1320,10 +1312,7 @@ void vtkTemporalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], int on
       {
         tmp = j - dims[1] + 1 + this->GhostLevels;
       }
-      if (tmp > jLevel)
-      {
-        jLevel = tmp;
-      }
+      jLevel = std::max(tmp, jLevel);
       for (i = 0; i < dims[0]; ++i)
       {
         iLevel = jLevel;
@@ -1335,10 +1324,7 @@ void vtkTemporalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], int on
         {
           tmp = this->GhostLevels - i;
         }
-        if (tmp > iLevel)
-        {
-          iLevel = tmp;
-        }
+        iLevel = std::max(tmp, iLevel);
         if (onFace[1])
         {
           tmp = i - dims[0] + 1 + this->GhostLevels - 1;
@@ -1347,10 +1333,7 @@ void vtkTemporalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], int on
         {
           tmp = i - dims[0] + 1 + this->GhostLevels;
         }
-        if (tmp > iLevel)
-        {
-          iLevel = tmp;
-        }
+        iLevel = std::max(tmp, iLevel);
 
         if (iLevel <= 0)
         {
@@ -1484,7 +1467,7 @@ double vtkTemporalFractal::EvaluateSet(double p[4])
   double cReal, cImag, zReal, zImag;
   double zReal2, zImag2;
 
-  const int maximumNumberOfIterations = 100;
+  constexpr int maximumNumberOfIterations = 100;
 
   cReal = p[0];
   cImag = p[1];

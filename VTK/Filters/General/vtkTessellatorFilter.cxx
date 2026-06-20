@@ -13,7 +13,6 @@
 #include "vtkDataSetEdgeSubdivisionCriterion.h"
 #include "vtkEdgeSubdivisionCriterion.h"
 #include "vtkFieldData.h"
-#include "vtkFloatArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMergePoints.h"
@@ -22,6 +21,8 @@
 #include "vtkStreamingTessellator.h"
 #include "vtkTessellatorFilter.h"
 #include "vtkUnstructuredGrid.h"
+
+#include <iostream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTessellatorFilter);
@@ -48,7 +49,7 @@ public:
   void Execute(vtkObject*, unsigned long, void* callData) override
   {
     double subprogress = *(static_cast<double*>(callData));
-    cout << "  ++ <" << ((subprogress / 2. + 0.5) * 100.) << ">\n";
+    std::cout << "  ++ <" << ((subprogress / 2. + 0.5) * 100.) << ">\n";
     this->Tessellator->UpdateProgress(subprogress / 2. + 0.5);
   }
 
@@ -265,15 +266,13 @@ vtkMTimeType vtkTessellatorFilter::GetMTime()
   if (this->Tessellator)
   {
     tmp = this->Tessellator->GetMTime();
-    if (tmp > mt)
-      mt = tmp;
+    mt = std::max(tmp, mt);
   }
 
   if (this->Subdivider)
   {
     tmp = this->Subdivider->GetMTime();
-    if (tmp > mt)
-      mt = tmp;
+    mt = std::max(tmp, mt);
   }
 
   return mt;
@@ -499,9 +498,9 @@ void vtkTessellatorFilter::Teardown()
 // ========================================
 // output element topology
 
-static const double extraLagrangeCurveParams[3] = { 0.5, 0.0, 0.0 };
+static constexpr double extraLagrangeCurveParams[3] = { 0.5, 0.0, 0.0 };
 
-static const double extraWedgeParams[][3] = {
+static constexpr double extraWedgeParams[][3] = {
   // mid-edge points, bottom
   { 0.5, 0.0, 0.0 },
   { 0.5, 0.5, 0.0 },
@@ -524,7 +523,7 @@ static const double extraWedgeParams[][3] = {
   { 1 / 3., 1 / 3., 1 / 3. },
 };
 
-static const double extraLinHexParams[12][3] = {
+static constexpr double extraLinHexParams[12][3] = {
   { 0.5, 0.0, 0.0 },
   { 1.0, 0.5, 0.0 },
   { 0.5, 1.0, 0.0 },
@@ -539,7 +538,7 @@ static const double extraLinHexParams[12][3] = {
   { 0.0, 1.0, 0.5 },
 };
 
-static const double extraQuadHexParams[7][3] = {
+static constexpr double extraQuadHexParams[7][3] = {
   { 0.5, 0.5, 0.0 },
   { 0.5, 0.5, 1.0 },
   { 0.5, 0.0, 0.5 },
@@ -549,24 +548,24 @@ static const double extraQuadHexParams[7][3] = {
   { 0.5, 0.5, 0.5 },
 };
 
-static const double extraLagrangeQuadParams[4][3] = {
+static constexpr double extraLagrangeQuadParams[4][3] = {
   { 0.5, 0.0, 0.0 },
   { 1.0, 0.5, 0.0 },
   { 0.5, 1.0, 0.0 },
   { 0.0, 0.5, 0.0 },
 };
 
-static const double extraQuadQuadParams[1][3] = {
+static constexpr double extraQuadQuadParams[1][3] = {
   { 0.5, 0.5, 0.0 },
 };
 
-static const double extraLagrangeTriParams[3][3] = {
+static constexpr double extraLagrangeTriParams[3][3] = {
   { 0.5, 0.0, 0.0 },
   { 0.5, 0.5, 0.0 },
   { 0.0, 0.5, 0.0 },
 };
 
-static const double extraLagrangeTetraParams[6][3] = {
+static constexpr double extraLagrangeTetraParams[6][3] = {
   { 0.5, 0.0, 0.0 },
   { 0.5, 0.5, 0.0 },
   { 0.0, 0.5, 0.0 },
@@ -1383,7 +1382,7 @@ int vtkTessellatorFilter::RequestData(
           }
           cp->EvaluateLocation(dummySubId, pts[2] + 3, pts[2], weights.data());
           this->Subdivider->EvaluateFields(pts[2], weights.data(), 6);
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         case VTK_QUADRATIC_EDGE:
           dim = 1;
           outconn = &quadEdgeEdges[0][0];
@@ -1406,7 +1405,7 @@ int vtkTessellatorFilter::RequestData(
             cp->EvaluateLocation(dummySubId, pts[p] + 3, pts[p], weights.data());
             this->Subdivider->EvaluateFields(pts[p], weights.data(), 6);
           }
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         case VTK_QUADRATIC_TRIANGLE:
           if (dim > 1)
           {
@@ -1451,7 +1450,7 @@ int vtkTessellatorFilter::RequestData(
               this->Subdivider->EvaluateFields(pts[4 + nn], weights.data(), 6);
             }
           }
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         case VTK_BIQUADRATIC_QUAD:
         case VTK_QUADRATIC_QUAD:
           for (c = 0; c < 3; ++c)
@@ -1484,7 +1483,7 @@ int vtkTessellatorFilter::RequestData(
             cp->EvaluateLocation(dummySubId, pts[p] + 3, pts[p], weights.data());
             this->Subdivider->EvaluateFields(pts[p], weights.data(), 6);
           }
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         case VTK_QUADRATIC_TETRA:
           if (dim == 3)
           {
@@ -1516,7 +1515,7 @@ int vtkTessellatorFilter::RequestData(
             cp->EvaluateLocation(dummySubId, pts[p] + 3, pts[p], weights.data());
             this->Subdivider->EvaluateFields(pts[p], weights.data(), 6);
           }
-          VTK_FALLTHROUGH;
+          [[fallthrough]];
         case VTK_QUADRATIC_HEXAHEDRON:
           for (p = 20; p < 27; ++p)
           {

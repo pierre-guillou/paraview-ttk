@@ -12,11 +12,13 @@
 #include "vtkPVSystemConfigInformation.h"
 #include "vtkSMSession.h"
 
+#include <QIcon>
+#include <QLabel>
 #include <QProgressBar>
+#include <QStyle>
 #include <QStyleFactory>
+#include <QTimer>
 #include <QToolButton>
-
-#include <iostream>
 
 //-----------------------------------------------------------------------------
 pqStatusBar::pqStatusBar(QWidget* parentObject)
@@ -45,14 +47,14 @@ pqStatusBar::pqStatusBar(QWidget* parentObject)
 
   // Force to fusion or cleanlooks style
   // to make sure that the formatted text is displayed
-  QStyle* style = QStyleFactory::create("fusion");
-  if (!style)
+  this->ProgressBarStyle.reset(QStyleFactory::create("fusion"));
+  if (!this->ProgressBarStyle)
   {
-    style = QStyleFactory::create("cleanlooks");
+    this->ProgressBarStyle.reset(QStyleFactory::create("cleanlooks"));
   }
-  if (style)
+  if (this->ProgressBarStyle)
   {
-    this->MemoryProgressBar->setStyle(style);
+    this->MemoryProgressBar->setStyle(this->ProgressBarStyle.get());
   }
 
   auto& activeObjects = pqActiveObjects::instance();
@@ -68,13 +70,69 @@ pqStatusBar::pqStatusBar(QWidget* parentObject)
   this->connect(&activeObjects, SIGNAL(dataUpdated()), timer, SLOT(start()));
   this->connect(&activeObjects, SIGNAL(viewUpdated()), timer, SLOT(start()));
 
+  this->WarningIndicator = new QToolButton(this);
+  this->WarningIndicator->setIcon(this->style()->standardIcon(QStyle::SP_MessageBoxWarning));
+  this->WarningIndicator->setVisible(false);
+  this->WarningIndicator->setAutoRaise(true);
+  this->WarningIndicator->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  this->WarningIndicator->connect(this->WarningIndicator, &QAbstractButton::pressed, this,
+    [this]() { Q_EMIT this->messageIndicatorPressed(); });
+
+  this->ErrorIndicator = new QToolButton(this);
+  this->ErrorIndicator->setIcon(this->style()->standardIcon(QStyle::SP_MessageBoxCritical));
+  this->ErrorIndicator->setVisible(false);
+  this->ErrorIndicator->setAutoRaise(true);
+  this->ErrorIndicator->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  this->ErrorIndicator->connect(this->ErrorIndicator, &QAbstractButton::pressed, this,
+    [this]() { Q_EMIT this->messageIndicatorPressed(); });
+
   // Final ui setup
   this->addPermanentWidget(progress_bar);
   this->addPermanentWidget(this->MemoryProgressBar);
+  this->addPermanentWidget(this->WarningIndicator);
+  this->addPermanentWidget(this->ErrorIndicator);
 }
 
 //-----------------------------------------------------------------------------
 pqStatusBar::~pqStatusBar() = default;
+
+//-----------------------------------------------------------------------------
+void pqStatusBar::handleMessage(const QString&, int type)
+{
+  if (type == QtWarningMsg)
+  {
+    this->WarningCount++;
+  }
+  else if (type == QtCriticalMsg || type == QtFatalMsg)
+  {
+    this->ErrorCount++;
+  }
+  this->updateErrorIndicator();
+  this->updateWarningIndicator();
+}
+
+//-----------------------------------------------------------------------------
+void pqStatusBar::resetMessageIndicators()
+{
+  this->ErrorCount = 0;
+  this->WarningCount = 0;
+  this->updateErrorIndicator();
+  this->updateWarningIndicator();
+}
+
+//-----------------------------------------------------------------------------
+void pqStatusBar::updateErrorIndicator()
+{
+  this->ErrorIndicator->setText(QString::number(this->ErrorCount));
+  this->ErrorIndicator->setVisible(this->ErrorCount > 0);
+}
+
+//-----------------------------------------------------------------------------
+void pqStatusBar::updateWarningIndicator()
+{
+  this->WarningIndicator->setText(QString::number(this->WarningCount));
+  this->WarningIndicator->setVisible(this->WarningCount > 0);
+}
 
 //-----------------------------------------------------------------------------
 void pqStatusBar::updateServerConfigInfo()

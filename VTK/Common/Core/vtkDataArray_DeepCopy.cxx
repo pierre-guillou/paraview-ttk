@@ -9,6 +9,7 @@
 #include "vtkGenericDataArray.h"
 #include "vtkLookupTable.h"
 #include "vtkSMPTools.h"
+#include "vtkScaledSOADataArrayTemplate.h"
 
 namespace
 {
@@ -67,7 +68,6 @@ struct DeepCopyWorker
     dst->CopyData(src);
   }
 
-#ifdef VTK_USE_SCALED_SOA_ARRAYS
   // ScaleSoA --> ScaleSoA same-type specialization:
   template <typename ValueType>
   void operator()(
@@ -84,7 +84,6 @@ struct DeepCopyWorker
     }
     dst->SetScale(src->GetScale());
   }
-#endif
 
 // Undo warning suppression.
 #if defined(__clang__) && defined(__has_warning)
@@ -111,10 +110,10 @@ struct DeepCopyWorker
 
   // These overloads are split so that the above specializations will be
   // used properly.
-  template <typename Array1DerivedT, typename Array1ValueT, typename Array2DerivedT,
-    typename Array2ValueT>
-  void operator()(vtkGenericDataArray<Array1DerivedT, Array1ValueT>* src,
-    vtkGenericDataArray<Array2DerivedT, Array2ValueT>* dst) const
+  template <typename Array1DerivedT, typename Array1ValueT, int Array1ArrayType,
+    typename Array2DerivedT, typename Array2ValueT, int Array2ArrayType>
+  void operator()(vtkGenericDataArray<Array1DerivedT, Array1ValueT, Array1ArrayType>* src,
+    vtkGenericDataArray<Array2DerivedT, Array2ValueT, Array2ArrayType>* dst) const
   {
     this->DoGenericCopy(src, dst);
   }

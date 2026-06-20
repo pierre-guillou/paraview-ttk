@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "LSDynaFamily.h"
+
+#include "vtkStringFormatter.h"
+
 #include <vtksys/SystemTools.hxx>
 
 #include <cassert>
@@ -10,8 +13,6 @@
 #include <cerrno>
 
 #include <algorithm>
-#include <map>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -59,9 +60,7 @@ std::string vtkLSGetFamilyFileName(
 
   if (number > 0)
   {
-    char n[12];
-    snprintf(n, sizeof(n), "%02d", number);
-    blorb += n;
+    blorb += vtk::format("{:02d}", number);
   }
 
   return blorb;
@@ -209,8 +208,7 @@ int LSDynaFamily::SkipToWord(SectionType sType, vtkIdType sId, vtkIdType wordNum
   if (sType != TimeStepSection && sType < ElementDeletionState)
   {
     assert(sId < (int)this->Adaptations.size());
-    if (sId < 0)
-      sId = 0;
+    sId = std::max<vtkIdType>(sId, 0);
     mark = this->AdaptationsMarkers[sId].Marks[sType];
     mark.Offset += wordNumber;
   }
@@ -353,6 +351,10 @@ int LSDynaFamily::BufferChunk(WordType wType, vtkIdType chunkSizeInWords)
     this->Chunk = new unsigned char[this->ChunkAlloc * this->WordSize];
   }
 
+  if (VTK_LSDYNA_ISBADFILE(this->FD))
+  {
+    return 0;
+  }
   this->FWord = VTK_LSDYNA_TELL(this->FD);
 
   // Eventually, we must check the return value and see if the read
@@ -566,9 +568,6 @@ void LSDynaFamily::MarkSectionStart(int adaptLevel, SectionType m)
     this->AdaptationsMarkers.emplace_back();
   }
   this->AdaptationsMarkers[adaptLevel].Marks[m] = mark;
-
-  // fprintf( stderr, "Mark \"%s\" is (%d,%d)\n", SectionTypeToString(m), mark.FileNumber,
-  // mark.Offset );
 }
 
 //------------------------------------------------------------------------------
@@ -745,7 +744,13 @@ void LSDynaFamily::OpenFileHandles()
   if (VTK_LSDYNA_ISBADFILE(this->FD) && this->FileHandlesClosed)
   {
     this->FD = VTK_LSDYNA_OPENFILE(this->Files[this->FNum].c_str());
-    VTK_LSDYNA_SEEK(this->FD, static_cast<vtkLSDynaOff_t>(this->FWord), SEEK_SET);
+    if (VTK_LSDYNA_ISBADFILE(this->FD))
+    {
+      this->FNum = -1;
+      this->FAdapt = -1;
+      return;
+    }
+    VTK_LSDYNA_SEEK(this->FD, this->FWord, SEEK_SET);
     this->FileHandlesClosed = false;
   }
 }

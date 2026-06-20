@@ -20,6 +20,7 @@
 #include "vtkPointData.h"
 #include "vtkSMPTools.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringFormatter.h"
 #include "vtkVector.h"
 
 #include "vtksys/FStream.hxx"
@@ -740,12 +741,8 @@ int vtkParFlowMetaReader::FindPFBFiles(std::vector<std::string>& filesToLoad,
                 frac = (times[1] - times[0]) / delta;
                 currentTime = times[0] + delta * frac;
               }
-              size_t maxLen = filePattern.size() + 20;
-              char* curFile = new char[maxLen];
-              std::snprintf(curFile, maxLen - 1, filePattern.c_str(), currentTime);
-              curFile[maxLen - 1] = '\0';
+              auto curFile = vtk::format(vtk::printf_to_std_format(filePattern), currentTime);
               filesToLoad.push_back(curFile);
-              delete[] curFile;
             }
             else if (times[0] > timestep)
             {
@@ -774,13 +771,9 @@ int vtkParFlowMetaReader::FindPFBFiles(std::vector<std::string>& filesToLoad,
               int frac = (currentTime - times[0]) / timesPerStack;
               int tbLo = times[0] + timesPerStack * frac;
               int tbHi = tbLo + timesPerStack - 1;
-              size_t maxLen = filePattern.size() + 40;
               slice = currentTime - tbLo;
-              char* curFile = new char[maxLen];
-              std::snprintf(curFile, maxLen - 1, filePattern.c_str(), tbLo, tbHi);
-              curFile[maxLen - 1] = '\0';
+              auto curFile = vtk::format(vtk::printf_to_std_format(filePattern), tbLo, tbHi);
               filesToLoad.push_back(curFile);
-              delete[] curFile;
             }
           }
           else
@@ -1178,7 +1171,7 @@ int vtkParFlowMetaReader::LoadPFB(vtkDataSet* data, const int extent[6],
       // extent[3] << " " << extent[5] << " )\n";
       data->GetCellData()->AddArray(array);
       int comp = 0;
-      for (auto file : fileList)
+      for (auto const& file : fileList)
       {
         status &= this->LoadPFBComponent(dom, array, file, comp, extent);
         ++comp;

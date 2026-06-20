@@ -5,6 +5,7 @@
 #include "vtkAlgorithmOutput.h"
 #include "vtkImageData.h"
 #include "vtkRenderWindowInteractor.h"
+#include "vtkStringScanner.h"
 #include "vtkTclUtil.h"
 #include "vtkTkInternals.h"
 #include "vtkVersionMacros.h"
@@ -20,6 +21,9 @@
 #endif
 #include "tkInt.h"
 #else
+#if !defined(Status)
+#define Status int
+#endif
 #include "vtkXOpenGLRenderWindow.h"
 #endif
 #endif
@@ -28,6 +32,17 @@
 #include <cstdint>
 #include <cstdlib>
 #include <vector>
+
+#if (TCL_MAJOR_VERSION >= 9) || ((TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 6))
+#define VTK_TCL_CONST const
+#elif ((TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4))
+#define VTK_TCL_CONST CONST84
+#else
+#define VTK_TCL_CONST
+#endif
+#ifndef offsetof
+#define offsetof(type, field) ((size_t)((char*)&((type*)0)->field))
+#endif
 
 // Silence warning like
 // "dereferencing type-punned pointer will break strict-aliasing rules"
@@ -45,14 +60,13 @@
 // or with the command configure.  The only new one is "-rw" which allows
 // the uses to set their own render window.
 static Tk_ConfigSpec vtkTkRenderWidgetConfigSpecs[] = {
-  { TK_CONFIG_PIXELS, (char*)"-height", (char*)"height", (char*)"Height", (char*)"400",
-    Tk_Offset(struct vtkTkRenderWidget, Height), 0, nullptr },
+  { TK_CONFIG_PIXELS, "-height", "height", "Height", "400",
+    offsetof(struct vtkTkRenderWidget, Height), 0, nullptr },
 
-  { TK_CONFIG_PIXELS, (char*)"-width", (char*)"width", (char*)"Width", (char*)"400",
-    Tk_Offset(struct vtkTkRenderWidget, Width), 0, nullptr },
+  { TK_CONFIG_PIXELS, "-width", "width", "Width", "400", offsetof(struct vtkTkRenderWidget, Width),
+    0, nullptr },
 
-  { TK_CONFIG_STRING, (char*)"-rw", (char*)"rw", (char*)"RW", (char*)"",
-    Tk_Offset(struct vtkTkRenderWidget, RW), 0, nullptr },
+  { TK_CONFIG_STRING, "-rw", "rw", "RW", "", offsetof(struct vtkTkRenderWidget, RW), 0, nullptr },
 
   { TK_CONFIG_END, nullptr, nullptr, nullptr, nullptr, 0, 0, nullptr }
 };
@@ -88,17 +102,8 @@ void vtkExtractImageData(unsigned char* buffer, T* inPtr, double shift, double s
       {
         // Clamp
         pixel = (*ImagePtr + shift) * scale;
-        if (pixel < 0)
-        {
-          pixel = 0;
-        }
-        else
-        {
-          if (pixel > 255)
-          {
-            pixel = 255;
-          }
-        }
+        pixel = std::max(pixel, 0.0f);
+        pixel = std::min(pixel, 255.0f);
         *BufferPtr = (unsigned char)pixel;
         ImagePtr++;
         BufferPtr++;
@@ -113,11 +118,8 @@ extern "C"
 #define VTKIMAGEDATATOTKPHOTO_CORONAL 0
 #define VTKIMAGEDATATOTKPHOTO_SAGITTAL 1
 #define VTKIMAGEDATATOTKPHOTO_TRANSVERSE 2
-  int vtkImageDataToTkPhoto_Cmd(ClientData vtkNotUsed(clientData), Tcl_Interp* interp, int argc,
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4)
-    CONST84
-#endif
-    char** argv)
+  int vtkImageDataToTkPhoto_Cmd(
+    ClientData vtkNotUsed(clientData), Tcl_Interp* interp, int argc, VTK_TCL_CONST char** argv)
   {
     int status = 0;
     vtkImageData* image;
@@ -145,9 +147,9 @@ extern "C"
     }
 
     // Find the image
-    char typeCheck[256];
-    unsigned long long l;
-    sscanf(argv[1], "_%llx_%s", &l, typeCheck);
+    auto result =
+      vtk::scan<unsigned long long, std::string_view>(std::string_view(argv[1]), "_{:x}_{:s}");
+    auto& [l, typeCheck] = result->values();
     union
     {
       void* p;
@@ -155,9 +157,8 @@ extern "C"
     } u;
     u.l = static_cast<uintptr_t>(l);
     // Various historical pointer manglings
-    if ((strcmp("vtkAlgorithmOutput", typeCheck) == 0 ||
-          strcmp("vtkAlgorithmOutput_p", typeCheck) == 0 ||
-          strcmp("p_vtkAlgorithmOutput", typeCheck) == 0))
+    if (typeCheck == "vtkAlgorithmOutput" || typeCheck == "vtkAlgorithmOutput_p" ||
+      typeCheck == "p_vtkAlgorithmOutput")
     {
       vtkAlgorithmOutput* algOutput = static_cast<vtkAlgorithmOutput*>(u.p);
       if (algOutput)
@@ -167,10 +168,9 @@ extern "C"
         u.p = vtkImageData::SafeDownCast(alg->GetOutputDataObject(algOutput->GetIndex()));
       }
     }
-    else if (strcmp("vtkImageData", typeCheck) != 0 && strcmp("vtkImageData_p", typeCheck) != 0 &&
-      strcmp("p_vtkImageData", typeCheck) != 0 && strcmp("vtkStructuredPoints", typeCheck) != 0 &&
-      strcmp("vtkStructuredPoints_p", typeCheck) != 0 &&
-      strcmp("p_vtkStructuredPoints", typeCheck) != 0)
+    else if (typeCheck != "vtkImageData" && typeCheck != "vtkImageData_p" &&
+      typeCheck != "p_vtkImageData" && typeCheck != "vtkStructuredPoints" &&
+      typeCheck != "vtkStructuredPoints_p" && typeCheck != "p_vtkStructuredPoints")
     {
       // bad type
       u.p = nullptr;
@@ -330,8 +330,14 @@ extern "C"
         block.offset[3] = 3;
         break;
     }
+#if (TCL_MAJOR_VERSION >= 9)
+    Tk_PhotoSetSize(interp, photo, block.width, block.height);
+    Tk_PhotoPutBlock(
+      interp, photo, &block, 0, 0, block.width, block.height, TK_PHOTO_COMPOSITE_SET);
+#else
     Tk_PhotoSetSize(photo, block.width, block.height);
     Tk_PhotoPutBlock(photo, &block, 0, 0, block.width, block.height);
+#endif
     return TCL_OK;
   }
 }
@@ -339,17 +345,22 @@ extern "C"
 //------------------------------------------------------------------------------
 // It's possible to change with this function or in a script some
 // options like width, height or the render widget.
-int vtkTkRenderWidget_Configure(
-  Tcl_Interp* interp, struct vtkTkRenderWidget* self, int argc, char* argv[], int flags)
+#if (TCL_MAJOR_VERSION >= 9)
+int vtkTkRenderWidget_Configure(Tcl_Interp* interp, struct vtkTkRenderWidget* self, Tcl_Size objc,
+  Tcl_Obj* const* objv, int flags)
+#else
+int vtkTkRenderWidget_Configure(Tcl_Interp* interp, struct vtkTkRenderWidget* self, int argc,
+  VTK_TCL_CONST char* argv[], int flags)
+#endif
 {
   // Let Tk handle generic configure options.
-  if (Tk_ConfigureWidget(interp, self->TkWin, vtkTkRenderWidgetConfigSpecs, argc,
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4)
-        const_cast<CONST84 char**>(argv),
+#if (TCL_MAJOR_VERSION >= 9)
+  if (Tk_ConfigureWidget(interp, self->TkWin, vtkTkRenderWidgetConfigSpecs, objc, objv, (void*)self,
+        flags) == TCL_ERROR)
 #else
-        argv,
+  if (Tk_ConfigureWidget(interp, self->TkWin, vtkTkRenderWidgetConfigSpecs, argc, argv, (char*)self,
+        flags) == TCL_ERROR)
 #endif
-        (char*)self, flags) == TCL_ERROR)
   {
     return (TCL_ERROR);
   }
@@ -372,11 +383,8 @@ int vtkTkRenderWidget_Configure(
 // to choose the appropriate method to invoke.
 extern "C"
 {
-  int vtkTkRenderWidget_Widget(ClientData clientData, Tcl_Interp* interp, int argc,
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4)
-    CONST84
-#endif
-    char* argv[])
+  int vtkTkRenderWidget_Widget(
+    ClientData clientData, Tcl_Interp* interp, int argc, VTK_TCL_CONST char* argv[])
   {
     struct vtkTkRenderWidget* self = (struct vtkTkRenderWidget*)clientData;
     int result = TCL_OK;
@@ -389,7 +397,11 @@ extern "C"
     }
 
     // Make sure the widget is not deleted during this function
+#if (TCL_MAJOR_VERSION >= 9)
+    Tcl_Preserve((ClientData)self);
+#else
     Tk_Preserve((ClientData)self);
+#endif
 
     // Handle render call to the widget
     if (strncmp(argv[1], "render", std::max<size_t>(1, strlen(argv[1]))) == 0 ||
@@ -420,13 +432,26 @@ extern "C"
       else
       {
         /* Execute a configuration change */
-        result = vtkTkRenderWidget_Configure(interp, self, argc - 2,
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4)
-          const_cast<char**>(argv + 2),
+#if (TCL_MAJOR_VERSION >= 9)
+        // Convert string arguments to Tcl_Obj for TCL 9.0
+        Tcl_Obj** objv_config = (Tcl_Obj**)ckalloc((argc - 2) * sizeof(Tcl_Obj*));
+        for (int i = 0; i < argc - 2; i++)
+        {
+          objv_config[i] = Tcl_NewStringObj(argv[i + 2], -1);
+          Tcl_IncrRefCount(objv_config[i]);
+        }
+        result =
+          vtkTkRenderWidget_Configure(interp, self, argc - 2, objv_config, TK_CONFIG_ARGV_ONLY);
+
+        // Clean up the Tcl_Obj array
+        for (int i = 0; i < argc - 2; i++)
+        {
+          Tcl_DecrRefCount(objv_config[i]);
+        }
+        ckfree((char*)objv_config);
 #else
-          argv + 2,
+        result = vtkTkRenderWidget_Configure(interp, self, argc - 2, argv + 2, TK_CONFIG_ARGV_ONLY);
 #endif
-          TK_CONFIG_ARGV_ONLY);
       }
     }
     else if (!strcmp(argv[1], "GetRenderWindow"))
@@ -448,7 +473,11 @@ extern "C"
     }
 
     // Unlock the object so it can be deleted.
+#if (TCL_MAJOR_VERSION >= 9)
+    Tcl_Release((ClientData)self);
+#else
     Tk_Release((ClientData)self);
+#endif
     return result;
   }
 }
@@ -464,16 +493,10 @@ extern "C"
 //     * Configures this vtkTkRenderWidget for the given arguments
 extern "C"
 {
-  int vtkTkRenderWidget_Cmd(ClientData clientData, Tcl_Interp* interp, int argc,
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4)
-    CONST84
-#endif
-    char** argv)
+  int vtkTkRenderWidget_Cmd(
+    ClientData clientData, Tcl_Interp* interp, int argc, VTK_TCL_CONST char** argv)
   {
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4)
-    CONST84
-#endif
-    char* name;
+    VTK_TCL_CONST char* name;
     Tk_Window main = (Tk_Window)clientData;
     Tk_Window tkwin;
     struct vtkTkRenderWidget* self;
@@ -515,13 +538,37 @@ extern "C"
       tkwin, ExposureMask | StructureNotifyMask, vtkTkRenderWidget_EventProc, (ClientData)self);
 
     // Configure vtkTkRenderWidget widget
-    if (vtkTkRenderWidget_Configure(interp, self, argc - 2,
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4)
-          const_cast<char**>(argv + 2),
+#if (TCL_MAJOR_VERSION >= 9)
+    // Convert string arguments to Tcl_Obj for TCL 9.0
+    Tcl_Obj** objv_init = (Tcl_Obj**)ckalloc((argc - 2) * sizeof(Tcl_Obj*));
+    for (int i = 0; i < argc - 2; i++)
+    {
+      objv_init[i] = Tcl_NewStringObj(argv[i + 2], -1);
+      Tcl_IncrRefCount(objv_init[i]);
+    }
+
+    if (vtkTkRenderWidget_Configure(interp, self, argc - 2, objv_init, 0) == TCL_ERROR)
+    {
+      // Clean up before error return
+      for (int i = 0; i < argc - 2; i++)
+      {
+        Tcl_DecrRefCount(objv_init[i]);
+      }
+      ckfree((char*)objv_init);
+
+      Tk_DestroyWindow(tkwin);
+      Tcl_DeleteCommand(interp, (char*)"vtkTkImageViewerWidget");
+      return TCL_ERROR;
+    }
+
+    // Clean up the Tcl_Obj array
+    for (int i = 0; i < argc - 2; i++)
+    {
+      Tcl_DecrRefCount(objv_init[i]);
+    }
+    ckfree((char*)objv_init);
 #else
-          argv + 2,
-#endif
-          0) == TCL_ERROR)
+    if (vtkTkRenderWidget_Configure(interp, self, argc - 2, argv + 2, 0) == TCL_ERROR)
     {
       Tk_DestroyWindow(tkwin);
       Tcl_DeleteCommand(interp, "vtkTkRenderWidget");
@@ -529,6 +576,7 @@ extern "C"
       // free(self);
       return TCL_ERROR;
     }
+#endif
 
     Tcl_AppendResult(interp, Tk_PathName(tkwin), nullptr);
     return TCL_OK;
@@ -555,7 +603,11 @@ extern "C"
 
 extern "C"
 {
+#if (TCL_MAJOR_VERSION >= 9)
+  void vtkTkRenderWidget_Destroy(void* memPtr)
+#else
   void vtkTkRenderWidget_Destroy(char* memPtr)
+#endif
   {
     struct vtkTkRenderWidget* self = (struct vtkTkRenderWidget*)memPtr;
 
@@ -857,8 +909,8 @@ static int vtkTkRenderWidget_MakeRenderWindow(struct vtkTkRenderWidget* self)
     // is RW an address ? big ole python hack here
     if (self->RW[0] == 'A' && self->RW[1] == 'd' && self->RW[2] == 'd' && self->RW[3] == 'r')
     {
-      void* tmp;
-      sscanf(self->RW + 5, "%p", &tmp);
+      auto result = vtk::scan<void*>(std::string_view(self->RW + 5), "{:p}");
+      void* tmp = result->value();
       renderWindow = (vtkWin32OpenGLRenderWindow*)tmp;
     }
     else
@@ -1014,8 +1066,8 @@ static int vtkTkRenderWidget_MakeRenderWindow(struct vtkTkRenderWidget* self)
     // is RW an address ? big ole python hack here
     if (self->RW[0] == 'A' && self->RW[1] == 'd' && self->RW[2] == 'd' && self->RW[3] == 'r')
     {
-      void* tmp;
-      sscanf(self->RW + 5, "%p", &tmp);
+      auto result = vtk::scan<void*>(std::string_view(self->RW + 5), "{:p}");
+      void* tmp = result->value();
       renderWindow = reinterpret_cast<vtkRenderWindow*>(tmp);
     }
 
@@ -1123,8 +1175,8 @@ static int vtkTkRenderWidget_MakeRenderWindow(struct vtkTkRenderWidget* self)
     // is RW an address ? big ole python hack here
     if (self->RW[0] == 'A' && self->RW[1] == 'd' && self->RW[2] == 'd' && self->RW[3] == 'r')
     {
-      void* tmp;
-      sscanf(self->RW + 5, "%p", &tmp);
+      auto result = vtk::scan<void*>(std::string_view(self->RW + 5), "{:p}");
+      void* tmp = result->value();
       renderWindow = (vtkXOpenGLRenderWindow*)tmp;
     }
     if (renderWindow != self->RenderWindow)

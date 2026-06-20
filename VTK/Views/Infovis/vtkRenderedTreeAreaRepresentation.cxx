@@ -60,6 +60,8 @@
 
 #include <vector>
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderedTreeAreaRepresentation::Internals
 {
@@ -477,8 +479,7 @@ void vtkRenderedTreeAreaRepresentation::UpdateHoverHighlight(vtkView* view, int 
         sector->SetEndAngle(sinfo[1]);
 
         int resolution = (int)((sinfo[1] - sinfo[0]) / 1);
-        if (resolution < 1)
-          resolution = 1;
+        resolution = std::max(resolution, 1);
         sector->SetCircumferentialResolution(resolution);
         sector->Update();
 
@@ -876,7 +877,7 @@ vtkSelection* vtkRenderedTreeAreaRepresentation::ConvertSelection(vtkView* view,
       conv->Delete();
     }
   }
-  // cerr << "Tree converted: " << endl;
+  // std::cerr << "Tree converted: " << endl;
   // converted->Dump();
 
   return converted;

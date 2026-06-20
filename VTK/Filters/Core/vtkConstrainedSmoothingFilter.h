@@ -42,12 +42,15 @@
  * This filter is used internally by the filters vtkSurfaceNets2D and
  * vtkSurfaceNets3D. vtkConstrainedSmoothingFilter is used by these filters
  * to smooth the extracted surface net, with the constraint distance and
- * constraint box set in relation to a volume voxel.
+ * constraint box set in relation to a volume voxel. Similarly, the filter
+ * vtkGeneralizedSurfaceNets3D uses an internal instance of
+ * vtkConstrainedSmoothingFilter with a user-specified constraint distance,
+ * and optional smoothing stencils.
  *
  * @sa
  * vtkWindowedSincPolyDataFilter vtkSmoothPolyDataFilter
  * vtkAttributeSmoothingFilter vtkExtractEdges vtkSurfaceNets2D
- * vtkSurfaceNets3D
+ * vtkSurfaceNets3D vtkGeneralizedSurfaceNets3D
  */
 
 #ifndef vtkConstrainedSmoothingFilter_h
@@ -56,9 +59,11 @@
 #include "vtkCellArray.h"         // For point smoothing stencils
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPointSetAlgorithm.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKFILTERSCORE_EXPORT vtkConstrainedSmoothingFilter : public vtkPointSetAlgorithm
+class VTKFILTERSCORE_EXPORT VTK_MARSHALAUTO vtkConstrainedSmoothingFilter
+  : public vtkPointSetAlgorithm
 {
 public:
   ///@{
@@ -168,7 +173,7 @@ public:
   /**
    * Set / get the point smoothing stencils. Here we are repurposing a cell
    * array to define stencils. Basically what's happening is that each point
-   * is treated a "cell" connected to a list of point ids (i.e., the
+   * is treated as a "cell" connected to a list of point ids (i.e., the
    * "stencil") that defines the smoothing edge connections. By default, no
    * smoothing stencils are defined.
    */

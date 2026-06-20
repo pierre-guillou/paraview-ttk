@@ -115,7 +115,8 @@ const vtkIdType* vtkQuadraticPyramid::GetFaceArray(vtkIdType faceId)
 //------------------------------------------------------------------------------
 vtkCell* vtkQuadraticPyramid::GetEdge(int edgeId)
 {
-  edgeId = (edgeId < 0 ? 0 : (edgeId > 7 ? 7 : edgeId));
+  edgeId = std::max(edgeId, 0);
+  edgeId = std::min(edgeId, 7);
 
   for (int i = 0; i < 3; i++)
   {
@@ -129,7 +130,8 @@ vtkCell* vtkQuadraticPyramid::GetEdge(int edgeId)
 //------------------------------------------------------------------------------
 vtkCell* vtkQuadraticPyramid::GetFace(int faceId)
 {
-  faceId = (faceId < 0 ? 0 : (faceId > 4 ? 4 : faceId));
+  faceId = std::max(faceId, 0);
+  faceId = std::min(faceId, 4);
 
   // load point id's and coordinates
   // be careful with the first one:
@@ -157,9 +159,9 @@ vtkCell* vtkQuadraticPyramid::GetFace(int faceId)
 //------------------------------------------------------------------------------
 namespace
 {
-const double VTK_DIVERGED = 1.e6;
-const int VTK_PYRAMID_MAX_ITERATION = 20;
-const double VTK_PYRAMID_CONVERGED = 1.e-03;
+constexpr double VTK_DIVERGED = 1.e6;
+constexpr int VTK_PYRAMID_MAX_ITERATION = 20;
+constexpr double VTK_PYRAMID_CONVERGED = 1.e-03;
 }
 
 int vtkQuadraticPyramid::EvaluatePosition(const double* x, double closestPoint[3], int& subId,
@@ -220,10 +222,7 @@ int vtkQuadraticPyramid::EvaluatePosition(const double* x, double closestPoint[3
     pt0 = pts + 3 * PyramidEdges[i][0];
     pt1 = pts + 3 * PyramidEdges[i][1];
     double d2 = vtkMath::Distance2BetweenPoints(pt0, pt1);
-    if (longestEdge < d2)
-    {
-      longestEdge = d2;
-    }
+    longestEdge = std::max(longestEdge, d2);
   }
   // longestEdge value is already squared
   double volumeBound = longestEdge * std::sqrt(longestEdge);

@@ -14,7 +14,6 @@
 #include "vtkGLTFDocumentLoaderInternals.h"
 #include "vtkGLTFUtils.h"
 #include "vtkGenericDataArray.h"
-#include "vtkIdTypeArray.h"
 #include "vtkImageData.h"
 #include "vtkImageReader2.h"
 #include "vtkImageReader2Factory.h"
@@ -23,14 +22,15 @@
 #include "vtkIntArray.h"
 #include "vtkJPEGReader.h"
 #include "vtkMath.h"
-#include "vtkMatrix3x3.h"
+#include "vtkMemoryResourceStream.h"
 #include "vtkPNGReader.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 #include "vtkQuaternion.h"
+#include "vtkStringFormatter.h"
 #include "vtkTransform.h"
 #include "vtkUnsignedShortArray.h"
-#include "vtksys/FStream.hxx"
+
 #include "vtksys/SystemTools.hxx"
 
 #include <algorithm>
@@ -57,16 +57,6 @@
 VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
-//------------------------------------------------------------------------------
-// Replacement for std::to_string as it is not supported by certain compilers
-template <typename T>
-std::string value_to_string(const T& val)
-{
-  std::ostringstream ss;
-  ss << val;
-  return ss.str();
-}
-
 //------------------------------------------------------------------------------
 vtkIdType GetNumberOfCellsForPrimitive(int mode, int cellSize, int numberOfIndices)
 {
@@ -142,7 +132,7 @@ void GenerateIndicesForPrimitive(vtkGLTFDocumentLoader::Primitive& primitive)
 
 //------------------------------------------------------------------------------
 const std::vector<std::string> vtkGLTFDocumentLoader::SupportedExtensions = { "KHR_lights_punctual",
-  "KHR_materials_unlit" };
+  "KHR_materials_unlit", "KHR_texture_transform" };
 
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkGLTFDocumentLoader);
@@ -775,6 +765,7 @@ bool vtkGLTFDocumentLoader::LoadAnimationData()
   for (Animation& animation : this->InternalModel->Animations)
   {
     float maxDuration = 0;
+    std::set<float> allTimestamps;
     for (Animation::Sampler& sampler : animation.Samplers)
     {
       // Create arrays
@@ -793,6 +784,12 @@ bool vtkGLTFDocumentLoader::LoadAnimationData()
       // Get max duration
       float duration = sampler.InputData->GetValueRange()[1];
       maxDuration = vtkMath::Max(maxDuration, duration);
+
+      // fill allTimestamps
+      for (vtkIdType i = 0; i < sampler.InputData->GetNumberOfValues(); i++)
+      {
+        allTimestamps.emplace(sampler.InputData->GetValue(i));
+      }
 
       // Load outputs (frame data)
       worker.Setup(sampler.Output, this->InternalModel->Accessors[sampler.Output].Type);
@@ -830,6 +827,7 @@ bool vtkGLTFDocumentLoader::LoadAnimationData()
       sampler.OutputData->SetNumberOfComponents(numberOfComponents);
     }
     animation.Duration = maxDuration;
+    animation.AllTimestamps = std::move(allTimestamps);
   }
   return true;
 }
@@ -851,6 +849,7 @@ bool vtkGLTFDocumentLoader::LoadImageData()
     vtkSmartPointer<vtkImageReader2> reader = nullptr;
     image.ImageData = vtkSmartPointer<vtkImageData>::New();
     std::vector<std::uint8_t> buffer;
+    vtkNew<vtkMemoryResourceStream> imgStream;
 
     // If image is defined via bufferview index
     if (image.BufferView >= 0 &&
@@ -883,10 +882,8 @@ bool vtkGLTFDocumentLoader::LoadImageData()
         vtkErrorMacro("Invalid bufferView.buffer value for bufferView " << bufferView.Name);
         return false;
       }
-      reader->SetMemoryBufferLength(
-        static_cast<vtkIdType>(this->InternalModel->Buffers[bufferId].size()));
-      reader->SetMemoryBuffer(
-        this->InternalModel->Buffers[bufferId].data() + bufferView.ByteOffset);
+      imgStream->SetBuffer(this->InternalModel->Buffers[bufferId].data() + bufferView.ByteOffset,
+        this->InternalModel->Buffers[bufferId].size());
     }
     else // If image is defined via uri
     {
@@ -936,10 +933,10 @@ bool vtkGLTFDocumentLoader::LoadImageData()
         return false;
       }
 
-      reader->SetMemoryBufferLength(buffer.size());
-      reader->SetMemoryBuffer(buffer.data());
+      imgStream->SetBuffer(buffer.data(), buffer.size());
     }
 
+    reader->SetStream(imgStream);
     bool status = reader->GetExecutive()->Update();
     image.ImageData = reader->GetOutput();
 
@@ -1263,19 +1260,19 @@ bool vtkGLTFDocumentLoader::BuildPolyDataFromPrimitive(Primitive& primitive)
     std::string name;
     if (target.AttributeValues.count("POSITION"))
     {
-      name = "target" + value_to_string(targetId) + "_position";
+      name = "target" + vtk::to_string(targetId) + "_position";
       target.AttributeValues["POSITION"]->SetName(name.c_str());
       pointData->AddArray(target.AttributeValues["POSITION"]);
     }
     if (target.AttributeValues.count("NORMAL"))
     {
-      name = "target" + value_to_string(targetId) + "_normal";
+      name = "target" + vtk::to_string(targetId) + "_normal";
       target.AttributeValues["NORMAL"]->SetName(name.c_str());
       pointData->AddArray(target.AttributeValues["NORMAL"]);
     }
     if (target.AttributeValues.count("TANGENT"))
     {
-      name = "target" + value_to_string(targetId) + "_tangent";
+      name = "target" + vtk::to_string(targetId) + "_tangent";
       target.AttributeValues["TANGENT"]->SetName(name.c_str());
       pointData->AddArray(target.AttributeValues["TANGENT"]);
     }
@@ -1414,38 +1411,41 @@ void vtkGLTFDocumentLoader::Node::UpdateTransform()
 }
 
 //------------------------------------------------------------------------------
-void vtkGLTFDocumentLoader::Animation::Sampler::GetInterpolatedData(float t,
+void vtkGLTFDocumentLoader::Animation::Sampler::GetInterpolatedData(float timeValue,
   size_t numberOfComponents, std::vector<float>* output, bool forceStep, bool isRotation) const
 {
-  // linear or spline interpolation
-  if (this->Interpolation != Animation::Sampler::InterpolationMode::STEP && !forceStep)
+  // Find the previous and following keyframes
+  vtkIdType prevKeyFrameId = 0;
+
+  vtkIdType nextKeyFrameId =
+    std::upper_bound(this->InputData->Begin(), this->InputData->End(), timeValue) -
+    this->InputData->Begin();
+
+  // If we didn't find the next keyframe, that means t is over the animation's duration.
+  vtkIdType numberOfKeyFrames = this->InputData->GetNumberOfTuples();
+  if (nextKeyFrameId == numberOfKeyFrames)
   {
-    vtkIdType numberOfKeyFrames = this->InputData->GetNumberOfTuples();
+    nextKeyFrameId = numberOfKeyFrames - 1;
+    prevKeyFrameId = nextKeyFrameId;
+    timeValue = this->InputData->GetValue(nextKeyFrameId);
+  }
 
-    // Find the previous and following keyframes
-    vtkIdType nextKeyFrameId =
-      std::lower_bound(this->InputData->Begin(), this->InputData->End(), t) -
-      this->InputData->Begin();
-    vtkIdType prevKeyFrameId = 0;
+  // Animation hasn't started yet.
+  else if (nextKeyFrameId == 0)
+  {
+    prevKeyFrameId = 0;
+    timeValue = this->InputData->GetValue(prevKeyFrameId);
+  }
+  else
+  {
+    prevKeyFrameId = nextKeyFrameId - 1;
+  }
 
-    // If we didn't find the next keyframe, that means t is over the animation's duration.
-    if (nextKeyFrameId == numberOfKeyFrames)
-    {
-      nextKeyFrameId = numberOfKeyFrames - 1;
-      prevKeyFrameId = nextKeyFrameId;
-    }
-    // Animation hasn't started yet.
-    else if (nextKeyFrameId == 0)
-    {
-      prevKeyFrameId = 0;
-    }
-    else
-    {
-      prevKeyFrameId = nextKeyFrameId - 1;
-    }
-
-    // Get time values
-
+  // Check if we are on an exact time stamp
+  const bool exact = this->InputData->GetValue(prevKeyFrameId) == timeValue;
+  // linear or spline interpolation
+  if (this->Interpolation != Animation::Sampler::InterpolationMode::STEP && !exact && !forceStep)
+  {
     // Normalize t. Set to zero when at the first keyframe, and set to one when at the last keyframe
     float tNorm = 0;
     float tDelta = 0;
@@ -1462,7 +1462,7 @@ void vtkGLTFDocumentLoader::Animation::Sampler::GetInterpolatedData(float t,
       const float prevTime = this->InputData->GetValue(prevKeyFrameId);
       const float nextTime = this->InputData->GetValue(nextKeyFrameId);
       tDelta = nextTime - prevTime;
-      tNorm = (t - prevTime) / tDelta;
+      tNorm = (timeValue - prevTime) / tDelta;
     }
 
     if (this->Interpolation == Animation::Sampler::InterpolationMode::LINEAR)
@@ -1539,16 +1539,11 @@ void vtkGLTFDocumentLoader::Animation::Sampler::GetInterpolatedData(float t,
   }
   else
   {
-    // step interpolation
-    // get frame index
-    size_t lower = std::lower_bound(this->InputData->Begin(), this->InputData->End(), t) -
-      this->InputData->Begin();
-    if (lower > 0)
-    {
-      lower--;
-    }
-
-    for (size_t i = lower * numberOfComponents; i < numberOfComponents * (lower + 1); i++)
+    // Cubic spline implementation for timestamp hit
+    const size_t index = this->Interpolation == Animation::Sampler::InterpolationMode::CUBICSPLINE
+      ? (3 * prevKeyFrameId + 1) * numberOfComponents
+      : prevKeyFrameId * numberOfComponents;
+    for (size_t i = index; i < index + numberOfComponents; i++)
     {
       output->push_back(this->OutputData->GetValue(static_cast<vtkIdType>(i)));
     }

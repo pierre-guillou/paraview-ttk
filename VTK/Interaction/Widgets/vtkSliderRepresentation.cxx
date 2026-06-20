@@ -5,6 +5,7 @@
 #include "vtkCommand.h"
 #include "vtkObjectFactory.h"
 #include "vtkRenderer.h"
+#include "vtkStringFormatter.h"
 
 //------------------------------------------------------------------------------
 VTK_ABI_NAMESPACE_BEGIN
@@ -26,7 +27,8 @@ vtkSliderRepresentation::vtkSliderRepresentation()
   this->ShowSliderLabel = 1;
 
   this->LabelFormat = new char[8];
-  snprintf(this->LabelFormat, 8, "%s", "%0.3g");
+  auto result = vtk::format_to_n(this->LabelFormat, 8, "{}", "{:0.3g}");
+  *result.out = '\0';
 
   this->LabelHeight = 0.05;
   this->TitleHeight = 0.15;
@@ -107,15 +109,7 @@ void vtkSliderRepresentation::SetValue(double value)
     return;
   }
 
-  if (value < this->MinimumValue)
-  {
-    value = this->MinimumValue;
-  }
-
-  if (value > this->MaximumValue)
-  {
-    value = this->MaximumValue;
-  }
+  value = std::min(std::max(value, this->MinimumValue), this->MaximumValue);
 
   this->Value = value;
   this->CurrentT = (value - this->MinimumValue) / (this->MaximumValue - this->MinimumValue);

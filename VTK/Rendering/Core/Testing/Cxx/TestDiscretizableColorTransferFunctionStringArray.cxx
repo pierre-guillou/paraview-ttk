@@ -5,11 +5,13 @@
 #include <vtkStringArray.h>
 #include <vtkUnsignedCharArray.h>
 
+#include <iostream>
+
 int TestDiscretizableColorTransferFunctionStringArray(
   int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
 {
   vtkSmartPointer<vtkStringArray> sArray = vtkSmartPointer<vtkStringArray>::New();
-  const int numStrings = 6;
+  constexpr int numStrings = 6;
   sArray->SetNumberOfValues(numStrings);
   sArray->SetName("TestArray");
   vtkVariant category1("Category1");

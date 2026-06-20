@@ -59,12 +59,13 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObject.h"
 
+#include "vtkDeprecation.h"  // for deprecation macro
 #include "vtkNew.h"          // vtkSmartPointer
 #include "vtkSmartPointer.h" // vtkSmartPointer
 
 #include <cassert> // std::assert
+#include <limits>  // limits
 #include <map>     // std::map
-#include <memory>  // std::shared_ptr
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
@@ -95,10 +96,21 @@ class vtkUnsignedCharArray;
 class VTKCOMMONDATAMODEL_EXPORT vtkHyperTreeGrid : public vtkDataObject
 {
 public:
+  ///@{
+  /**
+   * Deprecated information keys for vtkHyperTreeGrids
+   * \ingroup InformationKeys
+   */
+  VTK_DEPRECATED_IN_9_6_0("Unused key.")
   static vtkInformationIntegerKey* LEVELS();
+  VTK_DEPRECATED_IN_9_6_0("Unused key.")
   static vtkInformationIntegerKey* DIMENSION();
+  VTK_DEPRECATED_IN_9_6_0("Unused key.")
   static vtkInformationIntegerKey* ORIENTATION();
+  VTK_DEPRECATED_IN_9_6_0("Unused key.")
   static vtkInformationDoubleVectorKey* SIZES();
+  ///@}
+
   static vtkHyperTreeGrid* New();
 
   vtkTypeMacro(vtkHyperTreeGrid, vtkDataObject);
@@ -110,16 +122,13 @@ public:
    */
   static constexpr vtkIdType InvalidIndex = ~0;
 
-  /**
-   * Set/Get mode squeeze
-   */
-  vtkSetStringMacro(ModeSqueeze); // By copy
-  vtkGetStringMacro(ModeSqueeze);
+  VTK_DEPRECATED_IN_9_6_0("No effect anymore, do not use.")
+  void SetModeSqueeze(const char* vtkNotUsed(vtksqueeze)){};
+  VTK_DEPRECATED_IN_9_6_0("No effect anymore, do not use.")
+  char* GetModeSqueeze() { return nullptr; }
 
-  /**
-   * Squeeze this representation.
-   */
-  virtual void Squeeze();
+  VTK_DEPRECATED_IN_9_6_0("No effect anymore, do not use.")
+  virtual void Squeeze(){};
 
   /**
    * Return what type of dataset this is.
@@ -252,12 +261,8 @@ public:
   unsigned int GetOrientation() const { return this->Orientation; }
   ///@}
 
-  ///@{
-  /**
-   * Get the state of frozen
-   */
-  vtkGetMacro(FreezeState, bool);
-  ///@}
+  VTK_DEPRECATED_IN_9_6_0("No effect, do not use.")
+  bool GetFreezeState() { return false; };
 
   ///@{
   /**
@@ -297,7 +302,7 @@ public:
    * Set/Get the grid coordinates in the x-direction.
    */
   virtual void SetXCoordinates(vtkDataArray*);
-  vtkGetObjectMacro(XCoordinates, vtkDataArray);
+  virtual vtkDataArray* GetXCoordinates();
   ///@}
 
   ///@{
@@ -305,7 +310,7 @@ public:
    * Set/Get the grid coordinates in the y-direction.
    */
   virtual void SetYCoordinates(vtkDataArray*);
-  vtkGetObjectMacro(YCoordinates, vtkDataArray);
+  virtual vtkDataArray* GetYCoordinates();
   ///@}
 
   ///@{
@@ -313,7 +318,7 @@ public:
    * Set/Get the grid coordinates in the z-direction.
    */
   virtual void SetZCoordinates(vtkDataArray*);
-  vtkGetObjectMacro(ZCoordinates, vtkDataArray);
+  virtual vtkDataArray* GetZCoordinates();
   ///@}
 
   ///@{
@@ -329,7 +334,7 @@ public:
    * Set/Get the blanking mask of primal leaf cells
    */
   void SetMask(vtkBitArray*);
-  vtkGetObjectMacro(Mask, vtkBitArray);
+  virtual vtkBitArray* GetMask();
   ///@}
 
   /**
@@ -415,6 +420,12 @@ public:
    */
   vtkHyperTreeGridNonOrientedGeometryCursor* FindNonOrientedGeometryCursor(double x[3]);
 
+  /**
+   * Generate the ghost array for this hypertree grid.
+   * zeroExt defines the bounding box of the non-ghost ("core") region.
+   */
+  virtual void GenerateGhostArray(int zeroExt[6]);
+
 private:
   unsigned int RecurseDichotomic(
     double value, vtkDoubleArray* coord, double tol, unsigned int ideb, unsigned int ifin) const;
@@ -478,7 +489,7 @@ public:
    * Return tree located at given index of hyper tree grid
    * NB: This will construct a new HyperTree if grid slot is empty.
    */
-  virtual vtkHyperTree* GetTree(vtkIdType, bool create = false);
+  virtual vtkHyperTree* GetTree(vtkIdType index, bool create = false);
 
   /**
    * Assign given tree to given index of hyper tree grid
@@ -700,11 +711,11 @@ public:
     /**
      * Initialize the iterator on the tree set of the given grid.
      */
-    void Initialize(vtkHyperTreeGrid*);
+    void Initialize(vtkHyperTreeGrid* grid);
 
     /**
      * Get the next tree and set its index then increment the iterator.
-     * Returns 0 at the end.
+     * Returns nullptr at the end.
      */
     vtkHyperTree* GetNextTree(vtkIdType& index);
 
@@ -716,14 +727,13 @@ public:
 
   protected:
     std::map<vtkIdType, vtkSmartPointer<vtkHyperTree>>::iterator Iterator;
-    vtkHyperTreeGrid* Grid;
+    vtkHyperTreeGrid* Grid = nullptr;
   };
 
   /**
    * Initialize an iterator to browse level 0 trees.
-   * FIXME: this method is completely unnecessary.
    */
-  void InitializeTreeIterator(vtkHyperTreeGridIterator&);
+  void InitializeTreeIterator(vtkHyperTreeGridIterator& it);
 
   ///@{
   /**
@@ -803,69 +813,63 @@ protected:
    */
   vtkHyperTreeGrid();
 
-  /**
-   * Destructor
-   */
   ~vtkHyperTreeGrid() override;
 
-  /**
-   * ModeSqueeze
-   */
-  char* ModeSqueeze;
+  double Bounds[6];                  // (xmin,xmax, ymin,ymax, zmin,zmax) geometric bounds
+  double Center[3]{ 0.0, 0.0, 0.0 }; // geometric center
 
-  double Bounds[6]; // (xmin,xmax, ymin,ymax, zmin,zmax) geometric bounds
-  double Center[3]; // geometric center
+  unsigned int BranchFactor = 0; // 2 or 3, 0 for invalid
+  unsigned int Dimension = 0;    // 1, 2, or 3, 0 for invalid
 
-  bool FreezeState;
-  unsigned int BranchFactor; // 2 or 3
-  unsigned int Dimension;    // 1, 2, or 3
+private:
+  // Invalid default grid parameters to force actual initialization
+  unsigned int Orientation = std::numeric_limits<unsigned int>::max(); // 0, 1, or 2
+  unsigned int Axis[2] = { std::numeric_limits<unsigned int>::max(),
+    std::numeric_limits<unsigned int>::max() };
+
+  vtkTimeStamp ComputeTime;
 
   ///@{
   /**
    * These arrays pointers are caches used to avoid a string comparison (when
    * getting ghost arrays using GetArray(name))
    */
-  vtkUnsignedCharArray* TreeGhostArray;
-  bool TreeGhostArrayCached;
+  vtkSmartPointer<vtkUnsignedCharArray> TreeGhostArray;
+  bool TreeGhostArrayCached = false;
   ///@}
-private:
-  unsigned int Orientation; // 0, 1, or 2
-  unsigned int Axis[2];
-
-  vtkTimeStamp ComputeTime;
 
 protected:
-  unsigned int NumberOfChildren;
-  bool TransposedRootIndexing;
+  unsigned int NumberOfChildren = 0;
+  bool TransposedRootIndexing = false;
 
   // --------------------------------
   // RectilinearGrid common fields
   // --------------------------------
 private:
-  unsigned int Dimensions[3]; // Just for GetDimensions
-  unsigned int CellDims[3];   // Just for GetCellDims
+  unsigned int Dimensions[3] = { 0, 0, 0 }; // Just for GetDimensions
+  unsigned int CellDims[3] = { 0, 0, 0 };   // Just for GetCellDims
 protected:
   int DataDescription;
-  int Extent[6];
+  int Extent[6] = { 0, -1, 0, -1, 0, -1 };
 
-  bool WithCoordinates;
-  vtkDataArray* XCoordinates;
-  vtkDataArray* YCoordinates;
-  vtkDataArray* ZCoordinates;
+  bool WithCoordinates = false;
+  vtkSmartPointer<vtkDataArray> XCoordinates;
+  vtkSmartPointer<vtkDataArray> YCoordinates;
+  vtkSmartPointer<vtkDataArray> ZCoordinates;
   // --------------------------------
 
-  vtkBitArray* Mask;
-  vtkBitArray* PureMask;
+  vtkSmartPointer<vtkBitArray> Mask;
+  vtkBitArray* PureMask = nullptr;
 
-  bool HasInterface;
-  char* InterfaceNormalsName;
-  char* InterfaceInterceptsName;
+  bool HasInterface = false;
+  char* InterfaceNormalsName = nullptr;
+  char* InterfaceInterceptsName = nullptr;
 
   std::map<vtkIdType, vtkSmartPointer<vtkHyperTree>> HyperTrees;
 
   vtkNew<vtkCellData> CellData; // Scalars, vectors, etc. associated w/ each point
 
-  unsigned int DepthLimiter;
+  unsigned int DepthLimiter = std::numeric_limits<unsigned int>::max();
 
 private:
   vtkHyperTreeGrid(const vtkHyperTreeGrid&) = delete;

@@ -9,6 +9,7 @@
 #include <avtTecplotFileFormat.h>
 
 #include <stdlib.h>
+#include <algorithm>
 #include <string>
 
 #include <vtkPointData.h>
@@ -34,10 +35,6 @@
 
 using std::string;
 using std::vector;
-#ifndef MAX
-#define MAX(a,b) ((a)>(b)?(a):(b))
-#endif
-
 
 #if defined(_MSC_VER) || !defined(HAVE_STRTOF) || !defined(HAVE_STRTOF_PROTOTYPE)
 #ifndef strtof
@@ -606,37 +603,37 @@ avtTecplotFileFormat::ParseElements(int numElements, const string &elemType)
     {
         nelempts = 8;
         idtype = VTK_HEXAHEDRON;
-        topologicalDimension = MAX(topologicalDimension, 3);
+        topologicalDimension = std::max(topologicalDimension, 3);
     }
     else if (elemType == "TRIANGLE" || elemType == "FETRIANGLE")
     {
         nelempts = 3;
         idtype = VTK_TRIANGLE;
-        topologicalDimension = MAX(topologicalDimension, 2);
+        topologicalDimension = std::max(topologicalDimension, 2);
     }
     else if (elemType == "QUADRILATERAL" || elemType == "FEQUADRILATERAL")
     {
         nelempts = 4;
         idtype = VTK_QUAD;
-        topologicalDimension = MAX(topologicalDimension, 2);
+        topologicalDimension = std::max(topologicalDimension, 2);
     }
     else if (elemType == "TETRAHEDRON" || elemType == "FETETRAHEDRON")
     {
         nelempts = 4;
         idtype = VTK_TETRA;
-        topologicalDimension = MAX(topologicalDimension, 3);
+        topologicalDimension = std::max(topologicalDimension, 3);
     }
     else if (elemType == "LINESEG" || elemType == "FELINESEG")
     {
         nelempts = 2;
         idtype = VTK_LINE;
-        topologicalDimension = MAX(topologicalDimension, 1);
+        topologicalDimension = std::max(topologicalDimension, 1);
     }
     else if (elemType == "POINT" || elemType == "FEPOINT" || elemType == "")
     {
         nelempts = 1;
         idtype = VTK_VERTEX;
-        topologicalDimension = MAX(topologicalDimension, 0);
+        topologicalDimension = std::max(topologicalDimension, 0);
     }
     else
     {
@@ -868,11 +865,11 @@ avtTecplotFileFormat::ParseBLOCK(int numI, int numJ, int numK)
     int numNodes = numI * numJ * numK;
 
     if (numJ==1 && numK==1)
-        topologicalDimension = MAX(topologicalDimension, 1);
+        topologicalDimension = std::max(topologicalDimension, 1);
     else if (numK==1)
-        topologicalDimension = MAX(topologicalDimension, 2);
+        topologicalDimension = std::max(topologicalDimension, 2);
     else
-        topologicalDimension = MAX(topologicalDimension, 3);
+        topologicalDimension = std::max(topologicalDimension, 3);
 
     int numElementsI = (numI <= 1) ? 1 : numI-1;
     int numElementsJ = (numJ <= 1) ? 1 : numJ-1;
@@ -951,7 +948,7 @@ avtTecplotFileFormat::ParsePOINT(int numI, int numJ, int numK)
     else
         topologicalDimensionOfZone = 3;
 
-    topologicalDimension = MAX(topologicalDimension, topologicalDimensionOfZone);
+    topologicalDimension = std::max(topologicalDimension, topologicalDimensionOfZone);
 
     int numElementsI = (numI <= 1) ? 1 : numI-1;
     int numElementsJ = (numJ <= 1) ? 1 : numJ-1;
@@ -1064,6 +1061,10 @@ avtTecplotFileFormat::ParsePOINT(int numI, int numJ, int numK)
 //    Jeremy Meredith, Mon Apr 28 17:06:07 EDT 2014
 //    Added support for CONNECTIVITYSHAREZONE.  Also ignore "C" zone token.
 //
+//    Eric Brugger, Mon Jul 13 11:14:15 PDT 2020
+//    Added support for FILETYPE. We only support FULL, so throw an
+//    exception if not.
+//
 // ****************************************************************************
 
 void
@@ -1096,6 +1097,20 @@ avtTecplotFileFormat::ReadFile()
             GetNextToken(); // skip the equals sign
             title = GetNextToken();
             debug5 << "Tecplot: parsed title as: '"<<title<<"'\n";
+        }
+        else if (tok == "FILETYPE")
+        {
+            // it's the file type. We only support FULL.
+            // Issue an error if it's not.
+            GetNextToken(); // skip the equals sign
+            tok = GetNextToken();
+            debug5 << "Tecplot: parsed FILETYPE token\n";
+            if (tok != "FULL")
+            {
+                char msg[200];
+                sprintf(msg, "FILETYPE=%s not supported.", tok.c_str());
+                EXCEPTION2(InvalidFilesException, filename, msg);
+            }
         }
         else if (tok == "GEOMETRY")
         {
@@ -1737,7 +1752,7 @@ avtTecplotFileFormat::ReadFile()
 // ****************************************************************************
 
 avtTecplotFileFormat::avtTecplotFileFormat(const char *fname,
-                                           DBOptionsAttributes *readOpts)
+                                           const DBOptionsAttributes *readOpts)
     : avtSTMDFileFormat(&fname, 1), expressions()
 {
     file_read = false;

@@ -342,14 +342,16 @@ struct DomainMetaData
     memcpy(this->WholeExtent, wholeExt, 6 * sizeof(int));
     this->DataDescription = vtkStructuredData::GetDataDescriptionFromExtent(wholeExt);
 
-    if (this->DataDescription == VTK_EMPTY)
+    if (this->DataDescription == vtkStructuredData::VTK_STRUCTURED_EMPTY)
     {
       return;
     }
 
     // Sanity checks!
-    assert("pre: data description is VTK_EMPTY!" && (this->DataDescription != VTK_EMPTY));
-    assert("pre: dataset must be 2-D or 3-D" && (this->DataDescription >= VTK_XY_PLANE));
+    assert("pre: data description is vtkStructuredData::VTK_STRUCTURED_EMPTY!" &&
+      (this->DataDescription != vtkStructuredData::VTK_STRUCTURED_EMPTY));
+    assert("pre: dataset must be 2-D or 3-D" &&
+      (this->DataDescription >= vtkStructuredData::VTK_STRUCTURED_XY_PLANE));
 
     this->NDim = -1;
     std::fill(this->DimIndex, this->DimIndex + 3, -1);
@@ -357,22 +359,22 @@ struct DomainMetaData
 
     switch (this->DataDescription)
     {
-      case VTK_XY_PLANE:
+      case vtkStructuredData::VTK_STRUCTURED_XY_PLANE:
         this->NDim = 2;
         this->DimIndex[0] = 0;
         this->DimIndex[1] = 1;
         break;
-      case VTK_XZ_PLANE:
+      case vtkStructuredData::VTK_STRUCTURED_XZ_PLANE:
         this->NDim = 2;
         this->DimIndex[0] = 0;
         this->DimIndex[1] = 2;
         break;
-      case VTK_YZ_PLANE:
+      case vtkStructuredData::VTK_STRUCTURED_YZ_PLANE:
         this->NDim = 2;
         this->DimIndex[0] = 1;
         this->DimIndex[1] = 2;
         break;
-      case VTK_XYZ_GRID:
+      case vtkStructuredData::VTK_STRUCTURED_XYZ_GRID:
         this->NDim = 3;
         this->DimIndex[0] = 0;
         this->DimIndex[1] = 1;
@@ -580,13 +582,13 @@ struct StructuredGrid
     // Effectively, shallow copy the coordinate arrays and maintain ownership
     // of these arrays in the caller.
     this->X_Coords = vtkDataArray::CreateDataArray(x_coords->GetDataType());
-    this->X_Coords->SetVoidArray(x_coords->GetVoidPointer(0), x_coords->GetNumberOfTuples(), 1);
+    this->X_Coords->ShallowCopy(x_coords);
 
     this->Y_Coords = vtkDataArray::CreateDataArray(y_coords->GetDataType());
-    this->Y_Coords->SetVoidArray(y_coords->GetVoidPointer(0), y_coords->GetNumberOfTuples(), 1);
+    this->Y_Coords->ShallowCopy(y_coords);
 
     this->Z_Coords = vtkDataArray::CreateDataArray(z_coords->GetDataType());
-    this->Z_Coords->SetVoidArray(z_coords->GetVoidPointer(0), z_coords->GetNumberOfTuples(), 1);
+    this->Z_Coords->ShallowCopy(z_coords);
 
     if (fields != nullptr)
     {

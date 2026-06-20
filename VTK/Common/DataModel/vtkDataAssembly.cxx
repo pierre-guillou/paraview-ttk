@@ -6,6 +6,7 @@
 #include "vtkLogger.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
+#include "vtkStringFormatter.h"
 
 #include <vtksys/RegularExpression.hxx>
 
@@ -49,6 +50,18 @@ const char* vtkDataAssemblyVisitor::GetCurrentNodeName() const
 }
 
 //------------------------------------------------------------------------------
+std::vector<std::string> vtkDataAssemblyVisitor::GetCurrentNodePath() const
+{
+  std::vector<std::string> path;
+  for (pugi::xml_node node = this->Internals->CurrentNode; node; node = node.parent())
+  {
+    path.emplace_back(node.name());
+  }
+  std::reverse(path.begin(), path.end());
+  return path;
+}
+
+//------------------------------------------------------------------------------
 std::vector<unsigned int> vtkDataAssemblyVisitor::GetCurrentDataSetIndices() const
 {
   std::vector<unsigned int> indices;
@@ -77,7 +90,7 @@ bool IsAssemblyNode(const pugi::xml_node& node)
 //------------------------------------------------------------------------------
 bool IsDataSetNode(const pugi::xml_node& node)
 {
-  return strcmp(node.name(), DATASET_NODE_NAME) == 0;
+  return vtkDataAssembly::IsNodeNameReserved(node.name());
 }
 
 //------------------------------------------------------------------------------
@@ -85,10 +98,13 @@ struct ValidationAndInitializationWalker : public pugi::xml_tree_walker
 {
   std::unordered_map<int, pugi::xml_node>& NodeMap;
   int& MaxUniqueId;
+  int& MaxUniqueDataSetId;
 
-  ValidationAndInitializationWalker(std::unordered_map<int, pugi::xml_node>& map, int& id)
+  ValidationAndInitializationWalker(
+    std::unordered_map<int, pugi::xml_node>& map, int& id, int& dsid)
     : NodeMap(map)
     , MaxUniqueId(id)
+    , MaxUniqueDataSetId(dsid)
   {
   }
   bool for_each(pugi::xml_node& node) override
@@ -125,6 +141,7 @@ struct ValidationAndInitializationWalker : public pugi::xml_tree_walker
           vtkLogF(ERROR, "Invalid required attribute, id='%s'", attr.value());
           return false;
         }
+        this->MaxUniqueDataSetId = std::max(this->MaxUniqueDataSetId, static_cast<int>(id));
       }
       else
       {
@@ -146,8 +163,10 @@ struct ValidationAndInitializationWalker : public pugi::xml_tree_walker
 struct OffsetIdWalker : public pugi::xml_tree_walker
 {
   int Offset;
-  OffsetIdWalker(int offset)
+  int DataSetOffset;
+  OffsetIdWalker(int offset, int dsoffset)
     : Offset(offset)
+    , DataSetOffset(dsoffset)
   {
   }
 
@@ -160,6 +179,15 @@ struct OffsetIdWalker : public pugi::xml_tree_walker
       if (id != VTK_UNSIGNED_INT_MAX)
       {
         attr.set_value(id + this->Offset);
+      }
+    }
+    else if (IsDataSetNode(node))
+    {
+      auto attr = node.attribute("id");
+      auto id = attr.as_uint(VTK_UNSIGNED_INT_MAX);
+      if (id != VTK_UNSIGNED_INT_MAX)
+      {
+        attr.set_value(id + this->DataSetOffset);
       }
     }
   }
@@ -302,6 +330,7 @@ public:
   pugi::xml_document Document;
   std::unordered_map<int, pugi::xml_node> NodeMap;
   int MaxUniqueId = 0;
+  int MaxUniqueDataSetId = -1; // It's possible that it has no datasets that's why default is -1
   bool Parse(const char* xmlcontents, vtkDataAssembly* self);
 
   bool ParseDocument(vtkDataAssembly* self)
@@ -309,8 +338,10 @@ public:
     auto& doc = this->Document;
     this->NodeMap.clear();
     this->MaxUniqueId = 0;
+    this->MaxUniqueDataSetId = -1;
 
-    ValidationAndInitializationWalker walker{ this->NodeMap, this->MaxUniqueId };
+    ValidationAndInitializationWalker walker{ this->NodeMap, this->MaxUniqueId,
+      this->MaxUniqueDataSetId };
     auto root = doc.first_child();
     if (::IsAssemblyNode(root) && root.attribute("version").as_float() == 1.0f &&
       root.attribute("id").as_int(-1) == 0 &&
@@ -397,7 +428,7 @@ std::string vtkDataAssembly::MakeValidNodeName(const char* name)
     return std::string();
   }
 
-  const char sorted_valid_chars[] =
+  constexpr char sorted_valid_chars[] =
     ".-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
   const auto sorted_valid_chars_len = strlen(sorted_valid_chars);
 
@@ -424,7 +455,17 @@ std::string vtkDataAssembly::MakeValidNodeName(const char* name)
 //------------------------------------------------------------------------------
 bool vtkDataAssembly::IsNodeNameReserved(const char* name)
 {
-  return name ? strcmp(name, DATASET_NODE_NAME) == 0 : false;
+  assert(name);
+
+  if (name[0] == DATASET_NODE_NAME[0]  //
+    && name[1] == DATASET_NODE_NAME[1] //
+    && name[2] != '\0'                 // strlen(name) > 2
+  )
+  {
+    // fall back to strcmp, starting from third character.
+    return strcmp(name + 2, DATASET_NODE_NAME + 2) == 0;
+  }
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -515,7 +556,7 @@ int vtkDataAssembly::AddSubtree(int parent, vtkDataAssembly* other, int otherPar
   }
 
   // now update node ids on the copied subtree.
-  OffsetIdWalker walker(internals.MaxUniqueId + 1);
+  OffsetIdWalker walker(internals.MaxUniqueId + 1, internals.MaxUniqueDataSetId + 1);
   subtree.traverse(walker);
 
   // reset internal datastructure (and also validate it)
@@ -668,6 +709,58 @@ int vtkDataAssembly::GetFirstNodeByPath(const char* path) const
 }
 
 //------------------------------------------------------------------------------
+int vtkDataAssembly::FindOrCreateNodeAtPath(const char* path, int parent)
+{
+  if (!path || !path[0])
+  {
+    // An empty/invalid path returns the "root" node.
+    return parent;
+  }
+
+  auto it = this->Internals->NodeMap.find(parent);
+  if (it == this->Internals->NodeMap.end())
+  {
+    return -1;
+  }
+
+  // The parent node exists.
+  int node = parent;
+  auto pathNames = vtksys::SystemTools::SplitString(path, '/');
+  for (std::size_t ii = 0; ii < pathNames.size(); ++ii)
+  {
+    std::string childName = pathNames[ii];
+    auto children = this->GetChildNodes(node, /*traverse_subtree*/ false, /*traversal_order*/ 0);
+    bool foundChild = false;
+    for (const auto& child : children)
+    {
+      it = this->Internals->NodeMap.find(child);
+      if (it == this->Internals->NodeMap.end())
+      {
+        // Inconsistent node map!
+        return -1;
+      }
+      if (it->second.name() == childName)
+      {
+        node = child;
+        foundChild = true;
+        break;
+      }
+    }
+    if (!foundChild)
+    {
+      // Create all remaining entries
+      for (; ii < pathNames.size(); ++ii)
+      {
+        childName = pathNames[ii];
+        node = this->AddNode(childName.c_str(), node);
+      }
+      return node;
+    }
+  }
+  return node;
+}
+
+//------------------------------------------------------------------------------
 bool vtkDataAssembly::AddDataSetIndex(int id, unsigned int dataset_index)
 {
   auto& internals = (*this->Internals);
@@ -768,7 +861,7 @@ bool vtkDataAssembly::RemoveAllDataSetIndices(int id, bool traverse_subtree /*=t
     std::vector<pugi::xml_node>* ToRemove = nullptr;
     bool for_each(pugi::xml_node& nnode) override
     {
-      if (strcmp(nnode.name(), DATASET_NODE_NAME) == 0)
+      if (vtkDataAssembly::IsNodeNameReserved(nnode.name()))
       {
         this->ToRemove->push_back(nnode);
       }
@@ -894,20 +987,20 @@ void vtkDataAssembly::SetAttribute(int id, const char* name, const char* value)
 //------------------------------------------------------------------------------
 void vtkDataAssembly::SetAttribute(int id, const char* name, int value)
 {
-  this->SetAttribute(id, name, std::to_string(value).c_str());
+  this->SetAttribute(id, name, vtk::to_string(value).c_str());
 }
 
 //------------------------------------------------------------------------------
 void vtkDataAssembly::SetAttribute(int id, const char* name, unsigned int value)
 {
-  this->SetAttribute(id, name, std::to_string(value).c_str());
+  this->SetAttribute(id, name, vtk::to_string(value).c_str());
 }
 
 //------------------------------------------------------------------------------
 #if VTK_ID_TYPE_IMPL != VTK_INT
 void vtkDataAssembly::SetAttribute(int id, const char* name, vtkIdType value)
 {
-  this->SetAttribute(id, name, std::to_string(value).c_str());
+  this->SetAttribute(id, name, vtk::to_string(value).c_str());
 }
 #endif
 

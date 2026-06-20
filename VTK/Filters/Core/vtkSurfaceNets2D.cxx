@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSurfaceNets2D.h"
 
+#include "vtkArrayComponents.h"
 #include "vtkArrayDispatch.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
@@ -14,11 +15,8 @@
 #include "vtkLogger.h"
 #include "vtkObjectFactory.h"
 #include "vtkPolyData.h"
-#include "vtkSMPThreadLocalObject.h"
 #include "vtkSMPTools.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
-
-#include <memory>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSurfaceNets2D);
@@ -81,7 +79,7 @@ namespace
 // algorithm. It uses a flying edges approach to parallel process data
 // edge-by-edge, which provides edge-based parallel tasking, reduces the
 // number of pixel lookups and eliminates costly coincident point merging.
-template <typename T>
+template <typename TArray>
 struct SurfaceNets
 {
   // The dyad classification carries information on four different bits.
@@ -165,11 +163,15 @@ struct SurfaceNets
   }
 
   // Input and output data.
-  T* Scalars;                // input image scalars
-  float* NewPts;             // output points
-  vtkCellArray* NewLines;    // output lines
-  T* NewScalars;             // output 2-component cell scalars if requested
-  vtkCellArray* NewStencils; // output smoothing stencils
+  using TInPtr = typename vtk::detail::ValueRange<TArray, 1>::iterator;
+  using TOutPtr = typename vtk::detail::ValueRange<TArray, 2>::iterator;
+  using T = vtk::GetAPIType<TArray>;
+  TInPtr Scalars;             // input image scalars
+  float* NewPts;              // output points
+  vtkCellArray* NewLines;     // output lines
+  bool HasNewScalars = false; // are we generating cell scalars?
+  TOutPtr NewScalars;         // output 2-component cell scalars if requested
+  vtkCellArray* NewStencils;  // output smoothing stencils
 
   // Internal variable to handle label processing.
   vtkIdType NumLabels;
@@ -192,17 +194,15 @@ struct SurfaceNets
 
   // Algorithm-derived data for bookkeeping data locations
   // when parallel computing.
-  static const int EdgeMetaDataSize = 5;
+  static constexpr int EdgeMetaDataSize = 5;
   unsigned char* DyadCases;
   vtkIdType DyadDims[2];
   vtkIdType* EdgeMetaData;
 
   // Instantiate key data members.
   SurfaceNets()
-    : Scalars(nullptr)
-    , NewPts(nullptr)
+    : NewPts(nullptr)
     , NewLines(nullptr)
-    , NewScalars(nullptr)
     , NewStencils(nullptr)
     , NumLabels(0)
     , LabelValues(nullptr)
@@ -218,7 +218,7 @@ struct SurfaceNets
 
   // Classify a dyad y-edge. Use the dyad cases at both ends of the y-edge
   // first; if necessary, access the pixel values.
-  unsigned char ClassifyYEdge(T* inPtr, vtkIdType i, unsigned char case0, unsigned char case1)
+  unsigned char ClassifyYEdge(TInPtr inPtr, vtkIdType i, unsigned char case0, unsigned char case1)
   {
     unsigned char inout0 = (case0 & 0x1);
     unsigned char inout1 = (case1 & 0x1);
@@ -286,66 +286,44 @@ struct SurfaceNets
   }
 
   // Produce the output lines for this square.
-  struct GenerateLinesImpl
+  struct GenerateLinesImpl : public vtkCellArray::DispatchUtilities
   {
-    template <typename CellStateT>
-    void operator()(CellStateT& state, unsigned char sqCase, vtkIdType* pIds, vtkIdType& lineId)
+    template <class OffsetsT, class ConnectivityT>
+    void operator()(OffsetsT* vtkNotUsed(offsets), ConnectivityT* conn, unsigned char sqCase,
+      vtkIdType* pIds, vtkIdType& lineId)
     {
-      using ValueType = typename CellStateT::ValueType;
-      auto* offsets = state.GetOffsets();
-      auto* conn = state.GetConnectivity();
-
-      auto offsetRange = vtk::DataArrayValueRange<1>(offsets);
-      auto offsetIter = offsetRange.begin() + lineId;
-      auto connRange = vtk::DataArrayValueRange<1>(conn);
+      auto connRange = GetRange(conn);
       auto connIter = connRange.begin() + (lineId * 2);
 
       if (SurfaceNets::GenerateXLine(sqCase))
       {
-        *offsetIter++ = static_cast<ValueType>(2 * lineId++);
+        lineId++;
         *connIter++ = pIds[1];
         *connIter++ = pIds[1] + 1; // in the +x direction
       }
 
       if (SurfaceNets::GenerateYLine(sqCase))
       {
-        *offsetIter++ = static_cast<ValueType>(2 * lineId++);
+        lineId++;
         *connIter++ = pIds[1];
         *connIter++ = pIds[2]; // in the +y direction
       }
     } // operator()
   };  // GenerateLinesImpl
 
-  // Finalize the lines array: after all the lines are inserted,
-  // the last offset has to be added to complete the offsets array.
-  struct FinalizeLinesOffsetsImpl
-  {
-    template <typename CellStateT>
-    void operator()(CellStateT& state, vtkIdType numLines)
-    {
-      using ValueType = typename CellStateT::ValueType;
-      auto* offsets = state.GetOffsets();
-      auto offsetRange = vtk::DataArrayValueRange<1>(offsets);
-      auto offsetIter = offsetRange.begin() + numLines;
-      *offsetIter = static_cast<ValueType>(2 * numLines);
-    }
-  };
-
   // Produce the smoothing stencils for this square.
-  struct GenerateStencilImpl
+  struct GenerateStencilImpl : public vtkCellArray::DispatchUtilities
   {
-    template <typename CellStateT>
-    void operator()(CellStateT& state, unsigned char sqCase, vtkIdType* pIds, vtkIdType& sOffset)
+    template <class OffsetsT, class ConnectivityT>
+    void operator()(OffsetsT* offsets, ConnectivityT* conn, unsigned char sqCase, vtkIdType* pIds,
+      vtkIdType& sOffset)
     {
       // The point on which the stencil operates
       vtkIdType pId = pIds[1];
 
-      auto* offsets = state.GetOffsets();
-      auto* conn = state.GetConnectivity();
-
-      auto offsetRange = vtk::DataArrayValueRange<1>(offsets);
+      auto offsetRange = GetRange(offsets);
       auto offsetIter = offsetRange.begin() + pId;
-      auto connRange = vtk::DataArrayValueRange<1>(conn);
+      auto connRange = GetRange(conn);
       auto connIter = connRange.begin() + sOffset;
 
       // Create the stencil. Note that for stencils with just one connection
@@ -393,14 +371,14 @@ struct SurfaceNets
 
   // Finalize the stencils array: after all the stencils are inserted, the
   // last offset has to be added to complete the offsets array.
-  struct FinalizeStencilsOffsetsImpl
+  struct FinalizeStencilsOffsetsImpl : public vtkCellArray::DispatchUtilities
   {
-    template <typename CellStateT>
-    void operator()(CellStateT& state, vtkIdType numPts, vtkIdType numSEdges)
+    template <class OffsetsT, class ConnectivityT>
+    void operator()(
+      OffsetsT* offsets, ConnectivityT* vtkNotUsed(conn), vtkIdType numPts, vtkIdType numSEdges)
     {
-      using ValueType = typename CellStateT::ValueType;
-      auto* offsets = state.GetOffsets();
-      auto offsetRange = vtk::DataArrayValueRange<1>(offsets);
+      using ValueType = GetAPIType<OffsetsT>;
+      auto offsetRange = GetRange(offsets);
       auto offsetIter = offsetRange.begin() + numPts;
       *offsetIter = static_cast<ValueType>(numSEdges);
     }
@@ -413,8 +391,7 @@ struct SurfaceNets
   {
     T label = this->LabelValues[0];
     T background = this->BackgroundLabel;
-    cout << "Background Label: " << background << "\n";
-    T* s = this->NewScalars;
+    TOutPtr s = this->NewScalars;
     for (auto i = 0; i < numScalars; ++i)
     {
       *s++ = label;
@@ -440,7 +417,7 @@ struct SurfaceNets
   {
     T backgroundLabel = this->BackgroundLabel;
     T s0, s1;
-    T* scalars = this->NewScalars + 2 * scalarId;
+    TOutPtr scalars = this->NewScalars + 2 * scalarId;
 
     // Get the in/out state of the three pixels which form the "corner"
     // of the square that the lines intersect.
@@ -485,11 +462,11 @@ struct SurfaceNets
   // The first pass is used to classify the x-edges of the dyads.
   // Threading integration via SMPTools; this method supports the
   // processing of a single x-edge,
-  void ClassifyXEdges(T* inPtr, vtkIdType row, vtkLabelMapLookup<T>* lMap); // PASS 1
+  void ClassifyXEdges(TInPtr inPtr, vtkIdType row, vtkLabelMapLookup<T>* lMap); // PASS 1
 
   // The second pass is used to classify the y-edges of the dyads.
   // This method supports the processing of a x-row of squares.
-  void ClassifyYEdges(T* inPtr, vtkIdType row); // PASS 2
+  void ClassifyYEdges(TInPtr inPtr, vtkIdType row); // PASS 2
 
   // The third pass is a prefix sum over the edge metadata to determine where
   // the algorithm should write its output, and then allocate output. This is
@@ -511,8 +488,8 @@ struct SurfaceNets
 // Control how boundary lines are generated. The three numbers per case
 // represent then number of edges generated, and then whether an +x edge
 // of +y is to be produced.
-template <class T>
-const unsigned char SurfaceNets<T>::EdgeCases[16][3] = {
+template <class TArray>
+const unsigned char SurfaceNets<TArray>::EdgeCases[16][3] = {
   { 0, 0, 0 }, // case 0
   { 0, 0, 0 }, // case 1
   { 1, 0, 1 }, // case 2
@@ -539,8 +516,8 @@ const unsigned char SurfaceNets<T>::EdgeCases[16][3] = {
 // directions). The stencils are tweaked so that certain situations (like "T"
 // junctions) the point stencil allows motion only along the boundary edge
 // (i.e., along the top of the T) to produce better results.
-template <class T>
-const unsigned char SurfaceNets<T>::StencilCases[16][5] = {
+template <class TArray>
+const unsigned char SurfaceNets<TArray>::StencilCases[16][5] = {
   { 0, 0, 0, 0, 0 }, // case 0
   { 1, 1, 0, 0, 0 }, // case 1
   { 1, 0, 1, 0, 0 }, // case 2
@@ -567,8 +544,8 @@ const unsigned char SurfaceNets<T>::StencilCases[16][5] = {
 // each pixel on that row.  Trim intersections along the row. Note that only dyads
 // associated with a pixel are processed: the padded / partial dyads are treated
 // as special cases.
-template <typename T>
-void SurfaceNets<T>::ClassifyXEdges(T* inPtr, vtkIdType row, vtkLabelMapLookup<T>* lMap)
+template <typename TArray>
+void SurfaceNets<TArray>::ClassifyXEdges(TInPtr inPtr, vtkIdType row, vtkLabelMapLookup<T>* lMap)
 {
   T s0, s1 = (*inPtr); // s1 first pixel in row
   bool isLV0, isLV1 = lMap->IsLabelValue(s1);
@@ -630,8 +607,8 @@ void SurfaceNets<T>::ClassifyXEdges(T* inPtr, vtkIdType row, vtkLabelMapLookup<T
 //------------------------------------------------------------------------------
 // Support PASS 2: Classify the y-axis portion of the dyads along a single
 // x-row of squares.
-template <typename T>
-void SurfaceNets<T>::ClassifyYEdges(T* inPtr, vtkIdType row)
+template <typename TArray>
+void SurfaceNets<TArray>::ClassifyYEdges(TInPtr inPtr, vtkIdType row)
 {
   // The dyad y-edges along the top and bottom do not need classification.
   if (row == 0 || row >= (this->DyadDims[1] - 2))
@@ -685,8 +662,8 @@ void SurfaceNets<T>::ClassifyYEdges(T* inPtr, vtkIdType row)
 // Because the dyads from two rows are combined to produce a square case,
 // setting this bit produces a race condition. Thus the processing of squares
 // is interleaved (i.e., odd and even rows) to avoid the race condition.
-template <typename T>
-void SurfaceNets<T>::ProduceSquareCases(vtkIdType rowPair, bool odd)
+template <typename TArray>
+void SurfaceNets<TArray>::ProduceSquareCases(vtkIdType rowPair, bool odd)
 {
   vtkIdType row = 2 * rowPair + (odd ? 1 : 0);
   if (row >= (this->DyadDims[1] - 1))
@@ -730,8 +707,8 @@ void SurfaceNets<T>::ProduceSquareCases(vtkIdType rowPair, bool odd)
 // be generated. A prefix sum is used to sum up and determine beginning point,
 // line, and stencil numbers for each row. The trim edges per row can also be
 // set (to avoid processing squares during output generation).
-template <typename T>
-void SurfaceNets<T>::ConfigureOutput(
+template <typename TArray>
+void SurfaceNets<TArray>::ConfigureOutput(
   vtkPoints* newPts, vtkCellArray* newLines, vtkDataArray* newScalars, vtkCellArray* stencils)
 {
   // Traverse all rows, combining dyads to determine square cases. Using the
@@ -795,15 +772,16 @@ void SurfaceNets<T>::ConfigureOutput(
     this->NewPts = fPts->GetPointer(0);
 
     // Boundaries, a set of lines contained in vtkCellArray
+    newLines->UseFixedSizeDefaultStorage(2);
     newLines->ResizeExact(numOutLines, 2 * numOutLines);
-    newLines->Visit(FinalizeLinesOffsetsImpl{}, numOutLines);
     this->NewLines = newLines;
 
     // Scalars, which are of type T and 2-components
     if (newScalars)
     {
       newScalars->SetNumberOfTuples(numOutLines);
-      this->NewScalars = static_cast<T*>(newScalars->GetVoidPointer(0));
+      this->NewScalars = vtk::DataArrayValueRange<2>(TArray::FastDownCast(newScalars)).begin();
+      this->HasNewScalars = true;
       // In the special case when there is just a single segmented
       // object extracted, the scalars are initialized with the
       // two labels: [LabelValues[0],BackgroundLabel].
@@ -815,7 +793,7 @@ void SurfaceNets<T>::ConfigureOutput(
 
     // Smoothing stencils, which are represented by a vtkCellArray
     stencils->ResizeExact(numOutPts, numOutSEdges);
-    stencils->Visit(FinalizeStencilsOffsetsImpl{}, numOutPts, numOutSEdges);
+    stencils->Dispatch(FinalizeStencilsOffsetsImpl{}, numOutPts, numOutSEdges);
     this->NewStencils = stencils;
   }
 } // ConfigureOutput
@@ -830,8 +808,8 @@ void SurfaceNets<T>::ConfigureOutput(
 // to generate points, lines, and stencils, the point ids are determined by
 // advancing the starting point ids from the current dyad row, as well as the
 // rows below and above the current row.
-template <typename T>
-void SurfaceNets<T>::GenerateOutput(vtkIdType row)
+template <typename TArray>
+void SurfaceNets<TArray>::GenerateOutput(vtkIdType row)
 {
   vtkIdType* eMD = this->EdgeMetaData + row * EdgeMetaDataSize;
   vtkIdType* eMDAbove = eMD + EdgeMetaDataSize;
@@ -879,7 +857,7 @@ void SurfaceNets<T>::GenerateOutput(vtkIdType row)
   vtkIdType scalarId = lineId; // starting scalar id to generate 2-tuples
 
   // Control whether 2-tuple scalars need to be generated.
-  bool genScalars = (this->NewScalars && this->NumLabels > 1);
+  bool genScalars = (this->HasNewScalars && this->NumLabels > 1);
 
   // Now traverse all the squares in this row, generating points, lines,
   // stencils, and optional scalar data. Points are only generated from the
@@ -906,7 +884,7 @@ void SurfaceNets<T>::GenerateOutput(vtkIdType row)
       // as well.
       if (this->GetNumberOfLines(squareCase) > 0)
       {
-        this->NewLines->Visit(GenerateLinesImpl{}, squareCase, pIds, lineId);
+        this->NewLines->Dispatch(GenerateLinesImpl{}, squareCase, pIds, lineId);
         if (genScalars)
         {
           rDyadAbove = *(dPtrAbove + i + 1);
@@ -915,7 +893,7 @@ void SurfaceNets<T>::GenerateOutput(vtkIdType row)
       }
 
       // Smoothing stencil (i.e., how generated points are connected to other points)
-      this->NewStencils->Visit(GenerateStencilImpl{}, squareCase, pIds, sOffset);
+      this->NewStencils->Dispatch(GenerateStencilImpl{}, squareCase, pIds, sOffset);
 
     } // if generate a point
 
@@ -935,14 +913,16 @@ struct NetsWorker
   // corresponds to image row (i-1). Also note that looking up labels can be
   // expensive, so a vtkLabelMapLookup is used to accelerate the lookup
   // process.
-  template <typename T>
+  template <typename TArray>
   struct Pass1
   {
-    SurfaceNets<T>* Algo;
+    using TInPtr = typename vtk::detail::ValueRange<TArray, 1>::iterator;
+    using T = vtk::GetAPIType<TArray>;
+    SurfaceNets<TArray>* Algo;
     // The label map lookup caches information, so to avoid race conditions,
     // an instance per thread must be created.
     vtkSMPThreadLocal<vtkLabelMapLookup<T>*> LMap;
-    Pass1(SurfaceNets<T>* algo) { this->Algo = algo; }
+    Pass1(SurfaceNets<TArray>* algo) { this->Algo = algo; }
     void Initialize()
     {
       this->LMap.Local() =
@@ -951,7 +931,7 @@ struct NetsWorker
     void operator()(vtkIdType row, vtkIdType end)
     {
       vtkLabelMapLookup<T>* lMap = this->LMap.Local();
-      T* rowPtr = this->Algo->Scalars + (row - 1) * this->Algo->Inc1;
+      TInPtr rowPtr = this->Algo->Scalars + (row - 1) * this->Algo->Inc1;
       for (; row < end; ++row)
       {
         this->Algo->ClassifyXEdges(rowPtr, row, lMap);
@@ -981,14 +961,17 @@ struct NetsWorker
   // PASS 2: Process all squares on the given x-rows to classify dyad y-axis,
   // and classify squares. Interface to vtkSMPTools::For(). Note that dyad row i
   // corresponds to image row (i-1).
-  template <typename T>
+  template <typename TArray>
   struct Pass2
   {
-    SurfaceNets<T>* Algo;
-    Pass2(SurfaceNets<T>* algo) { this->Algo = algo; }
+    using TInPtr = typename vtk::detail::ValueRange<TArray, 1>::iterator;
+    using T = vtk::GetAPIType<TArray>;
+
+    SurfaceNets<TArray>* Algo;
+    Pass2(SurfaceNets<TArray>* algo) { this->Algo = algo; }
     void operator()(vtkIdType row, vtkIdType end)
     {
-      T* rowPtr = this->Algo->Scalars + (row - 1) * this->Algo->Inc1;
+      TInPtr rowPtr = this->Algo->Scalars + (row - 1) * this->Algo->Inc1;
       for (; row < end; ++row)
       {
         this->Algo->ClassifyYEdges(rowPtr, row);
@@ -999,8 +982,8 @@ struct NetsWorker
 
   // PASS 3: Configure and allocate output based on classification of
   // the first two passes.
-  template <typename T>
-  void Pass3(SurfaceNets<T>* algo, vtkPoints* newPts, vtkCellArray* newLines,
+  template <typename TArray>
+  void Pass3(SurfaceNets<TArray>* algo, vtkPoints* newPts, vtkCellArray* newLines,
     vtkDataArray* newScalars, vtkCellArray* stencils)
   {
     algo->ConfigureOutput(newPts, newLines, newScalars, stencils);
@@ -1008,11 +991,11 @@ struct NetsWorker
 
   // PASS 4: Process all squares on given x-rows to produce output. Interface
   // to vtkSMPTools::For().
-  template <typename T>
+  template <typename TArray>
   struct Pass4
   {
-    SurfaceNets<T>* Algo;
-    Pass4(SurfaceNets<T>* algo) { this->Algo = algo; }
+    SurfaceNets<TArray>* Algo;
+    Pass4(SurfaceNets<TArray>* algo) { this->Algo = algo; }
     void operator()(vtkIdType row, vtkIdType end)
     {
       for (; row < end; ++row)
@@ -1023,12 +1006,12 @@ struct NetsWorker
   }; // Pass4 dispatch
 
   // Dispatch to SurfaceNets.
-  template <typename ST>
-  void operator()(ST* scalarsArray, vtkSurfaceNets2D* self, vtkImageData* input, int* updateExt,
+  template <typename TArray>
+  void operator()(TArray* scalarsArray, vtkSurfaceNets2D* self, vtkImageData* input, int* updateExt,
     vtkPoints* newPts, vtkCellArray* newLines, vtkDataArray* newScalars, vtkCellArray* stencils)
   {
     // The type of data carried by the scalarsArray
-    using ValueType = vtk::GetAPIType<ST>;
+    using T = vtk::GetAPIType<TArray>;
 
     // The update extent may be different than the extent of the image.
     // The only problem with using the update extent is that one or two
@@ -1036,11 +1019,10 @@ struct NetsWorker
     // eliminated.
     vtkIdType incs[3];
     input->GetIncrements(incs);
-    int* ext = input->GetExtent();
 
     // Figure out which 2D plane the image lies in. Capture information for
     // subsequent processing.
-    SurfaceNets<ValueType> algo;
+    SurfaceNets<TArray> algo;
     if (updateExt[4] == updateExt[5])
     { // z collapsed
       algo.Axis0 = 0;
@@ -1112,9 +1094,8 @@ struct NetsWorker
 
     // Compute the starting offset location for scalar data.  We may be operating
     // on a part of the image.
-    ValueType* scalars = static_cast<ValueType*>(scalarsArray->GetPointer(0));
-    algo.Scalars = scalars + incs[0] * (updateExt[0] - ext[0]) + incs[1] * (updateExt[2] - ext[2]) +
-      incs[2] * (updateExt[4] - ext[4]) + self->GetArrayComponent();
+    algo.Scalars = vtk::DataArrayValueRange<1>(scalarsArray).begin() +
+      input->GetValueIndexForExtent(scalarsArray, updateExt);
 
     // This algorithm executes just once no matter how many contour/label
     // values, requiring a fast lookup as to whether a data/pixel value is a
@@ -1123,17 +1104,17 @@ struct NetsWorker
     // which performs the fast label lookup.
     algo.NumLabels = self->GetNumberOfLabels();
     algo.LabelValues = self->GetValues();
-    algo.BackgroundLabel = static_cast<ValueType>(self->GetBackgroundLabel());
+    algo.BackgroundLabel = static_cast<T>(self->GetBackgroundLabel());
 
     // Now execute the four passes of the surface nets boundary extraction
     // algorithm.
     // Process the dyad x-edges: note that boundary-padded dyads are not
     // processed.
-    Pass1<ValueType> pass1(&algo);
+    Pass1<TArray> pass1(&algo);
     vtkSMPTools::For(1, algo.DyadDims[1] - 1, pass1);
 
     // Classify the dyad y-edges; finalize the dyad classification.
-    Pass2<ValueType> pass2(&algo);
+    Pass2<TArray> pass2(&algo);
     vtkSMPTools::For(0, algo.DyadDims[1] - 1, pass2);
 
     // Prefix sum to determine the size and character of the output, and
@@ -1141,7 +1122,7 @@ struct NetsWorker
     Pass3(&algo, newPts, newLines, newScalars, stencils);
 
     // Generate the output points, lines, and scalar data.
-    Pass4<ValueType> pass4(&algo);
+    Pass4<TArray> pass4(&algo);
     vtkSMPTools::For(0, algo.DyadDims[1] - 1, pass4);
 
     // Clean up and return
@@ -1235,7 +1216,7 @@ int vtkSurfaceNets2D::RequestData(vtkInformation* vtkNotUsed(request),
     }
 
     int* ext = inInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT());
-    vtkDataArray* inScalars = this->GetInputArrayToProcess(0, inputVector);
+    vtkSmartPointer<vtkDataArray> inScalars = this->GetInputArrayToProcess(0, inputVector);
     if (inScalars == nullptr)
     {
       vtkLog(ERROR, "Scalars must be defined for surface nets");
@@ -1249,6 +1230,10 @@ int vtkSurfaceNets2D::RequestData(vtkInformation* vtkNotUsed(request),
         "Scalars have " << numComps << " components. "
                         << "ArrayComponent must be smaller than " << numComps);
       return 1;
+    }
+    if (numComps > 1)
+    {
+      inScalars = vtk::ComponentOrNormAsDataArray(inScalars, this->ArrayComponent);
     }
 
     // Create necessary objects to hold the output. We will defer the
@@ -1278,13 +1263,11 @@ int vtkSurfaceNets2D::RequestData(vtkInformation* vtkNotUsed(request),
     // VTK types are processed, we don't need dispatch fallback to vtkDataArray. Note that
     // there is a fastpath when generating output scalars when only one segmented region
     // is being extracted.
-    using NetsDispatch = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::AllTypes>;
     NetsWorker netsWorker;
-    if (!NetsDispatch::Execute(
-          inScalars, netsWorker, this, input, ext, newPts, newLines, newScalars, stencils))
+    if (!vtkArrayDispatch::Dispatch::Execute(
+          inScalars.Get(), netsWorker, this, input, ext, newPts, newLines, newScalars, stencils))
     {
-      vtkLog(ERROR, "Unsupported data type"); // shouldn't happen because all types are supported
-      return 1;
+      netsWorker(inScalars.Get(), this, input, ext, newPts, newLines, newScalars, stencils);
     }
 
     vtkLog(TRACE,

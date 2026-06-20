@@ -4,6 +4,7 @@
 
 #include "vtkAbstractTransform.h"
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkArrayListTemplate.h"
 #include "vtkBatch.h"
 #include "vtkCellData.h"
@@ -183,6 +184,7 @@ struct EvaluatePointsWithPlaneFunctor
       slice[ptId] = vtkPlane::Evaluate(this->Normal, this->Origin, point);
 
       // Point is either above(=2), below(=1), or on(=0) the plane.
+      // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
       inOut[ptId] = (slice[ptId] > zero ? 2 : (slice[ptId] < zero ? 1 : 0));
     }
   }
@@ -254,11 +256,11 @@ template <typename TInputIdType>
 using EdgeLocatorType = vtkStaticEdgeLocatorTemplate<TInputIdType, double>;
 
 //-----------------------------------------------------------------------------
-const int CASE_MASK[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
+constexpr int CASE_MASK[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
 
 //------------------------------------------------------------------------------
-const int EDGE_CASE[12][2] = { { 0, 1 }, { 1, 2 }, { 3, 2 }, { 0, 3 }, { 4, 5 }, { 5, 6 }, { 7, 6 },
-  { 4, 7 }, { 0, 4 }, { 1, 5 }, { 3, 7 }, { 2, 6 } };
+constexpr int EDGE_CASE[12][2] = { { 0, 1 }, { 1, 2 }, { 3, 2 }, { 0, 3 }, { 4, 5 }, { 5, 6 },
+  { 7, 6 }, { 4, 7 }, { 0, 4 }, { 1, 5 }, { 3, 7 }, { 2, 6 } };
 
 //------------------------------------------------------------------------------
 bool SkipCell(const double s[8])
@@ -789,7 +791,7 @@ vtkSmartPointer<vtkPolyData> SliceStructuredData(TGrid* inputGrid, vtkDataArray*
   const unsigned char* selected = nullptr;
   const unsigned char* inOut = nullptr;
   const double* slice = nullptr;
-  using DispatcherPoints = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
+  using DispatcherPoints = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::AllPointArrays>;
   EvaluatePointsWithPlaneWorker evaluatePointsWorker;
   if (tree)
   {
@@ -900,8 +902,8 @@ vtkSmartPointer<vtkPolyData> SliceStructuredData(TGrid* inputGrid, vtkDataArray*
 
   // Extract points and calculate outputPoints and outputPointData.
   ExtractPointsWorker<TInputIdType> extractPointsWorker;
-  using ExtractPointsDispatch =
-    vtkArrayDispatch::Dispatch2ByValueType<vtkArrayDispatch::Reals, vtkArrayDispatch::Reals>;
+  using ExtractPointsDispatch = vtkArrayDispatch::Dispatch2ByArray<vtkArrayDispatch::AllPointArrays,
+    vtkArrayDispatch::AOSPointArrays>;
   if (!ExtractPointsDispatch::Execute(pointsArray, outputPoints->GetData(), extractPointsWorker,
         interpolate, pointDataArrays, edges, numberOfEdges, filter))
   {

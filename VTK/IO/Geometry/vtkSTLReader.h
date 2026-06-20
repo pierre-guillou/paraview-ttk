@@ -7,7 +7,7 @@
  * vtkSTLReader is a source object that reads ASCII or binary stereo
  * lithography files (.stl files). The FileName must be specified to
  * vtkSTLReader. The object automatically detects whether the file is
- * ASCII or binary.
+ * ASCII or binary. This reader supports reading streams.
  *
  * .stl files are quite inefficient since they duplicate vertex
  * definitions. By setting the Merging boolean you can control whether the
@@ -17,7 +17,7 @@
  *
  * @warning
  * Binary files written on one system may not be readable on other systems.
- * vtkSTLWriter uses VAX or PC byte ordering and swaps bytes on other systems.
+ * vtkSTLWriter uses little endian byte ordering and swaps bytes on other systems.
  */
 
 #ifndef vtkSTLReader_h
@@ -31,6 +31,8 @@ class vtkCellArray;
 class vtkFloatArray;
 class vtkIncrementalPointLocator;
 class vtkPoints;
+class vtkResourceParser;
+class vtkResourceStream;
 
 class VTKIOGEOMETRY_EXPORT vtkSTLReader : public vtkAbstractPolyDataReader
 {
@@ -39,7 +41,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
-   * Construct object with merging set to true.
+   * Construct object with default options.
    */
   static vtkSTLReader* New();
 
@@ -51,7 +53,18 @@ public:
 
   ///@{
   /**
+   * Set to true to support malformed files. Set to false to be strict and reject malformed files.
+   * Default is true to match behaviour of VTK <= 9.5.
+   */
+  vtkSetMacro(RelaxedConformance, bool);
+  vtkGetMacro(RelaxedConformance, bool);
+  vtkBooleanMacro(RelaxedConformance, bool);
+  ///@}
+
+  ///@{
+  /**
    * Turn on/off the merging of coincident points to restore neighborhood information.
+   * Default is true.
    */
   vtkSetMacro(Merging, vtkTypeBool);
   vtkGetMacro(Merging, vtkTypeBool);
@@ -61,6 +74,7 @@ public:
   ///@{
   /**
    * Turn on/off tagging of solids with scalars.
+   * Default is false.
    */
   vtkSetMacro(ScalarTags, vtkTypeBool);
   vtkGetMacro(ScalarTags, vtkTypeBool);
@@ -90,7 +104,7 @@ public:
   /**
    * Get binary file header string.
    * If ASCII STL file is read then BinaryHeader is not set,
-   * and the header can be retrieved using.GetHeader() instead.
+   * and the header can be retrieved using GetHeader() instead.
    * \sa GetHeader()
    */
   vtkGetObjectMacro(BinaryHeader, vtkUnsignedCharArray);
@@ -110,20 +124,23 @@ protected:
   vtkSetStringMacro(Header);
   virtual void SetBinaryHeader(vtkUnsignedCharArray* binaryHeader);
 
-  vtkTypeBool Merging;
-  vtkTypeBool ScalarTags;
-  vtkIncrementalPointLocator* Locator;
-  char* Header;
-  vtkUnsignedCharArray* BinaryHeader;
+  vtkTypeBool Merging = true;
+  vtkTypeBool ScalarTags = false;
+  vtkIncrementalPointLocator* Locator = nullptr;
+  char* Header = nullptr;
+  vtkUnsignedCharArray* BinaryHeader = nullptr;
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
-  bool ReadBinarySTL(FILE* fp, vtkPoints*, vtkCellArray*);
-  bool ReadASCIISTL(FILE* fp, vtkPoints*, vtkCellArray*, vtkFloatArray* scalars = nullptr);
-  int GetSTLFileType(const char* filename);
 
 private:
+  bool RelaxedConformance = true;
+
   vtkSTLReader(const vtkSTLReader&) = delete;
   void operator=(const vtkSTLReader&) = delete;
+
+  bool ReadBinarySTL(vtkResourceStream* stream, vtkPoints*, vtkCellArray*);
+  bool ReadASCIISTL(
+    vtkResourceParser* parser, vtkPoints*, vtkCellArray*, vtkFloatArray* scalars = nullptr);
 };
 
 VTK_ABI_NAMESPACE_END

@@ -12,6 +12,7 @@
 #include "pqQtDeprecated.h"
 #include "pqServer.h"
 #include "pqSettings.h"
+#include "pqWidgetUtilities.h"
 
 #include <QAbstractButton>
 #include <QAbstractItemView>
@@ -239,8 +240,8 @@ QMap<QPointer<pqServer>, QString> pqFileDialog::pqImplementation::FilePaths;
 /////////////////////////////////////////////////////////////////////////////
 void pqFileDialog::addImplementation(vtkTypeUInt32 location)
 {
-  pqServer* server = location == vtkPVSession::DATA_SERVER ? this->Server : nullptr;
-  this->Implementations[location] = new pqImplementation(this, server);
+  pqServer* dataServer = location == vtkPVSession::DATA_SERVER ? this->Server : nullptr;
+  this->Implementations[location] = new pqImplementation(this, dataServer);
   this->Implementations[location]->setObjectName(
     QString("Filesystem_%1").arg(this->Implementations.size() - 1));
   // the selected location is temporarily set here,
@@ -250,6 +251,7 @@ void pqFileDialog::addImplementation(vtkTypeUInt32 location)
 
   // set up ui for the file system
   this->Implementations[location]->Ui.setupUi(this->Implementations[location]);
+  pqWidgetUtilities::formatChildTooltips(this->Implementations[location]);
 
   // set up ok and cancel signals/slots
   QObject::connect(impl.Ui.OK, &QPushButton::clicked, this, &pqFileDialog::accept);
@@ -274,8 +276,8 @@ void pqFileDialog::addImplementation(vtkTypeUInt32 location)
   impl.Ui.NavigateBack->setIcon(back);
   impl.Ui.NavigateBack->setEnabled(false);
   impl.Ui.NavigateBack->setShortcut(QKeySequence::Back);
-  impl.Ui.NavigateBack->setToolTip(
-    tr("Navigate Back (%1)").arg(impl.Ui.NavigateBack->shortcut().toString()));
+  impl.Ui.NavigateBack->setToolTip(pqWidgetUtilities::formatTooltip(
+    tr("Navigate Back (%1)").arg(impl.Ui.NavigateBack->shortcut().toString())));
 
   QObject::connect(impl.Ui.NavigateBack, SIGNAL(clicked(bool)), this, SLOT(onNavigateBack()));
   // just flip the back image to make a forward image
@@ -287,17 +289,17 @@ void pqFileDialog::addImplementation(vtkTypeUInt32 location)
   impl.Ui.NavigateForward->setIcon(forward);
   impl.Ui.NavigateForward->setDisabled(true);
   impl.Ui.NavigateForward->setShortcut(QKeySequence::Forward);
-  impl.Ui.NavigateForward->setToolTip(
-    tr("Navigate Forward (%1)").arg(impl.Ui.NavigateForward->shortcut().toString()));
+  impl.Ui.NavigateForward->setToolTip(pqWidgetUtilities::formatTooltip(
+    tr("Navigate Forward (%1)").arg(impl.Ui.NavigateForward->shortcut().toString())));
   QObject::connect(impl.Ui.NavigateForward, SIGNAL(clicked(bool)), this, SLOT(onNavigateForward()));
   impl.Ui.NavigateUp->setIcon(style()->standardPixmap(QStyle::SP_FileDialogToParent));
   impl.Ui.NavigateUp->setShortcut(Qt::ALT | Qt::Key_Up);
-  impl.Ui.NavigateUp->setToolTip(
-    tr("Navigate Up (%1)").arg(impl.Ui.NavigateUp->shortcut().toString()));
+  impl.Ui.NavigateUp->setToolTip(pqWidgetUtilities::formatTooltip(
+    tr("Navigate Up (%1)").arg(impl.Ui.NavigateUp->shortcut().toString())));
   impl.Ui.CreateFolder->setIcon(style()->standardPixmap(QStyle::SP_FileDialogNewFolder));
   impl.Ui.CreateFolder->setShortcut(QKeySequence::New);
-  impl.Ui.CreateFolder->setToolTip(
-    tr("Create New Folder (%1)").arg(impl.Ui.CreateFolder->shortcut().toString()));
+  impl.Ui.CreateFolder->setToolTip(pqWidgetUtilities::formatTooltip(
+    tr("Create New Folder (%1)").arg(impl.Ui.CreateFolder->shortcut().toString())));
 
   impl.Ui.ShowDetail->setIcon(QIcon(":/pqWidgets/Icons/pqAdvanced.svg"));
 
@@ -450,6 +452,7 @@ pqFileDialog::pqFileDialog(pqServer* server, QWidget* p, const QString& title,
   , StartDirectory(startDirectory)
   , NameFilter(nameFilter)
   , SupportsGroupFiles(supportsGroupFiles)
+  , FileValidityCallback(std::nullopt)
 {
   // remove do-nothing "?" title bar button on Windows.
   this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
@@ -591,7 +594,7 @@ void pqFileDialog::onContextMenuRequested(const QPoint& menuPos)
     QStringList filePaths = impl.Model->getFilePaths(sourceItemIndex);
     if (filePaths.size() == 1)
     {
-      QString const dirPath = filePaths.front();
+      const QString& dirPath = filePaths.front();
       QObject::connect(
         addToFavoritesAction, &QAction::triggered, [=] { this->AddDirectoryToFavorites(dirPath); });
       menu.addAction(addToFavoritesAction);
@@ -797,7 +800,7 @@ void pqFileDialog::setFileMode(FileMode mode, vtkTypeUInt32 location)
     // only set the tooltip and window title the first time through
     impl.ShowMultipleFileHelp = true;
     this->setWindowTitle(this->windowTitle() + "  " + tr("open multiple files with <ctrl> key.)"));
-    this->setToolTip(tr("open multiple files with <ctrl> key."));
+    this->setToolTip(pqWidgetUtilities::formatTooltip(tr("open multiple files with <ctrl> key.")));
   }
   impl.Ui.Files->setSelectionMode(selectionMode);
 
@@ -819,6 +822,19 @@ void pqFileDialog::setFileMode(FileMode mode)
   {
     this->setFileMode(mode, vtkPVSession::DATA_SERVER);
   }
+}
+
+//-----------------------------------------------------------------------------
+void pqFileDialog::setFileValidityCallback(
+  const std::optional<pqFileDialog::pqFileValidityCallback>& callback)
+{
+  this->FileValidityCallback = callback;
+}
+
+//-----------------------------------------------------------------------------
+std::optional<pqFileDialog::pqFileValidityCallback> pqFileDialog::getFileValidityCallback()
+{
+  return this->FileValidityCallback;
 }
 
 //-----------------------------------------------------------------------------
@@ -1033,6 +1049,25 @@ QStringList pqFileDialog::buildFileGroup(const QString& filename)
   return files;
 }
 
+bool pqFileDialog::areFilesValid(const QStringList& filenames, QString& reason)
+{
+  if (this->FileValidityCallback.has_value())
+  {
+    const auto& callback = this->FileValidityCallback.value();
+
+    for (const auto& filename : filenames)
+    {
+      const QStringList group = buildFileGroup(filename);
+      if (!callback(group, this->SelectedLocation, reason))
+      {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 //-----------------------------------------------------------------------------
 void pqFileDialog::onLocationChanged(int index)
 {
@@ -1186,7 +1221,8 @@ void pqFileDialog::onFilterChange(const QString& filter)
 
   // update view
   impl.FileFilter.invalidate();
-  impl.Ui.EntityType->setToolTip(impl.Ui.EntityType->currentText());
+  impl.Ui.EntityType->setToolTip(
+    pqWidgetUtilities::formatTooltip(tr(impl.Ui.EntityType->currentText().toUtf8().data())));
 
   impl.SelectedFilterIndex = impl.Ui.EntityType->currentIndex();
 
@@ -1340,8 +1376,9 @@ QString pqFileDialog::fixFileExtension(const QString& filename, const QString& f
       {
         // we only need to validate the extension, not the filename.
         wildcard = QString("*.%1").arg(wildcard.mid(wildcard.indexOf('.') + 1));
-        QRegExp regEx = QRegExp(wildcard, Qt::CaseInsensitive, QRegExp::Wildcard);
-        if (regEx.exactMatch(fileInfo.fileName()))
+        QString regexPattern = QRegularExpression::wildcardToRegularExpression(wildcard);
+        QRegularExpression regEx(regexPattern, QRegularExpression::CaseInsensitiveOption);
+        if (regEx.match(fileInfo.fileName()).hasMatch())
         {
           pass = true;
           break;
@@ -1402,7 +1439,7 @@ bool pqFileDialog::acceptInternal(const QStringList& selected_files)
           this->addToFilesSelected(selected_files);
           return true;
         }
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case Directory:
         if (!impl.InDoubleClickHandler)
         {
@@ -1410,7 +1447,7 @@ bool pqFileDialog::acceptInternal(const QStringList& selected_files)
           this->onNavigate(file);
           return true;
         }
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case ExistingFile:
       case ExistingFiles:
       case AnyFile:
@@ -1434,6 +1471,16 @@ bool pqFileDialog::acceptInternal(const QStringList& selected_files)
     {
       this->onNavigate(file);
       impl.Ui.EntityName->clear();
+      return false;
+    }
+  }
+  else if (impl.InDoubleClickHandler && this->FileValidityCallback.has_value())
+  {
+    QString reason;
+    if (!this->areFilesValid(impl.FileNames, reason))
+    {
+      QMessageBox::warning(
+        this, this->windowTitle(), reason, QMessageBox::Ok, QMessageBox::NoButton);
       return false;
     }
   }
@@ -1696,7 +1743,7 @@ void pqFileDialog::updateButtonStates(vtkTypeUInt32 location)
     QString const currentDirName = QFileInfo(impl.Model->getCurrentPath()).fileName();
     // Enables "Ok" only if the current directory can be opened
     impl.Ui.OK->setEnabled((impl.Mode == Directory || impl.Mode == ExistingFilesAndDirectories) &&
-      impl.FileFilter.getWildcards().exactMatch(currentDirName));
+      impl.FileFilter.getWildcards().match(currentDirName).hasMatch());
 
     impl.Ui.Navigate->setEnabled(false);
     return;
@@ -1730,10 +1777,22 @@ void pqFileDialog::updateButtonStates(vtkTypeUInt32 location)
             {
               const QString fileNameWithoutPath =
                 vtksys::SystemTools::GetFilenameName(fileName.toStdString()).c_str();
-              return impl.FileFilter.getWildcards().exactMatch(fileNameWithoutPath);
+              return impl.FileFilter.getWildcards().match(fileNameWithoutPath).hasMatch();
             });
         });
-      impl.Ui.OK->setEnabled(filesMatching);
+
+      if (filesMatching)
+      {
+        QString reason;
+        const bool allFilesValid = this->areFilesValid(impl.FileNames, reason);
+        impl.Ui.OK->setEnabled(allFilesValid);
+        impl.Ui.OK->setToolTip(reason);
+      }
+      else
+      {
+        impl.Ui.OK->setEnabled(false);
+        impl.Ui.OK->setToolTip("");
+      }
   }
 
   // show the Navigate button.

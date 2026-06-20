@@ -13,6 +13,7 @@
 #include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
+#include "vtkStringFormatter.h"
 #include "vtkTypeInt16Array.h"
 #include "vtkTypeInt32Array.h"
 #include "vtkTypeInt64Array.h"
@@ -134,7 +135,7 @@ vtkGenIOReader::vtkGenIOReader()
 
   // Log
   debugLog.setOutputFilename(
-    "paraviewCosmo_" + std::to_string(myRank) + "_of_" + std::to_string(numRanks) + ".log");
+    "paraviewCosmo_" + vtk::to_string(myRank) + "_of_" + vtk::to_string(numRanks) + ".log");
 
   msgLog << "#threads to launch: " << concurentThreadsSupported << std::endl;
   msgLog << "Leaving constructor ...\n" << std::endl;
@@ -601,7 +602,7 @@ int vtkGenIOReader::RequestInformation(vtkInformation* /*rqst*/,
       if (readInData[i].xVar)
         foundCoord = true;
 
-      msgLog << std::to_string(i) << " : " << readInData[i].name << ", " << readInData[i].size
+      msgLog << vtk::to_string(i) << " : " << readInData[i].name << ", " << readInData[i].size
              << ", " << readInData[i].isFloat << ", " << readInData[i].isSigned << ", "
              << readInData[i].ghost << ", " << readInData[i].xVar << ", " << readInData[i].yVar
              << ", " << readInData[i].zVar << "\n";
@@ -720,7 +721,7 @@ int vtkGenIOReader::RequestInformation(vtkInformation* /*rqst*/,
     }
 
     metaDataBuilt = true;
-    msgLog << "numVars: " + std::to_string(numVars) << "\n";
+    msgLog << "numVars: " + vtk::to_string(numVars) << "\n";
   }
   else
     msgLog << "\nHeader file already opened!\n";
@@ -797,7 +798,7 @@ int vtkGenIOReader::RequestData(
 
     // override above if it's a position scalar
     if (paraviewData[i].position)
-      paraviewData[i].load = 1;
+      paraviewData[i].load = true;
 
     msgLog << "Var: " + std::string(_name) << " ~ show: " << paraviewData[i].show
            << " ~ load: " << paraviewData[i].load << "\n";
@@ -915,7 +916,7 @@ int vtkGenIOReader::RequestData(
   {
     case 0:
     {
-      msgLog << "\nShow all sampled; sample type = " << std::to_string(this->sampleType) << "\n";
+      msgLog << "\nShow all sampled; sample type = " << vtk::to_string(this->sampleType) << "\n";
 
       for (int i = ranksRangeToLoad[0]; i <= ranksRangeToLoad[1]; ++i)
       {
@@ -988,10 +989,9 @@ int vtkGenIOReader::RequestData(
           numRowsToSample =
             round(numLoadingRows * (dataPercentage * dataPercentage * dataPercentage));
 
-        if (numRowsToSample > numLoadingRows)
-          numRowsToSample = numLoadingRows;
+        numRowsToSample = std::min(numRowsToSample, numLoadingRows);
 
-        msgLog << "Rank (i): " + std::to_string(i) << ", Np/numLoadingRows: " << numLoadingRows
+        msgLog << "Rank (i): " + vtk::to_string(i) << ", Np/numLoadingRows: " << numLoadingRows
                << ", # rows in rank: " << gioReader->readNumElems(i)
                << ", dataPercentage: " << dataPercentage
                << ", dataPercentage^3: " << dataPercentage * dataPercentage * dataPercentage
@@ -1008,8 +1008,8 @@ int vtkGenIOReader::RequestData(
         threadPool.reserve(concurentThreadsSupported);
         for (int t = 0; t < concurentThreadsSupported; t++)
         {
-          threadPool.push_back(std::thread(&vtkGenIOReader::theadedParsing, this, t,
-            concurentThreadsSupported, numRowsToSample, numLoadingRows, cells, pnts, -1));
+          threadPool.emplace_back(&vtkGenIOReader::theadedParsing, this, t,
+            concurentThreadsSupported, numRowsToSample, numLoadingRows, cells, pnts, -1);
         }
 
         for (auto& th : threadPool)
@@ -1127,9 +1127,8 @@ int vtkGenIOReader::RequestData(
           numRowsToSample =
             round(numLoadingRows * (dataPercentage * dataPercentage * dataPercentage));
 
-        if (numRowsToSample > numLoadingRows)
-          numRowsToSample = numLoadingRows;
-        msgLog << "\ni: " + std::to_string(i) << ", Np: " << numLoadingRows
+        numRowsToSample = std::min(numRowsToSample, numLoadingRows);
+        msgLog << "\ni: " + vtk::to_string(i) << ", Np: " << numLoadingRows
                << ", # rows in rank: " << gioReader->readNumElems(i)
                << ", dataPercentage: " << dataPercentage
                << ", dataPercentage^3: " << dataPercentage * dataPercentage * dataPercentage
@@ -1145,9 +1144,8 @@ int vtkGenIOReader::RequestData(
         threadPool.reserve(concurentThreadsSupported);
         for (int t = 0; t < concurentThreadsSupported; t++)
         {
-          threadPool.push_back(
-            std::thread(&vtkGenIOReader::theadedParsing, this, t, concurentThreadsSupported,
-              numRowsToSample, numLoadingRows, cells, pnts, numSelections));
+          threadPool.emplace_back(&vtkGenIOReader::theadedParsing, this, t,
+            concurentThreadsSupported, numRowsToSample, numLoadingRows, cells, pnts, numSelections);
         }
 
         for (auto& th : threadPool)
@@ -1194,9 +1192,9 @@ int vtkGenIOReader::RequestData(
   msgLog << "numActiveTuples: " << numActiveTuples << "\n";
 
   msgLog << "\nTiming:\n";
-  msgLog << "   Initializing: " + std::to_string(intializeClock.getDuration()) + " s.\n";
-  msgLog << "   Populating  : " + std::to_string(populatingClock.getDuration()) + " s.\n";
-  msgLog << "   Cleanup     : " + std::to_string(cleanupClock.getDuration()) + " s.\n\n";
+  msgLog << "   Initializing: " + vtk::to_string(intializeClock.getDuration()) + " s.\n";
+  msgLog << "   Populating  : " + vtk::to_string(populatingClock.getDuration()) + " s.\n";
+  msgLog << "   Cleanup     : " + vtk::to_string(cleanupClock.getDuration()) + " s.\n\n";
   msgLog
     << "=======================================================================================\n";
   msgLog

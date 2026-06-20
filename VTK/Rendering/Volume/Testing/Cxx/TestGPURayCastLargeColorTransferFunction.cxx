@@ -8,7 +8,6 @@
 #include "vtkColorTransferFunction.h"
 #include "vtkFixedPointVolumeRayCastMapper.h"
 #include "vtkGPUVolumeRayCastMapper.h"
-#include "vtkImageData.h"
 #include "vtkInteractorStyleTrackballCamera.h"
 #include "vtkLookupTable.h"
 #include "vtkPiecewiseFunction.h"
@@ -23,12 +22,14 @@
 #include "vtkVolumeProperty.h"
 #include "vtkXMLImageDataReader.h"
 
+#include <iostream>
+
 #define GPU_MAPPER
 
 //------------------------------------------------------------------------------
 int TestGPURayCastLargeColorTransferFunction(int argc, char* argv[])
 {
-  cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << endl;
+  std::cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << std::endl;
 
   // Color table 'hncma-atlas-lut' extracted from
   // nac-hncma-atlas-2015Nov-Slicer4-4Version.mrb on
@@ -36,7 +37,7 @@ int TestGPURayCastLargeColorTransferFunction(int argc, char* argv[])
   vtkSmartPointer<vtkLookupTable> lut = vtkSmartPointer<vtkLookupTable>::New();
 
   // Initialize vtkLookupTable
-  int const NumValues = 5023;
+  constexpr int NumValues = 5023;
   lut->SetNumberOfTableValues(NumValues);
   lut->SetTableRange(0, NumValues - 1);
   for (int i = 0; i < NumValues; i++)
@@ -388,8 +389,8 @@ int TestGPURayCastLargeColorTransferFunction(int argc, char* argv[])
   double value = lut->GetRange()[0];
   const double step = (lut->GetRange()[1] - lut->GetRange()[0] + 1.0) / numColors;
   double color[4] = { 0.0, 0.0, 0.0, 1.0 };
-  const double midPoint = 0.5;
-  const double sharpness = 1.0;
+  constexpr double midPoint = 0.5;
+  constexpr double sharpness = 1.0;
   for (int i = 0; i < numColors; i++, value += step)
   {
     lut->GetTableValue(i, color);
@@ -471,7 +472,7 @@ int TestGPURayCastLargeColorTransferFunction(int argc, char* argv[])
   else
   {
     retVal = vtkTesting::PASSED;
-    cout << "Required extensions not supported." << endl;
+    std::cout << "Required extensions not supported." << std::endl;
   }
 
   return !((retVal == vtkTesting::PASSED) || (retVal == vtkTesting::DO_INTERACTOR));

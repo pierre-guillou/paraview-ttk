@@ -5,12 +5,14 @@
 #include "vtkDebug.h"
 #include "vtkLogger.h"
 #include "vtkObjectFactory.h"
+#include "vtkStringFormatter.h"
 #include "vtkWindows.h"
 
 #include <vtksys/Encoding.hxx>
 #include <vtksys/SystemInformation.hxx>
 #include <vtksys/SystemTools.hxx>
 
+#include <iostream>
 #include <map>
 #include <mutex>
 #include <set>
@@ -99,9 +101,8 @@ void vtkDebugLeaksHashTable::PrintTable(std::string& os)
   {
     if (iter->second > 0 && !vtkDebugLeaksIgnoreClassesCheck(iter->first))
     {
-      char tmp[256];
-      snprintf(tmp, 256, "\" has %u %s still around.\n", iter->second,
-        (iter->second == 1) ? "instance" : "instances");
+      auto tmp = vtk::format(
+        " has {} {} still around.\n", iter->second, (iter->second == 1) ? "instance" : "instances");
       os += "Class \"";
       os += iter->first;
       os += tmp;
@@ -319,8 +320,8 @@ int vtkDebugLeaks::PrintCurrentLeaks()
   std::string leaks;
   std::string msg = "vtkDebugLeaks has detected LEAKS!\n";
   vtkDebugLeaks::MemoryTable->PrintTable(leaks);
-  cerr << msg;
-  cerr << leaks << endl << std::flush;
+  std::cerr << msg;
+  std::cerr << leaks << std::endl << std::flush;
 
   vtkDebugLeaks::TraceManager->PrintObjects(std::cerr);
 

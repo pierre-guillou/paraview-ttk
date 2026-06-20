@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDistanceRepresentation2D.h"
 #include "vtkAxisActor2D.h"
-#include "vtkBox.h"
 #include "vtkCoordinate.h"
 #include "vtkInteractorObserver.h"
 #include "vtkLineSource.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointHandleRepresentation2D.h"
-#include "vtkPolyDataMapper2D.h"
 #include "vtkProperty2D.h"
 #include "vtkRenderer.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextProperty.h"
 #include "vtkWindow.h"
 
@@ -27,7 +26,6 @@ vtkDistanceRepresentation2D::vtkDistanceRepresentation2D()
   this->AxisProperty = vtkProperty2D::New();
   this->AxisProperty->SetColor(0, 1, 0);
 
-  this->AxisActor = vtkAxisActor2D::New();
   this->AxisActor->GetPoint1Coordinate()->SetCoordinateSystemToWorld();
   this->AxisActor->GetPoint2Coordinate()->SetCoordinateSystemToWorld();
   this->AxisActor->SetNumberOfLabels(5);
@@ -47,7 +45,6 @@ vtkDistanceRepresentation2D::vtkDistanceRepresentation2D()
 vtkDistanceRepresentation2D::~vtkDistanceRepresentation2D()
 {
   this->AxisProperty->Delete();
-  this->AxisActor->Delete();
 }
 
 //------------------------------------------------------------------------------
@@ -177,9 +174,10 @@ void vtkDistanceRepresentation2D::BuildRepresentation()
     }
     this->AxisActor->SetNumberOfLabels(this->NumberOfRulerTicks);
 
-    char string[512];
-    snprintf(string, sizeof(string), this->LabelFormat, this->Distance * this->Scale);
-    this->AxisActor->SetTitle(string);
+    std::string labelFormat = this->LabelFormat ? vtk::to_std_format(this->LabelFormat) : "";
+    std::string string;
+    VTK_FORMAT_IF_ERROR_RETURN(string = vtk::format(labelFormat, this->Distance * this->Scale), );
+    this->AxisActor->SetTitle(string.c_str());
 
     this->BuildTime.Modified();
   }

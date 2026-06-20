@@ -452,8 +452,8 @@ template <class F, class T>
 void vtkImageMapperShiftScale(const T* inPtr, unsigned char* outPtr, int ncols, int nrows,
   int numComp, vtkIdType inIncX, vtkIdType inIncY, vtkIdType outIncY, F shift, F scale)
 {
-  const F vmin = static_cast<F>(0);
-  const F vmax = static_cast<F>(255);
+  constexpr F vmin = static_cast<F>(0);
+  constexpr F vmax = static_cast<F>(255);
   unsigned char alpha = 255;
 
   // loop through the data and copy it for the texture
@@ -731,9 +731,11 @@ static VTK_THREAD_RETURN_TYPE vtkImageMapperMapColors(void* arg)
   // adjust pointers
   int firstRow = threadId * nrows / threadCount;
   int lastRow = (threadId + 1) * nrows / threadCount;
-  void* inputPtr = static_cast<char*>(imts->InputPtr) +
-    (imts->InIncX * ncols + imts->InIncY) * firstRow * scalarSize;
-  unsigned char* outputPtr = imts->OutputPtr + (imts->OutIncX * ncols + imts->OutIncY) * firstRow;
+  size_t inputRowOffset =
+    static_cast<size_t>(imts->InIncX * ncols + imts->InIncY) * firstRow * scalarSize;
+  void* inputPtr = static_cast<char*>(imts->InputPtr) + inputRowOffset;
+  size_t outputRowOffset = static_cast<size_t>(imts->OutIncX * ncols + imts->OutIncY) * firstRow;
+  unsigned char* outputPtr = imts->OutputPtr + outputRowOffset;
   nrows = lastRow - firstRow;
 
   // reformat the data for use as a texture
@@ -836,7 +838,8 @@ unsigned char* vtkImageMapper3D::MakeTextureData(vtkImageProperty* property, vtk
   // could not directly use input data, so allocate a new array
   reuseData = false;
 
-  unsigned char* outPtr = new unsigned char[ysize * xsize * bytesPerPixel];
+  unsigned char* outPtr = new unsigned char[static_cast<size_t>(ysize) *
+    static_cast<size_t>(xsize) * static_cast<size_t>(bytesPerPixel)];
 
   // output increments
   vtkIdType outIncY = bytesPerPixel * (xsize - imageSize[0]);
@@ -1044,23 +1047,23 @@ void vtkImageMapper3D::GetBackgroundColor(vtkImageProperty* property, double col
 void vtkImageMapper3D::CheckerboardRGBA(unsigned char* data, int xsize, int ysize, double originx,
   double originy, double spacingx, double spacingy)
 {
-  static double tol = 7.62939453125e-06;
-  static double maxval = 2147483647;
-  static double minval = -2147483647;
+  constexpr double tol = 7.62939453125e-06;
+  constexpr double maxval = 2147483647;
+  constexpr double minval = -2147483647;
 
   originx += 1.0 + tol;
   originy += 1.0 + tol;
 
-  originx = (originx > minval ? originx : minval);
-  originx = (originx < maxval ? originx : maxval);
-  originy = (originy > minval ? originy : minval);
-  originy = (originy < maxval ? originy : maxval);
+  originx = std::max(originx, minval);
+  originx = std::min(originx, maxval);
+  originy = std::max(originy, minval);
+  originy = std::min(originy, maxval);
 
   spacingx = fabs(spacingx);
   spacingy = fabs(spacingy);
 
-  spacingx = (spacingx < maxval ? spacingx : maxval);
-  spacingy = (spacingy < maxval ? spacingy : maxval);
+  spacingx = std::min(spacingx, maxval);
+  spacingy = std::min(spacingy, maxval);
   spacingx = (spacingx != 0 ? spacingx : maxval);
   spacingy = (spacingy != 0 ? spacingy : maxval);
 

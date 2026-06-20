@@ -420,6 +420,40 @@ GetSystemVisItHostsDirectory()
     return retVal;
 }
 
+#ifdef _WIN32
+#include <filesystem>
+// ****************************************************************************
+// Method:  GetVisItThirdPartyDirectory
+//
+// Purpose:
+//   Returns the path to the ThirdParty directory for a dev build of VisIt.
+//   Returns an empty string if not running from a development build.
+//
+// Arguments:
+//   none
+//
+// Programmer:  Kathleen Biagas 
+// Creation:    January 24, 2024
+//
+// Modifications:
+//
+// ****************************************************************************
+
+std::string
+GetVisItThirdPartyDirectory()
+{
+    std::string retval;
+    if(GetIsDevelopmentVersion())
+    {
+        std::filesystem::path homeDir(GetVisItInstallationDirectory());
+        auto dllDir = homeDir.parent_path() / "ThirdParty";
+        retval = dllDir.string();
+    }
+    return retval;
+}
+
+#endif
+
 // ****************************************************************************
 // Method: GetVisItResourcesDirectory
 //
@@ -914,6 +948,7 @@ ReadInstallationInfo(std::string &distName, std::string &configName, std::string
 
     "darwin-i386",
     "darwin-x86_64",
+    "darwin-arm64",
 
     // Deprecated
     "darwin-ppc",
@@ -943,6 +978,7 @@ ReadInstallationInfo(std::string &distName, std::string &configName, std::string
 
     "darwin-i386",
     "darwin-x86_64",
+    "darwin-arm64",
 
     // Deprecated
     "darwin-ppc",
@@ -1034,13 +1070,16 @@ ReadInstallationInfo(std::string &distName, std::string &configName, std::string
             }
         }
 
-#ifdef __APPLE__
+#if defined(__APPLE__)
         if(!platformDetermined)
         {
-            if(sizeof(long) == 8)
-                distName = "darwin-x86_64";
-            else
-                distName = "darwin-i386";
+#    if defined(__arm64__)
+            distName = "darwin-arm64";
+#    elif  defined(__x86_64__)
+            distName = "darwin-x86_64";
+#    else
+            distName = "darwin-i386";
+#    endif
             platformDetermined = true;
         }
 #endif

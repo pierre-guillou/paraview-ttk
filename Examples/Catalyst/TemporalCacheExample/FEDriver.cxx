@@ -30,7 +30,10 @@ PythonPipeline... //One or more Catalyst Python Pipelines
 #include <mpi.h>
 
 #include <vtkSmartPointer.h>
+#include <vtkStringScanner.h>
 #include <vtkTimerLog.h>
+
+#include <iostream>
 
 int main(int argc, char* argv[])
 {
@@ -47,23 +50,23 @@ int main(int argc, char* argv[])
     {
       for (int j = 0; j < 3; j++)
       {
-        numPoints[j] = atoi(argv[i + j + 1]);
+        VTK_FROM_CHARS_IF_ERROR_RETURN(argv[i + j + 1], numPoints[j], EXIT_FAILURE);
       }
       i += 3;
     }
     else if (!strcmp(argv[i], "-TSTEPS"))
     {
-      numberOfTimeSteps = atoi(argv[i + 1]);
+      VTK_FROM_CHARS_IF_ERROR_RETURN(argv[i + 1], numberOfTimeSteps, EXIT_FAILURE);
       i += 1;
     }
     else if (!strcmp(argv[i], "-DELAY"))
     {
-      delay = atoi(argv[i + 1]);
+      VTK_FROM_CHARS_IF_ERROR_RETURN(argv[i + 1], delay, EXIT_FAILURE);
       i += 1;
     }
     else if (!strcmp(argv[i], "-NUMPARTICLES"))
     {
-      numparticles = atoi(argv[i + 1]);
+      VTK_FROM_CHARS_IF_ERROR_RETURN(argv[i + 1], numparticles, EXIT_FAILURE);
       i += 1;
     }
     else
@@ -95,7 +98,7 @@ int main(int argc, char* argv[])
   for (unsigned int timeStep = 0; timeStep < numberOfTimeSteps; timeStep++)
   {
     // use a time step length of 0.1
-    cout << "timeStep " << timeStep << endl;
+    std::cout << "timeStep " << timeStep << endl;
     double time = timeStep * 0.1;
     tlog->StartTimer();
     attributes.UpdateFields(time);
@@ -109,9 +112,9 @@ int main(int argc, char* argv[])
 #endif
   }
 
-  cout << "Elapsed Simulation time " << tsim << endl;
+  std::cout << "Elapsed Simulation time " << tsim << endl;
 #ifdef USE_CATALYST
-  cout << "Elapsed CoProcessing time " << tcop << endl;
+  std::cout << "Elapsed CoProcessing time " << tcop << endl;
   FEAdaptor::Finalize();
 #endif
   MPI_Finalize();

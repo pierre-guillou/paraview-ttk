@@ -1,5 +1,9 @@
 set(classes
   vtkAMRBox
+  vtkAMRDataInternals # VTK_DEPRECATED_IN_9_6_0
+  vtkAMRDataObject
+  vtkAMRInformation
+  vtkAMRMetaData
   vtkAMRUtilities
   vtkAbstractCellArray
   vtkAbstractCellLinks
@@ -30,6 +34,7 @@ set(classes
   vtkBond
   vtkBoundingBox
   vtkBox
+  vtkCartesianGrid
   vtkCell
   vtkCell3D
   vtkCellArray
@@ -41,8 +46,8 @@ set(classes
   vtkCellGridBoundsQuery
   vtkCellGridCopyQuery
   vtkCellGridEvaluator
-  vtkCellGridRangeQuery
   vtkCellGridQuery
+  vtkCellGridRangeQuery
   vtkCellGridResponders
   vtkCellGridSidesCache
   vtkCellGridSidesQuery
@@ -52,6 +57,7 @@ set(classes
   vtkCellLocatorStrategy
   vtkCellMetadata
   vtkCellTreeLocator
+  vtkCellTypeUtilities
   vtkCellTypes
   vtkClosestNPointsStrategy
   vtkClosestPointStrategy
@@ -112,16 +118,16 @@ set(classes
   vtkHigherOrderWedge
   vtkHyperTree
   vtkHyperTreeGrid
-  vtkHyperTreeGridLocator
   vtkHyperTreeGridGeometricLocator
+  vtkHyperTreeGridLocator
   vtkHyperTreeGridNonOrientedCursor
   vtkHyperTreeGridNonOrientedGeometryCursor
-  vtkHyperTreeGridNonOrientedUnlimitedGeometryCursor
   vtkHyperTreeGridNonOrientedMooreSuperCursor
   vtkHyperTreeGridNonOrientedMooreSuperCursorLight
-  vtkHyperTreeGridNonOrientedUnlimitedMooreSuperCursor
   vtkHyperTreeGridNonOrientedSuperCursor
   vtkHyperTreeGridNonOrientedSuperCursorLight
+  vtkHyperTreeGridNonOrientedUnlimitedGeometryCursor
+  vtkHyperTreeGridNonOrientedUnlimitedMooreSuperCursor
   vtkHyperTreeGridNonOrientedUnlimitedSuperCursor
   vtkHyperTreeGridNonOrientedVonNeumannSuperCursor
   vtkHyperTreeGridNonOrientedVonNeumannSuperCursorLight
@@ -157,8 +163,8 @@ set(classes
   vtkLagrangeWedge
   vtkLine
   vtkLocator
-  vtkMarchingCubesTriangleCases
   vtkMarchingCubesPolygonCases
+  vtkMarchingCubesTriangleCases
   vtkMarchingSquaresLineCases
   vtkMeanValueCoordinatesInterpolator
   vtkMergePoints
@@ -169,10 +175,13 @@ set(classes
   vtkMutableUndirectedGraph
   vtkNonLinearCell
   vtkNonMergingPointLocator
+  vtkNonOverlappingAMR
   vtkOctreePointLocator
   vtkOctreePointLocatorNode
   vtkOrderedTriangulator
   vtkOutEdgeIterator
+  vtkOverlappingAMR
+  vtkOverlappingAMRMetaData
   vtkPartitionedDataSet
   vtkPartitionedDataSetCollection
   vtkPath
@@ -229,6 +238,7 @@ set(classes
   vtkStaticCellLocator
   vtkStaticPointLocator
   vtkStaticPointLocator2D
+  vtkStatisticalModel
   vtkStructuredCellArray
   vtkStructuredData
   vtkStructuredExtent
@@ -248,6 +258,9 @@ set(classes
   vtkTriangleStrip
   vtkUndirectedGraph
   vtkUniformGrid
+  vtkUniformGridAMR
+  vtkUniformGridAMRDataIterator
+  vtkUniformGridAMRIterator
   vtkUniformHyperTreeGrid
   vtkUnstructuredGrid
   vtkUnstructuredGridBase
@@ -256,15 +269,7 @@ set(classes
   vtkVertexListIterator
   vtkVoxel
   vtkWedge
-  vtkXMLDataElement
-
-  # New classes for AMR
-  vtkAMRDataInternals
-  vtkAMRInformation
-  vtkNonOverlappingAMR
-  vtkOverlappingAMR
-  vtkUniformGridAMR
-  vtkUniformGridAMRDataIterator)
+  vtkXMLDataElement)
 
 set(template_classes
   vtkAngularPeriodicDataArray
@@ -287,6 +292,7 @@ set(nowrap_classes
 set(headers
   vtkCellGridResponder.h
   vtkCellGridResponderBase.h
+  vtkCellStatus.h
   vtkCellType.h
   vtkColor.h
   vtkDataAssemblyVisitor.h
@@ -296,15 +302,17 @@ set(headers
   vtkIntersectionCounter.h
   vtkLabelMapLookup.h
   vtkRect.h
-  vtkVector.h
-  vtkVectorOperators.h)
+  vtkVector.h)
 
 set(nowrap_headers
   vtkCompositeDataSetNodeReference.h
   vtkCompositeDataSetRange.h
   vtkDataObjectImplicitBackendInterface.h
   vtkDataObjectTreeRange.h
-  vtkPolyDataInternals.h)
+  vtkLocatorInterface.h
+  vtkPolyDataInternals.h
+  vtkStaticPointLocator2DPrivate.h
+  vtkStaticPointLocatorPrivate.h)
 
 set(templates
   vtkCompositeDataSet.txx)
@@ -338,6 +346,7 @@ if (VTK_WRAP_SERIALIZATION)
     vtkCellArraySerDesHelper.cxx
     vtkDataSetAttributesSerDesHelper.cxx
     vtkFieldDataSerDesHelper.cxx
+    vtkGraphSerDesHelper.cxx
     vtkMultiBlockDataSetSerDesHelper.cxx
     vtkPartitionedDataSetSerDesHelper.cxx
     vtkPartitionedDataSetCollectionSerDesHelper.cxx

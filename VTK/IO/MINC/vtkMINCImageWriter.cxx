@@ -8,19 +8,16 @@
 
 #include "vtkCharArray.h"
 #include "vtkDoubleArray.h"
-#include "vtkFloatArray.h"
-#include "vtkIdTypeArray.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkIntArray.h"
 #include "vtkMath.h"
 #include "vtkMatrix4x4.h"
-#include "vtkShortArray.h"
-#include "vtkSignedCharArray.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
 #include "vtkUnsignedCharArray.h"
 
 #include "vtkType.h"
@@ -376,11 +373,15 @@ std::string vtkMINCImageWriterCreateIdentString()
   ident.append(itemsep);
 
   // Get the local time
-  char buf[1024];
-  time_t t;
-  time(&t);
-  strftime(buf, sizeof(buf), "%Y.%m.%d.%H.%M.%S", localtime(&t));
-  ident.append(buf);
+  std::time_t t = std::time(nullptr);
+  tm local;
+#ifdef VTK_COMPILER_MSVC
+  localtime_s(&local, &t);
+#else
+  localtime_r(&t, &local);
+#endif
+  auto date = vtk::format("{:%Y.%m.%d.%H.%M.%S}", local);
+  ident.append(date);
   ident.append(itemsep);
 
   // Get the process ID and the counter for this process.
@@ -389,8 +390,8 @@ std::string vtkMINCImageWriterCreateIdentString()
 #else
   int processId = getpid();
 #endif
-  snprintf(buf, 1024, "%i%s%i", processId, itemsep, identx++);
-  ident.append(buf);
+  auto process = vtk::format("{:d}{:s}{:d}", processId, itemsep, identx++);
+  ident.append(process);
 
   return ident;
 }
@@ -542,10 +543,7 @@ int vtkMINCImageWriter::CreateMINCDimensions(vtkImageData* input, int numTimeSte
   int timeDimensions = (numTimeSteps > 1);
   int spatialDimensions = ((wholeExtent[0] < wholeExtent[1]) + (wholeExtent[2] < wholeExtent[3]) +
     (wholeExtent[4] < wholeExtent[5]));
-  if (spatialDimensions < 2)
-  {
-    spatialDimensions = 2;
-  }
+  spatialDimensions = std::max(spatialDimensions, 2);
   // Insert dimension names until we have all spatial dimensions
   while (static_cast<int>(dimensions.size()) < spatialDimensions + hasTimeDim)
   {
@@ -588,7 +586,7 @@ int vtkMINCImageWriter::CreateMINCDimensions(vtkImageData* input, int numTimeSte
   this->FileDimensionNames->SetNumberOfValues(ndim);
   for (int idim = 0; idim < ndim; idim++)
   {
-    std::string dimname = dimensions[idim];
+    const auto& dimname = dimensions[idim];
     this->FileDimensionNames->SetValue(idim, dimname);
     int dimIndex = this->IndexFromDimensionName(dimname.c_str());
     size_t length = numTimeSteps;
@@ -707,7 +705,7 @@ int vtkMINCImageWriter::CreateMINCVariables(
   int ivar = 0;
   for (ivar = 0; ivar < nvars; ivar++)
   {
-    std::string varname = variables[ivar];
+    const auto& varname = variables[ivar];
     if (varname == MIrootvariable || varname == MIimagemin || varname == MIimagemax)
     {
       continue;
@@ -970,7 +968,6 @@ int vtkMINCImageWriter::CreateMINCVariables(
     }
     if (attArray)
     {
-      std::string varpath = MI_GRPNAME MI_GRP_SEP;
       int natts = attArray->GetNumberOfValues();
       for (int iatt = 0; iatt < natts; iatt++)
       {
@@ -1739,14 +1736,8 @@ int vtkMINCImageWriter::WriteMINCData(
     }
     else
     {
-      if (chunkRange[0] < this->FileValidRange[0])
-      {
-        this->FileValidRange[0] = chunkRange[0];
-      }
-      if (chunkRange[1] > this->FileValidRange[1])
-      {
-        this->FileValidRange[1] = chunkRange[1];
-      }
+      this->FileValidRange[0] = std::min(chunkRange[0], this->FileValidRange[0]);
+      this->FileValidRange[1] = std::max(chunkRange[1], this->FileValidRange[1]);
     }
 
     // Increment the inPtr for the next chunk.

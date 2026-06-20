@@ -27,6 +27,7 @@
 #include "vtksys/FStream.hxx"
 
 #include <cassert>
+#include <iostream>
 #include <set>
 #include <sstream>
 #include <string>
@@ -201,7 +202,7 @@ public:
     RemoteObjectMapType::iterator iter = this->RemoteObjectMap.begin();
     while (iter != this->RemoteObjectMap.end())
     {
-      cout << "RemoteObject map - Id: " << iter->first << endl; //" - RefCount: "
+      std::cout << "RemoteObject map - Id: " << iter->first << endl; //" - RefCount: "
       //<< iter->second->GetReferenceCount() << endl;
       iter++;
     }
@@ -342,7 +343,7 @@ void vtkPVSessionCore::OnInterpreterError(vtkObject*, unsigned long, void* calld
       error << ends;
       vtkErrorMacro(<< errorMessage << error.str().c_str());
       vtkErrorMacro("Aborting execution for debugging purposes.");
-      cout << "############ ABORT #############" << endl;
+      std::cout << "############ ABORT #############" << endl;
     }
     return;
     // abort();
@@ -397,20 +398,20 @@ void vtkPVSessionCore::PushStateInternal(vtkSMMessage* message)
                       "Aborting for debugging purposes.");
 
         message->PrintDebugString();
-        cout << "############ ABORT #############" << endl;
+        std::cout << "############ ABORT #############" << endl;
       }
       return;
       // abort();
     }
     // Create the corresponding SI object.
-    std::string classname = message->GetExtension(DefinitionHeader::server_class);
+    const std::string& classname = message->GetExtension(DefinitionHeader::server_class);
     vtkObjectBase* object;
     object = vtkClientServerStreamInstantiator::CreateInstance(classname.c_str());
     if (!object)
     {
       vtkErrorMacro("Failed to instantiate " << classname.c_str());
       message->PrintDebugString();
-      cout << "############ ABORT #############" << endl;
+      std::cout << "############ ABORT #############" << endl;
       return;
       // abort();
     }
@@ -420,7 +421,7 @@ void vtkPVSessionCore::PushStateInternal(vtkSMMessage* message)
       vtkErrorMacro("Object must be a vtkSIObject subclass. "
                     "Aborting for debugging purposes.");
       message->PrintDebugString();
-      cout << "############ ABORT #############" << endl;
+      std::cout << "############ ABORT #############" << endl;
       return;
       // abort();
     }

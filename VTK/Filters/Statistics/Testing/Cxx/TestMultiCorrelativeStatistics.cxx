@@ -7,12 +7,14 @@
 
 #include "vtkDataSetAttributes.h"
 #include "vtkDoubleArray.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkMultiCorrelativeStatistics.h"
 #include "vtkNew.h"
+#include "vtkStatisticalModel.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 #include "vtkUnsignedCharArray.h"
+
+#include <iostream>
 
 //=============================================================================
 int TestMultiCorrelativeStatistics(int, char*[])
@@ -94,17 +96,17 @@ int TestMultiCorrelativeStatistics(int, char*[])
   };
   int nVals = 33;
 
-  const char m0Name[] = "M0";
+  constexpr char m0Name[] = "M0";
   vtkDoubleArray* dataset1Arr = vtkDoubleArray::New();
   dataset1Arr->SetNumberOfComponents(1);
   dataset1Arr->SetName(m0Name);
 
-  const char m1Name[] = "M1";
+  constexpr char m1Name[] = "M1";
   vtkDoubleArray* dataset2Arr = vtkDoubleArray::New();
   dataset2Arr->SetNumberOfComponents(1);
   dataset2Arr->SetName(m1Name);
 
-  const char m2Name[] = "M2";
+  constexpr char m2Name[] = "M2";
   vtkDoubleArray* dataset3Arr = vtkDoubleArray::New();
   dataset3Arr->SetNumberOfComponents(1);
   dataset3Arr->SetName(m2Name);
@@ -135,9 +137,9 @@ int TestMultiCorrelativeStatistics(int, char*[])
   vtkMultiCorrelativeStatistics* mcs = vtkMultiCorrelativeStatistics::New();
 
   // First verify that absence of input does not cause trouble
-  cout << "## Verifying that absence of input does not cause trouble... ";
+  std::cout << "## Verifying that absence of input does not cause trouble... ";
   mcs->Update();
-  cout << "done.\n";
+  std::cout << "done.\n";
 
   // Prepare first test with data
   mcs->SetInputData(vtkStatisticsAlgorithm::INPUT_DATA, datasetTable);
@@ -168,28 +170,24 @@ int TestMultiCorrelativeStatistics(int, char*[])
   mcs->SetAssessOption(false);
 
   mcs->Update();
-  vtkMultiBlockDataSet* outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
+  auto* outputMetaDS = vtkStatisticalModel::SafeDownCast(
     mcs->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
 
-  cout << "## Calculated the following statistics for data set:\n";
-  for (unsigned int b = 0; b < outputMetaDS->GetNumberOfBlocks(); ++b)
+  std::cout << "## Calculated the following statistics for data set:\n";
+  auto* primary = outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0);
+  std::cout << "Primary Statistics\n";
+  primary->Dump();
+
+  for (int b = 0; b < outputMetaDS->GetNumberOfTables(vtkStatisticalModel::Derived); ++b)
   {
-    vtkTable* outputMeta = vtkTable::SafeDownCast(outputMetaDS->GetBlock(b));
+    vtkTable* outputMeta = outputMetaDS->GetTable(vtkStatisticalModel::Derived, b);
 
-    if (b == 0)
-    {
-      cout << "Primary Statistics\n";
-    }
-    else
-    {
-      cout << "Derived Statistics " << (b - 1) << "\n";
-    }
-
+    std::cout << "Derived Statistics " << b << "\n";
     outputMeta->Dump();
   }
 
   // Test Assess Mode
-  vtkMultiBlockDataSet* paramsTables = vtkMultiBlockDataSet::New();
+  auto* paramsTables = vtkStatisticalModel::New();
   paramsTables->ShallowCopy(outputMetaDS);
 
   mcs->SetInputData(vtkStatisticsAlgorithm::INPUT_MODEL, paramsTables);
@@ -209,15 +207,15 @@ int TestMultiCorrelativeStatistics(int, char*[])
   int nOutliers = 0;
   int tableIdx[] = { 0, 1, 3 };
 
-  cout << "## Searching for outliers such that " << outputData->GetColumnName(tableIdx[2]) << " > "
-       << threshold << "\n";
+  std::cout << "## Searching for outliers such that " << outputData->GetColumnName(tableIdx[2])
+            << " > " << threshold << "\n";
 
-  cout << "   Found the following outliers:\n";
+  std::cout << "   Found the following outliers:\n";
   for (int i = 0; i < 3; ++i)
   {
-    cout << "   " << outputData->GetColumnName(tableIdx[i]);
+    std::cout << "   " << outputData->GetColumnName(tableIdx[i]);
   }
-  cout << "\n";
+  std::cout << "\n";
 
   for (vtkIdType r = 0; r < outputData->GetNumberOfRows(); ++r)
   {
@@ -227,9 +225,9 @@ int TestMultiCorrelativeStatistics(int, char*[])
 
       for (int i = 0; i < 3; ++i)
       {
-        cout << "     " << outputData->GetValue(r, tableIdx[i]).ToString() << "    ";
+        std::cout << "     " << outputData->GetValue(r, tableIdx[i]).ToString() << "    ";
       }
-      cout << "\n";
+      std::cout << "\n";
     }
   }
 

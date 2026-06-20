@@ -13,6 +13,8 @@
 #include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSelectionNode.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 #include "vtkWeakPointer.h"
 
 #include <set>
@@ -795,7 +797,7 @@ struct Process_5_9_to_5_10
 
   static std::string GetSelector(unsigned int cid)
   {
-    return std::string("//*[@cid='") + std::to_string(cid) + "']";
+    return std::string("//*[@cid='") + vtk::to_string(cid) + "']";
     ;
   }
 
@@ -1763,7 +1765,7 @@ struct Process_5_12_to_5_13
 
       // add the new child values
       node.remove_children();
-      const std::string proxyId = std::to_string(generator.GetNextUniqueId());
+      const std::string proxyId = vtk::to_string(generator.GetNextUniqueId());
 
       auto proxyNode = node.append_child("Proxy");
       proxyNode.append_attribute("value").set_value(proxyId.c_str());
@@ -2071,7 +2073,7 @@ struct Process_5_13_to_6_0
 {
   bool operator()(xml_document& document)
   {
-    return HandlePolarAxesRenaming(document) && HandleAxisAlignedReflectionFilter(document) &&
+    return HandlePolarAxesRenaming(document) && HandleAxisAlignedReflect(document) &&
       HandleRenamedProxies(document);
   }
 
@@ -2129,12 +2131,12 @@ struct Process_5_13_to_6_0
     return true;
   }
 
-  void BuildAxisAlignedReflectionFilter(std::ostringstream& stream, const char_t* proxyId,
+  void BuildAxisAlignedReflect(std::ostringstream& stream, const char_t* proxyId,
     const char_t* inputId, const char_t* server, const vtkTypeUInt32 planeId, int copyInput,
     int flipArrays, int planeMode)
   {
-    // AxisAlignedReflectionFilter
-    stream << "<Proxy group=\"filters\" type=\"AxisAlignedReflectionFilter\" id=\"" << proxyId
+    // AxisAlignedReflect
+    stream << "<Proxy group=\"filters\" type=\"AxisAlignedReflect\" id=\"" << proxyId
            << "\" servers=\"" << server << "\">\n";
     stream << "  <Property name=\"CopyInput\" id=\"" << proxyId
            << ".CopyInput\" number_of_elements=\"1\">\n"
@@ -2179,7 +2181,7 @@ struct Process_5_13_to_6_0
     stream << "</Proxy>\n";
   }
 
-  bool HandleAxisAlignedReflectionFilter(xml_document& document)
+  bool HandleAxisAlignedReflect(xml_document& document)
   {
     // Replace HyperTreeGridAxisReflection
     auto xpath_set = document.select_nodes("//ServerManagerState/Proxy[@group='filters'"
@@ -2238,13 +2240,13 @@ struct Process_5_13_to_6_0
 
       stream << "</Proxy>\n";
 
-      BuildAxisAlignedReflectionFilter(stream, proxyId, inputId, server, planeId, 0, 0, 0);
+      BuildAxisAlignedReflect(stream, proxyId, inputId, server, planeId, 0, 0, 0);
 
       pugi::xml_node smstate = document.root().child("ServerManagerState");
       std::string buffer = stream.str();
       if (!smstate.append_buffer(buffer.c_str(), buffer.size()))
       {
-        vtkGenericWarningMacro("Unable to add AxisAlignedReflectionFilter proxy.");
+        vtkGenericWarningMacro("Unable to add AxisAlignedReflect proxy.");
       }
     }
 
@@ -2326,14 +2328,14 @@ struct Process_5_13_to_6_0
         planeMode = planeValue + 1;
       }
 
-      BuildAxisAlignedReflectionFilter(
+      BuildAxisAlignedReflect(
         stream, proxyId, inputId, server, planeId, copyInputValue, flipArraysValue, planeMode);
 
       pugi::xml_node smstate = document.root().child("ServerManagerState");
       std::string buffer = stream.str();
       if (!smstate.append_buffer(buffer.c_str(), buffer.size()))
       {
-        vtkGenericWarningMacro("Unable to add AxisAlignedReflectionFilter proxy.");
+        vtkGenericWarningMacro("Unable to add AxisAlignedReflect proxy.");
       }
     }
     return true;
@@ -2367,6 +2369,242 @@ struct Process_5_13_to_6_0
   }
 };
 
+//===========================================================================
+struct Process_6_0_to_6_1
+{
+  bool operator()(xml_document& document)
+  {
+    return HandleChartRepresentationCompositeDataSetIndex(document) &&
+      HandleRawImageReaderDataExtent(document) && HandleTableToStructuredGridWholeExtent(document);
+  }
+
+  static std::string GetSelector(unsigned int cid)
+  {
+    return std::string("//*[@cid='") + vtk::to_string(cid) + "']";
+  }
+
+  static void ConvertCompositeIdsToSelectors(pugi::xml_node& node)
+  {
+    for (auto child : node.children("Element"))
+    {
+      auto value_attribute = child.attribute("value");
+      value_attribute.set_value(GetSelector(value_attribute.as_uint()).c_str());
+    }
+  }
+
+  static bool HandleChartRepresentationCompositeDataSetIndex(xml_document& document)
+  {
+    std::vector<std::string> chartProxyNames = { "ImageChartRepresentation",
+      "XYChartRepresentationBase", "XYChartRepresentation", "XYPointChartRepresentation",
+      "XYBarChartRepresentation", "QuartileChartRepresentation",
+      "ParallelCoordinatesRepresentation", "BoxChartRepresentation", "PlotMatrixRepresentation",
+      "BagPlotMatrixRepresentation", "XYBagChartRepresentation",
+      "XYFunctionalBagChartRepresentation" };
+
+    UniqueIdGenerator generator(document);
+    for (const auto& chartName : chartProxyNames)
+    {
+      const std::string nodePath = "//ServerManagerState/Proxy[@group='representations' and "
+                                   "@type='" +
+        chartName + "']/Property[@name='CompositeDataSetIndex']";
+      const bool skipArraySelectionMode =
+        chartName == "BagPlotMatrixRepresentation" || chartName == "XYBagChartRepresentation";
+      const std::string arraySelectionModeValue =
+        chartName == "XYFunctionalBagChartRepresentation" ? "1" : "0";
+      auto xpath_set = document.select_nodes(nodePath.c_str());
+      for (auto xpath_node : xpath_set)
+      {
+        // convert CompositeDataSetIndex to "BlockSelectors".
+        auto node = xpath_node.node();
+        node.attribute("name").set_value("BlockSelectors");
+        ConvertCompositeIdsToSelectors(node);
+        if (skipArraySelectionMode)
+        {
+          continue;
+        }
+        // add a ArraySelectionMode property to the representation and set its default value to 1
+        auto arraySelectionModeId = vtk::to_string(generator.GetNextUniqueId());
+        auto parent = node.parent();
+        auto arraySelectionModeNode = parent.append_child("Property");
+        arraySelectionModeNode.append_attribute("name").set_value("ArraySelectionMode");
+        arraySelectionModeNode.append_attribute("id").set_value(
+          (arraySelectionModeId + ".ArraySelectionMode").c_str());
+        arraySelectionModeNode.append_attribute("number_of_elements").set_value(1);
+        auto elementNode = arraySelectionModeNode.append_child("Element");
+        elementNode.append_attribute("index").set_value(0);
+        elementNode.append_attribute("value").set_value(arraySelectionModeValue.c_str());
+        // create the domain of the property
+        auto domainNode = arraySelectionModeNode.append_child("Domain");
+        domainNode.append_attribute("name").set_value("enum");
+        domainNode.append_attribute("id").set_value(
+          (arraySelectionModeId + ".ArraySelectionMode.enum").c_str());
+        auto allNode = domainNode.append_child("Entry");
+        allNode.append_attribute("value").set_value("0");
+        allNode.append_attribute("text").set_value("Merged Blocks");
+        auto leavesNode = domainNode.append_child("Entry");
+        leavesNode.append_attribute("value").set_value("1");
+        leavesNode.append_attribute("text").set_value("Individual Blocks");
+      }
+    }
+
+    return true;
+  }
+
+  static bool HandleRawImageReaderDataExtent(xml_document& document)
+  {
+    // Convert the source image reader properties from:
+    //   DataExtent = (xmin, xmax, ymin, ymax, zmin, zmax)
+    // to:
+    //   MinimumIndex = (xmin, ymin, zmin)
+    //   Dimensions = (xmax-xmin+1, ymax-ymin+1, zmax-zmin+1)
+    // When file dimensionality is 2, Dimensions[2] is set to 0.
+    pugi::xpath_node_set xpath_set =
+      document.select_nodes("//ServerManagerState/Proxy[@group='sources' and @type='ImageReader']");
+    for (auto xpath_proxy : xpath_set)
+    {
+      pugi::xml_node readerNode = xpath_proxy.node();
+      auto extPropertyProxy = readerNode.select_node("child::Property[@name='DataExtent']");
+      if (!extPropertyProxy)
+      {
+        continue;
+      }
+      pugi::xml_node extPropertyNode = extPropertyProxy.node();
+      int numExtentElements = extPropertyNode.attribute("number_of_elements").as_int();
+
+      // process all "Element" nodes under the "DataExtent" property
+      int dimensions[3] = { 0, 0, 0 };
+      int minimumIndex[3] = { 0, 0, 0 };
+      for (auto elementProxy : extPropertyNode.select_nodes("child::Element"))
+      {
+        pugi::xml_node elementNode = elementProxy.node();
+        int elementIdx = elementNode.attribute("index").as_int();
+        if (elementIdx >= numExtentElements)
+        {
+          return false; // unexpected entry
+        }
+        int newIdx = elementIdx / 2;
+        int elementValue = elementProxy.node().attribute("value").as_int();
+        if (elementIdx % 2 == 0)
+        {
+          // set the start indices
+          minimumIndex[newIdx] = elementValue;
+        }
+        else
+        {
+          // set the dimensions based on the start and end indices
+          dimensions[newIdx] = elementValue - minimumIndex[newIdx] + 1;
+        }
+      }
+
+      // check the file dimensionality
+      auto fileDimsProxy = readerNode.select_node("child::Property[@name='FileDimensionality']");
+      if (!fileDimsProxy)
+      {
+        return false;
+      }
+      if (fileDimsProxy.node().child("Element").attribute("value").as_int() == 2)
+      {
+        dimensions[2] = 0; // handle special case for 2D files
+      }
+
+      // remove the DataExtent node
+      readerNode.remove_child(extPropertyNode);
+
+      // add new nodes for MinimumIndex and Dimensions
+      addPropertyElement(readerNode, "MinimumIndex", minimumIndex);
+      addPropertyElement(readerNode, "Dimensions", dimensions);
+    }
+
+    return true;
+  }
+
+  bool HandleTableToStructuredGridWholeExtent(xml_document& document)
+  {
+    // Convert the TableToStructuredGrid filter properties from:
+    //   WholeExtent = (xmin, xmax, ymin, ymax, zmin, zmax)
+    // to:
+    //   MinimumIndex = (xmin, ymin, zmin)
+    //   Dimensions = (xmax-xmin+1, ymax-ymin+1, zmax-zmin+1)
+    pugi::xpath_node_set xpath_set = document.select_nodes(
+      "//ServerManagerState/Proxy[@group='filters' and @type='TableToStructuredGrid']");
+    for (auto xpath_proxy : xpath_set)
+    {
+      pugi::xml_node filterNode = xpath_proxy.node();
+      auto extPropertyProxy = filterNode.select_node("child::Property[@name='WholeExtent']");
+      if (!extPropertyProxy)
+      {
+        continue;
+      }
+      pugi::xml_node extPropertyNode = extPropertyProxy.node();
+      int numExtentElements = extPropertyNode.attribute("number_of_elements").as_int();
+
+      // process all "Element" nodes under the "WholeExtent" property
+      int dimensions[3] = { 0, 0, 0 };
+      int minimumIndex[3] = { 0, 0, 0 };
+      for (auto elementProxy : extPropertyNode.select_nodes("child::Element"))
+      {
+        pugi::xml_node elementNode = elementProxy.node();
+        int elementIdx = elementNode.attribute("index").as_int();
+        if (elementIdx >= numExtentElements)
+        {
+          return false; // unexpected entry
+        }
+        int newIdx = elementIdx / 2;
+        int elementValue = elementProxy.node().attribute("value").as_int();
+        if (elementIdx % 2 == 0)
+        {
+          // set the start indices
+          minimumIndex[newIdx] = elementValue;
+        }
+        else
+        {
+          // set the dimensions based on the start and end indices
+          dimensions[newIdx] = elementValue - minimumIndex[newIdx] + 1;
+        }
+      }
+
+      // remove the WholeExtent node
+      filterNode.remove_child(extPropertyNode);
+
+      // add new nodes for MinimumIndex and Dimensions
+      addPropertyElement(filterNode, "MinimumIndex", minimumIndex);
+      addPropertyElement(filterNode, "Dimensions", dimensions);
+    }
+
+    return true;
+  }
+
+private:
+  static void addPropertyElement(
+    pugi::xml_node& parent, const std::string& name, const int values[3])
+  {
+    std::string parentId = parent.attribute("id").as_string();
+    pugi::xml_node propertyNode = parent.append_child();
+    propertyNode.set_name("Property");
+
+    propertyNode.append_attribute("name") = name.c_str();
+
+    std::string propertyId = parentId + "." + name;
+    propertyNode.append_attribute("id") = propertyId.c_str();
+    propertyNode.append_attribute("number_of_elements") = "3";
+
+    // add Element nodes
+    for (int i = 0; i < 3; ++i)
+    {
+      pugi::xml_node elementNode = propertyNode.append_child();
+      elementNode.set_name("Element");
+      elementNode.append_attribute("index") = vtk::to_string(i).c_str();
+      elementNode.append_attribute("value") = vtk::to_string(values[i]).c_str();
+    }
+
+    // add Domain node
+    pugi::xml_node domainNode = propertyNode.append_child();
+    domainNode.set_name("Domain");
+    domainNode.append_attribute("name") = "range";
+    domainNode.append_attribute("id") = (propertyId + ".range").c_str();
+  }
+};
+
 } // end of namespace
 
 vtkStandardNewMacro(vtkSMStateVersionController);
@@ -2394,9 +2632,9 @@ bool vtkSMStateVersionController::Process(vtkPVXMLElement* parent, vtkSMSession*
   vtkSMVersion version(0, 0, 0);
   if (const char* str_version = root->GetAttribute("version"))
   {
-    int v[3];
-    sscanf(str_version, "%d.%d.%d", &v[0], &v[1], &v[2]);
-    version = vtkSMVersion(v[0], v[1], v[2]);
+    auto result = vtk::scan<int, int, int>(std::string_view(str_version), "{:d}.{:d}.{:d}");
+    const auto& [major, minor, patch] = result->values();
+    version = vtkSMVersion(major, minor, patch);
   }
 
   bool status = true;
@@ -2500,6 +2738,13 @@ bool vtkSMStateVersionController::Process(vtkPVXMLElement* parent, vtkSMSession*
     Process_5_13_to_6_0 converter;
     status = converter(document);
     version = vtkSMVersion(6, 0, 0);
+  }
+
+  if (status && (version < vtkSMVersion(6, 1, 0)))
+  {
+    Process_6_0_to_6_1 converter;
+    status = converter(document);
+    version = vtkSMVersion(6, 1, 0);
   }
 
   if (status)

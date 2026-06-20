@@ -13,6 +13,7 @@
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper2D.h"
 #include "vtkProperty2D.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextMapper.h"
 #include "vtkTextProperty.h"
 #include "vtkTrivialProducer.h"
@@ -82,7 +83,6 @@ vtkPieChartActor::vtkPieChartActor()
 
   this->LegendVisibility = 1;
 
-  this->LegendActor = vtkLegendBoxActor::New();
   this->LegendActor->GetPositionCoordinate()->SetCoordinateSystemToViewport();
   this->LegendActor->GetPosition2Coordinate()->SetCoordinateSystemToViewport();
   this->LegendActor->GetPosition2Coordinate()->SetReferenceCoordinate(nullptr);
@@ -136,7 +136,6 @@ vtkPieChartActor::~vtkPieChartActor()
   this->SetLabelTextProperty(nullptr);
   this->SetTitleTextProperty(nullptr);
 
-  this->LegendActor->Delete();
   this->GlyphSource->Delete();
 
   this->Initialize();
@@ -495,7 +494,8 @@ int vtkPieChartActor::PlaceAxes(vtkViewport* viewport, const int* vtkNotUsed(siz
       }
       else
       {
-        snprintf(label, sizeof(label), "%d", static_cast<int>(i));
+        auto result = vtk::format_to_n(label, sizeof(label), "{:d}", i);
+        *result.out = '\0';
         this->PieceMappers[i]->SetInput(label);
       }
       this->PieceMappers[i]->GetTextProperty()->ShallowCopy(this->LabelTextProperty);
@@ -572,7 +572,8 @@ int vtkPieChartActor::PlaceAxes(vtkViewport* viewport, const int* vtkNotUsed(siz
     }
     else
     {
-      snprintf(label, sizeof(label), "%d", static_cast<int>(i));
+      auto result = vtk::format_to_n(label, sizeof(label), "{:d}", i);
+      *result.out = '\0';
       this->LegendActor->SetEntryString(i, label);
     }
 
@@ -664,6 +665,12 @@ const char* vtkPieChartActor::GetPieceLabel(int i)
   }
 
   return this->Labels->at(i).c_str();
+}
+
+//------------------------------------------------------------------------------
+int vtkPieChartActor::GetNumberOfPieceLabels()
+{
+  return static_cast<int>(this->Labels->size());
 }
 
 //------------------------------------------------------------------------------

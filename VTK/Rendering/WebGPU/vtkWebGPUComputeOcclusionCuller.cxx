@@ -9,6 +9,7 @@
 #include "vtkMatrix4x4.h"                     // for the view projection matrix
 #include "vtkObjectFactory.h"                 // for vtk standard new macro
 #include "vtkRendererCollection.h"
+#include "vtkStringFormatter.h"
 #include "vtkWebGPUComputeBuffer.h"
 #include "vtkWebGPUComputePipeline.h"      // for the occlusion culling pipeline
 #include "vtkWebGPUComputeRenderTexture.h" // for using the depth buffer of the render pipeline
@@ -166,7 +167,7 @@ void vtkWebGPUComputeOcclusionCuller::SetupDepthBufferCopyPass()
   depthTextureView->SetLabel("Depth buffer texture view depth buffer copy pass");
   depthTextureView->SetMode(vtkWebGPUTextureView::TextureViewMode::READ_ONLY);
   depthTextureView->SetAspect(vtkWebGPUTextureView::TextureViewAspect::ASPECT_DEPTH);
-  depthTextureView->SetFormat(vtkWebGPUTexture::TextureFormat::DEPTH_24_PLUS);
+  depthTextureView->SetFormat(vtkWebGPUTextureDeviceResource::TextureFormat::DEPTH_24_PLUS);
   this->DepthBufferCopyPass->AddTextureView(depthTextureView);
 
   this->DepthBufferCopyPass->SetLabel("Depth buffer copy compute pass");
@@ -379,7 +380,7 @@ void vtkWebGPUComputeOcclusionCuller::FinishSetupMipmapsPass()
     hiZBufferView->SetDimension(vtkWebGPUComputeTexture::TextureDimension::DIMENSION_2D);
     hiZBufferView->SetFormat(vtkWebGPUComputeTexture::TextureFormat::R32_FLOAT);
     hiZBufferView->SetLabel(
-      std::string("Depth mipmap pass HierarchicalZBuffer view - mip ") + std::to_string(i));
+      std::string("Depth mipmap pass HierarchicalZBuffer view - mip ") + vtk::to_string(i));
 
     this->HierarchicalZBufferMipmapViews[i] = hiZBufferView;
     this->HierarchicalZBufferMipmapViewsIndices[i] =

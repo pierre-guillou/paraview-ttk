@@ -25,8 +25,10 @@
 #include "vtkTexture.h"
 #include "vtkTimerLog.h"
 #include "vtkXMLStructuredGridReader.h"
-#include <string>
 #include <vtksys/CommandLineArguments.hxx>
+
+#include <iostream>
+#include <string>
 
 //------------------------------------------------------------------------------
 static inline int CLAMP(int a, int low, int high)
@@ -83,28 +85,28 @@ int vtkStructuredGridLIC2DTestDriver(int argc, char* argv[])
 
   if (!arg.Parse() || filename.empty())
   {
-    cerr << "Problem parsing arguments." << endl;
-    cerr << arg.GetHelp() << endl;
+    std::cerr << "Problem parsing arguments." << std::endl;
+    std::cerr << arg.GetHelp() << std::endl;
     return 1;
   }
 
   if (magnification < 1)
   {
-    cout << "WARNING: Magnification \'" << magnification
-         << "\' is invalid."
-            " Forcing a magnification of 1.";
+    std::cout << "WARNING: Magnification \'" << magnification
+              << "\' is invalid."
+                 " Forcing a magnification of 1.";
     magnification = 1;
   }
 
   if (num_steps < 1)
   {
-    cout << "WARNING: Number of steps cannot be less than 1. Forcing 10.";
+    std::cout << "WARNING: Number of steps cannot be less than 1. Forcing 10.";
     num_steps = 10;
   }
 
   if (slice_dir < 0 || slice_dir > 2)
   {
-    cout << "WARNING: Invalid slice-dir (" << slice_dir << "). Forcing Z slices";
+    std::cout << "WARNING: Invalid slice-dir (" << slice_dir << "). Forcing Z slices";
     slice_dir = 2;
   }
 
@@ -114,18 +116,18 @@ int vtkStructuredGridLIC2DTestDriver(int argc, char* argv[])
   reader->SetFileName(filename.c_str());
   reader->Update();
 
-  int dataDesc = VTK_XY_PLANE;
+  int dataDesc = vtkStructuredData::VTK_STRUCTURED_XY_PLANE;
   switch (slice_dir)
   {
     case 0:
-      dataDesc = VTK_YZ_PLANE;
+      dataDesc = vtkStructuredData::VTK_STRUCTURED_YZ_PLANE;
       break;
     case 1:
-      dataDesc = VTK_XZ_PLANE;
+      dataDesc = vtkStructuredData::VTK_STRUCTURED_XZ_PLANE;
       break;
     case 2:
     default:
-      dataDesc = VTK_XY_PLANE;
+      dataDesc = vtkStructuredData::VTK_STRUCTURED_XY_PLANE;
   }
 
   int extent[6];
@@ -136,32 +138,32 @@ int vtkStructuredGridLIC2DTestDriver(int argc, char* argv[])
   // If data is 2D, then override the slice-dir
   if (extent[0] == extent[1])
   {
-    dataDesc = VTK_YZ_PLANE;
+    dataDesc = vtkStructuredData::VTK_STRUCTURED_YZ_PLANE;
     slice = 0;
   }
   else if (extent[2] == extent[3])
   {
-    dataDesc = VTK_XZ_PLANE;
+    dataDesc = vtkStructuredData::VTK_STRUCTURED_XZ_PLANE;
     slice = 0;
   }
   else if (extent[4] == extent[5])
   {
-    dataDesc = VTK_XY_PLANE;
+    dataDesc = vtkStructuredData::VTK_STRUCTURED_XY_PLANE;
     slice = 0;
   }
   else
   {
     switch (dataDesc)
     {
-      case VTK_XY_PLANE:
+      case vtkStructuredData::VTK_STRUCTURED_XY_PLANE:
         voi[4] = voi[5] = CLAMP(extent[4] + slice, extent[4], extent[5]);
         break;
 
-      case VTK_YZ_PLANE:
+      case vtkStructuredData::VTK_STRUCTURED_YZ_PLANE:
         voi[0] = voi[1] = CLAMP(extent[0] + slice, extent[0], extent[1]);
         break;
 
-      case VTK_XZ_PLANE:
+      case vtkStructuredData::VTK_STRUCTURED_XZ_PLANE:
         voi[2] = voi[3] = CLAMP(extent[2] + slice, extent[2], extent[3]);
         break;
     }
@@ -188,7 +190,7 @@ int vtkStructuredGridLIC2DTestDriver(int argc, char* argv[])
 
   if (filter->SetContext(renWin) == 0)
   {
-    cout << "Required OpenGL extensions / GPU not supported." << endl;
+    std::cout << "Required OpenGL extensions / GPU not supported." << std::endl;
     return 0;
   }
 
@@ -208,7 +210,7 @@ int vtkStructuredGridLIC2DTestDriver(int argc, char* argv[])
 
   for (int kk = 0; kk < num_partitions; kk++)
   {
-    cout << "*****************" << endl;
+    std::cout << "*****************" << std::endl;
     filter->UpdatePiece(kk, num_partitions, 0);
     if (filter->GetFBOSuccess() == 0 || filter->GetLICSuccess() == 0)
     {
@@ -278,10 +280,10 @@ int vtkStructuredGridLIC2DTestDriver(int argc, char* argv[])
   {
     switch (dataDesc)
     {
-      case VTK_YZ_PLANE:
+      case vtkStructuredData::VTK_STRUCTURED_YZ_PLANE:
         renderer->GetActiveCamera()->Azimuth(90);
         break;
-      case VTK_XZ_PLANE:
+      case vtkStructuredData::VTK_STRUCTURED_XZ_PLANE:
         renderer->GetActiveCamera()->Elevation(90);
         renderer->GetActiveCamera()->SetViewUp(0, 0, -1);
         break;

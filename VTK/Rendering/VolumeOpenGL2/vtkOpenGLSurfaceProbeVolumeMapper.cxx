@@ -4,6 +4,7 @@
 
 #include "vtkCommand.h"
 #include "vtkExecutive.h"
+#include "vtkFloatArray.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
@@ -16,6 +17,7 @@
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 #include "vtkRenderer.h"
+#include "vtkScalarsToColors.h"
 #include "vtkShaderProgram.h"
 #include "vtkShaderProperty.h"
 #include "vtkTextureObject.h"
@@ -31,6 +33,9 @@ vtkOpenGLSurfaceProbeVolumeMapper::vtkOpenGLSurfaceProbeVolumeMapper()
 {
   this->SetNumberOfInputPorts(3);
 }
+
+//------------------------------------------------------------------------------
+vtkOpenGLSurfaceProbeVolumeMapper::~vtkOpenGLSurfaceProbeVolumeMapper() = default;
 
 //------------------------------------------------------------------------------
 int vtkOpenGLSurfaceProbeVolumeMapper::FillInputPortInformation(int port, vtkInformation* info)
@@ -333,6 +338,7 @@ void vtkOpenGLSurfaceProbeVolumeMapper::ReplaceShaderProbePass(vtkActor* actor)
   actor->GetShaderProperty()->AddFragmentShaderReplacement("//VTK::TMap::Dec", true, tmapDec, true);
 
   actor->GetShaderProperty()->AddFragmentShaderReplacement("//VTK::TCoord::Dec", true,
+    "//VTK::TCoord::Dec\n"
     "in vec2 tcoordVCVSOutput;\n"
     // Window/Level declaration
     "vec4 applyWindowLevel(vec4 color)\n"
@@ -391,11 +397,11 @@ void vtkOpenGLSurfaceProbeVolumeMapper::ReplaceShaderProbePass(vtkActor* actor)
     {
       case BlendModes::MAX:
         tcoordsImpl +=
-          "    volumeValue.r = max(currentColor.r, sampleCount > 0 ? volumeValue.r : 0.0);\n";
+          "    volumeValue = max(currentColor, sampleCount > 0 ? volumeValue : vec4(0.0));\n";
         break;
       case BlendModes::MIN:
         tcoordsImpl +=
-          "    volumeValue.r = min(currentColor.r, sampleCount > 0 ? volumeValue.r : 1.0);\n";
+          "    volumeValue = min(currentColor, sampleCount > 0 ? volumeValue : vec4(1.0));\n";
         break;
       case BlendModes::AVERAGE:
         tcoordsImpl += "    volumeValue += currentColor;\n";
@@ -417,15 +423,38 @@ void vtkOpenGLSurfaceProbeVolumeMapper::ReplaceShaderProbePass(vtkActor* actor)
                    "}\n";
   }
 
-  // Compute final color
-  tcoordsImpl +=
-    "if (sampleCount > 0)\n"
-    "{\n"
-    "  volumeValue = applyWindowLevel(volumeValue);"
-    "  volumeValue.a = opacityUniform;"
-    "}\n"
-    // Only support grayscale volumes.
-    "gl_FragData[0] = vec4(volumeValue.r, volumeValue.r, volumeValue.r, volumeValue.a);\n";
+  switch (this->GetSource()->GetNumberOfScalarComponents())
+  {
+    case 1: // Grayscale volume source
+      tcoordsImpl += "if (sampleCount > 0)\n"
+                     "{\n"
+                     "  volumeValue = applyWindowLevel(volumeValue);\n"
+                     "}\n";
+
+      if (this->LookupTable)
+      {
+        // Scalar coloring with LUT
+        tcoordsImpl += "vec2 volumeColorTCoord = vec2(volumeValue.r, 0.49);\n"
+                       "vec4 lutColor = texture(colortexture, volumeColorTCoord.st);\n"
+                       "lutColor.a *= opacityUniform;\n"
+                       "gl_FragData[0] = vec4(lutColor);\n";
+      }
+      else
+      {
+        tcoordsImpl +=
+          "gl_FragData[0] = vec4(volumeValue.r, volumeValue.r, volumeValue.r, opacityUniform);\n";
+      }
+      break;
+    case 3: // RGB volume source
+      tcoordsImpl += "gl_FragData[0] = vec4(volumeValue.rgb, opacityUniform);\n";
+      break;
+    case 4: // RGBA volume source
+      tcoordsImpl += "gl_FragData[0] = vec4(volumeValue.rgb, volumeValue.a * opacityUniform);\n";
+      break;
+    default:
+      vtkErrorMacro("Unsupported number of components in source. Use 1, 3 or 4-components images.");
+      break;
+  }
 
   actor->GetShaderProperty()->AddFragmentShaderReplacement(
     "//VTK::TCoord::Impl", true, tcoordsImpl, true);
@@ -501,8 +530,21 @@ void vtkOpenGLSurfaceProbeVolumeMapper::UpdateShadersProbePass(
   cellBO.Program->SetUniformMatrix4x4("in_inverseTextureDatasetMatrix", InvTexMatVec.data());
   cellBO.Program->SetUniformMatrix4x4("in_cellToPoint", CellToPointVec.data());
 
-  cellBO.Program->SetUniform4f("in_volume_scale", this->VolumeTexture->Scale);
-  cellBO.Program->SetUniform4f("in_volume_bias", this->VolumeTexture->Bias);
+  // LargeDataTypes have been already biased and scaled in vtkVolumeTexture
+  std::array<float, 4> volume_scale = { 1.0f, 1.0f, 1.0f, 1.0f };
+  std::array<float, 4> volume_bias = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+  int nbOfComponents = this->GetSource()->GetNumberOfScalarComponents();
+  if (!this->VolumeTexture->HandleLargeDataTypes && nbOfComponents < 3)
+  {
+    std::copy(std::begin(this->VolumeTexture->Scale), std::end(this->VolumeTexture->Scale),
+      volume_scale.begin());
+    std::copy(std::begin(this->VolumeTexture->Bias), std::end(this->VolumeTexture->Bias),
+      volume_bias.begin());
+  }
+
+  cellBO.Program->SetUniform4f("in_volume_scale", volume_scale.data());
+  cellBO.Program->SetUniform4f("in_volume_bias", volume_bias.data());
 
   if (this->GetBlendMode() != BlendModes::NONE)
   {
@@ -511,10 +553,19 @@ void vtkOpenGLSurfaceProbeVolumeMapper::UpdateShadersProbePass(
   }
 
   // Rescale window/level.
-  float scalarRange[2] = { this->VolumeTexture->ScalarRange[0][0],
+  float volumeRange[2] = { this->VolumeTexture->ScalarRange[0][0],
     this->VolumeTexture->ScalarRange[0][1] };
-  double finalWindow = this->Window / (scalarRange[1] - scalarRange[0]);
-  double finalLevel = (this->Level - scalarRange[0]) / (scalarRange[1] - scalarRange[0]);
+
+  double* scalarRange = this->ScalarRange;
+  if (this->UseLookupTableScalarRange && this->LookupTable)
+  {
+    scalarRange = this->GetLookupTable()->GetRange();
+  }
+
+  double finalWindow = (scalarRange[1] - scalarRange[0]) / (volumeRange[1] - volumeRange[0]);
+  double finalLevel =
+    (0.5 * (scalarRange[1] + scalarRange[0]) - volumeRange[0]) / (volumeRange[1] - volumeRange[0]);
+
   cellBO.Program->SetUniformf("in_window", finalWindow);
   cellBO.Program->SetUniformf("in_level", finalLevel);
 
@@ -534,6 +585,65 @@ void vtkOpenGLSurfaceProbeVolumeMapper::UpdateShadersProbePass(
 }
 
 //------------------------------------------------------------------------------
+bool vtkOpenGLSurfaceProbeVolumeMapper::HasTranslucentPolygonalGeometry()
+{
+  vtkScalarsToColors* lut = this->GetLookupTable();
+  if (lut)
+  {
+    // Ensure that the lookup table is built
+    lut->Build();
+    return lut->IsOpaque() == 0;
+  }
+  return false;
+}
+
+//------------------------------------------------------------------------------
+vtkUnsignedCharArray* vtkOpenGLSurfaceProbeVolumeMapper::MapScalars(
+  vtkDataSet* vtkNotUsed(input), double alpha, int& vtkNotUsed(cellFlag))
+{
+  // Do not map scalars if the LUT is not specified
+  if (!this->LookupTable)
+  {
+    return nullptr;
+  }
+
+  // ColorCoordinates are not needed as we use the source's scalars directly in the shader code
+  if (this->ColorCoordinates)
+  {
+    this->ColorCoordinates->UnRegister(this);
+    this->ColorCoordinates = nullptr;
+  }
+
+  // Always use a texture map for coloring, Colors are not needed
+  if (this->Colors)
+  {
+    this->Colors->UnRegister(this);
+    this->Colors = nullptr;
+  }
+
+  this->LookupTable->Build();
+
+  // Use texture map for coloring
+  if (this->ColorTextureMap == nullptr || this->GetMTime() > this->ColorTextureMap->GetMTime() ||
+    this->LookupTable->GetMTime() > this->ColorTextureMap->GetMTime() ||
+    this->LookupTable->GetAlpha() != alpha)
+  {
+    this->LookupTable->SetAlpha(alpha);
+    if (this->ColorTextureMap)
+    {
+      this->ColorTextureMap->UnRegister(this);
+      this->ColorTextureMap = nullptr;
+    }
+
+    auto colorMapImage = vtkMapper::BuildColorTextureImage(this->LookupTable, this->ColorMode);
+    this->ColorTextureMap = colorMapImage;
+    this->ColorTextureMap->Register(this);
+  }
+
+  return nullptr;
+}
+
+//------------------------------------------------------------------------------
 void vtkOpenGLSurfaceProbeVolumeMapper::CreateTexture(
   vtkTextureObject* texture, vtkOpenGLRenderWindow* renWin)
 {
@@ -541,7 +651,7 @@ void vtkOpenGLSurfaceProbeVolumeMapper::CreateTexture(
   {
     texture->SetContext(renWin);
     texture->SetFormat(GL_RGBA);
-    texture->SetInternalFormat(GL_RGBA16F);
+    texture->SetInternalFormat(GL_RGBA32F);
     texture->SetDataType(GL_FLOAT);
     texture->SetWrapS(vtkTextureObject::ClampToEdge);
     texture->SetWrapT(vtkTextureObject::ClampToEdge);

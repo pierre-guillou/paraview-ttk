@@ -9,6 +9,8 @@
 #include <vtkTransform.h>
 #include <vtkTransformFilter.h>
 
+#include <iostream>
+
 namespace
 {
 void InitializePointSet(vtkPointSet* pointSet, int dataType)
@@ -19,7 +21,7 @@ void InitializePointSet(vtkPointSet* pointSet, int dataType)
 
   vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
 
-  const int numPoints = 4;
+  constexpr int numPoints = 4;
 
   if (dataType == VTK_DOUBLE)
   {

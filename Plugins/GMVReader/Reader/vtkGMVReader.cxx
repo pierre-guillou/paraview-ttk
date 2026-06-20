@@ -81,7 +81,7 @@ void cleanup(C** pointer)
   }
 }
 
-void cleanupMesh(void)
+void cleanupMesh()
 {
   gmv_meshdata.nnodes = gmv_meshdata.ncells = gmv_meshdata.nfaces = gmv_meshdata.totfaces =
     gmv_meshdata.totverts = 0;
@@ -102,7 +102,7 @@ void cleanupMesh(void)
   cleanup(&gmv_meshdata.vfaceoppfacepe);
 }
 
-void cleanupAllData(void)
+void cleanupAllData()
 {
   gmv_data.num = gmv_data.num2 = 0;
   gmv_data.keyword = gmv_data.datatype = gmv_data.nchardata1 = gmv_data.nchardata2 = 0;
@@ -2523,6 +2523,7 @@ int vtkGMVReader::CanReadFile(const char* name)
     }
   }
 
+  fclose(gmvin);
   rc = 1;
   return rc;
 }

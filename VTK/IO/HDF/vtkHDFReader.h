@@ -8,6 +8,8 @@
  * image data, poly data, unstructured grid, overlapping AMR, hyper tree grid, partitioned dataset
  * collection and multiblock.
  *
+ * This reader supports reading any vtkResourceStream, but is more efficient with a vtkMemoryStream.
+ *
  * Serial and parallel reading are supported, with the possibility of piece selection.
  *
  * This reader provides an internal cache with the `UseCache` option,
@@ -48,19 +50,21 @@ class vtkDataSet;
 class vtkDataSetAttributes;
 class vtkHyperTreeGrid;
 class vtkImageData;
-class vtkInformationVector;
 class vtkInformation;
+class vtkInformationVector;
 class vtkMultiBlockDataSet;
 class vtkOverlappingAMR;
 class vtkPartitionedDataSet;
 class vtkPartitionedDataSetCollection;
 class vtkPointData;
 class vtkPolyData;
+class vtkResourceStream;
 class vtkUnstructuredGrid;
 
 namespace vtkHDFUtilities
 {
 struct TemporalHyperTreeGridOffsets;
+struct TemporalGeometryOffsets;
 }
 
 class VTKIOHDF_EXPORT vtkHDFReader : public vtkDataObjectAlgorithm
@@ -76,6 +80,17 @@ public:
    */
   vtkSetFilePathMacro(FileName);
   vtkGetFilePathMacro(FileName);
+  ///@}
+
+  ///@{
+  /**
+   * Specify stream to read from
+   * When both `Stream` and `Filename` are set, stream is used.
+   * Please note that when using virtual dataset (eg. when using the vtkHDFWriter::UseExternal*
+   * properties) these files are still read from disk.
+   */
+  void SetStream(vtkResourceStream* stream);
+  vtkResourceStream* GetStream();
   ///@}
 
   /**
@@ -131,8 +146,6 @@ public:
    * - TimeValue is the value corresponding to the Step property
    * - TimeRange is an array with the {min, max} values of time for the data
    */
-  VTK_DEPRECATED_IN_9_4_0("Please use GetTemporalData method instead.")
-  virtual bool GetHasTransientData();
   bool GetHasTemporalData();
   vtkGetMacro(NumberOfSteps, vtkIdType);
   vtkGetMacro(Step, vtkIdType);
@@ -204,6 +217,11 @@ public:
   void SetAttributeOriginalIdName(vtkIdType attribute, const std::string& name);
   ///@}
 
+  /**
+   * Overridden to take into account mtime from the internal vtkResourceStream.
+   */
+  vtkMTimeType GetMTime() override;
+
 protected:
   vtkHDFReader();
   ~vtkHDFReader() override;
@@ -229,11 +247,7 @@ protected:
   int ReadRecursively(vtkInformation* outInfo, vtkMultiBlockDataSet* data, const std::string& path);
   ///@}
 
-  /**
-   * Read 'pieceData' specified by 'filePiece' where
-   * number of points, cells and connectivity ids
-   * store those numbers for all pieces.
-   */
+  VTK_DEPRECATED_IN_9_6_0("This method is deprecated, do not use")
   int Read(const std::vector<vtkIdType>& numberOfPoints,
     const std::vector<vtkIdType>& numberOfCells,
     const std::vector<vtkIdType>& numberOfConnectivityIds, vtkIdType partOffset,
@@ -280,6 +294,11 @@ protected:
   char* FileName;
 
   /**
+   * The input stream.
+   */
+  vtkSmartPointer<vtkResourceStream> Stream;
+
+  /**
    * The array selections.
    * in the same order as vtkDataObject::AttributeTypes: POINT, CELL, FIELD
    */
@@ -301,8 +320,6 @@ protected:
   /**
    * Temporal data properties
    */
-  // VTK_DEPRECATED_IN_9_4_0( )
-  bool HasTransientData = false;
   vtkIdType Step = 0;
   vtkIdType NumberOfSteps = 1;
   double TimeValue = 0.0;
@@ -336,6 +353,20 @@ private:
   bool ReadData(vtkInformation* outInfo, vtkDataObject* data);
 
   /**
+   * Read 'pieceData' specified by 'filePiece' where
+   * number of points, cells and connectivity ids
+   * store those numbers for all pieces.
+   */
+  int Read(const std::vector<vtkIdType>& numberOfPoints,
+    const std::vector<vtkIdType>& numberOfCells,
+    const std::vector<vtkIdType>& numberOfConnectivityIds,
+    const std::vector<vtkIdType>& numberOfFaces,
+    const std::vector<vtkIdType>& numberOfPolyhedronToFaceIds,
+    const std::vector<vtkIdType>& numberOfFaceConnectivityIds,
+    vtkHDFUtilities::TemporalGeometryOffsets& geoOffsets, int filePiece,
+    vtkUnstructuredGrid* pieceData);
+
+  /**
    * Read a single HyperTreeGrid piece from the file.
    * `htgTemporalOffsets` gives the information about the offsets for the current time step.
    * Returns 1 if successful, 0 otherwise.
@@ -347,8 +378,6 @@ private:
 
   /**
    * Setter for UseTemporalData.
-   *
-   * Useful to set privatly the deprecated UseTransientData variable to true when it's needed.
    */
   void SetHasTemporalData(bool useTemporalData);
 

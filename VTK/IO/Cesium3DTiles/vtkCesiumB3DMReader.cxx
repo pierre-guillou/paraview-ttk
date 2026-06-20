@@ -1,9 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
-// VTK_DEPRECATED_IN_9_4_0()
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkCesiumB3DMReader.h"
 
 #include "vtkAlgorithm.h"
@@ -15,6 +12,7 @@
 #include "vtkMultiBlockDataSet.h"
 #include "vtkObjectFactory.h"
 #include "vtkResourceStream.h"
+#include "vtkStringFormatter.h"
 
 #include <array>
 #include <fstream>
@@ -28,11 +26,11 @@ void read4le(istream& in, uint32_t* p)
   in.read(reinterpret_cast<char*>(p), 4);
   if (in)
   {
-    vtkByteSwap::Swap4LE(&p);
+    vtkByteSwap::Swap4LE(&p); // NOLINT(bugprone-multi-level-implicit-pointer-conversion)
   }
   else
   {
-    throw std::runtime_error("Read " + std::to_string(in.gcount()) + " out of 4 bytes");
+    throw std::runtime_error("Read " + vtk::to_string(in.gcount()) + " out of 4 bytes");
   }
 }
 }

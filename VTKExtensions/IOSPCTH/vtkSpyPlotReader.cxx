@@ -260,14 +260,14 @@ int vtkSpyPlotReader::RequestInformation(
 #endif // PARAVIEW_ENABLE_SPYPLOT_MARKERS
   if (!this->TimeSteps->empty())
   {
-    outInfo0->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &(*this->TimeSteps)[0],
+    outInfo0->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->TimeSteps->data(),
       static_cast<int>(this->TimeSteps->size()));
     double timeRange[2];
     timeRange[0] = this->TimeSteps->front();
     timeRange[1] = this->TimeSteps->back();
     outInfo0->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), timeRange, 2);
 
-    outInfo1->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &(*this->TimeSteps)[0],
+    outInfo1->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->TimeSteps->data(),
       static_cast<int>(this->TimeSteps->size()));
 
     outInfo1->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), timeRange, 2);
@@ -300,7 +300,7 @@ int vtkSpyPlotReader::UpdateFile(vtkInformation* request, vtkInformationVector* 
 
   const int procId = this->GlobalController ? this->GlobalController->GetLocalProcessId() : 0;
   const int numProcs = this->GlobalController ? this->GlobalController->GetNumberOfProcesses() : 1;
-  // cout << procId << " : " << __LINE__ << endl;
+  // std::cout << procId << " : " << __LINE__ << endl;
 
   // When running in parallel, we need to ensure that all testing and meta-data
   // loading only happens on the root node. (BUG #12720).
@@ -342,7 +342,7 @@ int vtkSpyPlotReader::UpdateMetaData(
   // processes (BUG #12720).
   const int procId = this->GlobalController ? this->GlobalController->GetLocalProcessId() : 0;
   const int numProcs = this->GlobalController ? this->GlobalController->GetNumberOfProcesses() : 1;
-  // cout << procId << " : " << __LINE__ << endl;
+  // std::cout << procId << " : " << __LINE__ << endl;
 
   vtkSpyPlotReader::VectorOfDoubles timesteps;
 
@@ -695,20 +695,6 @@ int vtkSpyPlotReader::RequestData(vtkInformation* request,
   // Determine the minimum level in use
   // and its grid spacing
   this->SetGlobalMinLevelAndSpacing(blockIterator);
-  // export global bounds, minimum level, spacing, and box size
-  // in field data arrays for use by downstream filters
-  if (hbds != nullptr)
-  {
-    this->AddAttributes(hbds);
-    assert("FieldData should not be nullptr!" && hbds->GetFieldData() != nullptr);
-
-    vtkFieldData* fd = hbds->GetFieldData();
-    (void)fd; // only used for asserts
-    assert("Must have a GlobalBounds array!" && fd->HasArray("GlobalBounds"));
-    assert("Must have a GlobalBoxSize array!" && fd->HasArray("GlobalBoxSize"));
-    assert("Must have a MinLevel array!" && fd->HasArray("MinLevel"));
-    assert("Must have a MinLevelSpacing!" && fd->HasArray("MinLevelSpacing"));
-  }
 
   int needTracers = 1;
 
@@ -725,7 +711,7 @@ int vtkSpyPlotReader::RequestData(vtkInformation* request,
     // Note that this is a quick fix. Taking this extra pass should be avoided. -Leo
     if (this->IsAMR)
     {
-      std::vector<int> blocksPerLevel;
+      std::vector<unsigned int> blocksPerLevel;
       for (blockIterator->Start(); blockIterator->IsActive(); blockIterator->Next())
       {
         block = blockIterator->GetBlock();
@@ -744,7 +730,7 @@ int vtkSpyPlotReader::RequestData(vtkInformation* request,
         }
         blocksPerLevel[level]++;
       }
-      hbds->Initialize(static_cast<int>(blocksPerLevel.size()), &blocksPerLevel[0]);
+      hbds->Initialize(blocksPerLevel);
     }
 
     // Read the blocks/files that are assigned to this process
@@ -807,7 +793,7 @@ int vtkSpyPlotReader::RequestData(vtkInformation* request,
       if (this->IsAMR)
       {
         hasBadGhostCells = this->PrepareAMRData(
-          hbds, block, &level, &blockId[0], extents, realExtents, realDims, &cd);
+          hbds, block, &level, blockId.data(), extents, realExtents, realDims, &cd);
       }
       else
       {
@@ -850,6 +836,13 @@ int vtkSpyPlotReader::RequestData(vtkInformation* request,
       }
     }
     delete blockIterator;
+  }
+
+  // export global bounds, minimum level, spacing, and box size
+  // in field data arrays for use by downstream filters
+  if (hbds != nullptr)
+  {
+    this->AddAttributes(hbds);
   }
 
 #ifdef PARAVIEW_ENABLE_SPYPLOT_MARKERS
@@ -1355,43 +1348,12 @@ void vtkSpyPlotReader::SetMergeXYZComponents(int merge)
   this->Modified();
 }
 //-----------------------------------------------------------------------------
-void vtkSpyPlotReader::PrintBlockList(vtkNonOverlappingAMR* hbds, int vtkNotUsed(myProcId))
+// PARAVIEW_DEPRECATED_IN_6_1_0
+void vtkSpyPlotReader::PrintBlockList(
+  vtkNonOverlappingAMR* vtkNotUsed(hbds), int vtkNotUsed(myProcId))
 {
-  unsigned int numberOfLevels = hbds->GetNumberOfLevels();
-  unsigned int level;
-  //  Display the block list for each level
-  numberOfLevels = hbds->GetNumberOfLevels();
-  for (level = 0; level < numberOfLevels; level++)
-  {
-    // cout<<myProcId<<" level="<<level<<"/"<<numberOfLevels<<endl;
-    int totalNumberOfDataSets = hbds->GetNumberOfDataSets(level);
-    int i;
-    for (i = 0; i < totalNumberOfDataSets; i++)
-    {
-      // cout<<myProcId<<" dataset="<<i<<"/"<<totalNumberOfDataSets;
-      if (hbds->GetDataSet(level, i) == nullptr)
-      {
-        // cout<<" Void"<<endl;
-      }
-      else
-      {
-        // cout<<" Exists"<<endl;
-      }
-    }
-  }
-  /*
-    std::vector<vtkRectilinearGrid*>::iterator it;
-    for ( it = grids.begin(); it != grids.end(); ++ it )
-    {
-    (*it)->Print(cout);
-    int cc;
-    for ( cc = 0; cc < (*it)->GetCellData()->GetNumberOfArrays(); ++ cc )
-    {
-    (*it)->GetCellData()->GetArray(cc)->Print(cout);
-    }
-    }
-  */
 }
+
 //-----------------------------------------------------------------------------
 void vtkSpyPlotReader::PrintSelf(ostream& os, vtkIndent indent)
 {
@@ -1782,24 +1744,26 @@ int vtkSpyPlotReader::PrepareAMRData(vtkNonOverlappingAMR* hb, vtkSpyPlotBlock* 
 
   //   double bds[6];
   //   this->Bounds->GetBounds(bds);
-  //   cerr << "{\n";
-  //   cerr << "level:       [" << *level << "]\n";
-  //   cerr << "Origin:      [" << origin[0] << "," << origin[1] << "," << origin[2] << "]\n";
-  //   cerr << "Spacing:     [" << spacing[0] << "," << spacing[1] << "," << spacing[2] << "]\n";
-  //   cerr << "extents:     [" << extents[0] << "," << extents[1] << "," << extents[2] << "|"
+  //   std::cerr << "{\n";
+  //   std::cerr << "level:       [" << *level << "]\n";
+  //   std::cerr << "Origin:      [" << origin[0] << "," << origin[1] << "," << origin[2] << "]\n";
+  //   std::cerr << "Spacing:     [" << spacing[0] << "," << spacing[1] << "," << spacing[2] <<
+  //   "]\n"; std::cerr << "extents:     [" << extents[0] << "," << extents[1] << "," << extents[2]
+  //   << "|"
   //                            << extents[3] << "," << extents[4] << "," << extents[5] << "]\n";
-  //   cerr << "realExtents: [" << realExtents[0] << "," << realExtents[1] << "," << realExtents[2]
+  //   std::cerr << "realExtents: [" << realExtents[0] << "," << realExtents[1] << "," <<
+  //   realExtents[2]
   //   << ","
   //                            << realExtents[3] << "," << realExtents[4] << "," << realExtents[5]
   //                            << "]\n";
-  //   cerr << "realDims:    [" << realDims[0] << "," << realDims[1] << "," << realDims[2] << "]\n";
-  //   cerr << "bounds:      [" << bds[0] << "," << bds[1] << "," << bds[2] << ","
+  //   std::cerr << "realDims:    [" << realDims[0] << "," << realDims[1] << "," << realDims[2] <<
+  //   "]\n"; std::cerr << "bounds:      [" << bds[0] << "," << bds[1] << "," << bds[2] << ","
   //                            << bds[3] << "," << bds[4] << "," << bds[5] << "]\n";
-  //   cerr << "}\n";
+  //   std::cerr << "}\n";
   //
 
   //  vtkAMRBox box(realExtents);
-  //  hb->SetDataSet(*level, hb->GetNumberOfDataSets(*level), box, ug);
+  //  hb->SetDataSet(*level, hb->GetNumberOfBlocks(*level), box, ug);
   vtkUniformGrid* ug = vtkUniformGrid::New();
 
   ug->SetSpacing(spacing);
@@ -2310,7 +2274,7 @@ void vtkSpyPlotReader::SetGlobalLevels(vtkCompositeDataSet* composite)
   // At this point, the global number of levels is set in each processor.
   // Update each level
   // i.e. for each level synchronize the number of datasets (or pieces).
-  std::vector<int> blocksPerLevel(numberOfLevels, 0); // collect this
+  std::vector<unsigned int> blocksPerLevel(numberOfLevels, 0); // collect this
   std::vector<int> globalIndices(numberOfLevels);
   for (unsigned int level = 0; level < numberOfLevels; level++)
   {
@@ -2318,7 +2282,7 @@ void vtkSpyPlotReader::SetGlobalLevels(vtkCompositeDataSet* composite)
     int numberOfDataSets(0);
     if (hbDS)
     {
-      numberOfDataSets = level >= hbDS->GetNumberOfLevels() ? 0 : hbDS->GetNumberOfDataSets(level);
+      numberOfDataSets = level >= hbDS->GetNumberOfLevels() ? 0 : hbDS->GetNumberOfBlocks(level);
     }
     else
     {
@@ -2417,7 +2381,7 @@ void vtkSpyPlotReader::SetGlobalLevels(vtkCompositeDataSet* composite)
           std::vector<vtkSmartPointer<vtkDataSet>> datasets;
           for (kk = 0; kk < numberOfDataSets; kk++)
           {
-            datasets.push_back(vtkDataSet::SafeDownCast(mbDS->GetBlock(kk)));
+            datasets.emplace_back(vtkDataSet::SafeDownCast(mbDS->GetBlock(kk)));
           }
           mbDS->SetNumberOfBlocks(0); // removes all current blocks.
           mbDS->SetNumberOfBlocks(totalNumberOfDataSets);
@@ -2439,15 +2403,18 @@ void vtkSpyPlotReader::SetGlobalLevels(vtkCompositeDataSet* composite)
     for (unsigned int level = 0; level < numberOfLevels; level++)
     {
       std::vector<vtkSmartPointer<vtkUniformGrid>> datasetsAtLevel;
-      for (unsigned int kk = 0; kk < hbDS->GetNumberOfDataSets(level); kk++)
+      if (level < hbDS->GetNumberOfLevels())
       {
-        vtkUniformGrid* ug = hbDS->GetDataSet(level, kk);
-        datasetsAtLevel.push_back(ug);
+        for (unsigned int kk = 0; kk < hbDS->GetNumberOfBlocks(level); kk++)
+        {
+          vtkUniformGrid* ug = vtkUniformGrid::SafeDownCast(hbDS->GetDataSetAsImageData(level, kk));
+          datasetsAtLevel.emplace_back(ug);
+        }
       }
       datasets.push_back(datasetsAtLevel);
     }
 
-    hbDS->Initialize(numberOfLevels, &blocksPerLevel[0]);
+    hbDS->Initialize(blocksPerLevel);
     for (unsigned int level = 0; level < numberOfLevels; level++)
     {
       int globalIndex = globalIndices[level];

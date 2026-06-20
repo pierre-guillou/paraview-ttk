@@ -157,6 +157,13 @@ void vtkColorLegend::SetTextureSize(float w, float h)
 }
 
 //------------------------------------------------------------------------------
+void vtkColorLegend::GetTextureSize(float& w, float& h)
+{
+  w = this->Position.GetWidth();
+  h = this->Position.GetHeight();
+}
+
+//------------------------------------------------------------------------------
 void vtkColorLegend::SetPosition(const vtkRectf& pos)
 {
   this->Position = pos;
@@ -265,7 +272,7 @@ void vtkColorLegend::ComputeTexture()
   }
 
   // Could depend on the screen resolution
-  const int dimension = 256;
+  constexpr int dimension = 256;
   double* values = new double[dimension];
   // Texture 1D
   if (this->Orientation == vtkColorLegend::VERTICAL)

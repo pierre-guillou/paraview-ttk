@@ -7,21 +7,24 @@
 
 #include "vtkProperty.h"                       // for VTK_SURFACE constants
 #include "vtkRenderingWebGPUModule.h"          // for export macro
-#include "vtkWeakPointer.h"                    // for vtkWeakPointer
 #include "vtkWebGPUCellToPrimitiveConverter.h" // for TopologySourceType
 #include "vtkWebGPUComputePipeline.h"          // for ivar
+#include "vtkWrappingHints.h"                  // For VTK_MARSHALAUTO
 #include "vtk_wgpu.h"                          // for webgpu
 
+#include <array>         // for ivar
 #include <unordered_set> // for the not set compute render buffers
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
+class vtkWebGPUActor;
 class vtkWebGPURenderWindow;
 class vtkWebGPURenderer;
 class vtkWebGPUComputeRenderBuffer;
+class vtkWebGPUTexture;
 class vtkWebGPUConfiguration;
 
-class VTKRENDERINGWEBGPU_EXPORT vtkWebGPUPolyDataMapper : public vtkPolyDataMapper
+class VTKRENDERINGWEBGPU_EXPORT VTK_MARSHALAUTO vtkWebGPUPolyDataMapper : public vtkPolyDataMapper
 {
 public:
   static vtkWebGPUPolyDataMapper* New();
@@ -38,6 +41,7 @@ public:
     POINT_NORMALS,
     POINT_TANGENTS,
     POINT_UVS,
+    POINT_COLOR_UVS,
     POINT_NB_ATTRIBUTES,
     POINT_UNDEFINED
   };
@@ -60,14 +64,28 @@ public:
    */
   enum GraphicsPipelineType : int
   {
-    // Pipeline that renders points
+    // Pipeline that renders points, is best suitable for rendering 1-pixel wide points.
     GFX_PIPELINE_POINTS = 0,
+    GFX_PIPELINE_POINTS_HOMOGENEOUS_CELL_SIZE,
+    // Pipeline that renders points using a square or circle shape.
+    GFX_PIPELINE_POINTS_SHAPED,
+    GFX_PIPELINE_POINTS_SHAPED_HOMOGENEOUS_CELL_SIZE,
+    // Pipeline that is best suitable for rendering 1-pixel thick line segments
+    GFX_PIPELINE_LINES,
+    GFX_PIPELINE_LINES_HOMOGENEOUS_CELL_SIZE,
+    // Pipeline that can render lines thicker than 1-pixel. This pipeline does not
+    // create joining geometry between contiguous line segments in a polyline.
+    GFX_PIPELINE_LINES_THICK,
+    GFX_PIPELINE_LINES_THICK_HOMOGENEOUS_CELL_SIZE,
     // Pipeline that renders lines with rounded caps and rounded joins.
     GFX_PIPELINE_LINES_ROUND_CAP_ROUND_JOIN,
+    GFX_PIPELINE_LINES_ROUND_CAP_ROUND_JOIN_HOMOGENEOUS_CELL_SIZE,
     // Pipeline that renders lines with miter joins.
     GFX_PIPELINE_LINES_MITER_JOIN,
+    GFX_PIPELINE_LINES_MITER_JOIN_HOMOGENEOUS_CELL_SIZE,
     // Pipeline that renders triangles
     GFX_PIPELINE_TRIANGLES,
+    GFX_PIPELINE_TRIANGLES_HOMOGENEOUS_CELL_SIZE,
     GFX_PIPELINE_NB_TYPES
   };
 
@@ -203,24 +221,21 @@ protected:
    */
   void ResetPointCellAttributeState();
 
+  virtual std::vector<wgpu::BindGroupLayoutEntry> GetMeshBindGroupLayoutEntries();
+
   /**
    * Create a bind group layout for the mesh attribute bind group.
    */
-  static wgpu::BindGroupLayout CreateMeshAttributeBindGroupLayout(
+  wgpu::BindGroupLayout CreateMeshAttributeBindGroupLayout(
     const wgpu::Device& device, const std::string& label);
 
   /**
    * Create a bind group layout for the `TopologyRenderInfo::BindGroup`
    */
-  static wgpu::BindGroupLayout CreateTopologyBindGroupLayout(
-    const wgpu::Device& device, const std::string& label);
+  wgpu::BindGroupLayout CreateTopologyBindGroupLayout(const wgpu::Device& device,
+    const std::string& label, bool homogeneousCellSize, bool useEdgeArray);
 
-  /**
-   * Create a render pipeline.
-   */
-  static wgpu::RenderPipeline CreateRenderPipeline(const wgpu::Device& device,
-    wgpu::RenderPipelineDescriptor* pipelineDescriptor, const wgpu::ShaderModule& shaderModule,
-    wgpu::PrimitiveTopology primitiveTopology);
+  virtual std::vector<wgpu::BindGroupEntry> GetMeshBindGroupEntries();
 
   /**
    * Create a bind group for the point and cell attributes of a mesh. It has three bindings.
@@ -278,30 +293,18 @@ protected:
   unsigned long GetCellAttributeElementSize(vtkWebGPUPolyDataMapper::CellDataAttributes attribute);
 
   /**
-   * Returns the offset at which the 'sub-buffer' of 'attribute' starts within the mesh SSBO point
-   * data buffer
-   */
-  vtkIdType GetPointAttributeByteOffset(PointDataAttributes attribute);
-
-  /**
-   * Returns the offset at which the 'sub-buffer' of 'attribute' starts within the mesh SSBO cell
-   * data buffer
-   */
-  vtkIdType GetCellAttributeByteOffset(CellDataAttributes attribute);
-
-  /**
    * Calculates the size of a buffer that is large enough to contain
    * all the values from the point attributes. See vtkWebGPUPolyDataMapper::PointDataAttributes
    * for the kinds of attributes.
    */
-  unsigned long GetExactPointBufferSize();
+  unsigned long GetExactPointBufferSize(PointDataAttributes attribute);
 
   /**
    * Calculates the size of a buffer that is large enough to contain
    * all the values from the cell attributes. See vtkWebGPUPolyDataMapper::PointDataAttributes
    * for the kinds of attributes.
    */
-  unsigned long GetExactCellBufferSize();
+  unsigned long GetExactCellBufferSize(CellDataAttributes attribute);
 
   ///@{
   /**
@@ -317,6 +320,11 @@ protected:
   ///@}
 
   /**
+   * Updates the clipping planes buffer with the current clipping planes data.
+   */
+  void UpdateClippingPlanesBuffer(vtkWebGPUConfiguration* wgpuConfiguration, vtkActor* actor);
+
+  /**
    * Get the name of the graphics pipeline type as a string.
    */
   const char* GetGraphicsPipelineTypeAsString(GraphicsPipelineType graphicsPipelineType);
@@ -328,58 +336,142 @@ protected:
   void SetupGraphicsPipelines(const wgpu::Device& device, vtkRenderer* renderer, vtkActor* actor);
 
   /**
+   * Generates vertex and fragment shader code
+   */
+  virtual void ApplyShaderReplacements(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+
+  virtual void ReplaceShaderConstantsDef(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+  virtual void ReplaceShaderActorDef(GraphicsPipelineType pipelineType, vtkWebGPURenderer* renderer,
+    vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+  virtual void ReplaceShaderClippingPlanesDef(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+  virtual void ReplaceShaderCustomDef(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+
+  virtual void ReplaceShaderRendererBindings(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+  virtual void ReplaceShaderActorBindings(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+  virtual void ReplaceShaderClippingPlanesBindings(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+  virtual void ReplaceShaderMeshAttributeBindings(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+  virtual void ReplaceShaderCustomBindings(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+  virtual void ReplaceShaderTopologyBindings(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+  virtual void ReplaceShaderVertexOutputDef(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss, std::string& fss);
+
+  virtual void ReplaceVertexShaderInputDef(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderMainStart(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderCamera(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderNormalTransform(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderVertexId(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderPrimitiveId(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderCellId(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderPosition(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderClippingPlanes(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderPositionVC(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderPicking(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderColors(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderUVs(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderEdges(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderNormals(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderTangents(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+  virtual void ReplaceVertexShaderMainEnd(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& vss);
+
+  virtual void ReplaceFragmentShaderOutputDef(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& fss);
+
+  virtual void ReplaceFragmentShaderMainStart(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& fss);
+  virtual void ReplaceFragmentShaderClippingPlanes(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& fss);
+  virtual void ReplaceFragmentShaderColors(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& fss);
+  virtual void ReplaceFragmentShaderNormals(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& fss);
+  virtual void ReplaceFragmentShaderEdges(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& fss);
+  virtual void ReplaceFragmentShaderLights(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& fss);
+  virtual void ReplaceFragmentShaderPicking(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& fss);
+  virtual void ReplaceFragmentShaderMainEnd(GraphicsPipelineType pipelineType,
+    vtkWebGPURenderer* renderer, vtkWebGPUActor* actor, std::string& fss);
+
+  /**
+   * Whether shaders must be built to target the specific pipeline.
+   * If true, shaders will be built and draw commands will be recorded for the pipeline.
+   * If false, shaders will not be built and no draw commands will be recorded for the pipeline.
+   *
+   * Subclasses may override to return false for pipelines that they do not wish to
+   * support.
+   */
+  virtual bool IsPipelineSupported(GraphicsPipelineType vtkNotUsed(pipelineType)) { return true; }
+  static bool IsPipelineForHomogeneousCellSize(GraphicsPipelineType pipelineType);
+
+  /**
+   * Get the primitive topology type that should be used for the given pipeline.
+   */
+  virtual wgpu::PrimitiveTopology GetPrimitiveTopologyForPipeline(
+    GraphicsPipelineType pipelineType);
+
+  struct DrawCallArgs
+  {
+    std::uint32_t VertexCount = 0;
+    std::uint32_t InstanceCount = 0;
+  };
+  virtual DrawCallArgs GetDrawCallArgs(GraphicsPipelineType pipelineType,
+    vtkWebGPUCellToPrimitiveConverter::TopologySourceType topologySourceType);
+  virtual DrawCallArgs GetDrawCallArgsForDrawingVertices(
+    vtkWebGPUCellToPrimitiveConverter::TopologySourceType topologySourceType);
+
+  /**
    * Get whether the graphics pipeline needs rebuilt.
    * This method checks MTime of the vtkActor's vtkProperty instance against the build timestamp of
    * the graphics pipeline.
    */
   bool GetNeedToRebuildGraphicsPipelines(vtkActor* actor, vtkRenderer* renderer);
-
-  struct MeshAttributeBuffers
+  struct AttributeBuffer
   {
-    struct
-    {
-      // point attributes.
-      wgpu::Buffer Buffer;
-      uint64_t Size = 0;
-    } Point;
-
-    struct
-    {
-      // cell attributes.
-      wgpu::Buffer Buffer;
-      uint64_t Size = 0;
-    } Cell;
+    // point attributes.
+    wgpu::Buffer Buffer;
+    uint64_t Size = 0;
   };
-  MeshAttributeBuffers MeshSSBO;
-
-  struct AttributeDescriptor
+  AttributeBuffer PointBuffers[POINT_NB_ATTRIBUTES];
+  AttributeBuffer CellBuffers[CELL_NB_ATTRIBUTES];
+  struct
   {
-    vtkTypeUInt32 Start = 0;
-    vtkTypeUInt32 NumTuples = 0;
-    vtkTypeUInt32 NumComponents = 0;
-  };
-  struct MeshAttributeDescriptor
-  {
-    AttributeDescriptor Positions;
-    AttributeDescriptor Colors;
-    AttributeDescriptor Normals;
-    AttributeDescriptor Tangents;
-    AttributeDescriptor UVs;
-    AttributeDescriptor CellColors;
-    AttributeDescriptor CellNormals;
-    vtkTypeUInt32 ApplyOverrideColors = 0;
-    vtkTypeFloat32 Opacity = 0;
-    vtkTypeUInt32 CompositeId = 0;
-    vtkTypeFloat32 Ambient[3] = {};
-    vtkTypeUInt32 ProcessId = 0;
-    vtkTypeFloat32 Diffuse[3] = {};
-    vtkTypeUInt32 Pickable = false;
-  };
-  wgpu::Buffer AttributeDescriptorBuffer;
+    vtkTypeFloat32 PlaneEquations[6][4];
+    vtkTypeUInt32 PlaneCount = 0;
+  } ClippingPlanesData;
+  wgpu::Buffer ClippingPlanesBuffer;
 
   ///@{ Timestamps help reuse previous resources as much as possible.
   vtkTimeStamp CellAttributesBuildTimestamp[CELL_NB_ATTRIBUTES];
   vtkTimeStamp PointAttributesBuildTimestamp[POINT_NB_ATTRIBUTES];
+  vtkTimeStamp ClippingPlanesBuildTimestamp;
   vtkTimeStamp
     IndirectDrawBufferUploadTimeStamp[vtkWebGPUCellToPrimitiveConverter::NUM_TOPOLOGY_SOURCE_TYPES];
   ///@}
@@ -396,25 +488,48 @@ protected:
   // so that `UpdateMeshGeometryBuffers` can reuse it without climbing up
   // vtkAlgorithm pipeline.
   vtkPolyData* CachedInput = nullptr;
+  vtkSmartPointer<vtkWebGPUTexture> ColorTextureHostResource;
 
   // 1 bind group for this polydata mesh
   wgpu::BindGroup MeshAttributeBindGroup;
 
   struct TopologyBindGroupInfo
   {
-    // buffer for the primitive cell ids and point ids.
-    wgpu::Buffer TopologyBuffer;
+    // buffer for point ids.
+    wgpu::Buffer ConnectivityBuffer;
+    // buffer for the cell ids.
+    wgpu::Buffer CellIdBuffer;
     // buffer for edge array. this lets fragment shader hide internal edges of a polygon
     // when edge visibility is turned on.
     wgpu::Buffer EdgeArrayBuffer;
+    // uniform buffer for cell id offset.
+    wgpu::Buffer CellIdOffsetUniformBuffer;
     // // buffer for indirect draw command
     // wgpu::Buffer IndirectDrawBuffer;
     // bind group for the primitive size uniform.
     wgpu::BindGroup BindGroup;
+    // maximum number of vertices in a cell
+    vtkTypeUInt32 MaxCellSize = 0;
     // vertexCount for draw call.
     vtkTypeUInt32 VertexCount = 0;
   };
 
+  enum BindingGroup : int
+  {
+    GROUP_RENDERER = 0,
+    GROUP_ACTOR = 1,
+    GROUP_TEXTURES = GROUP_ACTOR,
+    GROUP_MESH = 2,
+    // Clipping planes are bound to the same group as the mesh attributes
+    // because they vary based on the mapper's shift/scale and the actor's
+    // transformation matrix.
+    GROUP_CLIPPING_PLANES = GROUP_MESH,
+    GROUP_TOPOLOGY = 3,
+    GROUP_NB_BINDGROUPS = 4
+  };
+  static_assert(GROUP_NB_BINDGROUPS <= 4,
+    "Number of bind groups exceeds 4! Most devices can support only up to 4 bind groups");
+  std::array<std::uint32_t, GROUP_NB_BINDGROUPS> NumberOfBindings = {};
   vtkNew<vtkWebGPUCellToPrimitiveConverter> CellConverter;
   TopologyBindGroupInfo
     TopologyBindGroupInfos[vtkWebGPUCellToPrimitiveConverter::NUM_TOPOLOGY_SOURCE_TYPES] = {};
@@ -424,6 +539,7 @@ protected:
   // invoke MapScalars().
   int LastScalarMode = -1;
   bool LastScalarVisibility = false;
+  vtkTypeUInt32 LastNumClipPlanes = 0;
   struct ActorState
   {
     bool LastActorBackfaceCulling = false;
@@ -431,6 +547,8 @@ protected:
     bool LastVertexVisibility = false;
     int LastRepresentation = VTK_SURFACE;
     bool LastHasRenderingTranslucentGeometry = false;
+    int LastPointSize = 1;
+    int LastLineWidth = 1;
   };
 
 private:
@@ -440,12 +558,18 @@ private:
   /**
    * Returns the wgpu::Buffer containing the point data attributes of this mapper
    */
-  wgpu::Buffer GetPointDataWGPUBuffer() { return this->MeshSSBO.Point.Buffer; }
+  wgpu::Buffer GetPointDataWGPUBuffer(PointDataAttributes attribute)
+  {
+    return this->PointBuffers[attribute].Buffer;
+  }
 
   /**
    * Returns the wgpu::Buffer containing the cell data attributes of this mapper
    */
-  wgpu::Buffer GetCellDataWGPUBuffer() { return this->MeshSSBO.Cell.Buffer; }
+  wgpu::Buffer GetCellDataWGPUBuffer(CellDataAttributes attribute)
+  {
+    return this->CellBuffers[attribute].Buffer;
+  }
 
   /**
    * List of the RenderBuffers created by calls to AcquirePointAttributeComputeRenderBuffer(). This
@@ -466,7 +590,7 @@ private:
   const PointDataAttributes PointDataAttributesOrder[PointDataAttributes::POINT_NB_ATTRIBUTES] = {
     PointDataAttributes::POINT_POSITIONS, PointDataAttributes::POINT_COLORS,
     PointDataAttributes::POINT_NORMALS, PointDataAttributes::POINT_TANGENTS,
-    PointDataAttributes::POINT_UVS
+    PointDataAttributes::POINT_UVS, PointDataAttributes::POINT_COLOR_UVS
   };
 
   /**

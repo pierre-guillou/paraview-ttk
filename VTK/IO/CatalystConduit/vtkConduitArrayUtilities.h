@@ -3,7 +3,6 @@
 /**
  * @class vtkConduitArrayUtilities
  * @brief helper to convert Conduit arrays to VTK arrays.
- * @ingroup Insitu
  *
  * vtkConduitArrayUtilities is intended to convert Conduit nodes satisfying the
  * `mcarray` protocol to VTK arrays. It uses zero-copy when possible otherwise
@@ -17,7 +16,7 @@
 #ifndef vtkConduitArrayUtilities_h
 #define vtkConduitArrayUtilities_h
 
-#include "vtkDeprecation.h"             // for VTK_DEPRECATED_IN_9_5_0
+#include "vtkDeprecation.h"             // for VTK_DEPRECATED_IN_9_6_0
 #include "vtkIOCatalystConduitModule.h" // for exports
 #include "vtkObject.h"
 #include "vtkSmartPointer.h" // for vtkSmartPointer
@@ -78,10 +77,6 @@ public:
    * This may reinterpret unsigned array as signed arrays to avoid deep-copying
    * of data to match data type expected by vtkCellArray API.
    */
-  VTK_DEPRECATED_IN_9_4_0("Version with additional `numberOfPoints` parameter needed with "
-                          "zero-copy arrays stored on acceleration devices such as CUDA")
-  static vtkSmartPointer<vtkCellArray> MCArrayToVTKCellArray(
-    int cellType, vtkIdType cellSize, const conduit_node* mcarray);
   static vtkSmartPointer<vtkCellArray> MCArrayToVTKCellArray(
     vtkIdType numberOfPoints, int cellType, vtkIdType cellSize, const conduit_node* mcarray);
 
@@ -95,11 +90,6 @@ public:
   /**
    * Read a O2MRelation element
    */
-  VTK_DEPRECATED_IN_9_4_0("Version with additional `numberOfPoints` parameter needed with "
-                          "zero-copy arrays stored on acceleration devices such as CUDA. "
-                          "`leafname` is always connectivity, so it is removed in the new version.")
-  static vtkSmartPointer<vtkCellArray> O2MRelationToVTKCellArray(
-    const conduit_node* o2mrelation, const std::string& leafname);
   static vtkSmartPointer<vtkCellArray> O2MRelationToVTKCellArray(
     vtkIdType numberOfPoints, const conduit_node* o2mrelation);
 
@@ -108,12 +98,38 @@ protected:
   ~vtkConduitArrayUtilities() override;
 
   static bool IsDevicePointer(const void* p, int8_t& id);
+  VTK_DEPRECATED_IN_9_6_0("Use MCArrayToVTKArray.")
+  static vtkSmartPointer<vtkDataArray> MCArrayToVTKArrayImpl(const conduit_node* mcarray)
+  {
+    return MCArrayToVTKArray(mcarray);
+  }
+  static vtkSmartPointer<vtkDataArray> MCArrayToVTKAOSArray(const conduit_node* mcarray);
+  static vtkSmartPointer<vtkDataArray> MCArrayToVTKSOAArray(const conduit_node* mcarray);
+  static vtkSmartPointer<vtkDataArray> MCArrayToVTKStridedArray(const conduit_node* mcarray);
+  VTK_DEPRECATED_IN_9_6_0("Use the overload without force_signed parameter.")
   static vtkSmartPointer<vtkDataArray> MCArrayToVTKArrayImpl(
-    const conduit_node* mcarray, bool force_signed);
+    const conduit_node* mcarray, bool vtkNotUsed(force_signed))
+  {
+    return MCArrayToVTKArray(mcarray);
+  }
+  VTK_DEPRECATED_IN_9_6_0("Use the overload without force_signed parameter.")
   static vtkSmartPointer<vtkDataArray> MCArrayToVTKAOSArray(
-    const conduit_node* mcarray, bool force_signed);
+    const conduit_node* mcarray, bool vtkNotUsed(force_signed))
+  {
+    return MCArrayToVTKAOSArray(mcarray);
+  }
+  VTK_DEPRECATED_IN_9_6_0("Use the overload without force_signed parameter.")
   static vtkSmartPointer<vtkDataArray> MCArrayToVTKSOAArray(
-    const conduit_node* mcarray, bool force_signed);
+    const conduit_node* mcarray, bool vtkNotUsed(force_signed))
+  {
+    return MCArrayToVTKSOAArray(mcarray);
+  }
+  VTK_DEPRECATED_IN_9_6_0("Use the overload without force_signed parameter.")
+  static vtkSmartPointer<vtkDataArray> MCArrayToVTKStridedArray(
+    const conduit_node* mcarray, bool vtkNotUsed(force_signed))
+  {
+    return MCArrayToVTKStridedArray(mcarray);
+  }
 
 private:
   vtkConduitArrayUtilities(const vtkConduitArrayUtilities&) = delete;

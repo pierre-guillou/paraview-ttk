@@ -66,7 +66,6 @@ set(classes
   vtkHull
   vtkHyperTreeGridProbeFilter
   vtkHyperTreeGridProbeFilterUtilities
-  vtkIdFilter
   vtkImageAppend
   vtkImageDataToExplicitStructuredGrid
   vtkImplicitPolyDataDistance
@@ -124,6 +123,7 @@ set(classes
   vtkTensorGlyph
   vtkThreshold
   vtkThresholdPoints
+  vtkThresholdScalars
   vtkTransposeTable
   vtkTriangleFilter
   vtkTriangleMeshPointNormals

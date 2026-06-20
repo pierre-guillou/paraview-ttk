@@ -10,6 +10,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkSocketCommunicator.h"
 #include "vtkSocketController.h"
+#include "vtkStringScanner.h"
 #include "vtkTimerLog.h"
 #include "vtkWeakPointer.h"
 
@@ -18,6 +19,7 @@
 #include <vtksys/SystemTools.hxx>
 
 #include <cassert>
+#include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
@@ -70,7 +72,8 @@ vtkMultiProcessController* vtkTCPNetworkAccessManager::NewConnection(
   if (re_connect.find(url))
   {
     std::string hostname = re_connect.match(1);
-    int port = atoi(re_connect.match(2).c_str());
+    int port;
+    VTK_FROM_CHARS_IF_ERROR_RETURN(re_connect.match(2), port, nullptr);
 
     // there some issue with RegularExpression that I cannot extract parameters.
     // hence we do this:
@@ -94,7 +97,7 @@ vtkMultiProcessController* vtkTCPNetworkAccessManager::NewConnection(
     int timeout_in_seconds = 60;
     if (parameters.find("timeout") != parameters.end())
     {
-      timeout_in_seconds = atoi(parameters["timeout"].c_str());
+      VTK_FROM_CHARS_IF_ERROR_RETURN(parameters["timeout"], timeout_in_seconds, nullptr);
     }
 
     this->WrongConnectID = false;
@@ -128,7 +131,7 @@ void vtkTCPNetworkAccessManager::AbortPendingConnection()
 bool vtkTCPNetworkAccessManager::GetPendingConnectionsPresent()
 {
   // FIXME_COLLABORATION
-  cout << "Need to fix this to report real pending connections" << endl;
+  std::cout << "Need to fix this to report real pending connections" << endl;
   return false;
 }
 
@@ -368,7 +371,7 @@ vtkMultiProcessController* vtkTCPNetworkAccessManager::ConnectToRemote(const cha
   timer->StartTimer();
 
   this->AbortPendingConnectionFlag = false;
-  while (1)
+  while (true)
   {
     double progress = 0.5;
     this->InvokeEvent(vtkCommand::ProgressEvent, &progress);
@@ -420,7 +423,7 @@ vtkMultiProcessController* vtkTCPNetworkAccessManager::ConnectToRemote(const cha
     result = vtkNetworkAccessManager::ConnectionResult::CONNECTION_HANDSHAKE_ERROR;
     return nullptr;
   }
-  this->Internals->Controllers.push_back(controller);
+  this->Internals->Controllers.emplace_back(controller);
   result = vtkNetworkAccessManager::ConnectionResult::CONNECTION_SUCCESS;
   return controller;
 }
@@ -451,11 +454,20 @@ vtkMultiProcessController* vtkTCPNetworkAccessManager::WaitForConnection(int por
 
   vtksys::SystemInformation sys_info;
   sys_info.RunOSCheck();
-  const char* sys_hostname = sys_info.GetHostname() ? sys_info.GetHostname() : "localhost";
+  std::string const& boundAddress = server_socket->GetBoundAddress();
+  const char* sys_hostname;
+  if (boundAddress.empty() || boundAddress == "0.0.0.0")
+  {
+    sys_hostname = sys_info.GetHostname() ? sys_info.GetHostname() : "localhost";
+  }
+  else
+  {
+    sys_hostname = boundAddress.c_str();
+  }
 
   // print out a status message.
-  cout << "Accepting connection(s): " << sys_hostname << ":" << server_socket->GetServerPort()
-       << endl;
+  std::cout << "Accepting connection(s): " << sys_hostname << ":" << server_socket->GetServerPort()
+            << endl;
 
   this->AbortPendingConnectionFlag = false;
   vtkSocketController* controller = nullptr;
@@ -504,7 +516,7 @@ vtkMultiProcessController* vtkTCPNetworkAccessManager::WaitForConnection(int por
 
   if (controller)
   {
-    this->Internals->Controllers.push_back(controller);
+    this->Internals->Controllers.emplace_back(controller);
     result = vtkNetworkAccessManager::ConnectionResult::CONNECTION_SUCCESS;
   }
   else if (this->AbortPendingConnectionFlag)
@@ -610,7 +622,7 @@ int vtkTCPNetworkAccessManager::ParaViewHandshake(
     {
       controller->Send(handshake.c_str(), size, 1, 99991);
     }
-    int errorCode;
+    int errorCode = HANDSHAKE_NO_ERROR;
     controller->Receive(&errorCode, 1, 1, 99990);
     return errorCode;
   }

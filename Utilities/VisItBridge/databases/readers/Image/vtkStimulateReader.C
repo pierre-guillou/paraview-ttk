@@ -8,23 +8,16 @@
 
 #include <vtkStimulateReader.h>
 
+#include <visit-config.h> // For LIB_VERSION_LE
+
 #include <vtkImageData.h>
 #include <vtkObjectFactory.h>
 #include <vtkByteSwap.h>
 #include <vtkPointData.h>
 #include <FileFunctions.h>
+#include <StringHelpers.h>
 
 #include <vtksys/FStream.hxx>
-
-#include <sys/stat.h>
-
-#ifndef STRNCEQUAL
-  #ifdef _WIN32
-    #define STRNCEQUAL(a,b,c) strnicmp(a, b, c)
-  #else
-    #define STRNCEQUAL(a,b,c) strncasecmp(a, b, c)
-  #endif
-#endif
 
 vtkStandardNewMacro(vtkStimulateReader);
 
@@ -70,11 +63,15 @@ int vtkStimulateReader::RequestInformation(
 int vtkStimulateReader::OpenFile(void)
 {
   // Close file from any previous image
+#if LIB_VERSION_LE(VTK,8,1,0)
   if (this->File)
     {
     delete this->File;
     this->File = NULL;
     }
+#else
+  this->CloseFile();
+#endif
 
   char spr_name[1024];
   char sdt_name[1024];
@@ -293,13 +290,13 @@ bool vtkStimulateReader::ReadSPRFile(const char *spr_name)
   if (!spr_file.eof())
     {
     spr_file.getline(line, 1024);
-    if (!STRNCEQUAL(line,"byte",4))
+    if (StringHelpers::CaseInsensitiveEqual(line,"byte",4))
       dataType = UCHAR;
-    else if (!STRNCEQUAL(line,"word",4))
+    else if (StringHelpers::CaseInsensitiveEqual(line,"word",4))
       dataType = SHORT;
-    else if (!STRNCEQUAL(line,"lword",5))
+    else if (StringHelpers::CaseInsensitiveEqual(line,"lword",5))
       dataType = INT;
-    else if (!STRNCEQUAL(line,"real",4))
+    else if (StringHelpers::CaseInsensitiveEqual(line,"real",4))
       dataType = FLOAT;
     else
       {

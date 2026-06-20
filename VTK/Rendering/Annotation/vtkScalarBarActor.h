@@ -73,7 +73,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
-   * Instantiate object with 64 maximum colors; 5 labels; %%-#6.3g label
+   * Instantiate object with 64 maximum colors; 5 labels; {:<#6.3g} label
    * format, no title, and vertical orientation. The initial scalar bar
    * size is (0.05 x 0.8) of the viewport size.
    */
@@ -228,7 +228,7 @@ public:
 
   ///@{
   /**
-   * Set/Get the format with which to print the labels on the scalar
+   * Set/Get the std::format or printf style format with which to print the labels on the scalar
    * bar.
    */
   vtkSetStringMacro(LabelFormat);
@@ -483,8 +483,7 @@ public:
 
   ///@{
   /**
-   * Set/get the margin in pixels, between the title and the bar,
-   * when the \a Orientation is vertical.
+   * Set/get the margin in pixels, between the title and the bar.
    * The default is 0 pixels.
    */
   vtkGetMacro(VerticalTitleSeparation, int);
@@ -522,6 +521,12 @@ public:
   vtkGetMacro(UnconstrainedFontSize, bool);
   vtkBooleanMacro(UnconstrainedFontSize, bool);
   ///@}
+
+  /**
+   * Set the PositionCoordinate instance of vtkCoordinate.
+   * The position variable controls the lower left corner of the ScalarBarActor.
+   */
+  void SetPositionCoordinate(vtkCoordinate* pos) override;
 
 protected:
   vtkScalarBarActor();

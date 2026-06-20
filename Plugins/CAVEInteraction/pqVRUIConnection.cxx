@@ -4,31 +4,31 @@
 #include "pqVRUIConnection.h"
 
 #include "pqActiveObjects.h"
+#include "pqDataRepresentation.h"
 #include "pqView.h"
+
+#include "vtkCamera.h"
 #include "vtkMath.h"
 #include "vtkMatrix4x4.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVXMLElement.h"
+#include "vtkRenderWindow.h"
+#include "vtkRenderer.h"
 #include "vtkSMDoubleVectorProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMRenderViewProxy.h"
 #include "vtkSMRepresentationProxy.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 #include "vtkTransform.h"
 #include "vtkVRQueue.h"
 #include "vtkVRUIPipe.h"
 #include "vtkVRUIServerState.h"
 #include "vtkVRUITrackerState.h"
+
 #include <QDateTime>
 #include <QDebug>
 #include <QMutex>
-#include <algorithm>
-#include <iostream>
-#include <pqDataRepresentation.h>
-#include <sstream>
-#include <vector>
-#include <vtkCamera.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderer.h>
 #ifdef QTSOCK
 #include <QTcpSocket>
 #else
@@ -38,6 +38,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #endif
+#include <algorithm>
+#include <iostream>
+#include <sstream>
+#include <vector>
 
 // ----------------------------------------------------------------------------
 class pqVRUIConnection::pqInternals
@@ -114,13 +118,15 @@ public:
     hp = gethostbyname(address.c_str());
     if (hp == 0)
     {
-      fprintf(stderr, "%s: unknown host\n", address.c_str());
+      vtk::print(stderr, "{:s}: unknown host\n", address);
       return;
     }
     bcopy(hp->h_addr, &client_addr.sin_addr, hp->h_length);
 
     client_addr.sin_family = AF_INET;
-    client_addr.sin_port = htons((uint16_t)atoi(port.c_str()));
+    uint16_t sin_port;
+    VTK_FROM_CHARS_IF_ERROR_RETURN(port, sin_port, );
+    client_addr.sin_port = htons(sin_port);
 
     if (::connect(this->Socket, (struct sockaddr*)&client_addr, sizeof(struct sockaddr_in)) < 0)
     { /* TODO: why is this "sockaddr", when the type is "sockaddr_in" ?? */
@@ -143,14 +149,14 @@ public:
     this->Pipe->Send(vtkVRUIPipe::CONNECT_REQUEST);
     if (!this->Pipe->WaitForServerReply(30000)) // 30s
     {
-      cerr << "Timeout while waiting for CONNECT_REPLY" << endl;
+      std::cerr << "Timeout while waiting for CONNECT_REPLY" << endl;
       delete this->Pipe;
       this->Pipe = 0;
       return false;
     }
     if (this->Pipe->Receive() != vtkVRUIPipe::CONNECT_REPLY)
     {
-      cerr << "Mismatching message while waiting for CONNECT_REPLY" << endl;
+      std::cerr << "Mismatching message while waiting for CONNECT_REPLY" << endl;
       delete this->Pipe;
       this->Pipe = 0;
       return false;
@@ -217,7 +223,7 @@ public:
     {
       case vtkVRUIPipe::PACKET_REPLY:
 #ifdef VRUI_ENABLE_DEBUG
-        cout << "thread:PACKET_REPLY ok : tag=" << m << endl;
+        std::cout << "thread:PACKET_REPLY ok : tag=" << m << endl;
 #endif
         this->StateMutex->lock();
         this->Pipe->ReadState(this->State);
@@ -225,12 +231,12 @@ public:
 
         break;
       case vtkVRUIPipe::STOPSTREAM_REPLY:
-        cout << "thread:STOPSTREAM_REPLY ok : tag=" << m << endl;
+        std::cout << "thread:STOPSTREAM_REPLY ok : tag=" << m << endl;
         done = true;
         break;
       default:
-        cerr << "thread: Mismatching message while waiting for PACKET_REPLY: tag="
-             << this->Pipe->GetString(m) << "::" << m << endl;
+        std::cerr << "thread: Mismatching message while waiting for PACKET_REPLY: tag="
+                  << this->Pipe->GetString(m) << "::" << m << endl;
         done = true;
         break;
     }
@@ -637,7 +643,7 @@ void pqVRUIConnection::getNextPacket()
       {
         if (this->Internals->Pipe->Receive() != vtkVRUIPipe::PACKET_REPLY)
         {
-          cout << "VRUI Mismatching message while waiting for PACKET_REPLY" << std::endl;
+          std::cout << "VRUI Mismatching message while waiting for PACKET_REPLY" << std::endl;
           abort();
         }
         else
@@ -652,7 +658,7 @@ void pqVRUIConnection::getNextPacket()
       }
       else
       {
-        cout << "timeout for PACKET_REPLY" << endl;
+        std::cout << "timeout for PACKET_REPLY" << endl;
       }
     }
   }
@@ -715,8 +721,8 @@ void pqVRUIConnection::newTrackerValue(vtkSmartPointer<vtkVRUITrackerState> data
   data->GetUnitQuaternion(q);
 
 #if defined(VRUI_ENABLE_DEBUG) || 0
-  cout << "pos=(" << pos[0] << "," << pos[1] << "," << pos[2] << ")" << endl;
-  cout << "q=(" << q[0] << "," << q[1] << "," << q[2] << "," << q[3] << ")" << endl;
+  std::cout << "pos=(" << pos[0] << "," << pos[1] << "," << pos[2] << ")" << endl;
+  std::cout << "q=(" << q[0] << "," << q[1] << "," << q[2] << "," << q[3] << ")" << endl;
 #endif
 
   // VTK expects quaternion in the format of (real, i, j, k), where as
@@ -751,7 +757,7 @@ void pqVRUIConnection::newTrackerValue(vtkSmartPointer<vtkVRUITrackerState> data
   if (sensor)
   {
     std::cout << "Pre multiplication matrix: " << std::endl;
-    this->Matrix->PrintSelf(cout, vtkIndent(0));
+    this->Matrix->PrintSelf(std::cout, vtkIndent(0));
   }
 #endif
 
@@ -781,14 +787,14 @@ void pqVRUIConnection::newTrackerValue(vtkSmartPointer<vtkVRUITrackerState> data
   if (sensor)
   {
     std::cout << "Post multiplication matrix: " << std::endl;
-    this->Matrix->PrintSelf(cout, vtkIndent(0));
+    this->Matrix->PrintSelf(std::cout, vtkIndent(0));
   }
 #endif
 
 #if defined(VRUI_ENABLE_DEBUG) || 0
   if (sensor)
-    cout << "post pos=(" << this->Matrix->Element[0][3] << "," << this->Matrix->Element[1][3] << ","
-         << this->Matrix->Element[2][3] << ")" << endl;
+    std::cout << "post pos=(" << this->Matrix->Element[0][3] << "," << this->Matrix->Element[1][3]
+              << "," << this->Matrix->Element[2][3] << ")" << endl;
 #endif
 
   temp.data.tracker.matrix[0] = this->Matrix->Element[0][0];

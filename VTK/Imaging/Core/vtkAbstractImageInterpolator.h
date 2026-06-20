@@ -20,6 +20,7 @@
 
 #include "vtkImagingCoreModule.h" // For export macro
 #include "vtkObject.h"
+#include "vtkWrappingHints.h"
 
 enum vtkImageBorderMode : int
 {
@@ -35,7 +36,7 @@ class vtkDataArray;
 struct vtkInterpolationInfo;
 struct vtkInterpolationWeights;
 
-class VTKIMAGINGCORE_EXPORT vtkAbstractImageInterpolator : public vtkObject
+class VTKIMAGINGCORE_EXPORT VTK_MARSHALAUTO vtkAbstractImageInterpolator : public vtkObject
 {
 public:
   vtkTypeMacro(vtkAbstractImageInterpolator, vtkObject);
@@ -372,6 +373,42 @@ inline void vtkAbstractImageInterpolator::InterpolateRow(
 {
   this->RowInterpolationFuncFloat(weights, xIdx, yIdx, zIdx, value, n);
 }
+
+// The interpolator info struct
+struct vtkInterpolationInfo
+{
+  const void* Pointer;
+  int Extent[6];
+  vtkIdType Increments[3];
+  int ScalarType;
+  int NumberOfComponents;
+  vtkImageBorderMode BorderMode;
+  int InterpolationMode;
+  void* ExtraInfo;
+
+  vtkDataArray* Array;
+  vtkIdType Index;
+};
+
+// The interpolation weights struct
+struct vtkInterpolationWeights : public vtkInterpolationInfo
+{
+  vtkIdType* Positions[3];
+  void* Weights[3];
+  int WeightExtent[6];
+  int KernelSize[3];
+  int WeightType; // VTK_FLOAT or VTK_DOUBLE
+  void* Workspace;
+  int LastY;
+  int LastZ;
+
+  // partial copy constructor from superclass
+  vtkInterpolationWeights(const vtkInterpolationInfo& info)
+    : vtkInterpolationInfo(info)
+    , Workspace(nullptr)
+  {
+  }
+};
 
 VTK_ABI_NAMESPACE_END
 #endif

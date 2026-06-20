@@ -25,6 +25,8 @@
 #include "vtkVolume.h"
 #include "vtkVolumeProperty.h"
 
+#include <iostream>
+
 typedef vtkSmartPointer<vtkImageData> Transfer2DPtr;
 Transfer2DPtr Create2DTransfer()
 {
@@ -35,8 +37,7 @@ Transfer2DPtr Create2DTransfer()
   vtkFloatArray* arr = vtkFloatArray::SafeDownCast(image->GetPointData()->GetScalars());
 
   // Initialize to zero
-  void* dataPtr = arr->GetVoidPointer(0);
-  memset(dataPtr, 0, bins[0] * bins[1] * 4 * sizeof(float));
+  arr->FillValue(0.0);
 
   // Setting RGBA [1.0, 0,0, 0.05] for a square in the histogram (known)
   // containing some of the interesting edges (e.g. tooth root).
@@ -45,7 +46,7 @@ Transfer2DPtr Create2DTransfer()
     {
       if (i > 130 && i < 190 && j < 50)
       {
-        double const jFactor = 256.0 / 50;
+        constexpr double jFactor = 256.0 / 50;
 
         vtkIdType const index = bins[0] * j + i;
         double const red = static_cast<double>(i) / bins[0];
@@ -64,7 +65,7 @@ Transfer2DPtr Create2DTransfer()
 ////////////////////////////////////////////////////////////////////////////////
 int TestGPURayCastTransfer2D(int argc, char* argv[])
 {
-  cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << endl;
+  std::cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << std::endl;
 
   // Load data
   char* fname = vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/tooth.nhdr");

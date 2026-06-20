@@ -1,11 +1,12 @@
 %option yylineno
 %{
-
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
 /*
 
-This file must be translated to C and modified to build everywhere.
+The file 'lex.yy.c' is generated from 'vtkParse.l'.
 
-See the adjacent README.txt file for instructions.
+See the adjacent README.md file for instructions.
 
 */
 
@@ -1330,7 +1331,7 @@ const char* raw_string(const char* begin, int* has_ud_suffix)
           *dp++ = '\"';
           break;
         default:
-          sprintf(dp, "\\%3.3o", *textbuf);
+          snprintf(dp, m - (dp - result), "\\%3.3o", *textbuf);
           dp += 4;
           break;
       }
@@ -1633,6 +1634,9 @@ void print_preprocessor_error(int result, const char* cp, size_t n)
     case VTK_PARSE_OUT_OF_MEMORY:
       text = "out of memory";
       break;
+    case VTK_PARSE_OUT_OF_BOUNDS:
+      text = "out of bounds computation";
+      break;
   }
 
   /* be silent about missing include files */
@@ -1779,9 +1783,12 @@ void preprocessor_directive(const char* text, size_t l)
         macro->IsExcluded = 0;
         if (result < VTK_PARSE_MACRO_UNDEFINED)
         {
-          add_constant(vtkstrdup(macro->Name), vtkstrdup(macro->Definition), 0, 0, NULL, 1);
+          add_constant(vtkstrdup(macro->Name), vtkstrdup(macro->Definition), 0, NULL, 0, NULL, 1);
         }
       }
     }
   }
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

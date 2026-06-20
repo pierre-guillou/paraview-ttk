@@ -179,10 +179,7 @@ void vtkXMLPUnstructuredDataReader::SetupUpdateExtent(int piece, int numberOfPie
 
   // If more pieces are requested than available, just return empty
   // pieces for the extra ones.
-  if (this->UpdateNumberOfPieces > this->NumberOfPieces)
-  {
-    this->UpdateNumberOfPieces = this->NumberOfPieces;
-  }
+  this->UpdateNumberOfPieces = std::min(this->UpdateNumberOfPieces, this->NumberOfPieces);
 
   // Find the range of pieces to read.
   if (this->UpdatePieceId < this->UpdateNumberOfPieces)
@@ -353,17 +350,7 @@ void vtkXMLPUnstructuredDataReader::CopyArrayForPoints(
   }
 
   vtkIdType numPoints = this->PieceReaders[this->Piece]->GetNumberOfPoints();
-  vtkIdType components = outArray->GetNumberOfComponents();
-  vtkIdType tupleSize = inArray->GetDataTypeSize() * components;
-  if (auto outStringArray = vtkArrayDownCast<vtkStringArray>(outArray))
-  {
-    outStringArray->InsertTuples(this->StartPoint, numPoints, 0, inArray);
-  }
-  else
-  {
-    memcpy(outArray->GetVoidPointer(this->StartPoint * components), inArray->GetVoidPointer(0),
-      numPoints * tupleSize);
-  }
+  outArray->InsertTuples(this->StartPoint, numPoints, 0, inArray);
 }
 
 //------------------------------------------------------------------------------

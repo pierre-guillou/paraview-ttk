@@ -22,6 +22,8 @@
 
 #include <string>
 
+#include <iostream>
+
 int TestContourTriangulatorBadData(int argc, char* argv[])
 {
   vtkNew<vtkTesting> testHelper;
@@ -33,9 +35,7 @@ int TestContourTriangulatorBadData(int argc, char* argv[])
   }
 
   std::string dataRoot = testHelper->GetDataRoot();
-  std::string tempDir = testHelper->GetTempDirectory();
   std::string inputFileName = dataRoot + "/Data/TriangulatorBadData.vtk";
-  std::string tempBaseline = tempDir + "/TestContourTriangulatorBadData.png";
 
   vtkNew<vtkDataSetReader> reader;
   reader->SetFileName(inputFileName.c_str());

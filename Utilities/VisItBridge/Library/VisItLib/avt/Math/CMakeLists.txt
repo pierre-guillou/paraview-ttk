@@ -19,20 +19,24 @@ avtPolynomial.C
 avtVector.C
 )
 
-if (FALSE)
 INCLUDE_DIRECTORIES(
 ${CMAKE_CURRENT_SOURCE_DIR}
 ${VISIT_COMMON_INCLUDES}
 ${VTK_INCLUDE_DIRS}
 )
 
+if(VTK_VERSION VERSION_EQUAL "8.1.0")
+    set(vtklibs vtkCommonCore)
+else()
+    set(vtklibs VTK::CommonCore)
+endif()
+
 # Add link directories
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_DIRECTORY} )
-endif ()
 
 ADD_LIBRARY(avtmath ${AVTMATH_SOURCES})
-#TARGET_LINK_LIBRARIES(avtmath visitcommon vtkCommonCore)
-TARGET_LINK_LIBRARIES(avtmath PRIVATE visitcommon VTK::CommonCore)
+#TARGET_LINK_LIBRARIES(avtmath visitcommon ${vtklibs})
+TARGET_LINK_LIBRARIES(avtmath PRIVATE visitcommon ${vtklibs})
 target_include_directories(avtmath
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>")

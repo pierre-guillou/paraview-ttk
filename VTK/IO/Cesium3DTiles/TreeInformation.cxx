@@ -37,10 +37,12 @@
 #include "vtkSelectionNode.h"
 #include "vtkSmartPointer.h"
 #include "vtkStringArray.h"
-#include "vtkTransform.h"
+#include "vtkStringFormatter.h"
 
 #include "vtksys/SystemTools.hxx"
 #include <vtksys/FStream.hxx>
+
+#include <iostream>
 
 using RegionType = std::array<int, 6>;
 
@@ -540,7 +542,7 @@ void TreeInformation::SaveTilesBuildings(bool mergeTilePolyData, size_t mergedTe
 void TreeInformation::WriteTileTexture(
   vtkIncrementalOctreeNode* node, const std::string& fileName, vtkImageData* tileImage)
 {
-  std::string dirPath = this->OutputDir + "/" + std::to_string(node->GetID());
+  std::string dirPath = this->OutputDir + "/" + vtk::to_string(node->GetID());
   vtkDirectory::MakeDirectory(dirPath.c_str());
   std::string filePath = dirPath + "/" + fileName;
   vtkNew<vtkPNGWriter> writer;
@@ -559,8 +561,7 @@ void TreeInformation::SaveTilesMesh()
   std::vector<vtkSmartPointer<vtkImageData>> textureImages(textureFileNames.size());
   for (size_t i = 0; i < textureFileNames.size(); ++i)
   {
-    auto textureFileName = textureFileNames[i];
-    textureImages[i] = GetTexture(this->TextureBaseDirectory, textureFileName);
+    textureImages[i] = GetTexture(this->TextureBaseDirectory, textureFileNames[i]);
   }
   SaveTileMeshData aux(vtkSelectionNode::CELL, textureImages);
   this->PostOrderTraversal(&TreeInformation::SaveTileMesh, this->Root, &aux);
@@ -678,10 +679,7 @@ void TreeInformation::SaveTileBuildings(vtkIncrementalOctreeNode* node, void* au
 
       // how many polydata textures along one side of the merged texture
       size_t mergedTextureWidth = std::ceil(std::sqrt(meshesWithTexture.size()));
-      if (info.MergedTextureWidth < mergedTextureWidth)
-      {
-        mergedTextureWidth = info.MergedTextureWidth;
-      }
+      mergedTextureWidth = std::min(info.MergedTextureWidth, mergedTextureWidth);
       // merge textures and change the tcoords arrays
       // all textures use the same tcoords array
       // if there is only one texture, there is nothing to merge.
@@ -706,7 +704,7 @@ void TreeInformation::SaveTileBuildings(vtkIncrementalOctreeNode* node, void* au
               double* secondBounds = tileTextures[second]->GetBounds();
               return (firstBounds[3] - firstBounds[2]) > (secondBounds[3] - secondBounds[2]);
             });
-          std::string mergedFileName = "merged_texture_" + std::to_string(i) + ".png";
+          std::string mergedFileName = "merged_texture_" + vtk::to_string(i) + ".png";
           int tileDims[3];
           vtkSmartPointer<vtkImageData> tileImage =
             MergeTextures(tileTextures, textureIds, mergedTextureWidth, textureOrigin);
@@ -756,7 +754,7 @@ void TreeInformation::SaveTileBuildings(vtkIncrementalOctreeNode* node, void* au
         vtkPolyData* tileMeshWithTexture = vtkPolyData::SafeDownCast(append->GetOutput());
         b->SetBlock(meshBlockIndex++, tileMeshWithTexture);
         SetField(tileMeshWithTexture, "texture_uri", mergedFileNames);
-        textureBaseDirectory = this->OutputDir + "/" + std::to_string(node->GetID());
+        textureBaseDirectory = this->OutputDir + "/" + vtk::to_string(node->GetID());
       }
       else
       {
@@ -1075,9 +1073,9 @@ void TreeInformation::SaveTileMesh(vtkIncrementalOctreeNode* node, void* voidAux
           this->SplitTileTexture(tileMesh, datasetImage, maxIndex == i ? tcoordsTile : nullptr);
         if (tileImage)
         {
-          this->WriteTileTexture(node, std::to_string(i) + ".png", tileImage);
+          this->WriteTileTexture(node, vtk::to_string(i) + ".png", tileImage);
           tileTextureFileNames.push_back(
-            std::to_string(node->GetID()) + "/" + std::to_string(i) + ".png");
+            vtk::to_string(node->GetID()) + "/" + vtk::to_string(i) + ".png");
         }
       }
       tileMesh->GetPointData()->SetTCoords(tcoordsTile);
@@ -1468,7 +1466,15 @@ nlohmann::json TreeInformation::GenerateTileJson(vtkIncrementalOctreeNode* node)
 
 std::string TreeInformation::ContentTypeExtension() const
 {
-  int index = this->ContentGLTF ? (this->ContentGLTFSaveGLB ? 1 : 2) : 0;
+  int index;
+  if (this->ContentGLTF)
+  {
+    index = this->ContentGLTFSaveGLB ? 1 : 2;
+  }
+  else
+  {
+    index = 0;
+  }
   switch (this->InputType)
   {
     case vtkCesium3DTilesWriter::Buildings:

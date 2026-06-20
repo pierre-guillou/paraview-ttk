@@ -51,7 +51,22 @@
  *                                taking into account the cell types with
  *                                nonstandard orientation requirements.
  *
+ *  NonPlanarFaces: The vertices for a face do not all lie in the same plane, so
+ *                  the normal and origin of the plane in which the face lies cannot
+ *                  be accurately determined.
  *
+ *  DegenerateFaces:  A face is collapsed to a line or a point through repeated
+ *                    collocated vertices. This is distinct from WrongNumberOfPoints,
+ *                    which indicates there are too few points. In this case, there
+ *                    are enough points but they are topologically or geometrically
+ *                    degenerate. Topological degeneracy is when connectivity entries
+ *                    are repeated. Geometric degeneracy is when point coordinates
+ *                    for topologically distinct points are coincident, collinear, or
+ *                    coplanar when they ought not to be.
+ *
+ * CoincidentPoints: A cell is otherwise valid but has coincident points, which may
+ *                   arise from distinct entries in vtkPoints with duplicate coordinates
+ *                   or from repeated use of the same connectivity entry.
  * @sa
  * vtkCellQuality
  */
@@ -59,8 +74,10 @@
 #ifndef vtkCellValidator_h
 #define vtkCellValidator_h
 
+#include "vtkCellStatus.h" // For enum class.
 #include "vtkDataSetAlgorithm.h"
-#include "vtkFiltersGeneralModule.h" // For export macro
+#include "vtkDeprecation.h"          // For VTK_DEPRECATED_IN_9_6_0.
+#include "vtkFiltersGeneralModule.h" // For export macro.
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCell;
@@ -120,32 +137,10 @@ public:
   vtkTypeMacro(vtkCellValidator, vtkDataSetAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  // Description:
-  // Construct to compute the validity of cells.
+  /// Construct to compute the validity of cells.
   static vtkCellValidator* New();
 
-  enum State : short
-  {
-    Valid = 0x0,
-    WrongNumberOfPoints = 0x01,
-    IntersectingEdges = 0x02,
-    IntersectingFaces = 0x04,
-    NoncontiguousEdges = 0x08,
-    Nonconvex = 0x10,
-    FacesAreOrientedIncorrectly = 0x20,
-  };
-
-  friend State operator&(State a, State b)
-  {
-    return static_cast<State>(static_cast<short>(a) & static_cast<short>(b));
-  }
-  friend State operator|(State a, State b)
-  {
-    return static_cast<State>(static_cast<short>(a) | static_cast<short>(b));
-  }
-  friend State& operator&=(State& a, State b) { return a = a & b; }
-
-  friend State& operator|=(State& a, State b) { return a = a | b; }
+  using State = vtkCellStatus;
 
   static void PrintState(State state, ostream& os, vtkIndent indent);
 
@@ -211,23 +206,60 @@ public:
   vtkGetMacro(Tolerance, double);
   ///@}
 
+  ///@{
+  /// Set/get whether to compute a per-cell tolerance that is a quarter of
+  /// the length of the shortest non-degenerate edge.
+  ///
+  /// This setting is off by default. If enabled, the \a Tolerance ivar is ignored
+  /// unless the cell has no edges (i.e., vertex cells) or all its edges have zero
+  /// length – in which case \a Tolerance is used.
+  ///
+  /// This setting is independent of PlanarityTolerance.
+  vtkSetMacro(AutoTolerance, vtkTypeBool);
+  vtkGetMacro(AutoTolerance, vtkTypeBool);
+  vtkBooleanMacro(AutoTolerance, vtkTypeBool);
+  ///@}
+
+  ///@{
+  /// Set/get a planarity tolerance.
+  ///
+  /// This tolerance thresholds the ratio of the distance a planar polygonal
+  /// cell (or cell face) protrudes out of its plane compared to the largest
+  /// distance between a cell (or cell face) center and any of its corner points.
+  /// It defaults to 0.1; any cells which protrude more than 10% of their radius
+  /// out of the plane will be marked invalid.
+  ///
+  /// These methods are static so that calls to static Check() methods need not
+  /// pass multiple tolerances and other validation parameters. This also means
+  /// SetPlanarityTolerance is not thread-safe and should not be called when any
+  /// other thread may be calling GetPlanarityTolerance().
+  ///
+  /// If the planarity tolerance is set to 0 or a negative value, planarity will
+  /// not be tested.
+  static void SetPlanarityTolerance(double tolerance);
+  static double GetPlanarityTolerance();
+  ///@}
 protected:
   vtkCellValidator();
   ~vtkCellValidator() override = default;
 
   double Tolerance;
+  vtkTypeBool AutoTolerance = false;
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
   static bool NoIntersectingEdges(vtkCell* cell, double tolerance);
+  VTK_DEPRECATED_IN_9_6_0("Do not use or make NoIntersectingFacesStatus protected and use it.")
   static bool NoIntersectingFaces(vtkCell* cell, double tolerance);
   static bool ContiguousEdges(vtkCell* twoDimensionalCell, double tolerance);
-  static bool Convex(vtkCell* cell, double tolerance);
+  static State Convex(vtkCell* cell, double tolerance);
   static bool FacesAreOrientedCorrectly(vtkCell* threeDimensionalCell, double tolerance);
 
 private:
   vtkCellValidator(const vtkCellValidator&) = delete;
   void operator=(const vtkCellValidator&) = delete;
+
+  static State NoIntersectingFacesStatus(vtkCell* cell, double tolerance);
 };
 
 VTK_ABI_NAMESPACE_END

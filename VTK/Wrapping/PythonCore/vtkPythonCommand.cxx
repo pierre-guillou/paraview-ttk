@@ -6,6 +6,8 @@
 #include "vtkObject.h"
 #include "vtkPythonUtil.h"
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkPythonCommand::vtkPythonCommand()
 {
@@ -73,7 +75,7 @@ void vtkPythonCommand::Execute(vtkObject* ptr, unsigned long eventtype, void* ca
     return;
   }
 
-#ifndef VTK_NO_PYTHON_THREADS
+#ifdef VTK_PYTHON_HAS_GIL
   vtkPythonScopeGilEnsurer gilEnsurer(true);
 #else
   // We only need to do this if we are not calling PyGILState_Ensure(), in fact
@@ -229,13 +231,13 @@ void vtkPythonCommand::Execute(vtkObject* ptr, unsigned long eventtype, void* ca
   {
     if (PyErr_ExceptionMatches(PyExc_KeyboardInterrupt))
     {
-      cerr << "Caught a Ctrl-C within python, exiting program.\n";
+      std::cerr << "Caught a Ctrl-C within python, exiting program.\n";
       Py_Exit(1);
     }
     PyErr_Print();
   }
 
-#ifdef VTK_NO_PYTHON_THREADS
+#ifndef VTK_PYTHON_HAS_GIL
   // If we did the swap near the top of this function then swap back now.
   if (this->ThreadState)
   {

@@ -111,6 +111,12 @@ class openPMDReader(VTKPythonAlgorithmBase):
             "ModifiedEvent", createModifiedCallback(self)
         )
 
+        # coordinate mapping for particle positions
+        self._x_coord = "x"  # default X coordinate mapping
+        self._y_coord = "y"  # default Y coordinate mapping
+        self._z_coord = "z"  # default Z coordinate mapping
+        self._position_coordinates_info = vtkDataArraySelection()  # available position coordinates
+
     def _get_update_time(self, outInfo):
         """Finds the closest available time (float) to the requested time (float).
 
@@ -224,6 +230,40 @@ class openPMDReader(VTKPythonAlgorithmBase):
         """
         return self._get_particle_array_selection()
 
+    def SetXCoordinate(self, name):
+        """Set which position coordinate to use for X axis."""
+        if self._x_coord != name:
+            self._x_coord = name
+            self.Modified()
+
+    def GetXCoordinate(self):
+        """Get which position coordinate is used for X axis."""
+        return self._x_coord
+
+    def SetYCoordinate(self, name):
+        """Set which position coordinate to use for Y axis."""
+        if self._y_coord != name:
+            self._y_coord = name
+            self.Modified()
+
+    def GetYCoordinate(self):
+        """Get which position coordinate is used for Y axis."""
+        return self._y_coord
+
+    def SetZCoordinate(self, name):
+        """Set which position coordinate to use for Z axis."""
+        if self._z_coord != name:
+            self._z_coord = name
+            self.Modified()
+
+    def GetZCoordinate(self):
+        """Get which position coordinate is used for Z axis."""
+        return self._z_coord
+
+    def GetPositionCoordinatesInfo(self):
+        """Get available position coordinates from the data."""
+        return self._position_coordinates_info
+
     def FillOutputPortInformation(self, port, info):
         """Tells the pipeline which kind of data this source produces
 
@@ -311,6 +351,7 @@ class openPMDReader(VTKPythonAlgorithmBase):
         arrays = set()
         particles = set()
         species = set()
+        position_coords = set()  # collect available position coordinates
         # an openPMD iteration is a time step that contains
         # meshes and particle species
         for idx, iteration in self._series.iterations.items():
@@ -348,6 +389,16 @@ class openPMDReader(VTKPythonAlgorithmBase):
                 ]
             )
 
+            # Collect available position coordinates from all species
+            for species_name, species_data in iteration.particles.items():
+                if "position" in species_data:
+                    position_record = species_data["position"]
+                    # Add all available coordinate components (x, y, z, t, etc.)
+                    # position_record is an openPMD Record, iterate over its items
+                    for coord_name, _ in position_record.items():
+                        position_coords.add(coord_name)
+
+
         # Populate the available meshes and particle species in the openPMD series:
         # this is used in the UI to provide a selection of meshes and particle species.
         for array in arrays:
@@ -356,6 +407,41 @@ class openPMDReader(VTKPythonAlgorithmBase):
             self._particlearrayselection.AddArray(particle_array)
         for species_name in species:
             self._speciesselection.AddArray(species_name)
+
+        # Populate available position coordinates for UI dropdowns
+        self._position_coordinates_info.RemoveAllArrays()
+        sorted_coords = sorted(position_coords)  # Sort for consistent UI ordering
+        for coord in sorted_coords:
+            self._position_coordinates_info.AddArray(coord)
+            self._position_coordinates_info.EnableArray(coord)  # Enable all by default
+        # Set defaults based on actually available coordinates for backward compatibility
+        # Keep track of which coordinates have been used to avoid duplicates
+        remaining_coords = sorted_coords.copy()
+
+        # Check X coordinate
+        if self._x_coord in sorted_coords:
+            # Current X exists, remove it from consideration for Y and Z
+            if self._x_coord in remaining_coords:
+                remaining_coords.remove(self._x_coord)
+        elif len(remaining_coords) >= 1:
+            # X doesn't exist, assign first available
+            self.SetXCoordinate(remaining_coords[0])
+            remaining_coords.pop(0)
+
+        # Check Y coordinate
+        if self._y_coord in sorted_coords:
+            # Current Y exists, remove it from consideration for Z
+            if self._y_coord in remaining_coords:
+                remaining_coords.remove(self._y_coord)
+        elif len(remaining_coords) >= 1:
+            # Y doesn't exist, assign first remaining available
+            self.SetYCoordinate(remaining_coords[0])
+            remaining_coords.pop(0)
+
+        # Check Z coordinate
+        if self._z_coord not in sorted_coords and len(remaining_coords) >= 1:
+            # Z doesn't exist, assign first remaining available
+            self.SetZCoordinate(remaining_coords[0])
 
         # make available the time steps and their corresponding physical time (float)
         # known. sets the time range to their min/max.
@@ -411,8 +497,10 @@ class openPMDReader(VTKPythonAlgorithmBase):
 
     def _load_array(self, var, chunk_offset, chunk_extent):
         arrays = []
+        in_grid_offsets = []
         for name, scalar in var.items():
             shp = scalar.shape
+            in_grid_offsets.append(scalar.position)
             comp = scalar.load_chunk(chunk_offset, chunk_extent)
             self._series.flush()
             if not math.isclose(1.0, scalar.unit_SI):
@@ -427,9 +515,9 @@ class openPMDReader(VTKPythonAlgorithmBase):
         ncomp = len(var)
         if ncomp > 1:
             flt = np.ravel(arrays, order="F")
-            return flt.reshape((flt.shape[0] // ncomp, ncomp))
+            return flt.reshape((flt.shape[0] // ncomp, ncomp)), in_grid_offsets
         else:
-            return arrays[0].flatten(order="F")
+            return arrays[0].flatten(order="F"), in_grid_offsets
 
     def _find_array(self, itr, name):
         var = itr.meshes[name]
@@ -470,8 +558,15 @@ class openPMDReader(VTKPythonAlgorithmBase):
         sp = itr.particles[species]
         var = sp["position"]
         ovar = sp["positionOffset"]
+
+        # Use the configured coordinate mapping, filtering out coordinates that don't exist
+        mapping = [coord for coord in [self._x_coord, self._y_coord, self._z_coord]
+                   if coord and coord in var]
+        # print("*coords mapping : ", mapping)
         position_arrays = []
-        for name, scalar in var.items():
+
+        for name in mapping:
+            scalar = var[name]
             pos = scalar.load_chunk([start], [end - start + 1])
             self._series.flush()
             pos = pos * scalar.unit_SI
@@ -480,12 +575,15 @@ class openPMDReader(VTKPythonAlgorithmBase):
             off = off * ovar[name].unit_SI
             position_arrays.append(pos + off)
 
+        # Convert to the expected format
         flt = np.ravel(position_arrays, order="F")
-        num_components = len(var)  # 1D, 2D and 3D positions
+        num_components = len(position_arrays)
         flt = flt.reshape((flt.shape[0] // num_components, num_components))
-        # 1D and 2D particles: pad additional components with zero
+
+        # Ensure we always have 3D coordinates
         while flt.shape[1] < 3:
             flt = np.column_stack([flt, np.zeros_like(flt[:, 0])])
+
         return flt
 
     def _load_species(self, itr, species, arrays, piece, npieces, ugrid):
@@ -596,7 +694,7 @@ class openPMDReader(VTKPythonAlgorithmBase):
             chunk_cyl_shape = (chunk_extent[1], chunk_extent[2], nthetas)  # z, r, theta
             for name, var in arrays:
                 cyl_values = np.zeros(chunk_cyl_shape)
-                values = self._load_array(var[0], chunk_offset, chunk_extent)
+                values, in_grid_offsets = self._load_array(var[0], chunk_offset, chunk_extent)
                 self._series.flush()
 
                 for ntheta in range(nthetas):
@@ -683,7 +781,7 @@ class openPMDReader(VTKPythonAlgorithmBase):
 
             data = []
             for name, var in arrays:
-                values = self._load_array(var[0], chunk_offset, chunk_extent)
+                values, in_grid_offsets = self._load_array(var[0], chunk_offset, chunk_extent)
                 self._series.flush()
                 data.append((name, values))
 
@@ -693,6 +791,8 @@ class openPMDReader(VTKPythonAlgorithmBase):
             spacing = [next(i, 1) for _ in range(3)]
             i = iter(grid_offset)
             grid_offset = [next(i, 0) for _ in range(3)]
+            i = iter(in_grid_offsets[0])
+            in_grid_offsets_first_component = [next(i, 0) for _ in range(3)]
 
             ext = np.array(ext).reshape(3, 2)
 
@@ -707,12 +807,17 @@ class openPMDReader(VTKPythonAlgorithmBase):
                 ext         = ext[layout].flatten().tolist()
                 spacing     = np.array(spacing)[layout].flatten().tolist()
                 grid_offset = np.array(grid_offset)[layout].flatten().tolist()
+                in_grid_offsets_first_component = np.array(in_grid_offsets_first_component)[layout].flatten().tolist()
             else:
                 ext = ext.flatten().tolist()
 
+            # FIXME: every component has its own openPMD position (in_grid_offsets). Here we take the first component's offset.
+            #        an improved approach could interpolate vector/tensor components to the same point first, e.g., the voxel center.
+            in_grid_offset = np.array(in_grid_offsets_first_component) * np.array(spacing)
+
             img.SetExtent(ext[0], ext[1], ext[2], ext[3], ext[4], ext[5])
             img.SetSpacing(spacing)
-            img.SetOrigin(grid_offset)
+            img.SetOrigin(grid_offset + in_grid_offset)
 
             img.GenerateGhostArray(ext)
             imgw = dsa.WrapDataObject(img)

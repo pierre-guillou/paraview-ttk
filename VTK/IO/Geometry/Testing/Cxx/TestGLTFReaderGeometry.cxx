@@ -1,9 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
-// VTK_DEPRECATED_IN_9_4_0()
-#define VTK_DEPRECATION_LEVEL 0
-
 #include <vtkActor.h>
 #include <vtkCompositePolyDataMapper.h>
 #include <vtkGLTFReader.h>
@@ -13,6 +10,8 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
+
+#include <iostream>
 
 int TestGLTFReaderGeometry(int argc, char* argv[])
 {

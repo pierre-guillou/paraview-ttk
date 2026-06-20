@@ -14,7 +14,6 @@
 #include "vtkInformationVector.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
-#include "vtkOverlappingAMR.h"
 #include "vtkPlane.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
@@ -24,13 +23,15 @@
 #include <cassert>
 #include <cmath>
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeCutter);
 
 #ifdef DEBUGME
 #define PRINT(x)                                                                                   \
   {                                                                                                \
-    cout << x << endl;                                                                             \
+    std::cout << x << endl;                                                                        \
   }
 #else
 #define PRINT(x)
@@ -39,6 +40,7 @@ namespace
 {
 inline double Sign(double a)
 {
+  // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
   return a == 0.0 ? 0.0 : (a < 0.0 ? -1.0 : 1.0);
 }
 inline bool IntersectBox(vtkImplicitFunction* func, double bounds[6], double value)

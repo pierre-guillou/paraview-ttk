@@ -7,6 +7,7 @@
 #include "vtkDataSet.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextProperty.h"
 #include "vtkTrivialProducer.h"
 #include "vtkViewport.h"
@@ -82,8 +83,9 @@ vtkCubeAxesActor2D::vtkCubeAxesActor2D()
   this->AxisTitleTextProperty = vtkTextProperty::New();
   this->AxisTitleTextProperty->ShallowCopy(this->AxisLabelTextProperty);
 
-  this->LabelFormat = new char[8];
-  snprintf(this->LabelFormat, 8, "%s", "%-#6.3g");
+  this->LabelFormat = new char[10];
+  auto result = vtk::format_to_n(this->LabelFormat, 10, "{:s}", "{:<#6.3g}");
+  *result.out = '\0';
   this->FontFactor = 1.0;
   this->CornerOffset = 0.05;
   this->Inertia = 1;
@@ -95,17 +97,28 @@ vtkCubeAxesActor2D::vtkCubeAxesActor2D()
   this->ZAxisVisibility = 1;
 
   this->XLabel = new char[2];
-  snprintf(this->XLabel, 2, "%s", "X");
+  result = vtk::format_to_n(this->XLabel, 2, "{:s}", "X");
+  *result.out = '\0';
   this->YLabel = new char[2];
-  snprintf(this->YLabel, 2, "%s", "Y");
+  result = vtk::format_to_n(this->YLabel, 2, "{:s}", "Y");
+  *result.out = '\0';
   this->ZLabel = new char[2];
-  snprintf(this->ZLabel, 2, "%s", "Z");
+  result = vtk::format_to_n(this->ZLabel, 2, "{:s}", "Z");
+  *result.out = '\0';
 
   // Allow the user to specify an origin for the axes. The axes will then run
   // from this origin to the bounds and will cross over at this origin.
   this->XOrigin = VTK_DOUBLE_MAX;
   this->YOrigin = VTK_DOUBLE_MAX;
   this->ZOrigin = VTK_DOUBLE_MAX;
+}
+
+//------------------------------------------------------------------------------
+void vtkCubeAxesActor2D::SetLabelFormat(const char* formatArg)
+{
+  std::string format = formatArg ? vtk::to_std_format(formatArg) : "";
+  const char* formatStr = format.c_str();
+  vtkSetStringBodyMacro(LabelFormat, formatStr);
 }
 
 //------------------------------------------------------------------------------
@@ -268,7 +281,7 @@ int vtkCubeAxesActor2D::RenderOpaqueGeometry(vtkViewport* viewport)
   }
 
   // Take into account the inertia. Process only so often.
-  if (this->RenderCount++ == 0 || !(this->RenderCount % this->Inertia))
+  if (this->RenderCount == 0 || !((this->RenderCount + 1) % this->Inertia))
   {
     // Okay, we have a bounding box, maybe clipped and scaled, that is visible.
     // We setup the axes depending on the fly mode.
@@ -365,6 +378,7 @@ int vtkCubeAxesActor2D::RenderOpaqueGeometry(vtkViewport* viewport)
 
       // Find the final point by determining which global x-y-z axes have not
       // been represented, and then determine the point closest to the viewer.
+      // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
       zAxes = (xAxes != 0 && yAxes != 0 ? 0 : (xAxes != 1 && yAxes != 1 ? 1 : 2));
       if (pts[Conn[xIdx][zAxes]][2] < pts[Conn[yIdx][zAxes]][2])
       {
@@ -397,6 +411,7 @@ int vtkCubeAxesActor2D::RenderOpaqueGeometry(vtkViewport* viewport)
     yAxes = this->InertiaAxes[6];
     zAxes = this->InertiaAxes[7];
   }
+  ++this->RenderCount;
 
   // Setup the axes for plotting
   double xCoords[4], yCoords[4], zCoords[4], xRange[2], yRange[2], zRange[2];
@@ -1007,10 +1022,7 @@ double vtkCubeAxesActor2D::EvaluatePoint(double planes[24], double x[3])
     plane = planes + kk * 4;
     val = plane[0] * x[0] + plane[1] * x[1] + plane[2] * x[2] + plane[3];
 
-    if (val < minPlanesValue)
-    {
-      minPlanesValue = val;
-    }
+    minPlanesValue = std::min(val, minPlanesValue);
   } // for all planes
 
   return minPlanesValue;
@@ -1034,10 +1046,7 @@ double vtkCubeAxesActor2D::EvaluateBounds(double planes[24], double bounds[6])
       {
         x[0] = bounds[i];
         val = this->EvaluatePoint(planes, x);
-        if (val < minVal)
-        {
-          minVal = val;
-        }
+        minVal = std::min(val, minVal);
       }
     }
   } // loop over verts of bounding box

@@ -9,7 +9,7 @@
 #include "vtkSetGet.h"
 #include "vtkTestUtilities.h"
 #include "vtkUniformGrid.h"
-#include "vtkUniformGridAMRDataIterator.h"
+#include "vtkUniformGridAMRIterator.h"
 namespace FlashReaderTest
 {
 
@@ -31,17 +31,12 @@ int CheckValue(const std::string& name, T actualValue, T expectedValue)
 
 static int ComputeMaxNonEmptyLevel(vtkOverlappingAMR* amr)
 {
-  vtkUniformGridAMRDataIterator* iter =
-    vtkUniformGridAMRDataIterator::SafeDownCast(amr->NewIterator());
+  vtkUniformGridAMRIterator* iter = vtkUniformGridAMRIterator::SafeDownCast(amr->NewIterator());
   iter->SetSkipEmptyNodes(true);
   int maxLevel(-1);
   for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
   {
-    int level = iter->GetCurrentLevel();
-    if (level > maxLevel)
-    {
-      maxLevel = level;
-    }
+    maxLevel = static_cast<unsigned int>(std::max<int>(iter->GetCurrentLevel(), maxLevel));
   }
   iter->Delete();
   return maxLevel + 1;
@@ -52,8 +47,7 @@ static void ComputeNumberOfCells(
 {
   numCells = 0;
   numVisibleCells = 0;
-  vtkUniformGridAMRDataIterator* iter =
-    vtkUniformGridAMRDataIterator::SafeDownCast(amr->NewIterator());
+  vtkUniformGridAMRIterator* iter = vtkUniformGridAMRIterator::SafeDownCast(amr->NewIterator());
   iter->SkipEmptyNodesOn();
   for (iter->GoToFirstItem(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
   {
@@ -101,13 +95,17 @@ int TestAMRFlashReader(int argc, char* argv[])
     rc += FlashReaderTest::CheckValue("BLOCKS", myFlashReader->GetNumberOfBlocks(), 35);
 
     amr = myFlashReader->GetOutput();
-    amr->Audit();
     if (amr != nullptr)
     {
-      rc += FlashReaderTest::CheckValue(
-        "OUTPUT LEVELS", static_cast<int>(ComputeMaxNonEmptyLevel(amr)), 2);
+      if (!amr->CheckValidity())
+      {
+        std::cerr << "ERROR: output AMR dataset is not valid!";
+        return 1;
+      }
+
+      rc += FlashReaderTest::CheckValue("OUTPUT LEVELS", ComputeMaxNonEmptyLevel(amr), 2);
       rc += FlashReaderTest::CheckValue("NUMBER OF BLOCKS AT LEVEL",
-        static_cast<int>(amr->GetNumberOfDataSets(level)), NumBlocksPerLevel[level]);
+        static_cast<int>(amr->GetNumberOfBlocks(level)), NumBlocksPerLevel[level]);
       int nc = 0, nvc = 0;
       ComputeNumberOfCells(amr, level, nc, nvc);
       rc += FlashReaderTest::CheckValue("Number of cells ", nc, numCells[level]);

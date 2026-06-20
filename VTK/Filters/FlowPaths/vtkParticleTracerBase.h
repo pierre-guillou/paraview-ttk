@@ -16,7 +16,6 @@
 #ifndef vtkParticleTracerBase_h
 #define vtkParticleTracerBase_h
 
-#include "vtkDeprecation.h"            // For VTK_DEPRECATED_IN_9_4_0
 #include "vtkFiltersFlowPathsModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 #include "vtkSmartPointer.h"      // For vtkSmartPointer
@@ -187,41 +186,6 @@ public:
   void SetForceReinjectionEveryNSteps(int);
   ///@}
 
-  ///@{
-  /**
-   * @deprecated This does not do anything. Someone wanting to amend the time series
-   * early should select a subset of the time steps
-   * by propagating upstream the information key `TIME_STEPS`
-   * in `vtkAlgorithm::RequestUpdateExtent`.
-   */
-  VTK_DEPRECATED_IN_9_4_0(
-    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead")
-  virtual void SetTerminationTime(double) {}
-  VTK_DEPRECATED_IN_9_4_0(
-    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead")
-  virtual double GetTerminationTime() { return std::numeric_limits<double>::quiet_NaN(); }
-  VTK_DEPRECATED_IN_9_4_0(
-    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead")
-  virtual void SetStartTime(double) {}
-  VTK_DEPRECATED_IN_9_4_0(
-    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead")
-  virtual double GetStartTime() { return std::numeric_limits<double>::quiet_NaN(); }
-  ///@}
-
-  ///@{
-  /**
-   * @deprecated Caching is now automated.
-   */
-  VTK_DEPRECATED_IN_9_4_0("Caching is now automated")
-  virtual void SetDisableResetCache(bool) {}
-  VTK_DEPRECATED_IN_9_4_0("Caching is now automated")
-  virtual bool GetDisableResetCache() { return false; }
-  VTK_DEPRECATED_IN_9_4_0("Caching is now automated")
-  virtual void DisableResetCacheOn() {}
-  VTK_DEPRECATED_IN_9_4_0("Caching is now automated")
-  virtual void DisableResetCacheOff() {}
-  ///@}
-
   void SetIntegrator(vtkInitialValueProblemSolver*);
   vtkGetObjectMacro(Integrator, vtkInitialValueProblemSolver);
 
@@ -311,7 +275,7 @@ public:
   ///@{
   /**
    * Set/Get the Writer associated with this Particle Tracer
-   * Ideally a parallel IO capable vtkH5PartWriter should be used
+   * Ideally a parallel IO capable particler writer should be used
    * which will collect particles from all parallel processes
    * and write them to a single HDF5 file.
    */

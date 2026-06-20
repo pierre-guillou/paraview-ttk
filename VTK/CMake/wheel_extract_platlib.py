@@ -14,6 +14,9 @@ if justver is not None and sys.version_info[:2] <= justver:
 else:
     tag = '{}-{}{}'.format(sys.implementation.name, sys.version_info.major, sys.version_info.minor)
 
+if hasattr(sys, "_is_gil_enabled") and not sys._is_gil_enabled():
+    tag += "t"
+
 manual = 'build/lib.{}-{}'.format(sysconfig.get_platform(), tag)
 
 try:
@@ -30,7 +33,15 @@ try:
     api = b.build_platlib.replace('\\', '/')
 
     if not manual == api:
-        sys.stderr.write('mismatch with manual computation: "{}" vs. "{}"\n'.format(manual, api))
+        caveat = ''
+        st_vers = tuple(map(int, setuptools.__version__.split('.')))
+        check_vers = (62, 1, 0)
+        if st_vers < check_vers:
+            st_vers_str = '.'.join(map(str, st_vers))
+            check_vers_str = '.'.join(map(str, check_vers))
+            caveat = '; consider installing setuptools>={} (currently {})'.format(check_vers_str, st_vers_str)
+
+        sys.stderr.write('mismatch with manual computation: "{}" (computed) vs. "{}" (distutils){}\n'.format(manual, api, caveat))
 except ImportError:
     pass
 

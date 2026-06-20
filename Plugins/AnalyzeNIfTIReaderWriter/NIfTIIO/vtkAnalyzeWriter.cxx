@@ -7,9 +7,12 @@
 #include "vtkImageData.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
+#include "vtkStringFormatter.h"
 
 #include "vtkFieldData.h"
 #include "vtkUnsignedCharArray.h"
+
+#include "vtksys/SystemTools.hxx"
 
 #define NIFTI_HEADER_ARRAY "vtkNIfTIReaderHeaderArray"
 
@@ -67,7 +70,7 @@ static int nifti_write_extensions(znzFile fp, nifti_image* nim)
     extdr[0] = 1;
   if (vtknifti1_io::nifti_write_buffer(fp, extdr, 4) != 4)
   {
-    fprintf(stderr, "** failed to write extender\n");
+    vtk::print(stderr, "** failed to write extender\n");
     return -1;
   }
 
@@ -89,7 +92,7 @@ static int nifti_write_extensions(znzFile fp, nifti_image* nim)
 
     if (!ok)
     {
-      fprintf(stderr, "** failed while writing extension #%d\n", c);
+      vtk::print(stderr, "** failed while writing extension #{:d}\n", c);
       return -1;
     }
 
@@ -99,65 +102,33 @@ static int nifti_write_extensions(znzFile fp, nifti_image* nim)
   return nim->num_ext;
 }
 
-// GetExtension from uiig library.
-static std::string GetExtension(const std::string& filename)
-{
-
-  // This assumes that the final '.' in a file name is the delimiter
-  // for the file's extension type
-  const std::string::size_type it = filename.find_last_of('.');
-
-  // This determines the file's type by creating a new string
-  // who's value is the extension of the input filename
-  // eg. "myimage.gif" has an extension of "gif"
-  std::string fileExt(filename, it + 1, filename.length());
-
-  return (fileExt);
-}
-
-// GetRootName from uiig library.
-static std::string GetRootName(const std::string& filename)
-{
-  const std::string fileExt = GetExtension(filename);
-
-  // Create a base filename
-  // i.e Image.hdr --> Image
-  if (!fileExt.empty())
-  {
-    const std::string::size_type it = filename.find_last_of(fileExt);
-    std::string baseName(filename, 0, it - fileExt.length());
-    return (baseName);
-  }
-  // Default to return same as input when the extension is nothing (Analyze)
-  return (filename);
-}
-
 static std::string GetHeaderFileName(const std::string& filename)
 {
-  std::string ImageFileName = GetRootName(filename);
-  std::string fileExt = GetExtension(filename);
+  std::string ImageFileName = vtksys::SystemTools::GetFilenameWithoutLastExtension(filename);
+  const std::string filePath = vtksys::SystemTools::GetFilenamePath(filename) + "/";
+  const std::string fileLastExt = vtksys::SystemTools::GetFilenameLastExtension(filename);
   // If file was named xxx.img.gz then remove both the gz and the img endings.
-  if (!fileExt.compare("gz"))
+  if (fileLastExt == ".gz")
   {
-    ImageFileName = GetRootName(GetRootName(filename));
+    ImageFileName = vtksys::SystemTools::GetFilenameWithoutExtension(filename);
   }
-  ImageFileName += ".hdr";
-  return (ImageFileName);
+  return filePath + ImageFileName + ".hdr";
 }
 
 // Returns the base image filename.
 static std::string GetImageFileName(const std::string& filename)
 {
   // Why do we add ".img" here?  Look in fileutils.h
-  std::string fileExt = GetExtension(filename);
-  std::string ImageFileName = GetRootName(filename);
-  if (!fileExt.compare("gz"))
+  std::string ImageFileName = vtksys::SystemTools::GetFilenameWithoutLastExtension(filename);
+  const std::string filePath = vtksys::SystemTools::GetFilenamePath(filename) + "/";
+  const std::string fileLastExt = vtksys::SystemTools::GetFilenameLastExtension(filename);
+  if (fileLastExt == ".gz")
   {
     // First strip both extensions off
-    ImageFileName = GetRootName(GetRootName(filename));
+    ImageFileName = vtksys::SystemTools::GetFilenameWithoutExtension(filename);
     ImageFileName += ".img.gz";
   }
-  else if (!fileExt.compare("img") || !fileExt.compare("hdr"))
+  else if (fileLastExt == ".img" || fileLastExt == ".hdr")
   {
     ImageFileName += ".img";
   }
@@ -169,7 +140,7 @@ static std::string GetImageFileName(const std::string& filename)
     // reporter->setMessage( temp );
     return ("");
   }
-  return (ImageFileName);
+  return filePath + ImageFileName;
 }
 
 void vtkAnalyzeWriter::WriteFileHeader(

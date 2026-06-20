@@ -40,6 +40,8 @@
 
 #include <sstream> // istringstream
 
+#include <iostream>
+
 struct TestArgs
 {
   int* retval;
@@ -72,9 +74,11 @@ void TestADIOS2BPReaderMPIMultiTimeSteps3D(vtkMultiProcessController* controller
 
   reader->UpdateInformation();
   auto& availVars = reader->GetAvilableVariables();
-  assert(availVars.size() == 3);
-  // Get the dimension
-  std::string varName = availVars.begin()->first;
+  if (availVars.size() != 3)
+  {
+    std::cerr << "Expected 2 available variables, but found " << availVars.size() << std::endl;
+    return;
+  } // Get the dimension
 
   // Enable multi time stesp
   reader->SetTimeStepArray("step");

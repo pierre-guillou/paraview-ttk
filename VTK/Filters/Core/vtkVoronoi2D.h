@@ -81,6 +81,7 @@
 
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkStaticPointLocator2D;
@@ -88,7 +89,7 @@ class vtkAbstractTransform;
 class vtkPointSet;
 class vtkSpheres;
 
-class VTKFILTERSCORE_EXPORT vtkVoronoi2D : public vtkPolyDataAlgorithm
+class VTKFILTERSCORE_EXPORT VTK_MARSHALAUTO vtkVoronoi2D : public vtkPolyDataAlgorithm
 {
 public:
   ///@{
@@ -155,7 +156,7 @@ public:
   ///@{
   /**
    * Define the method to project the input 3D points into a 2D plane for
-   * tessellation. When the VTK_XY_PLANE is set, the z-coordinate is simply
+   * tessellation. When the VTK_STRUCTURED_XY_PLANE is set, the z-coordinate is simply
    * ignored. When VTK_SET_TRANSFORM_PLANE is set, then a transform must be
    * supplied and the points are transformed using it. Finally, if
    * VTK_BEST_FITTING_PLANE is set, then the filter computes a best fitting

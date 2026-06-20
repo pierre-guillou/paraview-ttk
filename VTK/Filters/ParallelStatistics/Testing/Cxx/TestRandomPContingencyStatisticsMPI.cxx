@@ -14,12 +14,14 @@
 #include "vtkIntArray.h"
 #include "vtkMPIController.h"
 #include "vtkMath.h"
-#include "vtkMultiBlockDataSet.h"
+#include "vtkStatisticalModel.h"
 #include "vtkTable.h"
 #include "vtkTimerLog.h"
 #include "vtkVariantArray.h"
 
 #include "vtksys/CommandLineArguments.hxx"
+
+#include <iostream>
 
 namespace
 {
@@ -88,8 +90,7 @@ void RandomContingencyStatistics(vtkMultiProcessController* controller, void* ar
   // Instantiate a parallel contingency statistics engine and set its ports
   vtkPContingencyStatistics* pcs = vtkPContingencyStatistics::New();
   pcs->SetInputData(vtkStatisticsAlgorithm::INPUT_DATA, inputData);
-  vtkMultiBlockDataSet* outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
-    pcs->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
+  auto* outputMetaDS = pcs->GetOutputModel();
 
   // Select column pairs (uniform vs. uniform, normal vs. normal)
   pcs->AddColumnPair(columnNames[0].c_str(), columnNames[1].c_str());
@@ -106,13 +107,14 @@ void RandomContingencyStatistics(vtkMultiProcessController* controller, void* ar
 
   if (com->GetLocalProcessId() == args->ioRank)
   {
-    cout << "\n## Completed parallel calculation of contingency statistics (with assessment):\n"
-         << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
+    std::cout
+      << "\n## Completed parallel calculation of contingency statistics (with assessment):\n"
+      << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
   }
 
   // Now perform verifications
-  vtkTable* outputSummary = vtkTable::SafeDownCast(outputMetaDS->GetBlock(0));
-  vtkTable* outputContingency = vtkTable::SafeDownCast(outputMetaDS->GetBlock(1));
+  vtkTable* outputSummary = outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0);
+  vtkTable* outputContingency = outputMetaDS->GetTable(vtkStatisticalModel::Learned, 1);
 
   vtkIdType nRowSumm = outputSummary->GetNumberOfRows();
   double testDoubleValue1;
@@ -122,8 +124,9 @@ void RandomContingencyStatistics(vtkMultiProcessController* controller, void* ar
   // Verify that all processes have the same grand total and contingency tables size
   if (com->GetLocalProcessId() == args->ioRank)
   {
-    cout << "\n## Verifying that all processes have the same grand total and contingency tables "
-            "size.\n";
+    std::cout
+      << "\n## Verifying that all processes have the same grand total and contingency tables "
+         "size.\n";
   }
 
   // Gather all grand totals
@@ -139,8 +142,8 @@ void RandomContingencyStatistics(vtkMultiProcessController* controller, void* ar
   {
     for (int i = 0; i < numProcs; ++i)
     {
-      cout << "     On process " << i << ", grand total = " << GT_g[i]
-           << ", contingency table size = " << outputContingency->GetNumberOfRows() << "\n";
+      std::cout << "     On process " << i << ", grand total = " << GT_g[i]
+                << ", contingency table size = " << outputContingency->GetNumberOfRows() << "\n";
 
       if (GT_g[i] != testIntValue)
       {
@@ -154,7 +157,7 @@ void RandomContingencyStatistics(vtkMultiProcessController* controller, void* ar
   // Verify that information entropies on all processes make sense
   if (com->GetLocalProcessId() == args->ioRank)
   {
-    cout << "\n## Verifying that information entropies are consistent on all processes.\n";
+    std::cout << "\n## Verifying that information entropies are consistent on all processes.\n";
   }
 
   testIntValue = outputSummary->GetNumberOfColumns();
@@ -185,20 +188,20 @@ void RandomContingencyStatistics(vtkMultiProcessController* controller, void* ar
       if (com->GetLocalProcessId() == args->ioRank)
       {
         // Get variable names
-        cout << "   (X,Y) = (" << outputSummary->GetValue(k, 0).ToString() << ", "
-             << outputSummary->GetValue(k, 1).ToString() << "):\n";
+        std::cout << "   (X,Y) = (" << outputSummary->GetValue(k, 0).ToString() << ", "
+                  << outputSummary->GetValue(k, 1).ToString() << "):\n";
 
         for (int i = 0; i < numProcs; ++i)
         {
-          cout << "     On process " << i;
+          std::cout << "     On process " << i;
 
           for (vtkIdType c = 0; c < nEntropies; ++c)
           {
-            cout << ", " << outputSummary->GetColumnName(iEntropies[c]) << " = "
-                 << H_g[nEntropies * i + c];
+            std::cout << ", " << outputSummary->GetColumnName(iEntropies[c]) << " = "
+                      << H_g[nEntropies * i + c];
           }
 
-          cout << "\n";
+          std::cout << "\n";
 
           // Make sure that H(X,Y) >= H(Y|X)+ H(X|Y)
           testDoubleValue1 = H_g[nEntropies * i + 1] + H_g[nEntropies * i + 2]; // H(Y|X)+ H(X|Y)
@@ -210,8 +213,9 @@ void RandomContingencyStatistics(vtkMultiProcessController* controller, void* ar
             *(args->retVal) = 1;
           }
         }
-        cout << "   where H(X,Y) = - Sum_{x,y} p(x,y) log p(x,y) and H(X|Y) = - Sum_{x,y} p(x,y) "
-                "log p(x|y).\n";
+        std::cout
+          << "   where H(X,Y) = - Sum_{x,y} p(x,y) log p(x,y) and H(X|Y) = - Sum_{x,y} p(x,y) "
+             "log p(x|y).\n";
       }
 
       // Clean up
@@ -223,16 +227,17 @@ void RandomContingencyStatistics(vtkMultiProcessController* controller, void* ar
   // Verify that the local and global CDFs sum to 1 within presribed relative tolerance
   if (com->GetLocalProcessId() == args->ioRank)
   {
-    cout << "\n## Verifying that local and global CDFs sum to 1 (within " << args->absTol
-         << " absolute tolerance).\n";
+    std::cout << "\n## Verifying that local and global CDFs sum to 1 (within " << args->absTol
+              << " absolute tolerance).\n";
   }
 
   vtkIdTypeArray* keys =
     vtkArrayDownCast<vtkIdTypeArray>(outputContingency->GetColumnByName("Key"));
   if (!keys)
   {
-    cout << "*** Error: "
-         << "Empty contingency table column 'Key' on process " << com->GetLocalProcessId() << ".\n";
+    std::cout << "*** Error: "
+              << "Empty contingency table column 'Key' on process " << com->GetLocalProcessId()
+              << ".\n";
   }
 
   std::string proName = "P";
@@ -240,9 +245,9 @@ void RandomContingencyStatistics(vtkMultiProcessController* controller, void* ar
     vtkArrayDownCast<vtkDoubleArray>(outputContingency->GetColumnByName(proName.c_str()));
   if (!prob)
   {
-    cout << "*** Error: "
-         << "Empty contingency table column '" << proName << "' on process "
-         << com->GetLocalProcessId() << ".\n";
+    std::cout << "*** Error: "
+              << "Empty contingency table column '" << proName << "' on process "
+              << com->GetLocalProcessId() << ".\n";
   }
 
   // Calculate local CDFs
@@ -270,16 +275,16 @@ void RandomContingencyStatistics(vtkMultiProcessController* controller, void* ar
     for (vtkIdType k = 0; k < nRowSumm; ++k)
     {
       // Get variable names
-      cout << "   (X,Y) = (" << outputSummary->GetValue(k, 0).ToString() << ", "
-           << outputSummary->GetValue(k, 1).ToString() << "):\n";
+      std::cout << "   (X,Y) = (" << outputSummary->GetValue(k, 0).ToString() << ", "
+                << outputSummary->GetValue(k, 1).ToString() << "):\n";
 
       for (int i = 0; i < numProcs; ++i)
       {
         testDoubleValue1 = cdf_l[k];
         testDoubleValue2 = cdf_g[i * nRowSumm + k];
 
-        cout << "     On process " << i << ", local CDF = " << testDoubleValue1
-             << ", global CDF = " << testDoubleValue2 << "\n";
+        std::cout << "     On process " << i << ", local CDF = " << testDoubleValue1
+                  << ", global CDF = " << testDoubleValue2 << "\n";
 
         // Verify that local CDF = 1 (within absTol)
         if (fabs(1. - testDoubleValue1) > args->absTol)
@@ -331,6 +336,7 @@ int TestRandomPContingencyStatisticsMPI(int argc, char* argv[])
   int ioRank;
   int flag;
 
+  // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
   MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_IO, &ioPtr, &flag);
 
   if ((!flag) || (*ioPtr == MPI_PROC_NULL))
@@ -388,7 +394,7 @@ int TestRandomPContingencyStatisticsMPI(int argc, char* argv[])
   {
     if (com->GetLocalProcessId() == ioRank)
     {
-      cerr << "Usage: " << clArgs.GetHelp() << "\n";
+      std::cerr << "Usage: " << clArgs.GetHelp() << "\n";
     }
 
     controller->Finalize();
@@ -400,7 +406,7 @@ int TestRandomPContingencyStatisticsMPI(int argc, char* argv[])
   // ************************** Initialize test *********************************
   if (com->GetLocalProcessId() == ioRank)
   {
-    cout << "\n# Process " << ioRank << " will be the I/O node.\n";
+    std::cout << "\n# Process " << ioRank << " will be the I/O node.\n";
   }
 
   // Parameters for regression test.
@@ -416,8 +422,8 @@ int TestRandomPContingencyStatisticsMPI(int argc, char* argv[])
   int numProcs = controller->GetNumberOfProcesses();
   if (controller->GetLocalProcessId() == ioRank)
   {
-    cout << "\n# Running test with " << numProcs
-         << " processes and standard deviation = " << args.stdev << ".\n";
+    std::cout << "\n# Running test with " << numProcs
+              << " processes and standard deviation = " << args.stdev << ".\n";
   }
 
   // Execute the function named "process" on both processes
@@ -427,7 +433,7 @@ int TestRandomPContingencyStatisticsMPI(int argc, char* argv[])
   // Clean up and exit
   if (com->GetLocalProcessId() == ioRank)
   {
-    cout << "\n# Test completed.\n\n";
+    std::cout << "\n# Test completed.\n\n";
   }
 
   controller->Finalize();

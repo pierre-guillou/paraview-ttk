@@ -1,31 +1,18 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-#include <array>
-#include <limits>
-#include <map>
-#include <sstream>
-#include <stdexcept>
-#include <unordered_map>
-
-#include "Core/vtkADIOS2CoreTypeTraits.h"
 #include "vtkADIOS2CoreImageReader.h"
 
 #include "vtkCellData.h"
 #include "vtkCharArray.h"
-#include "vtkDataArray.h"
 #include "vtkDataArrayRange.h"
 #include "vtkDataArraySelection.h"
 #include "vtkDataObjectTreeRange.h"
 #include "vtkDataObjectTypes.h"
 #include "vtkDemandDrivenPipeline.h"
-#include "vtkDoubleArray.h"
 #include "vtkFieldData.h"
-#include "vtkFloatArray.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
-#include "vtkLongArray.h"
-#include "vtkLongLongArray.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkMultiPieceDataSet.h"
 #include "vtkMultiProcessController.h" // For the MPI controller member
@@ -34,16 +21,12 @@
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
-#include "vtkShortArray.h"
-#include "vtkSignedCharArray.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
+#include "vtkStringScanner.h"
 #include "vtkType.h"
-#include "vtkUnsignedIntArray.h"
-#include "vtkUnsignedLongArray.h"
-#include "vtkUnsignedLongLongArray.h"
-#include "vtkUnsignedShortArray.h"
 #include "vtkUnstructuredGrid.h"
+
 #include "vtksys/SystemTools.hxx"
 
 #if VTK_MODULE_ENABLE_VTK_ParallelMPI
@@ -52,8 +35,15 @@
 #endif
 
 #include <adios2.h> // adios2
-#include <istream>  // istringStream
+
+#include <array>
+#include <istream> // istringStream
+#include <limits>
+#include <map>
+#include <sstream>
+#include <stdexcept>
 #include <string>
+#include <unordered_map>
 
 //------------------------------------------------------------------------------
 // Helper functions
@@ -72,7 +62,7 @@ inline std::vector<int> parseDimensions(const std::string& dimsStr)
   std::string token;
   while (std::getline(f, token, ','))
   {
-    dims.push_back(std::atoi(token.c_str()));
+    dims.push_back(vtk::scan_int<int>(token)->value());
   }
   return dims;
 }
@@ -771,47 +761,47 @@ void vtkADIOS2CoreImageReader::ReadImageBlocks(vtkMultiBlockDataSet* mbds)
         }
         else if (typeStr == "char")
         {
-          dataArray = this->PopulateDataArrayFromVar<char, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<char>(varName, blockI);
         }
         else if (typeStr == "int8_t")
         {
-          dataArray = this->PopulateDataArrayFromVar<int8_t, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<vtkTypeInt8>(varName, blockI);
         }
         else if (typeStr == "uint8_t")
         {
-          dataArray = this->PopulateDataArrayFromVar<uint8_t, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<vtkTypeUInt8>(varName, blockI);
         }
         else if (typeStr == "int16_t")
         {
-          dataArray = this->PopulateDataArrayFromVar<int16_t, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<vtkTypeInt16>(varName, blockI);
         }
         else if (typeStr == "uint16_t")
         {
-          dataArray = this->PopulateDataArrayFromVar<uint16_t, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<vtkTypeUInt16>(varName, blockI);
         }
         else if (typeStr == "int32_t")
         {
-          dataArray = this->PopulateDataArrayFromVar<int32_t, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<vtkTypeInt32>(varName, blockI);
         }
         else if (typeStr == "uint32_t")
         {
-          dataArray = this->PopulateDataArrayFromVar<uint32_t, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<vtkTypeUInt32>(varName, blockI);
         }
         else if (typeStr == "int64_t")
         {
-          dataArray = this->PopulateDataArrayFromVar<int64_t, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<vtkTypeInt64>(varName, blockI);
         }
         else if (typeStr == "uint64_t")
         {
-          dataArray = this->PopulateDataArrayFromVar<uint64_t, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<vtkTypeUInt64>(varName, blockI);
         }
         else if (typeStr == "float")
         {
-          dataArray = this->PopulateDataArrayFromVar<float, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<vtkTypeFloat32>(varName, blockI);
         }
         else if (typeStr == "double")
         {
-          dataArray = this->PopulateDataArrayFromVar<double, NativeToVTKType>(varName, blockI);
+          dataArray = this->PopulateDataArrayFromVar<vtkTypeFloat64>(varName, blockI);
         }
         else if (typeStr == "long double")
         {
@@ -996,11 +986,11 @@ void vtkADIOS2CoreImageReader::CalculateWorkDistribution(const std::string& varN
 }
 
 //------------------------------------------------------------------------------
-template <typename T, template <typename...> class U>
+template <typename T>
 vtkSmartPointer<vtkAbstractArray> vtkADIOS2CoreImageReader::PopulateDataArrayFromVar(
   const std::string& varName, size_t blockIndex)
 {
-  vtkSmartPointer<vtkAbstractArray> array = vtkDataArray::CreateDataArray(U<T>::VTKType);
+  auto array = vtk::MakeSmartPointer(vtkAOSDataArrayTemplate<T>::New());
   try
   {
     auto varADIOS2 = this->Impl->AdiosIO.InquireVariable<T>(varName);
@@ -1010,7 +1000,7 @@ vtkSmartPointer<vtkAbstractArray> vtkADIOS2CoreImageReader::PopulateDataArrayFro
     array->SetNumberOfComponents(1);
     array->SetName(varName.c_str());
     array->SetNumberOfTuples(static_cast<vtkIdType>(varADIOS2.SelectionSize()));
-    this->Impl->BpReader.Get(varADIOS2, static_cast<T*>(array->GetVoidPointer(0)));
+    this->Impl->BpReader.Get(varADIOS2, array->GetPointer(0));
   }
   catch (const std::exception& ex)
   {

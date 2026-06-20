@@ -3,6 +3,7 @@
 #include "vtkWarpScalar.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkDataArray.h"
@@ -305,8 +306,10 @@ int vtkWarpScalar::RequestData(vtkInformation* vtkNotUsed(request),
   }
 
   // Dispatch over point and scalar types
-  using vtkArrayDispatch::Reals;
-  using ScaleDispatch = vtkArrayDispatch::Dispatch3ByValueType<Reals, Reals, Reals>;
+  using FloatArrays = vtkArrayDispatch::FilterArraysByValueType<vtkArrayDispatch::Arrays,
+    vtkArrayDispatch::Reals>::Result;
+  using ScaleDispatch = vtkArrayDispatch::Dispatch3ByArray<vtkArrayDispatch::PointArrays,
+    vtkArrayDispatch::AOSPointArrays, FloatArrays>;
   ScaleWorker scaleWorker;
   if (!ScaleDispatch::Execute(inPts->GetData(), newPts->GetData(), inScalars, scaleWorker, this,
         this->ScaleFactor, this->XYPlane, inNormals, normal))
@@ -353,7 +356,7 @@ int vtkWarpScalar::RequestData(vtkInformation* vtkNotUsed(request),
     {
       vtkNew<vtkUnsignedCharArray> cTypes;
       // append types to themselves too
-      cTypes->DeepCopy(ugOutput->GetCellTypesArray());
+      cTypes->DeepCopy(ugOutput->GetCellTypes());
       vtkIdType typeSize = cTypes->GetNumberOfTuples();
       cTypes->InsertTuples(typeSize, typeSize, 0, cTypes);
       // update the output UG
@@ -385,27 +388,28 @@ namespace
 {
 struct DimensionWorklet
 {
-  int maxDim = 0;
-  vtkSMPThreadLocal<int> localMaxDim;
-  vtkDataSet* input = nullptr;
+  int MaxDim = 0;
+  vtkSMPThreadLocal<int> TLMaxDim;
+  vtkDataSet* Input = nullptr;
 
-  DimensionWorklet(vtkDataSet* inDS) { this->input = inDS; }
+  DimensionWorklet(vtkDataSet* inDS) { this->Input = inDS; }
 
-  void Initialize() { this->localMaxDim.Local() = 0; }
+  void Initialize() { this->TLMaxDim.Local() = 0; }
 
   void operator()(vtkIdType begin, vtkIdType end)
   {
-    if (!this->input)
+    if (!this->Input)
     {
       return;
     }
     vtkNew<vtkGenericCell> cell;
+    auto& maxDim = this->TLMaxDim.Local();
     for (vtkIdType iCell = begin; iCell < end; iCell++)
     {
-      this->input->GetCell(iCell, cell);
+      this->Input->GetCell(iCell, cell);
       int locDim = cell->GetCellDimension();
-      this->localMaxDim.Local() = std::max(locDim, this->localMaxDim.Local());
-      if (this->localMaxDim.Local() == 3)
+      maxDim = std::max(locDim, maxDim);
+      if (maxDim == 3)
       {
         break;
       }
@@ -414,8 +418,8 @@ struct DimensionWorklet
 
   void Reduce()
   {
-    std::for_each(this->localMaxDim.begin(), this->localMaxDim.end(),
-      [&](int locMax) { this->maxDim = std::max(this->maxDim, locMax); });
+    std::for_each(this->TLMaxDim.begin(), this->TLMaxDim.end(),
+      [&](int locMax) { this->MaxDim = std::max(this->MaxDim, locMax); });
   }
 };
 }
@@ -430,7 +434,7 @@ unsigned int vtkWarpScalar::GetInputDimension(vtkDataSet* input)
   }
   ::DimensionWorklet worker(input);
   vtkSMPTools::For(0, input->GetNumberOfCells(), worker);
-  return static_cast<unsigned int>(worker.maxDim);
+  return static_cast<unsigned int>(worker.MaxDim);
 }
 
 //------------------------------------------------------------------------------

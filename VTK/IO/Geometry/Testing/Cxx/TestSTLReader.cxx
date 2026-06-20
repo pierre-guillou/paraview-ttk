@@ -11,19 +11,20 @@
 #include <vtkSTLReader.h>
 #include <vtkSmartPointer.h>
 
+#include <iostream>
 #include <string>
 
 int TestSTLReader(int argc, char* argv[])
 {
   if (argc < 2)
   {
-    std::cerr << "Required parameters: <filename>" << endl;
+    std::cerr << "Required parameters: <filename>" << std::endl;
     return EXIT_FAILURE;
   }
 
   std::string inputFilename = argv[1];
 
-  vtkSmartPointer<vtkSTLReader> reader = vtkSmartPointer<vtkSTLReader>::New();
+  vtkNew<vtkSTLReader> reader;
   reader->SetFileName(inputFilename.c_str());
   reader->Update();
 
@@ -48,7 +49,7 @@ int TestSTLReader(int argc, char* argv[])
     if (nSolids != nHeaders)
     {
       std::cerr << "Number of Solid Names in Header does not match with the number of solids"
-                << endl;
+                << std::endl;
       return EXIT_FAILURE;
     }
 

@@ -131,7 +131,6 @@ void @_paraview_build_plugin@Plugin::Initialize()
 
 //-----------------------------------------------------------------------------
 #if _paraview_add_plugin_with_python
-@_paraview_add_plugin_python_includes@
 void @_paraview_build_plugin@Plugin::GetPythonSourceList(std::vector<std::string>& modules,
   std::vector<std::string>& sources,
   std::vector<int> &package_flags)
@@ -148,8 +147,8 @@ void @_paraview_build_plugin@Plugin::GetPythonSourceList(std::vector<std::string
 
   for (int cc=0; moduleNames[cc]; cc++)
   {
-    modules.push_back(moduleNames[cc]);
-    sources.push_back(moduleSources[cc]);
+    modules.emplace_back(moduleNames[cc]);
+    sources.emplace_back(moduleSources[cc]);
     package_flags.push_back(packageFlags[cc]);
 
     // free allocated memory.

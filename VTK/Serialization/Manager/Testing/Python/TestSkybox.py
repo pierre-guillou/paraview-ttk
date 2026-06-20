@@ -1,5 +1,6 @@
-from vtkmodules.test import Testing as vtkPyTesting
-from vtkmodules.vtkTestingRendering import vtkTesting as vtkCppTesting
+from pathlib import Path
+
+from vtkmodules.test import Testing as vtkTesting
 from vtkmodules.vtkSerializationManager import vtkObjectManager
 from vtkmodules.vtkCommonCore import vtkFloatArray, vtkLogger
 from vtkmodules.vtkFiltersSources import vtkSphereSource
@@ -8,8 +9,10 @@ from vtkmodules.vtkRenderingCore import vtkTexture, vtkRenderWindow, vtkSkybox, 
 from vtkmodules.vtkRenderingOpenGL2 import vtkOpenGLSkybox
 from vtkmodules.vtkIOImage import vtkHDRReader
 
+import vtkmodules.vtkInteractionStyle
 
-class TestSkybox(vtkPyTesting.vtkTest):
+
+class TestSkybox(vtkTesting.vtkTest):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -27,7 +30,7 @@ class TestSkybox(vtkPyTesting.vtkTest):
         skybox = vtkOpenGLSkybox()
         hdr_reader = vtkHDRReader()
         hdr_reader.SetFileName(
-            vtkPyTesting.VTK_DATA_ROOT + "/Data/spiaggia_di_mondello_1k.hdr")
+            vtkTesting.VTK_DATA_ROOT + "/Data/spiaggia_di_mondello_1k.hdr")
         texture = vtkTexture()
         texture.SetColorModeToDirectScalars()
         texture.MipmapOn()
@@ -58,6 +61,7 @@ class TestSkybox(vtkPyTesting.vtkTest):
             actorSphere.GetProperty().SetMetallic(1.0)
             actorSphere.GetProperty().SetRoughness(i / 5.0)
             renderer.AddActor(actorSphere)
+        renderer.ResetCamera()
 
     def serialize(self):
 
@@ -71,7 +75,7 @@ class TestSkybox(vtkPyTesting.vtkTest):
 
         states = map(manager.GetState, active_ids)
         hash_to_blob_map = {blob_hash: manager.GetBlob(
-            blob_hash) for blob_hash in manager.GetBlobHashes(active_ids)}
+            blob_hash, True) for blob_hash in manager.GetBlobHashes(active_ids)}
         return states, hash_to_blob_map
 
     def deserialize(self, states, hash_to_blob_map):
@@ -84,8 +88,10 @@ class TestSkybox(vtkPyTesting.vtkTest):
             manager.RegisterBlob(hash_text, blob)
 
         manager.UpdateObjectsFromStates()
-        active_ids = manager.GetAllDependencies(0)
-        manager.GetObjectAtId(self.id_rwi).Render()
+        interactor = manager.GetObjectAtId(self.id_rwi)
+        interactor.render_window.Render()
+        vtkTesting.compareImage(interactor.render_window, Path(vtkTesting.getAbsImagePath(f"{__class__.__name__}.png")).as_posix())
+
 
     def test(self):
         self.deserialize(*self.serialize())
@@ -94,4 +100,4 @@ class TestSkybox(vtkPyTesting.vtkTest):
 if __name__ == "__main__":
     vtkLogger.Init()
     # vtkLogger.SetStderrVerbosity(vtkLogger.VERBOSITY_MAX)
-    vtkPyTesting.main([(TestSkybox, 'test')])
+    vtkTesting.main([(TestSkybox, 'test')])

@@ -1,25 +1,19 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
-// VTK_DEPRECATED_IN_9_4_0()
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkAlgorithm.h"
 #include "vtkAppendPolyData.h"
 #include "vtkCamera.h"
-#include "vtkCellData.h"
 #include "vtkCesium3DTilesWriter.h"
 #include "vtkCityGMLReader.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositePolyDataMapper.h"
 #include "vtkDataObject.h"
 #include "vtkDirectory.h"
-#include "vtkDoubleArray.h"
 #include "vtkGLTFImporter.h"
 #include "vtkGLTFReader.h"
 #include "vtkIncrementalOctreeNode.h"
 #include "vtkIncrementalOctreePointLocator.h"
-#include "vtkJPEGReader.h"
 #include "vtkLogger.h"
 #include "vtkMathUtilities.h"
 #include "vtkMultiBlockDataSet.h"
@@ -36,14 +30,13 @@
 #include "vtkTestUtilities.h"
 #include "vtkTesting.h"
 #include "vtkTexture.h"
-#include "vtkVersionMacros.h"
 #include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
 #include <algorithm>
 #include <array>
 #include <exception>
-#include <set>
+#include <iostream>
 #include <sstream>
 
 #include <vtk_nlohmannjson.h>

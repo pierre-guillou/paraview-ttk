@@ -24,7 +24,7 @@
 #include <algorithm>
 
 VTK_ABI_NAMESPACE_BEGIN
-static const unsigned char MASKED_CELL_VALUE =
+static constexpr unsigned char MASKED_CELL_VALUE =
   vtkDataSetAttributes::HIDDENCELL | vtkDataSetAttributes::REFINEDCELL;
 
 static int HEXAHEDRON_POINT_MAP[] = {
@@ -54,6 +54,7 @@ vtkStandardNewMacro(vtkExplicitStructuredGrid);
 vtkExplicitStructuredGrid::vtkExplicitStructuredGrid()
 {
   this->Cells = vtkSmartPointer<vtkCellArray>::New();
+  this->Cells->UseFixedSizeDefaultStorage(8);
 
   this->FacesConnectivityFlagsArrayName = nullptr;
 
@@ -130,15 +131,16 @@ void vtkExplicitStructuredGrid::GetCell(vtkIdType cellId, vtkGenericCell* cell)
 // Support GetCellBounds()
 namespace
 { // anonymous
-struct ComputeCellBoundsVisitor
+struct ComputeCellBoundsVisitor : public vtkCellArray::DispatchUtilities
 {
   // vtkCellArray::Visit entry point:
-  template <typename CellStateT>
-  void operator()(CellStateT& state, vtkPoints* points, vtkIdType cellId, double bounds[6]) const
+  template <class OffsetsT, class ConnectivityT>
+  void operator()(OffsetsT* offsets, ConnectivityT* conn, vtkPoints* points, vtkIdType cellId,
+    double bounds[6]) const
   {
-    const vtkIdType beginOffset = state.GetBeginOffset(cellId);
+    const vtkIdType beginOffset = GetBeginOffset(offsets, cellId);
 
-    const auto pointIds = state.GetConnectivity()->GetPointer(beginOffset);
+    const auto pointIds = GetRange(conn).begin() + beginOffset;
     vtkBoundingBox::ComputeBounds(points, pointIds, 8, bounds);
   }
 };
@@ -154,7 +156,7 @@ void vtkExplicitStructuredGrid::GetCellBounds(vtkIdType cellId, double bounds[6]
     vtkErrorMacro(<< "No data");
     return;
   }
-  this->Cells->Visit(ComputeCellBoundsVisitor{}, this->Points, cellId, bounds);
+  this->Cells->Dispatch(ComputeCellBoundsVisitor{}, this->Points, cellId, bounds);
 }
 
 //------------------------------------------------------------------------------
@@ -260,78 +262,117 @@ void vtkExplicitStructuredGrid::GetCellNeighbors(
   }
 }
 
-//------------------------------------------------------------------------------
-// Determine neighbors as follows. Find the (shortest) list of cells that
-// uses one of the points in ptIds. For each cell, in the list, see whether
-// it contains the other points in the ptIds list. If so, it's a neighbor.
+namespace
+{
+// Identify the neighbors to the specified cell, where the neighbors
+// use all the points in the points list (pts).
+template <class TLinks>
+struct GetCellNeighborsImpl : public vtkCellArray::DispatchUtilities
+{
+  // vtkCellArray::Visit entry point:
+  template <class OffsetsT, class ConnectivityT>
+  void operator()(OffsetsT* offsets, ConnectivityT* conn, TLinks* links, vtkIdType cellId,
+    vtkIdType nPts, const vtkIdType* pts, vtkIdList* cellIds) const
+  {
+    using ValueType = GetAPIType<OffsetsT>;
+
+    // Find the shortest linked list
+    auto minPtId = pts[0];
+    auto minNumCells = links->GetNcells(minPtId);
+    vtkIdType numCells;
+    for (vtkIdType i = 1; i < nPts; ++i)
+    {
+      const auto& ptId = pts[i];
+      numCells = links->GetNcells(ptId);
+      if (numCells < minNumCells)
+      {
+        minNumCells = numCells;
+        minPtId = ptId;
+      }
+    }
+    const auto minCells = links->GetCells(minPtId);
+
+    // Now for each cell, see if it contains all the face points
+    // in the facePts list. If so, then this is not a boundary face.
+    const auto connRange = GetRange(conn);
+    const auto offsetsRange = GetRange(offsets);
+    bool match;
+    vtkIdType j;
+    ValueType k;
+    for (vtkIdType i = 0; i < minNumCells; ++i)
+    {
+      const auto& minCellId = minCells[i];
+      if (minCellId != cellId) // don't include current cell
+      {
+        // get cell points
+        const ValueType nCellPts = offsetsRange[minCellId + 1] - offsetsRange[minCellId];
+        const auto cellPts = connRange.begin() + offsetsRange[minCellId];
+        match = true;
+        for (j = 0; j < nPts && match; ++j) // for all pts in input boundary entity
+        {
+          const auto& ptId = pts[j];
+          if (ptId != minPtId) // of course minPtId is contained by cell
+          {
+            match = false;
+            for (k = 0; k < nCellPts; ++k) // for all points in candidate cell
+            {
+              if (ptId == cellPts[k])
+              {
+                match = true; // a match was found
+                break;
+              }
+            } // for all points in current cell
+          }   // if not guaranteed match
+        }     // for all input points
+        if (match)
+        {
+          cellIds->InsertNextId(minCellId);
+        }
+      } // if not the reference cell
+    }   // for each cell in minimum linked list
+  }
+};
+} // end anonymous namespace
+
+//----------------------------------------------------------------------------
+// Return the cells that use all of the ptIds provided. This is a set
+// (intersection) operation - it can have significant performance impacts on
+// certain filters like vtkGeometryFilter.
 void vtkExplicitStructuredGrid::GetCellNeighbors(
   vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds)
 {
+  // Empty the list
+  cellIds->Reset();
+
+  // Ensure that a proper neighborhood request is made.
+  const vtkIdType npts = ptIds->GetNumberOfIds();
+  if (npts <= 0)
+  {
+    return;
+  }
+  const vtkIdType* pts = ptIds->GetPointer(0);
+
+  // Ensure that links are built.
   if (!this->Links)
   {
     this->BuildLinks();
   }
 
-  cellIds->Reset();
-
-  vtkIdType* minCells = nullptr;
-  vtkIdType minPtId = 0;
-
-  // Find the point used by the fewest number of cells
-
-  vtkIdType numPts = ptIds->GetNumberOfIds();
-  vtkIdType* pts = ptIds->GetPointer(0);
-  vtkIdType minNumCells = VTK_INT_MAX;
-  for (int i = 0; i < numPts; i++)
+  // Get the cell links based on the current state.
+  if (!this->Editable)
   {
-    vtkIdType ptId = pts[i];
-    vtkIdType numCells = 0;
-    vtkIdType* cells = nullptr;
-    //    vtkIdType numCells = this->Links->GetNcells(ptId);
-    // vtkIdType* cells = this->Links->GetCells(ptId);
-    if (numCells < minNumCells)
-    {
-      minNumCells = numCells;
-      minCells = cells;
-      minPtId = ptId;
-    }
+    using CellLinksType = vtkStaticCellLinks;
+    using TGetCellNeighbors = GetCellNeighborsImpl<CellLinksType>;
+    auto links = static_cast<CellLinksType*>(this->Links.Get());
+    this->Cells->Dispatch(TGetCellNeighbors{}, links, cellId, npts, pts, cellIds);
   }
-
-  if (numPts == 0)
+  else
   {
-    vtkErrorMacro("input point ids empty.");
-    return;
+    using CellLinksType = vtkCellLinks;
+    using TGetCellNeighbors = GetCellNeighborsImpl<CellLinksType>;
+    auto links = static_cast<CellLinksType*>(this->Links.Get());
+    this->Cells->Dispatch(TGetCellNeighbors{}, links, cellId, npts, pts, cellIds);
   }
-
-  // Now for each cell, see if it contains all the points
-  // in the ptIds list.
-  for (int i = 0; i < minNumCells; i++)
-  {
-    if (minCells[i] != cellId) // don't include current cell
-    {
-      vtkIdType* cellPts = this->GetCellPoints(minCells[i]);
-      bool match = true;
-      for (int j = 0; j < numPts && match; j++) // for all pts in input cell
-      {
-        if (pts[j] != minPtId) // of course minPtId is contained by cell
-        {
-          match = false;
-          for (int k = 0; k < 8; k++) // for all points in candidate cell
-          {
-            if (pts[j] == cellPts[k])
-            {
-              match = true; // a match was found
-              break;
-            }
-          } // for all points in current cell
-        }   // if not guaranteed match
-      }     // for all points in input cell
-      if (match)
-      {
-        cellIds->InsertNextId(minCells[i]);
-      }
-    } // if not the reference cell
-  }   // for all candidate cells attached to point
 }
 
 //------------------------------------------------------------------------------
@@ -451,6 +492,7 @@ void vtkExplicitStructuredGrid::SetExtent(int x0, int x1, int y0, int y1, int z0
     (this->Extent[3] - this->Extent[2]) * (this->Extent[5] - this->Extent[4]);
 
   vtkNew<vtkCellArray> cells;
+  cells->UseFixedSize64BitStorage(8);
   this->SetCells(cells);
 
   // Initialize the cell array
@@ -583,14 +625,8 @@ void vtkExplicitStructuredGrid::GenerateGhostArray(int zeroExt[6], bool vtkNotUs
         }
         // Compute Manhattan distance.
         int dist = di;
-        if (dj > dist)
-        {
-          dist = dj;
-        }
-        if (dk > dist)
-        {
-          dist = dk;
-        }
+        dist = std::max(dj, dist);
+        dist = std::max(dk, dist);
         unsigned char value = ghostCells->GetValue(index);
         if (dist > 0)
         {
@@ -721,15 +757,9 @@ void vtkExplicitStructuredGrid::Crop(
   for (int i = 0; i < 3; ++i)
   {
     newExtent[i * 2] = updateExtent[i * 2];
-    if (newExtent[i * 2] < oldExtent[i * 2])
-    {
-      newExtent[i * 2] = oldExtent[i * 2];
-    }
+    newExtent[i * 2] = std::max(newExtent[i * 2], oldExtent[i * 2]);
     newExtent[i * 2 + 1] = updateExtent[i * 2 + 1];
-    if (newExtent[i * 2 + 1] > oldExtent[i * 2 + 1])
-    {
-      newExtent[i * 2 + 1] = oldExtent[i * 2 + 1];
-    }
+    newExtent[i * 2 + 1] = std::min(newExtent[i * 2 + 1], oldExtent[i * 2 + 1]);
     if (newExtent[i * 2] == newExtent[i * 2 + 1])
     {
       if (newExtent[i * 2 + 1] == oldExtent[i * 2 + 1])
@@ -797,6 +827,7 @@ void vtkExplicitStructuredGrid::Crop(
     outCD->CopyAllocate(inCD, outSize, outSize);
 
     vtkNew<vtkCellArray> cells;
+    cells->UseFixedSize64BitStorage(8);
     cells->AllocateEstimate(outSize, 8);
 
     // CellArray which links the new cells ids with the old ones
@@ -905,14 +936,8 @@ void vtkExplicitStructuredGrid::ComputeScalarRange()
       for (int id = 0; id < num; id++)
       {
         double s = ptScalars->GetComponent(id, 0);
-        if (s < ptRange[0])
-        {
-          ptRange[0] = s;
-        }
-        if (s > ptRange[1])
-        {
-          ptRange[1] = s;
-        }
+        ptRange[0] = std::min(s, ptRange[0]);
+        ptRange[1] = std::max(s, ptRange[1]);
       }
     }
 
@@ -925,14 +950,8 @@ void vtkExplicitStructuredGrid::ComputeScalarRange()
       for (int id = 0; id < num; id++)
       {
         double s = cellScalars->GetComponent(id, 0);
-        if (s < cellRange[0])
-        {
-          cellRange[0] = s;
-        }
-        if (s > cellRange[1])
-        {
-          cellRange[1] = s;
-        }
+        cellRange[0] = std::min(s, cellRange[0]);
+        cellRange[1] = std::max(s, cellRange[1]);
       }
     }
 

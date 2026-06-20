@@ -19,11 +19,13 @@
 
 #include "vtkFiltersSourcesModule.h" // For export macro
 #include "vtkUnstructuredGridAlgorithm.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkMergePoints;
 
-class VTKFILTERSSOURCES_EXPORT vtkCellTypeSource : public vtkUnstructuredGridAlgorithm
+class VTKFILTERSSOURCES_EXPORT VTK_MARSHALAUTO vtkCellTypeSource
+  : public vtkUnstructuredGridAlgorithm
 {
 public:
   ///@{
@@ -158,24 +160,6 @@ protected:
     vtkUnstructuredGrid*, int extent[6], int cellType, int cellOrder, bool complete);
   void GenerateHighOrderWedges(
     vtkUnstructuredGrid*, int extent[6], int cellType, int cellOrder, bool complete);
-
-  VTK_DEPRECATED_IN_9_4_0("Use GenerateHighOrderCurve instead.")
-  void GenerateLagrangeCurves(vtkUnstructuredGrid*, int extent[6]);
-  VTK_DEPRECATED_IN_9_4_0("Use GenerateHighOrderTris instead.")
-  void GenerateLagrangeTris(vtkUnstructuredGrid*, int extent[6]);
-  VTK_DEPRECATED_IN_9_4_0("Use GenerateHighOrderTets instead.")
-  void GenerateLagrangeTets(vtkUnstructuredGrid*, int extent[6]);
-  VTK_DEPRECATED_IN_9_4_0("Use GenerateHighOrderWedges instead.")
-  void GenerateLagrangeWedges(vtkUnstructuredGrid*, int extent[6]);
-
-  VTK_DEPRECATED_IN_9_4_0("Use GenerateHighOrderCurve instead.")
-  void GenerateBezierCurves(vtkUnstructuredGrid*, int extent[6]);
-  VTK_DEPRECATED_IN_9_4_0("Use GenerateHighOrderTris instead.")
-  void GenerateBezierTris(vtkUnstructuredGrid*, int extent[6]);
-  VTK_DEPRECATED_IN_9_4_0("Use GenerateHighOrderTets instead.")
-  void GenerateBezierTets(vtkUnstructuredGrid*, int extent[6]);
-  VTK_DEPRECATED_IN_9_4_0("Use GenerateHighOrderWedges instead.")
-  void GenerateBezierWedges(vtkUnstructuredGrid*, int extent[6]);
 
   virtual void ComputeFields(vtkUnstructuredGrid*);
   double GetValueOfOrder(int order, double coords[3]);

@@ -11,7 +11,12 @@
 #if PARAVIEW_PLUGIN_CAVEInteraction_USE_VRUI
 #include "pqVRUIConnection.h"
 #endif
+#include "pqWidgetUtilities.h"
 
+#include "vtkMatrix4x4.h"
+#include "vtkNew.h"
+
+#include <QDoubleValidator>
 #include <QKeyEvent>
 #include <QMessageBox>
 #include <QRegularExpressionValidator>
@@ -36,6 +41,7 @@ public:
   std::map<std::string, std::string> ValuatorMapping;
   std::map<std::string, std::string> ButtonMapping;
   std::map<std::string, std::string> TrackerMapping;
+  vtkNew<vtkMatrix4x4> TransformMatrix;
 
   enum ConnectionType
   {
@@ -117,6 +123,7 @@ pqVRAddConnectionDialog::pqVRAddConnectionDialog(QWidget* parentObject, Qt::Wind
   , Internals(new pqInternals())
 {
   this->Internals->setupUi(this);
+  pqWidgetUtilities::formatChildTooltips(this);
   this->Internals->Type = pqInternals::None;
 #if PARAVIEW_PLUGIN_CAVEInteraction_USE_VRPN
   this->Internals->VRPNConn = nullptr;
@@ -131,14 +138,11 @@ pqVRAddConnectionDialog::pqVRAddConnectionDialog(QWidget* parentObject, Qt::Wind
   // Restrict input in some line edits
   QRegularExpressionValidator* connNameValidator =
     new QRegularExpressionValidator(QRegularExpression("[0-9a-zA-Z]+"), this);
-  QRegularExpressionValidator* addressValidator = new QRegularExpressionValidator(
-    QRegularExpression("([0-9a-zA-Z.]+@)?([a-zA-Z]+://)?[0-9a-zA-Z.:]+"), this);
   QRegularExpressionValidator* inputIdValidator =
     new QRegularExpressionValidator(QRegularExpression("[0-9]+"), this);
   QRegularExpressionValidator* inputNameValidator =
     new QRegularExpressionValidator(QRegularExpression("[0-9a-zA-Z]+"), this);
   this->Internals->connectionName->setValidator(connNameValidator);
-  this->Internals->connectionAddress->setValidator(addressValidator);
   this->Internals->inputId->setValidator(inputIdValidator);
   this->Internals->inputName->setValidator(inputNameValidator);
 
@@ -146,6 +150,22 @@ pqVRAddConnectionDialog::pqVRAddConnectionDialog(QWidget* parentObject, Qt::Wind
   connect(this->Internals->eraseInput, SIGNAL(clicked()), this, SLOT(removeInput()));
   connect(this->Internals->connectionType, SIGNAL(currentIndexChanged(int)), this,
     SLOT(connectionTypeChanged()));
+
+  for (int row = 0; row < 4; ++row)
+  {
+    for (int col = 0; col < 4; ++col)
+    {
+      QLayoutItem* item = this->Internals->matrixGridLayout->itemAtPosition(row, col);
+      if (item)
+      {
+        QLineEdit* cellEdit = qobject_cast<QLineEdit*>(item->widget());
+        if (cellEdit)
+        {
+          cellEdit->setValidator(new QDoubleValidator(this));
+        }
+      }
+    }
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -167,6 +187,7 @@ void pqVRAddConnectionDialog::setConnection(pqVRPNConnection* conn)
   this->Internals->ValuatorMapping = conn->valuatorMap();
   this->Internals->ButtonMapping = conn->buttonMap();
   this->Internals->TrackerMapping = conn->trackerMap();
+  this->Internals->TransformMatrix->DeepCopy(conn->getTransformation());
   this->Internals->updateUi();
 }
 
@@ -201,6 +222,7 @@ void pqVRAddConnectionDialog::setConnection(pqVRUIConnection* conn)
   this->Internals->ValuatorMapping = conn->valuatorMap();
   this->Internals->ButtonMapping = conn->buttonMap();
   this->Internals->TrackerMapping = conn->trackerMap();
+  this->Internals->TransformMatrix->DeepCopy(conn->getTransformation());
   this->Internals->updateUi();
 }
 
@@ -357,6 +379,24 @@ void pqVRAddConnectionDialog::pqInternals::updateVRPNConnection()
   this->VRPNConn->setValuatorMap(this->ValuatorMapping);
   this->VRPNConn->setButtonMap(this->ButtonMapping);
   this->VRPNConn->setTrackerMap(this->TrackerMapping);
+
+  for (int row = 0; row < 4; ++row)
+  {
+    for (int col = 0; col < 4; ++col)
+    {
+      QLayoutItem* item = this->matrixGridLayout->itemAtPosition(row, col);
+      if (item)
+      {
+        QLineEdit* cellEdit = qobject_cast<QLineEdit*>(item->widget());
+        if (cellEdit)
+        {
+          this->TransformMatrix->SetElement(row, col, cellEdit->text().toDouble());
+        }
+      }
+    }
+  }
+
+  this->VRPNConn->setTransformation(this->TransformMatrix);
 }
 #endif
 
@@ -376,6 +416,7 @@ void pqVRAddConnectionDialog::pqInternals::updateVRUIConnection()
   this->VRUIConn->setValuatorMap(this->ValuatorMapping);
   this->VRUIConn->setButtonMap(this->ButtonMapping);
   this->VRUIConn->setTrackerMap(this->TrackerMapping);
+  this->VRUIConn->setTransformation(this->TransformMatrix);
 }
 #endif
 
@@ -402,6 +443,22 @@ void pqVRAddConnectionDialog::pqInternals::updateUi()
     this->listWidget->addItem(QString("%1: %2")
                                 .arg(QString::fromStdString(it->first))
                                 .arg(QString::fromStdString(it->second)));
+  }
+
+  for (int row = 0; row < 4; ++row)
+  {
+    for (int col = 0; col < 4; ++col)
+    {
+      QLayoutItem* item = this->matrixGridLayout->itemAtPosition(row, col);
+      if (item)
+      {
+        QLineEdit* cellEdit = qobject_cast<QLineEdit*>(item->widget());
+        if (cellEdit)
+        {
+          cellEdit->setText(QString::number(this->TransformMatrix->GetElement(row, col)));
+        }
+      }
+    }
   }
 }
 

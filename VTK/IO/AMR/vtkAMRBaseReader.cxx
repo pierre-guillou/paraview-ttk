@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRBaseReader.h"
 #include "vtkAMRDataSetCache.h"
-#include "vtkAMRInformation.h"
 #include "vtkCallbackCommand.h"
 #include "vtkCellData.h"
 #include "vtkCompositeDataPipeline.h"
@@ -14,6 +13,7 @@
 #include "vtkInformationVector.h"
 #include "vtkMultiProcessController.h"
 #include "vtkOverlappingAMR.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include "vtkParallelAMRUtilities.h"
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
@@ -22,6 +22,8 @@
 #include "vtkUniformGrid.h"
 
 #include <cassert>
+
+#include <iostream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkAMRBaseReader, Controller, vtkMultiProcessController);
@@ -252,13 +254,6 @@ int vtkAMRBaseReader::RequestInformation(
   }
 
   info->Set(CAN_HANDLE_PIECE_REQUEST(), 1);
-
-  // std::cout<<"Generate Meta Data: ";
-  // for(int levelIdx=0 ; levelIdx < this->Metadata->GetNumberOfLevels(); ++levelIdx )
-  //  {
-  //  std::cout << " \tL(" << levelIdx << ") = " << this->Metadata->GetNumberOfDataSets( levelIdx )
-  //  << " "; std::cout.flush(); } // END for levels
-  // std::cout<<endl;
   this->LoadedMetaData = true;
   return 1;
 }
@@ -294,9 +289,9 @@ void vtkAMRBaseReader::SetupBlockRequest(vtkInformation* outInf)
       : this->Metadata->GetNumberOfLevels() - 1;
     for (int level = 0; level <= maxLevel; level++)
     {
-      for (unsigned int id = 0; id < this->Metadata->GetNumberOfDataSets(level); id++)
+      for (unsigned int id = 0; id < this->Metadata->GetNumberOfBlocks(level); id++)
       {
-        int index = this->Metadata->GetCompositeIndex(static_cast<unsigned int>(level), id);
+        int index = this->Metadata->GetAbsoluteBlockIndex(static_cast<unsigned int>(level), id);
         this->BlockMap.push_back(index);
       }
     }
@@ -474,11 +469,11 @@ void vtkAMRBaseReader::LoadRequestedBlocks(vtkOverlappingAMR* output)
     // FIXME: this piece of code is very similar to the block in
     // AssignAndLoadBlocks. We should consolidate the two.
     int blockIndex = this->BlockMap[block];
-    int blockIdx = this->Metadata->GetAMRInfo()->GetAMRBlockSourceIndex(blockIndex);
+    int blockIdx = this->Metadata->GetOverlappingAMRMetaData()->GetAMRBlockSourceIndex(blockIndex);
 
     unsigned int metaLevel;
     unsigned int metaIdx;
-    this->Metadata->GetAMRInfo()->ComputeIndexPair(blockIndex, metaLevel, metaIdx);
+    this->Metadata->ComputeIndexPair(blockIndex, metaLevel, metaIdx);
     unsigned int level = this->GetBlockLevel(blockIdx);
     assert(level == metaLevel);
 
@@ -525,11 +520,11 @@ void vtkAMRBaseReader::AssignAndLoadBlocks(vtkOverlappingAMR* output)
   for (int block = 0; block < numBlocks; ++block)
   {
     int blockIndex = this->BlockMap[block];
-    int blockIdx = this->Metadata->GetAMRInfo()->GetAMRBlockSourceIndex(blockIndex);
+    int blockIdx = this->Metadata->GetOverlappingAMRMetaData()->GetAMRBlockSourceIndex(blockIndex);
 
     unsigned int metaLevel;
     unsigned int metaIdx;
-    this->Metadata->GetAMRInfo()->ComputeIndexPair(blockIndex, metaLevel, metaIdx);
+    this->Metadata->ComputeIndexPair(blockIndex, metaLevel, metaIdx);
     unsigned int level = this->GetBlockLevel(blockIdx);
     assert(level == metaLevel);
 
@@ -575,7 +570,7 @@ int vtkAMRBaseReader::RequestData(vtkInformation* vtkNotUsed(request),
     vtkOverlappingAMR::SafeDownCast(outInf->Get(vtkDataObject::DATA_OBJECT()));
   assert("pre: output AMR dataset is nullptr" && (output != nullptr));
 
-  output->SetAMRInfo(this->Metadata->GetAMRInfo());
+  output->Initialize(this->Metadata->GetAMRMetaData());
 
   // Setup the block request
   vtkTimerLog::MarkStartEvent("vtkAMRBaseReader::SetupBlockRequest");
@@ -594,7 +589,7 @@ int vtkAMRBaseReader::RequestData(vtkInformation* vtkNotUsed(request),
   else
   {
 #ifdef DEBUGME
-    cout << "load " << this->BlockMap.size() << " blocks" << endl;
+    std::cout << "load " << this->BlockMap.size() << " blocks" << endl;
 #endif
     this->AssignAndLoadBlocks(output);
 

@@ -9,6 +9,7 @@
 #include "vtkHyperTreeGridScales.h"
 
 #include <deque>
+#include <iostream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkUniformHyperTreeGrid);
@@ -56,7 +57,8 @@ vtkHyperTree* vtkUniformHyperTreeGrid::GetTree(vtkIdType index, bool create)
   // Create a new cursor if only required to do so
   if (create && !tree)
   {
-    tree = vtkHyperTree::CreateInstance(this->BranchFactor, this->Dimension);
+    tree = vtkHyperTree::New();
+    tree->Initialize(this->BranchFactor, this->Dimension);
     tree->SetTreeIndex(index);
     this->HyperTrees[index] = tree;
     tree->Delete();
@@ -95,8 +97,9 @@ void vtkUniformHyperTreeGrid::PrintSelf(ostream& os, vtkIndent indent)
   {
     for (unsigned int ilevel = 0; ilevel < this->Scales->GetCurrentFailLevel(); ++ilevel)
     {
-      os << " #" << ilevel << " (" << this->Scales->GetScaleX(ilevel) << " ,"
-         << this->Scales->GetScaleY(ilevel) << " ," << this->Scales->GetScaleZ(ilevel) << ")";
+      os << " #" << ilevel << " (" << this->Scales->ComputeScaleX(ilevel) << " ,"
+         << this->Scales->ComputeScaleY(ilevel) << " ," << this->Scales->ComputeScaleZ(ilevel)
+         << ")";
     }
   }
 }

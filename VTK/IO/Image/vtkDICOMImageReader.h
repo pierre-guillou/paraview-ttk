@@ -18,6 +18,8 @@
  * contiguous): 0018,0050. Which means this is only valid for some rare
  * MR Image Storage
  *
+ * This reader supports the stream API.
+ *
  * @sa
  * vtkBMPReader vtkPNMReader vtkTIFFReader
  */
@@ -27,6 +29,9 @@
 
 #include "vtkIOImageModule.h" // For export macro
 #include "vtkImageReader2.h"
+
+#include <istream>   // for IStream
+#include <streambuf> // for Streambuf
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDICOMImageReaderVector;
@@ -229,6 +234,9 @@ protected:
 private:
   vtkDICOMImageReader(const vtkDICOMImageReader&) = delete;
   void operator=(const vtkDICOMImageReader&) = delete;
+
+  // Used when reading streams
+  std::unique_ptr<std::streambuf> Streambuf;
 };
 
 VTK_ABI_NAMESPACE_END

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkNonOverlappingAMR
- * @brief   A concrete instance of vtkUniformGridAMR to store uniform grids at different
+ * @brief   A concrete instance of vtkAMRDataObject to store uniform grids at different
  *  levels of resolution that do not overlap with each other.
  *
  * @sa
- * vtkUniformGridAMR
+ * vtkUniformGridAMR vtkAMRDataObject
  */
 
 #ifndef vtkNonOverlappingAMR_h
@@ -33,11 +33,19 @@ public:
    */
   static vtkNonOverlappingAMR* GetData(vtkInformation* info)
   {
-    return vtkNonOverlappingAMR::SafeDownCast(Superclass::GetData(info));
+    // VTK_DEPRECATED_IN_9_6_0:
+    // We cannot use Superclass directly because this method is deprecated
+    // When removing deprecated code, please Remove this command and replace
+    // `vtkAMRDataObject` by `Superclass` in the line below.
+    return vtkNonOverlappingAMR::SafeDownCast(vtkAMRDataObject::GetData(info));
   }
   static vtkNonOverlappingAMR* GetData(vtkInformationVector* v, int i = 0)
   {
-    return vtkNonOverlappingAMR::SafeDownCast(Superclass::GetData(v, i));
+    // VTK_DEPRECATED_IN_9_6_0:
+    // We cannot use Superclass directly because this method is deprecated
+    // When removing deprecated code, please Remove this command and replace
+    // `vtkAMRDataObject` by `Superclass` in the line below.
+    return vtkNonOverlappingAMR::SafeDownCast(vtkAMRDataObject::GetData(v, i));
   }
 
 protected:

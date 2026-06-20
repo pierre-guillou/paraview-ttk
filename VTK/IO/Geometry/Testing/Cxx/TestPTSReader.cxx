@@ -10,11 +10,13 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 
+#include <iostream>
+
 int TestPTSReader(int argc, char* argv[])
 {
   if (argc < 2)
   {
-    std::cerr << "Required parameters: <filename> maxNumberOfPoints(optional)" << endl;
+    std::cerr << "Required parameters: <filename> maxNumberOfPoints(optional)" << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -26,6 +28,11 @@ int TestPTSReader(int argc, char* argv[])
   reader->SetMaxNumberOfPoints(100000);
 
   reader->Update();
+  if (reader->GetOutput()->GetNumberOfPoints() != 446)
+  {
+    std::cerr << "Unexpected number of points" << std::endl;
+    return EXIT_FAILURE;
+  }
 
   // Visualize
   vtkNew<vtkPolyDataMapper> mapper;

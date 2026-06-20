@@ -19,6 +19,8 @@
 #include <cassert>
 #include <sstream>
 
+#include <iostream>
+
 // Some useful extent macros
 #define EMIN(ext, dim) (ext[2 * dim])
 #define EMAX(ext, dim) (ext[2 * dim + 1])
@@ -29,8 +31,9 @@
 #define DEBUG_EXTENT(label, extent)                                                                \
   if (this->Controller)                                                                            \
   {                                                                                                \
-    vtkMPIUtilities::SynchronizedPrintf(this->Controller, #label "=[%d,%d,%d,%d,%d,%d]\n",         \
-      extent[0], extent[1], extent[2], extent[3], extent[4], extent[5]);                           \
+    vtkMPIUtilities::SynchronizedPrint(this->Controller,                                           \
+      #label "=[{:d},{:d},{:d},{:d},{:d},{:d}]\n", extent[0], extent[1], extent[2], extent[3],     \
+      extent[4], extent[5]);                                                                       \
   }                                                                                                \
   else                                                                                             \
   {                                                                                                \

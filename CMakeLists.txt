@@ -70,7 +70,7 @@ option(PARAVIEW_USE_EXTERNAL_VTK "Use an external VTK." OFF)
 mark_as_advanced(PARAVIEW_USE_EXTERNAL_VTK)
 
 if (PARAVIEW_USE_EXTERNAL_VTK)
-  find_package(VTK CONFIG COMPONENTS CommonCore)
+  find_package(VTK 9.6.1 CONFIG COMPONENTS CommonCore)
   if (NOT VTK_FOUND)
     message(FATAL_ERROR
       "External VTK not found but ParaView requires VTK to function")
@@ -106,6 +106,7 @@ set_property(CACHE BUILD_TESTING
 include(ParaViewCompilerChecks)
 include(ParaViewCompilerPlatformFlags)
 include(ParaViewCompilerExtraFlags)
+include(ParaViewCompilerWarningFlags)
 include(ParaViewInitializeBuildType)
 include(ParaViewSupportMacros)
 include(CMakeDependentOption)
@@ -798,7 +799,7 @@ else ()
     LICENSE_DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
     HIERARCHY_DESTINATION "${CMAKE_INSTALL_LIBDIR}/vtk/hierarchy/${CMAKE_PROJECT_NAME}"
     LIBRARY_NAME_SUFFIX "${PARAVIEW_CUSTOM_LIBRARY_SUFFIX}"
-    VERSION             "${PARAVIEW_VERSION}"
+    VERSION             "${PARAVIEW_VERSION_MAJOR}.${PARAVIEW_VERSION_MINOR}"
     SOVERSION           "1"
     TEST_DATA_TARGET    ParaViewData
     BUILD_WITH_KITS     "${PARAVIEW_BUILD_WITH_KITS}"
@@ -859,7 +860,7 @@ vtk_module_build(
   LICENSE_DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
   HIERARCHY_DESTINATION "${CMAKE_INSTALL_LIBDIR}/vtk/hierarchy/${CMAKE_PROJECT_NAME}"
   LIBRARY_NAME_SUFFIX "${PARAVIEW_CUSTOM_LIBRARY_SUFFIX}"
-  VERSION             "${PARAVIEW_VERSION}"
+  VERSION             "${PARAVIEW_VERSION_MAJOR}.${PARAVIEW_VERSION_MINOR}"
   SOVERSION           "1"
   TEST_DATA_TARGET    ParaViewData
   BUILD_WITH_KITS     "${PARAVIEW_BUILD_WITH_KITS}"
@@ -887,7 +888,7 @@ vtk_module_build(
   LICENSE_DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
   HIERARCHY_DESTINATION "${CMAKE_INSTALL_LIBDIR}/vtk/hierarchy/${CMAKE_PROJECT_NAME}"
   LIBRARY_NAME_SUFFIX "${PARAVIEW_CUSTOM_LIBRARY_SUFFIX}"
-  VERSION             "${PARAVIEW_VERSION}"
+  VERSION             "${PARAVIEW_VERSION_MAJOR}.${PARAVIEW_VERSION_MINOR}"
   SOVERSION           "1"
   TEST_DATA_TARGET    ParaViewData
   BUILD_WITH_KITS     "${PARAVIEW_BUILD_WITH_KITS}"
@@ -911,7 +912,7 @@ vtk_module_build(
   LICENSE_DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
   HIERARCHY_DESTINATION "${CMAKE_INSTALL_LIBDIR}/vtk/hierarchy/${CMAKE_PROJECT_NAME}"
   LIBRARY_NAME_SUFFIX "${PARAVIEW_CUSTOM_LIBRARY_SUFFIX}"
-  VERSION             "${PARAVIEW_VERSION}"
+  VERSION             "${PARAVIEW_VERSION_MAJOR}.${PARAVIEW_VERSION_MINOR}"
   SOVERSION           "1"
   TEST_DATA_TARGET    ParaViewData
   TEST_INPUT_DATA_DIRECTORY   "${paraview_test_data_directory_input}"
@@ -1248,6 +1249,12 @@ install(
   FILES       "${CMAKE_CURRENT_SOURCE_DIR}/Copyright.txt"
   DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
   COMPONENT   "license")
+
+# Some generated code has some warnings that we need to exclude for now.
+# Create a clang-tidy file for the build tree that excludes bugprone-unsafe-functions
+file(READ "${CMAKE_SOURCE_DIR}/.clang-tidy" CLANG_TIDY_CONTENTS)
+string(REPLACE "clang-analyzer-*," "-bugprone-unsafe-functions,\\\nclang-analyzer-*," CLANG_TIDY_CONTENTS "${CLANG_TIDY_CONTENTS}")
+file(WRITE "${CMAKE_BINARY_DIR}/.clang-tidy" "${CLANG_TIDY_CONTENTS}")
 
 #-----------------------------------------------------------------------------
 if (PARAVIEW_ENABLE_EXAMPLES)

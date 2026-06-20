@@ -4,11 +4,10 @@
 #include "vtkObjectFactory.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkCellArray.h"
 #include "vtkCellArrayIterator.h"
 #include "vtkDataArrayRange.h"
-#include "vtkDoubleArray.h"
-#include "vtkFloatArray.h"
 #include "vtkIdList.h"
 #include "vtkMath.h"
 #include "vtkPoints.h"
@@ -539,7 +538,7 @@ void vtkMeanValueCoordinatesInterpolator::ComputeInterpolationWeights(
 #ifdef VTK_USE_64BIT_IDS
     cells->IsStorage64Bit();
 #else  // VTK_USE_64BIT_IDS
-    !cells->IsStorage64Bit();
+    cells->IsStorage32Bit();
 #endif // VTK_USE_64BIT_IDS
 
   // check if input is a triangle mesh
@@ -551,9 +550,9 @@ void vtkMeanValueCoordinatesInterpolator::ComputeInterpolationWeights(
   if (canFastPath)
   {
 #ifdef VTK_USE_64BIT_IDS
-    vtkIdType* t = reinterpret_cast<vtkIdType*>(cells->GetConnectivityArray64()->GetPointer(0));
+    vtkIdType* t = reinterpret_cast<vtkIdType*>(cells->GetConnectivityAOSArray64()->GetPointer(0));
 #else  // 32 bit ids
-    vtkIdType* t = reinterpret_cast<vtkIdType*>(cells->GetConnectivityArray32()->GetPointer(0));
+    vtkIdType* t = reinterpret_cast<vtkIdType*>(cells->GetConnectivityAOSArray32()->GetPointer(0));
 #endif // VTK_USE_64BIT_IDS
 
     vtkMVCTriIterator iter(cells->GetNumberOfConnectivityIds(), 3, t);
@@ -589,8 +588,7 @@ void vtkMeanValueCoordinatesInterpolator::ComputeInterpolationWeightsForTriangle
   }
 
   // float/double points get fast path, everything else goes slow.
-  using vtkArrayDispatch::Reals;
-  using Dispatcher = vtkArrayDispatch::DispatchByValueType<Reals>;
+  using Dispatcher = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
 
   ComputeWeightsForTriangleMesh worker;
   if (!Dispatcher::Execute(pts->GetData(), worker, x, iter, weights))
@@ -618,8 +616,7 @@ void vtkMeanValueCoordinatesInterpolator::ComputeInterpolationWeightsForPolygonM
   }
 
   // float/double points get fast path, everything else goes slow.
-  using vtkArrayDispatch::Reals;
-  using Dispatcher = vtkArrayDispatch::DispatchByValueType<Reals>;
+  using Dispatcher = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
 
   ComputeWeightsForPolygonMesh worker;
   if (!Dispatcher::Execute(pts->GetData(), worker, x, iter, weights))

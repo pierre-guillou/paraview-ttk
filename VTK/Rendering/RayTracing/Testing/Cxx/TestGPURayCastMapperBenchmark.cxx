@@ -15,16 +15,19 @@
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
+#include "vtkStringScanner.h"
 #include "vtkTimerLog.h"
 #include "vtkVolume.h"
 #include "vtkVolumeProperty.h"
+
+#include <iostream>
 
 // TODO , tweak the sampling rate and number of samples to test if the
 // baseline image would be matched (only visible differences on the edges)
 //------------------------------------------------------------------------------
 int TestGPURayCastMapperBenchmark(int argc, char* argv[])
 {
-  cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << endl;
+  std::cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << std::endl;
 
   bool useOSP = true;
   bool useFP = false;
@@ -42,11 +45,11 @@ int TestGPURayCastMapperBenchmark(int argc, char* argv[])
     }
     if (!strcmp(argv[i], "-EXT"))
     {
-      EXT = atoi(argv[i + 1]);
+      VTK_FROM_CHARS_IF_ERROR_RETURN(argv[i + 1], EXT, EXIT_FAILURE);
     }
     if (!strcmp(argv[i], "-RES"))
     {
-      RES = atoi(argv[i + 1]);
+      VTK_FROM_CHARS_IF_ERROR_RETURN(argv[i + 1], RES, EXIT_FAILURE);
     }
   }
 
@@ -54,19 +57,19 @@ int TestGPURayCastMapperBenchmark(int argc, char* argv[])
   wavelet->SetWholeExtent(-(EXT - 1), EXT, -(EXT - 1), EXT, -(EXT - 1), EXT);
   wavelet->SetCenter(0.0, 0.0, 0.0);
   vtkNew<vtkTimerLog> timer;
-  cerr << "Make data" << endl;
+  std::cerr << "Make data" << std::endl;
   timer->StartTimer();
   wavelet->Update();
   timer->StopTimer();
   double makeDataTime = timer->GetElapsedTime();
-  cerr << "Make data time: " << makeDataTime << endl;
+  std::cerr << "Make data time: " << makeDataTime << std::endl;
 
   vtkNew<vtkGPUVolumeRayCastMapper> gpu_volumeMapper;
   vtkNew<vtkFixedPointVolumeRayCastMapper> cpu_volumeMapper;
   vtkVolumeMapper* volumeMapper = gpu_volumeMapper;
   if (useFP)
   {
-    cerr << "USE FP" << endl;
+    std::cerr << "USE FP" << std::endl;
     volumeMapper = cpu_volumeMapper;
   }
 
@@ -120,7 +123,7 @@ int TestGPURayCastMapperBenchmark(int argc, char* argv[])
     renderWindow->Render();
     timer->StopTimer();
     double firstRender = timer->GetElapsedTime();
-    cerr << "First Render Time: " << firstRender << endl;
+    std::cerr << "First Render Time: " << firstRender << std::endl;
 
     int numRenders = 20;
     for (int i = 0; i < numRenders; ++i)
@@ -141,7 +144,7 @@ int TestGPURayCastMapperBenchmark(int argc, char* argv[])
     }
     timer->StopTimer();
     double elapsed = timer->GetElapsedTime();
-    cerr << "Interactive Render Time: " << elapsed / numRenders << endl;
+    std::cerr << "Interactive Render Time: " << elapsed / numRenders << std::endl;
 
     renderer->GetActiveCamera()->SetPosition(0, 0, 1);
     renderer->GetActiveCamera()->SetFocalPoint(0, 0, 0);
@@ -162,7 +165,7 @@ int TestGPURayCastMapperBenchmark(int argc, char* argv[])
   else
   {
     retVal = vtkTesting::PASSED;
-    cout << "Required extensions not supported." << endl;
+    std::cout << "Required extensions not supported." << std::endl;
   }
 
   return !((retVal == vtkTesting::PASSED) || (retVal == vtkTesting::DO_INTERACTOR));

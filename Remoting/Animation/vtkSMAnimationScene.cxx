@@ -277,7 +277,7 @@ void vtkSMAnimationScene::AddCue(vtkAnimationCue* cue)
     vtkErrorMacro("Animation cue already present in the scene");
     return;
   }
-  cues.push_back(cue);
+  cues.emplace_back(cue);
   this->Modified();
 }
 
@@ -377,7 +377,7 @@ void vtkSMAnimationScene::AddViewProxy(vtkSMViewProxy* view)
       return;
     }
   }
-  this->Internals->ViewModules.push_back(view);
+  this->Internals->ViewModules.emplace_back(view);
 }
 
 //----------------------------------------------------------------------------
@@ -596,6 +596,12 @@ void vtkSMAnimationScene::SetFramesPerTimestep(int val)
 void vtkSMAnimationScene::SetStride(int val)
 {
   this->AnimationPlayer->SetStride(val);
+}
+
+//----------------------------------------------------------------------------
+int vtkSMAnimationScene::GetStride()
+{
+  return this->AnimationPlayer->GetStride();
 }
 
 //----------------------------------------------------------------------------

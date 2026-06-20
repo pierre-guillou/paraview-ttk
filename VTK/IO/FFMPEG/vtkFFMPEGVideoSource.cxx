@@ -20,6 +20,8 @@ extern "C"
 #include <condition_variable>
 #include <mutex>
 
+#include <iostream>
+
 /////////////////////////////////////////////////////////////////////////
 // building ffmpeg on windows
 //
@@ -474,16 +476,13 @@ static void vtkThreadSleep(double time)
     {
       if (i == 0 && count % 100 == 0)
       {
-        cerr << "dropped frames, now behind by " << remaining << " seconds\n";
+        std::cerr << "dropped frames, now behind by " << remaining << " seconds\n";
       }
       break;
     }
 
     // do not sleep for more than 0.1 seconds
-    if (remaining > 0.1)
-    {
-      remaining = 0.1;
-    }
+    remaining = std::min(remaining, 0.1);
 
     vtksys::SystemTools::Delay(static_cast<unsigned int>(remaining * 1000.0));
   }
@@ -528,7 +527,7 @@ void* vtkFFMPEGVideoSource::Drain(vtkMultiThreader::ThreadInfo* data)
     else if (ret < 0) // error code
     {
       this->FeedMutex.unlock();
-      cerr << "video drain thread exiting on error!\n";
+      std::cerr << "video drain thread exiting on error!\n";
       return nullptr;
     }
 
@@ -609,7 +608,7 @@ void* vtkFFMPEGVideoSource::DrainAudio(vtkMultiThreader::ThreadInfo* data)
     else if (ret < 0) // error code
     {
       this->FeedAudioMutex.unlock();
-      cerr << "audio drain thread exiting on error!\n";
+      std::cerr << "audio drain thread exiting on error!\n";
       return nullptr;
     }
 

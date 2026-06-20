@@ -32,6 +32,7 @@
 #include "vtkSMPluginManager.h"
 #include "vtkSMProxy.h"
 #include "vtkSMProxyManager.h"
+#include "vtkSMSession.h"
 #include "vtkSMStringVectorProperty.h"
 #include <vtksys/SystemTools.hxx>
 
@@ -44,6 +45,7 @@
 #include <QStringList>
 
 #include <cassert>
+#include <iostream>
 
 #if VTK_MODULE_ENABLE_VTK_PythonInterpreter
 #include "vtkPythonInterpreter.h"
@@ -81,7 +83,7 @@ void pqCommandLineOptionsBehavior::processCommandLineOptions()
   if (rcConfig->GetDisableRegistry())
   {
     // a cout for test playback.
-    cout << "Process started" << endl;
+    std::cout << "Process started" << endl;
   }
 
   // Process tests.
@@ -144,7 +146,8 @@ void pqCommandLineOptionsBehavior::processServerConnection()
   // Connect to builtin, if none present.
   if (pqActiveObjects::instance().activeServer() == nullptr)
   {
-    pqServerConnectReaction::connectToServer(pqServerResource("builtin:"), false);
+    pqServerConnectReaction::connectToServer(
+      pqServerResource(vtkSMSession::GetBuiltinName()), false);
   }
 
   // Now we are assured that some default server connection has been made
@@ -314,7 +317,7 @@ bool pqCommandLineOptionsBehavior::processTests()
 
     // Play the test script if specified.
     pqTestUtility* testUtility = pqApplicationCore::instance()->testUtility();
-    cout << "Playing: " << qPrintable(script) << endl;
+    std::cout << "Playing: " << qPrintable(script) << endl;
     bool success = testUtility->playTests(script);
     if (success && !baseline.isEmpty())
     {

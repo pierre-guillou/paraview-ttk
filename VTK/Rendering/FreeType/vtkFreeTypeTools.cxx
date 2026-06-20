@@ -26,9 +26,10 @@
 #include <sstream>
 #include <vector>
 
+#include <iostream>
+
 // Print debug info
 #define VTK_FTFC_DEBUG 0
-#define VTK_FTFC_DEBUG_CD 0
 
 namespace
 {
@@ -172,9 +173,6 @@ void vtkFreeTypeTools::SetInstance(vtkFreeTypeTools* instance)
 //------------------------------------------------------------------------------
 vtkFreeTypeTools::vtkFreeTypeTools()
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeTools::vtkFreeTypeTools\n");
-#endif
   // Force use of compiled fonts by default.
   this->ForceCompiledFonts = true;
   this->DebugTextures = false;
@@ -202,9 +200,6 @@ vtkFreeTypeTools::vtkFreeTypeTools()
 //------------------------------------------------------------------------------
 vtkFreeTypeTools::~vtkFreeTypeTools()
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeTools::~vtkFreeTypeTools\n");
-#endif
   this->ReleaseCacheManager();
   delete TextPropertyLookup;
 
@@ -216,10 +211,6 @@ vtkFreeTypeTools::~vtkFreeTypeTools()
 //------------------------------------------------------------------------------
 FT_Library* vtkFreeTypeTools::GetLibrary()
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeTools::GetLibrary\n");
-#endif
-
   return this->Library;
 }
 
@@ -370,10 +361,6 @@ FTC_CMapCache* vtkFreeTypeTools::GetCMapCache()
 static FT_Error vtkFreeTypeToolsFaceRequester(
   FTC_FaceID face_id, FT_Library lib, FT_Pointer request_data, FT_Face* face)
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeToolsFaceRequester()\n");
-#endif
-
   // Get a pointer to the current vtkFreeTypeTools object
   vtkFreeTypeTools* self = reinterpret_cast<vtkFreeTypeTools*>(request_data);
 
@@ -408,10 +395,6 @@ static FT_Error vtkFreeTypeToolsFaceRequester(
 //------------------------------------------------------------------------------
 void vtkFreeTypeTools::InitializeCacheManager()
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeTools::InitializeCacheManager()\n");
-#endif
-
   this->ReleaseCacheManager();
 
   FT_Error error;
@@ -448,10 +431,6 @@ void vtkFreeTypeTools::InitializeCacheManager()
 //------------------------------------------------------------------------------
 void vtkFreeTypeTools::ReleaseCacheManager()
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeTools::ReleaseCacheManager()\n");
-#endif
-
   if (this->CacheManager)
   {
     FTC_Manager_Done(*this->CacheManager);
@@ -709,10 +688,6 @@ bool vtkFreeTypeTools::GetSize(size_t tprop_cache_id, int font_size, FT_Size* si
 //------------------------------------------------------------------------------
 bool vtkFreeTypeTools::GetSize(FTC_Scaler scaler, FT_Size* size)
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeTools::GetSize()\n");
-#endif
-
   if (!size)
   {
     vtkErrorMacro(<< "Size is nullptr.");
@@ -754,10 +729,6 @@ bool vtkFreeTypeTools::GetSize(vtkTextProperty* tprop, FT_Size* size)
 //------------------------------------------------------------------------------
 bool vtkFreeTypeTools::GetFace(size_t tprop_cache_id, FT_Face* face)
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeTools::GetFace()\n");
-#endif
-
   if (!face)
   {
     vtkErrorMacro(<< "Wrong parameters, face is nullptr");
@@ -802,10 +773,6 @@ bool vtkFreeTypeTools::GetFace(vtkTextProperty* tprop, FT_Face* face)
 //------------------------------------------------------------------------------
 bool vtkFreeTypeTools::GetGlyphIndex(size_t tprop_cache_id, FT_UInt32 c, FT_UInt* gindex)
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeTools::GetGlyphIndex()\n");
-#endif
-
   if (!gindex)
   {
     vtkErrorMacro(<< "Wrong parameters, gindex is nullptr");
@@ -848,10 +815,6 @@ bool vtkFreeTypeTools::GetGlyphIndex(vtkTextProperty* tprop, FT_UInt32 c, FT_UIn
 bool vtkFreeTypeTools::GetGlyph(
   size_t tprop_cache_id, int font_size, FT_UInt gindex, FT_Glyph* glyph, int request)
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeTools::GetGlyph()\n");
-#endif
-
   if (!glyph)
   {
     vtkErrorMacro(<< "Wrong parameters, one of them is nullptr");
@@ -892,10 +855,6 @@ bool vtkFreeTypeTools::GetGlyph(
 //------------------------------------------------------------------------------
 bool vtkFreeTypeTools::GetGlyph(FTC_Scaler scaler, FT_UInt gindex, FT_Glyph* glyph, int request)
 {
-#if VTK_FTFC_DEBUG_CD
-  printf("vtkFreeTypeTools::GetGlyph()\n");
-#endif
-
   if (!glyph)
   {
     vtkErrorMacro(<< "Wrong parameters, one of them is nullptr");
@@ -999,9 +958,9 @@ bool vtkFreeTypeTools::LookupFace(vtkTextProperty* tprop, FT_Library lib, FT_Fac
   else
   {
 #if VTK_FTFC_DEBUG
-    cout << "Requested: " << *face << " (F: " << tprop->GetFontFamily()
-         << ", B: " << tprop->GetBold() << ", I: " << tprop->GetItalic()
-         << ", O: " << tprop->GetOrientation() << ")" << endl;
+    std::cout << "Requested: " << *face << " (F: " << tprop->GetFontFamily()
+              << ", B: " << tprop->GetBold() << ", I: " << tprop->GetItalic()
+              << ", O: " << tprop->GetOrientation() << ")" << endl;
 #endif
   }
 
@@ -1539,14 +1498,10 @@ bool vtkFreeTypeTools::CalculateBoundingBox(
 
   // Compute the background/frame bounding box.
   vtkTuple<int, 4> bgBbox;
-  bgBbox[0] =
-    std::min(std::min(metaData.TL[0], metaData.TR[0]), std::min(metaData.BL[0], metaData.BR[0]));
-  bgBbox[1] =
-    std::max(std::max(metaData.TL[0], metaData.TR[0]), std::max(metaData.BL[0], metaData.BR[0]));
-  bgBbox[2] =
-    std::min(std::min(metaData.TL[1], metaData.TR[1]), std::min(metaData.BL[1], metaData.BR[1]));
-  bgBbox[3] =
-    std::max(std::max(metaData.TL[1], metaData.TR[1]), std::max(metaData.BL[1], metaData.BR[1]));
+  bgBbox[0] = std::min({ metaData.TL[0], metaData.TR[0], metaData.BL[0], metaData.BR[0] });
+  bgBbox[1] = std::max({ metaData.TL[0], metaData.TR[0], metaData.BL[0], metaData.BR[0] });
+  bgBbox[2] = std::min({ metaData.TL[1], metaData.TR[1], metaData.BL[1], metaData.BR[1] });
+  bgBbox[3] = std::max({ metaData.TL[1], metaData.TR[1], metaData.BL[1], metaData.BR[1] });
 
   // Calculate the final bounding box (should just be the bg, but just in
   // case...)
@@ -1675,8 +1630,8 @@ bool findScanRange(const vtkVector2i& TL, const vtkVector2i& TR, const vtkVector
 {
   // Initialize the min and max to a known invalid range using the bounds of the
   // rectangle:
-  min = std::max(std::max(TL[0], TR[0]), std::max(BL[0], BR[0]));
-  max = std::min(std::min(TL[0], TR[0]), std::min(BL[0], BR[0]));
+  min = std::max({ TL[0], TR[0], BL[0], BR[0] });
+  max = std::min({ TL[0], TR[0], BL[0], BR[0] });
 
   float lineParam;
   int numIntersections = 0;
@@ -1756,8 +1711,8 @@ void vtkFreeTypeTools::RenderBackground(
   const vtkVector2i& BR = metaData.BR;
 
   // Find the minimum and maximum y values:
-  int yMin = std::min(std::min(TL[1], TR[1]), std::min(BL[1], BR[1]));
-  int yMax = std::max(std::max(TL[1], TR[1]), std::max(BL[1], BR[1]));
+  int yMin = std::min({ TL[1], TR[1], BL[1], BR[1] });
+  int yMax = std::max({ TL[1], TR[1], BL[1], BR[1] });
 
   // Clamp these to prevent out of bounds errors:
   int extent[6];

@@ -12,6 +12,8 @@
 #include "vtkVariantArray.h"
 #include "vtkVertexListIterator.h"
 
+#include <iostream>
+
 int TestCollapseVerticesByArray(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
 {
   typedef vtkSmartPointer<vtkMutableDirectedGraph> vtkMutableDirectedGraphRefPtr;
@@ -28,7 +30,7 @@ int TestCollapseVerticesByArray(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   // Create an empty graph.
   vtkMutableDirectedGraphRefPtr inGraph(vtkMutableDirectedGraphRefPtr::New());
 
-  const int NO_OF_VERTICES = 3;
+  constexpr int NO_OF_VERTICES = 3;
   vtkIdType vertexIds[NO_OF_VERTICES];
 
   for (int i = 0; i < NO_OF_VERTICES; ++i)
@@ -189,7 +191,7 @@ int TestCollapseVerticesByArray(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
 
   if (retVal != 0)
   {
-    cerr << "Data mismatch with the valid dataset." << endl;
+    std::cerr << "Data mismatch with the valid dataset." << std::endl;
   }
 
   return retVal;

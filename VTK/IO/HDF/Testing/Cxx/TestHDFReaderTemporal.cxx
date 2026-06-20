@@ -4,12 +4,12 @@
 #include "vtkDataObject.h"
 #include "vtkHDFReader.h"
 
-#include "vtkAMRBox.h"
 #include "vtkAppendDataSets.h"
 #include "vtkAppendFilter.h"
 #include "vtkCellData.h"
 #include "vtkDataArray.h"
 #include "vtkDataSet.h"
+#include "vtkDoubleArray.h"
 #include "vtkFieldData.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkHyperTreeGridSource.h"
@@ -17,21 +17,26 @@
 #include "vtkInformation.h"
 #include "vtkMath.h"
 #include "vtkMathUtilities.h"
+#include "vtkMultiBlockDataSet.h"
 #include "vtkOverlappingAMR.h"
 #include "vtkPartitionedDataSet.h"
+#include "vtkPartitionedDataSetCollection.h"
 #include "vtkPointData.h"
 #include "vtkRTAnalyticSource.h"
 #include "vtkSphereSource.h"
+#include "vtkStringFormatter.h"
 #include "vtkTestUtilities.h"
 #include "vtkTesting.h"
-#include "vtkUniformGrid.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkXMLPartitionedDataSetReader.h"
 #include "vtkXMLPolyDataReader.h"
 #include "vtkXMLUniformGridAMRReader.h"
+#include "vtkXMLUnstructuredGridReader.h"
 
 #include <cstdlib>
+#include <iostream>
 #include <map>
+#include <string>
 #include <vector>
 
 namespace
@@ -66,6 +71,7 @@ int TestImageDataTemporal(const std::string& dataRoot);
 int TestPolyDataTemporal(const std::string& dataRoot);
 int TestPolyDataTemporalWithOffset(const std::string& dataRoot);
 int TestUGTemporalWithCachePartitioned(const std::string& dataRoot);
+int TestUGTemporalPolyhedron(const std::string& dataRoot);
 int TestUGTemporalPartitionedNoCache(const std::string& dataRoot);
 int TestImageDataTemporalWithCache(const std::string& dataRoot);
 int TestPolyDataTemporalWithCache(const std::string& dataRoot);
@@ -74,6 +80,7 @@ int TestHyperTreeGridTemporal(const std::string& dataRoot, unsigned int depthLim
 int TestHyperTreeGridPartitionedTemporal(const std::string& dataRoot);
 int TestOverlappingAMRTemporal(const std::string& dataRoot);
 int TestOverlappingAMRTemporalLegacy(const std::string& dataRoot);
+int TestPartialArrayWithCompositeDataset(const std::string& dataRoot);
 }
 
 //------------------------------------------------------------------------------
@@ -88,14 +95,16 @@ int TestHDFReaderTemporal(int argc, char* argv[])
   res |= ::TestPolyDataTemporalWithOffset(dataRoot);
   res |= ::TestUGTemporalPartitionedNoCache(dataRoot);
   res |= ::TestUGTemporalWithCachePartitioned(dataRoot);
+  res |= ::TestUGTemporalPolyhedron(dataRoot);
   res |= ::TestImageDataTemporalWithCache(dataRoot);
   res |= ::TestPolyDataTemporalWithCache(dataRoot);
   res |= ::TestPolyDataTemporalFieldData(dataRoot);
   res |= ::TestHyperTreeGridTemporal(dataRoot, 3);
   res |= ::TestHyperTreeGridTemporal(dataRoot, 1);
+  res |= ::TestOverlappingAMRTemporalLegacy(dataRoot);
   res |= ::TestHyperTreeGridPartitionedTemporal(dataRoot);
   res |= ::TestOverlappingAMRTemporal(dataRoot);
-  res |= ::TestOverlappingAMRTemporalLegacy(dataRoot);
+  res |= ::TestPartialArrayWithCompositeDataset(dataRoot);
 
   return res;
 }
@@ -486,7 +495,7 @@ int TestUGTemporalPartitioned(
     // Reference Geometry
     vtkNew<vtkXMLPartitionedDataSetReader> refReader;
     refReader->SetFileName((dataRoot + "/Data/hdf_transient_partitioned_ug_twin/transient_sphere_" +
-      std::to_string(iStep) + ".vtpd")
+      vtk::to_string(iStep) + ".vtpd")
                              .c_str());
     vtkPartitionedDataSet* refGeometry =
       vtkPartitionedDataSet::SafeDownCast(refReader->GetOutputDataObject(0));
@@ -602,6 +611,35 @@ int TestUGTemporalWithCachePartitioned(const std::string& dataRoot)
   OpenerWorklet opener(dataRoot + "/Data/transient_sphere.hdf", false);
   opener.GetReader()->UseCacheOn();
   return TestUGTemporalPartitioned(opener, dataRoot, true);
+}
+
+//------------------------------------------------------------------------------
+int TestUGTemporalPolyhedron(const std::string& dataRoot)
+{
+  OpenerWorklet opener(dataRoot + "/Data/vtkHDF/polyhedron_temporal.vtkhdf", false);
+  opener.GetReader()->UseCacheOn();
+
+  for (int step = 0; step <= 1; step++)
+  {
+    vtkUnstructuredGrid* readData = vtkUnstructuredGrid::SafeDownCast(opener(step));
+
+    std::string vtuFile =
+      dataRoot + "/Data/vtkHDF/polyhedron_temporal_" + vtk::to_string(step) + ".vtu";
+    vtkNew<vtkXMLUnstructuredGridReader> readerXML;
+    readerXML->SetFileName(vtuFile.c_str());
+    readerXML->Update();
+    vtkUnstructuredGrid* readDataXML = vtkUnstructuredGrid::SafeDownCast(readerXML->GetOutput());
+    vtkNew<vtkFieldData> fd;
+    readDataXML->SetFieldData(fd);
+
+    if (!vtkTestUtilities::CompareDataObjects(readDataXML, readData))
+    {
+      std::cerr << "Unstructured grids with polyhedrons are not the same for timestep " << step
+                << std::endl;
+      return EXIT_FAILURE;
+    }
+  }
+  return EXIT_SUCCESS;
 }
 
 //------------------------------------------------------------------------------
@@ -743,7 +781,7 @@ int TestPolyDataTemporalBase(
     vtkNew<vtkXMLPolyDataReader> refReader;
     refReader->SetFileName(
       (dataRoot + "/Data/hdf_transient_poly_data_twin/hdf_transient_poly_data_twin_00" +
-        std::to_string(iStep) + ".vtp")
+        vtk::to_string(iStep) + ".vtp")
         .c_str());
     refReader->Update();
 
@@ -854,7 +892,7 @@ int TestPolyDataTemporalPartitionedWithCache(
     vtkNew<vtkXMLPartitionedDataSetReader> refReader;
     refReader->SetFileName(
       (dataRoot + "/Data/hdf_transient_partitioned_poly_data_twin/transient_sphere_" +
-        std::to_string(iStep) + ".vtpd")
+        vtk::to_string(iStep) + ".vtpd")
         .c_str());
     refReader->Update();
 
@@ -1120,6 +1158,85 @@ int TestPolyDataTemporalFieldData(const std::string& dataRoot)
 }
 
 //------------------------------------------------------------------------------
+int TestPartialArrayWithCompositeDataset(const std::string& dataRoot)
+{
+  OpenerWorklet opener(dataRoot + "/Data/vtkHDF/composite_partial_array.vtkhdf", false);
+
+  // Generic Time data checks
+  if (opener.GetReader()->GetNumberOfSteps() != 7)
+  {
+    std::cerr << "Number of time steps is not correct: " << opener.GetReader()->GetNumberOfSteps()
+              << " != " << 7 << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  auto tRange = opener.GetReader()->GetTimeRange();
+  if ((tRange[0] != 0.0) || (tRange[1] != 9.0))
+  {
+    std::cerr << "Time range is incorrect: (0, 9) != (" << tRange[0] << ", " << tRange[1] << ")"
+              << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  std::array<double, 7> expectedFirstValues = { 1.14685, 1.97722, -4.61971, 0.317693, 1.70716,
+    3.10965, -3.86293 };
+
+  constexpr vtkIdType numberOfSteps = 7;
+  for (vtkIdType iStep = 0; iStep < numberOfSteps; iStep++)
+  {
+    vtkSmartPointer<vtkMultiBlockDataSet> multiblock =
+      vtkMultiBlockDataSet::SafeDownCast(opener(iStep));
+
+    if (!multiblock)
+    {
+      std::cerr << "The data isn't a multi block." << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    if (multiblock->GetNumberOfBlocks() != 2)
+    {
+      std::cerr << "The multiblock should contain 2 blocks but has "
+                << multiblock->GetNumberOfBlocks() << " instead." << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    auto block0 = vtkPolyData::SafeDownCast(multiblock->GetBlock(0));
+    auto block1 = vtkPolyData::SafeDownCast(multiblock->GetBlock(1));
+    if (!block0 || !block1)
+    {
+      std::cerr << "Both blocks should be polydata." << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    // only the first block contains this data array
+    if (block0->GetPointData()->GetNumberOfArrays() != 1)
+    {
+      std::cout << "Block0 should contain point data arrays." << std::endl;
+      return EXIT_FAILURE;
+    }
+    if (block1->GetPointData()->GetNumberOfArrays() != 0)
+    {
+      std::cout << "Block1 should not contain point data arrays." << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    // check at least the first value at each time step
+    auto spatioTemporalArray =
+      vtkDoubleArray::SafeDownCast(block0->GetPointData()->GetArray("SpatioTemporalHarmonics"));
+    if (!vtkMathUtilities::FuzzyCompare(
+          spatioTemporalArray->GetValue(0), expectedFirstValues[iStep], CHECK_TOLERANCE))
+    {
+      std::cerr << "The first value of the array at step " << iStep
+                << " is incorrect: " << spatioTemporalArray->GetValue(0)
+                << " != " << expectedFirstValues[iStep] << std::endl;
+      return EXIT_FAILURE;
+    }
+  }
+
+  return EXIT_SUCCESS;
+}
+
+//------------------------------------------------------------------------------
 int TestHyperTreeGridTemporal(const std::string& dataRoot, unsigned int depthLimit)
 {
   OpenerWorklet opener(dataRoot + "/Data/vtkHDF/temporal_htg.hdf");
@@ -1276,7 +1393,7 @@ int TestOverlappingAMRTemporalBase(OpenerWorklet& opener, const std::string& dat
 
     vtkNew<vtkXMLUniformGridAMRReader> outputReader;
     std::string expectedFileName = dataRoot +
-      "/Data/vtkHDF/Transient/transient_expected_overlapping_amr_" + std::to_string(iStep) +
+      "/Data/vtkHDF/Transient/transient_expected_overlapping_amr_" + vtk::to_string(iStep) +
       ".vthb";
     outputReader->SetFileName(expectedFileName.c_str());
     outputReader->SetMaximumLevelsToReadByDefault(0);
@@ -1316,19 +1433,20 @@ int TestOverlappingAMRTemporalBase(OpenerWorklet& opener, const std::string& dat
 
     for (unsigned int levelIndex = 0; levelIndex < expectedData->GetNumberOfLevels(); ++levelIndex)
     {
-      if (dSet->GetNumberOfDataSets(levelIndex) != expectedData->GetNumberOfDataSets(levelIndex))
+      if (dSet->GetNumberOfBlocks(levelIndex) != expectedData->GetNumberOfBlocks(levelIndex))
       {
-        std::cerr << "Number of datasets does not match for level " << levelIndex
-                  << ". Expected: " << expectedData->GetNumberOfDataSets(0)
-                  << " got: " << dSet->GetNumberOfDataSets(0) << std::endl;
+        std::cerr << "Number of blocks does not match for level " << levelIndex
+                  << ". Expected: " << expectedData->GetNumberOfBlocks(0)
+                  << " got: " << dSet->GetNumberOfBlocks(0) << std::endl;
         return EXIT_FAILURE;
       }
 
       for (unsigned int datasetIndex = 0;
-           datasetIndex < expectedData->GetNumberOfDataSets(levelIndex); ++datasetIndex)
+           datasetIndex < expectedData->GetNumberOfBlocks(levelIndex); ++datasetIndex)
       {
-        auto dataset = dSet->GetDataSet(levelIndex, datasetIndex);
-        auto expectedDataset = expectedData->GetDataSet(levelIndex, datasetIndex);
+        vtkImageData* dataset = dSet->GetDataSetAsImageData(levelIndex, datasetIndex);
+        vtkImageData* expectedDataset =
+          expectedData->GetDataSetAsImageData(levelIndex, datasetIndex);
         if (!vtkTestUtilities::CompareDataObjects(dataset, expectedDataset))
         {
           std::cerr << "Datasets does not match for level " << levelIndex << " dataset "

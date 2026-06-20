@@ -5,9 +5,9 @@
 #include "vtk3DLinearGridPlaneCutter.h"
 #include "vtkAppendDataSets.h"
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
-#include "vtkConvertToMultiBlockDataSet.h"
 #include "vtkDataObjectTreeRange.h"
 #include "vtkDataSet.h"
 #include "vtkDoubleArray.h"
@@ -37,7 +37,6 @@
 #include "vtkStructuredDataPlaneCutter.h"
 #include "vtkStructuredGrid.h"
 #include "vtkTransform.h"
-#include "vtkUniformGridAMR.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
@@ -107,6 +106,7 @@ struct InOutPlanePoints
       eval = vtkPlane::Evaluate(n, o, p);
 
       // Point is either above(=2), below(=1), or on(=0) the plane.
+      // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
       *inOutItr = (eval > zero ? 2 : (eval < zero ? 1 : 0));
     }
   }
@@ -227,9 +227,20 @@ struct CuttingFunctor
 
     vtkIdType numCells = this->Input->GetNumberOfCells();
 
-    int precisionType = (this->OutputPrecision == vtkAlgorithm::DEFAULT_PRECISION
-        ? this->InPointsArray->GetDataType()
-        : (this->OutputPrecision == vtkAlgorithm::SINGLE_PRECISION ? VTK_FLOAT : VTK_DOUBLE));
+    int precisionType;
+    switch (this->OutputPrecision)
+    {
+      case vtkAlgorithm::SINGLE_PRECISION:
+        precisionType = VTK_FLOAT;
+        break;
+      case vtkAlgorithm::DOUBLE_PRECISION:
+        precisionType = VTK_DOUBLE;
+        break;
+      case vtkAlgorithm::DEFAULT_PRECISION:
+      default:
+        precisionType = this->InPointsArray->GetDataType();
+        break;
+    }
     vtkPoints*& newPts = this->NewPts.Local();
     newPts->SetDataType(precisionType);
     output->SetPoints(newPts);
@@ -431,7 +442,7 @@ struct UnstructuredDataFunctor : public CuttingFunctor<TPointsArray>
           switch (cell->GetCellDimension())
           {
             case (0):
-              VTK_FALLTHROUGH;
+              [[fallthrough]];
             case (1):
               tmpOutCD = newVertsData;
               break;
@@ -556,7 +567,7 @@ int vtkPlaneCutter::RequestDataObject(vtkInformation* vtkNotUsed(request),
   {
     outputType = VTK_PARTITIONED_DATA_SET_COLLECTION;
   }
-  else if (vtkMultiBlockDataSet::SafeDownCast(inputDO) || vtkUniformGridAMR::SafeDownCast(inputDO))
+  else if (vtkMultiBlockDataSet::SafeDownCast(inputDO))
   {
     outputType = VTK_MULTIBLOCK_DATA_SET;
   }
@@ -623,16 +634,6 @@ int vtkPlaneCutter::RequestData(vtkInformation* vtkNotUsed(request),
     auto outputDOT = vtkDataObjectTree::SafeDownCast(outputDO);
     assert(outputDOT != nullptr);
     return this->ExecuteDataObjectTree(inputDOT, outputDOT);
-  }
-  else if (vtkUniformGridAMR::SafeDownCast(inputDO))
-  {
-    vtkNew<vtkConvertToMultiBlockDataSet> toMBDS;
-    toMBDS->SetInputData(inputDO);
-    toMBDS->Update();
-    auto convertInputDOT = vtkMultiBlockDataSet::SafeDownCast(toMBDS->GetOutput());
-    auto outputDOT = vtkDataObjectTree::SafeDownCast(outputDO);
-    assert(outputDOT != nullptr);
-    return this->ExecuteDataObjectTree(convertInputDOT, outputDOT);
   }
   else if (auto inputDS = vtkDataSet::SafeDownCast(inputDO))
   {
@@ -799,7 +800,7 @@ int vtkPlaneCutter::ExecuteDataSet(vtkDataSet* input, vtkPolyData* output)
 
   auto tempOutputMP = vtkSmartPointer<vtkMultiPieceDataSet>::New();
   // Threaded execute
-  using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
+  using Dispatcher = vtkArrayDispatch::DispatchByArray<vtkArrayDispatch::PointArrays>;
   if (auto inputPolyData = vtkPolyData::SafeDownCast(input))
   {
     UnstructuredDataWorker<vtkPolyData> worker;

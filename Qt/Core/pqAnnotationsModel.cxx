@@ -78,12 +78,7 @@ public:
     {
       case pqAnnotationsModel::COLOR:
       {
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-        bool canConvert = value.canConvert(QVariant::Color);
-#else
-        bool canConvert = value.canConvert(QMetaType(QMetaType::QColor));
-#endif
-        if (canConvert)
+        if (value.canConvert<QColor>())
         {
           if (this->Color != value.value<QColor>())
           {
@@ -697,7 +692,7 @@ std::vector<std::pair<QString, QString>> pqAnnotationsModel::annotations() const
   strAnnotations.reserve(this->Internals->Items.size());
   for (const AnnotationItem& item : this->Internals->Items)
   {
-    strAnnotations.push_back(std::make_pair(item.Value, item.Annotation));
+    strAnnotations.emplace_back(item.Value, item.Annotation);
   }
   return strAnnotations;
 }
@@ -707,23 +702,34 @@ void pqAnnotationsModel::setVisibilities(
   const std::vector<std::pair<QString, int>>& newVisibilities)
 {
   bool visibilityFlag = false;
-
+  // Find which need inserting, and update existing ones
+  std::vector<std::pair<QString, int>> toInsert;
   for (const auto& vis : newVisibilities)
   {
-    auto name = vis.first;
     auto foundItem = std::find_if(this->Internals->Items.begin(), this->Internals->Items.end(),
-      [name](const AnnotationItem& item) { return name == item.Value; });
+      [&](const AnnotationItem& item) { return vis.first == item.Value; });
     if (foundItem == this->Internals->Items.end())
     {
-      this->beginResetModel();
-      foundItem = this->Internals->Items.emplace(this->Internals->Items.end());
-      foundItem->setData(VALUE, name);
-      this->endResetModel();
+      toInsert.emplace_back(vis);
     }
-    if (foundItem->setData(VISIBILITY, vis.second))
+    else
     {
-      visibilityFlag = true;
+      visibilityFlag |= foundItem->setData(VISIBILITY, vis.second);
     }
+  }
+  // Insert new items at the end in one shot
+  if (!toInsert.empty())
+  {
+    const int start = static_cast<int>(this->Internals->Items.size());
+    const int end = start + static_cast<int>(toInsert.size()) - 1;
+    this->beginInsertRows(QModelIndex(), start, end);
+    for (const auto& [name, visibility] : toInsert)
+    {
+      auto& item = this->Internals->Items.emplace_back();
+      item.setData(VALUE, name);
+      visibilityFlag |= item.setData(VISIBILITY, visibility);
+    }
+    this->endInsertRows();
   }
 
   if (visibilityFlag)
@@ -737,9 +743,10 @@ void pqAnnotationsModel::setVisibilities(
 std::vector<std::pair<QString, int>> pqAnnotationsModel::visibilities() const
 {
   std::vector<std::pair<QString, int>> visibilities;
+  visibilities.reserve(this->Internals->Items.size());
   for (const AnnotationItem& item : this->Internals->Items)
   {
-    visibilities.push_back(std::make_pair(item.Value, item.Visibility));
+    visibilities.emplace_back(item.Value, item.Visibility);
   }
 
   return visibilities;

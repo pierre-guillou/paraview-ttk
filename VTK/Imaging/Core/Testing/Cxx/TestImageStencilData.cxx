@@ -12,13 +12,17 @@
 #include "vtkLinearExtrusionFilter.h"
 #include "vtkMatrix4x4.h"
 #include "vtkMatrixToLinearTransform.h"
+#include "vtkNew.h"
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataToImageStencil.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringScanner.h"
 #include "vtkTesting.h"
 #include "vtkTransformPolyDataFilter.h"
 #include "vtkTrivialProducer.h"
+
+#include <iostream>
 
 //------------------------------------------------------------------------------
 static vtkSmartPointer<vtkImageStencilData> CreateBoxStencilData(double d1, double d2)
@@ -52,7 +56,7 @@ static vtkSmartPointer<vtkImageStencilData> CreateBoxStencilData(double d1, doub
   // Apply a transformation to the output polydata that subtracts 0.5 from
   // the z coordinate.
 
-  const double m[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.5, 0, 0, 0, 1 };
+  constexpr double m[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.5, 0, 0, 0, 1 };
   vtkMatrixToLinearTransform* linearTransform = vtkMatrixToLinearTransform::New();
   linearTransform->GetMatrix()->DeepCopy(m);
   vtkTransformPolyDataFilter* transformPolyData = vtkTransformPolyDataFilter::New();
@@ -154,27 +158,29 @@ int TestImageStencilData(int argc, char* argv[])
   vtkSmartPointer<vtkImageStencilData> stencil1 = CreateBoxStencilData(10.0, 30.0);
   vtkSmartPointer<vtkImageStencilData> stencil2 = CreateBoxStencilData(20.0, 40.0);
 
-  vtkImageData* image = vtkImageData::New();
-  vtkTesting* testing = vtkTesting::New();
+  vtkNew<vtkImageData> image;
+  vtkNew<vtkTesting> testing;
   int cc;
   for (cc = 1; cc < argc; cc++)
   {
     testing->AddArgument(argv[cc]);
   }
 
-  if (atoi(argv[1]) == 1)
+  long addStencils;
+  VTK_FROM_CHARS_IF_ERROR_RETURN(argv[1], addStencils, EXIT_FAILURE);
+  if (addStencils == 1L)
   {
     // Test Add stencils
     stencil1->Add(stencil2);
     GetStencilDataAsImageData(stencil1, image);
   }
-  else if (atoi(argv[1]) == 2)
+  else if (addStencils == 2L)
   {
     // Test subtraction of stencils
     stencil1->Subtract(stencil2);
     GetStencilDataAsImageData(stencil1, image);
   }
-  else if (atoi(argv[1]) == 3)
+  else if (addStencils == 3L)
   {
     // Test clipping of stencils
     stencil1->Add(stencil2);
@@ -187,14 +193,13 @@ int TestImageStencilData(int argc, char* argv[])
   }
   else
   {
-    return EXIT_FAILURE;
+    std::cout << "Expected argument '1', or '2', or '3'. Skipping...\n";
+    return VTK_SKIP_RETURN_CODE;
   }
 
   vtkSmartPointer<vtkTrivialProducer> producer = vtkSmartPointer<vtkTrivialProducer>::New();
   producer->SetOutput(image);
   int retval = testing->RegressionTest(producer, 0.05);
-  testing->Delete();
-  image->Delete();
 
   return !retval;
 }

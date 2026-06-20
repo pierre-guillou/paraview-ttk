@@ -3,6 +3,7 @@
 
 #include "SMP/Common/vtkSMPToolsImpl.h"
 #include "SMP/OpenMP/vtkSMPToolsImpl.txx"
+#include "vtkStringScanner.h"
 
 #include <cstdlib> // For std::getenv()
 #include <omp.h>
@@ -45,13 +46,13 @@ vtkSMPToolsImplOpenMPInitialize::~vtkSMPToolsImplOpenMPInitialize()
 template <>
 void vtkSMPToolsImpl<BackendType::OpenMP>::Initialize(int numThreads)
 {
-  const int maxThreads = omp_get_max_threads();
+  const int maxThreads = vtkSMPToolsImpl<BackendType::OpenMP>::GetEstimatedDefaultNumberOfThreads();
   if (numThreads == 0)
   {
     const char* vtkSmpNumThreads = std::getenv("VTK_SMP_MAX_THREADS");
     if (vtkSmpNumThreads)
     {
-      numThreads = std::atoi(vtkSmpNumThreads);
+      VTK_FROM_CHARS_IF_ERROR_BREAK(vtkSmpNumThreads, numThreads);
     }
     else if (specifiedNumThreadsOMP)
     {
@@ -71,7 +72,9 @@ void vtkSMPToolsImpl<BackendType::OpenMP>::Initialize(int numThreads)
 //------------------------------------------------------------------------------
 int GetNumberOfThreadsOpenMP()
 {
-  return specifiedNumThreadsOMP ? specifiedNumThreadsOMP : omp_get_max_threads();
+  return (specifiedNumThreadsOMP > 0)
+    ? specifiedNumThreadsOMP
+    : vtkSMPToolsImpl<BackendType::OpenMP>::GetEstimatedDefaultNumberOfThreads();
 }
 
 //------------------------------------------------------------------------------
@@ -111,7 +114,11 @@ void vtkSMPToolsImplForOpenMP(vtkIdType first, vtkIdType last, vtkIdType grain,
     grain = (estimateGrain > 0) ? estimateGrain : 1;
   }
 
+#if _OPENMP >= 201811 // 5.0
+  omp_set_max_active_levels(nestedActivated);
+#else
   omp_set_nested(nestedActivated);
+#endif
 
 #pragma omp single
   threadIdStack->emplace(omp_get_thread_num());

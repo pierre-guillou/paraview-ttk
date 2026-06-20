@@ -3,8 +3,6 @@
 
 #include "vtkHigherOrderTriangle.h"
 
-#include <cstdint>
-
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkDoubleArray.h"
@@ -16,6 +14,9 @@
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 #include "vtkTriangle.h"
+
+#include <algorithm>
+#include <cstdint>
 
 #define ENABLE_CACHING
 #define SEVEN_POINT_TRIANGLE
@@ -66,6 +67,7 @@ void vtkHigherOrderTriangle::SetEdgeIdsAndPoints(int edgeId,
     // point, and then the remaining points in sequence. This loop iterates over
     // the edge in sequence starting with the first point. The following value
     // maps from this iteration loop to the edge's ordering.
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     vtkIdType edgeIndex = (i == 0 ? 0 : (i == order ? 1 : i + 1));
 
     set_ids_and_points(edgeIndex, triangleIndex);
@@ -741,10 +743,7 @@ double vtkHigherOrderTriangle::GetParametricDistance(const double pcoords[3])
     {
       pDist = 0.0;
     }
-    if (pDist > pDistMax)
-    {
-      pDistMax = pDist;
-    }
+    pDistMax = std::max(pDist, pDistMax);
   }
 
   return pDistMax;
@@ -891,7 +890,7 @@ vtkIdType vtkHigherOrderTriangle::Index(const vtkIdType* bindex, vtkIdType order
   vtkIdType max = order;
   vtkIdType min = 0;
 
-  vtkIdType bmin = std::min(std::min(bindex[0], bindex[1]), bindex[2]);
+  vtkIdType bmin = std::min({ bindex[0], bindex[1], bindex[2] });
 
   // scope into the correct triangle
   while (bmin > min)

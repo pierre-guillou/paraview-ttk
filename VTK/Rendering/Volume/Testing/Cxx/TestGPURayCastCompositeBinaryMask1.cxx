@@ -17,18 +17,19 @@
 #include "vtkVolumeProperty.h"
 
 #include <cmath>
+#include <iostream>
 
 int TestGPURayCastCompositeBinaryMask1(int argc, char* argv[])
 {
-  cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << endl;
+  std::cout << "CTEST_FULL_OUTPUT (Avoid ctest truncation of output)" << std::endl;
 
   // Dimensions of object
-  const int cx = 128;
-  const int cy = 128;
-  const int cz = 512;
+  constexpr int cx = 128;
+  constexpr int cy = 128;
+  constexpr int cz = 512;
 
   // Full scale value for data
-  const double fullScale = 100.0;
+  constexpr double fullScale = 100.0;
 
   // Create the image data and mask objects
   vtkNew<vtkImageData> imageData;
@@ -56,9 +57,9 @@ int TestGPURayCastCompositeBinaryMask1(int argc, char* argv[])
 
         // Inside the mask? Radius of cylinder mask is 1/2 cx which should
         // equal cy
-        const double radius = cx / 2.0;
-        const double xCenter = cx / 2.0;
-        const double yCenter = cy / 2.0;
+        constexpr double radius = cx / 2.0;
+        constexpr double xCenter = cx / 2.0;
+        constexpr double yCenter = cy / 2.0;
         const double distance = sqrt(pow(x - xCenter, 2.0) + pow(y - yCenter, 2.0));
         const bool inside = distance < radius;
         mask[index] = (inside) ? 255 : 0;
@@ -107,7 +108,7 @@ int TestGPURayCastCompositeBinaryMask1(int argc, char* argv[])
   int valid = mapper->IsRenderSupported(renWin, colorProperty);
   if (!valid)
   {
-    cout << "Required extensions not supported." << endl;
+    std::cout << "Required extensions not supported." << std::endl;
     return EXIT_SUCCESS;
   }
 

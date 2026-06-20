@@ -51,12 +51,12 @@ set(classes
   pqDisplayRepresentationWidget
   pqDockWindowInterface
   pqDoubleVectorPropertyWidget
+  pqDynamicPropertiesWidget
   pqExpressionChooserButton
   pqExpressionsDialog
   pqExpressionsManager
   pqExpressionsTableModel
   pqExpressionsWidget
-  pqFavoritesDialog
   pqFavoritesTreeWidget
   pqFileChooserWidget
   pqFindDataCurrentSelectionFrame
@@ -152,7 +152,6 @@ set(classes
   pqTextureSelectorPropertyWidget
   pqTimerLogDisplay
   pqToolBarInterface
-  pqToolTipTrapper
   pqTransferFunctionWidget
   pqTransferFunction2DWidget
   pqTriggerOnIdleHelper
@@ -184,10 +183,8 @@ set(headers
   pqPluginTreeWidget.h)
 
 set(ui_files
-  Resources/UI/pqAbortAnimation.ui
   Resources/UI/pqAboutDialog.ui
   Resources/UI/pqAnimationTimeWidget.ui
-  Resources/UI/pqFavoritesDialog.ui
   Resources/UI/pqCalculatorWidget.ui
   Resources/UI/pqCameraDialog.ui
   Resources/UI/pqCameraKeyFrameWidget.ui

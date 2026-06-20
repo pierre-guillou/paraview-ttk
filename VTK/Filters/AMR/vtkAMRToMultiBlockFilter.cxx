@@ -58,24 +58,24 @@ void vtkAMRToMultiBlockFilter::CopyAMRToMultiBlock(
   assert("pre: input AMR dataset is nullptr" && (amr != nullptr));
   assert("pre: output multi-block dataset is nullptr" && (mbds != nullptr));
 
-  mbds->SetNumberOfBlocks(amr->GetTotalNumberOfBlocks());
+  mbds->SetNumberOfBlocks(amr->GetNumberOfBlocks());
   unsigned int blockIdx = 0;
   unsigned int levelIdx = 0;
   bool abort = false;
   for (; levelIdx < amr->GetNumberOfLevels() && !abort; ++levelIdx)
   {
     unsigned int dataIdx = 0;
-    for (; dataIdx < amr->GetNumberOfDataSets(levelIdx); ++dataIdx)
+    for (; dataIdx < amr->GetNumberOfBlocks(levelIdx); ++dataIdx)
     {
       if (this->CheckAbort())
       {
         abort = true;
         break;
       }
-      vtkUniformGrid* grid = amr->GetDataSet(levelIdx, dataIdx);
+      vtkCartesianGrid* grid = amr->GetDataSetAsCartesianGrid(levelIdx, dataIdx);
       if (grid != nullptr)
       {
-        vtkUniformGrid* gridCopy = vtkUniformGrid::New();
+        vtkSmartPointer<vtkCartesianGrid> gridCopy = vtk::TakeSmartPointer(grid->NewInstance());
         gridCopy->ShallowCopy(grid);
         mbds->SetBlock(blockIdx, gridCopy);
       }

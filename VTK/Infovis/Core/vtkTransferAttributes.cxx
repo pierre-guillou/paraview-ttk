@@ -8,7 +8,6 @@
 #include "vtkDataObject.h"
 #include "vtkDataSet.h"
 #include "vtkEdgeListIterator.h"
-#include "vtkFloatArray.h"
 #include "vtkGraph.h"
 #include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
@@ -22,28 +21,11 @@
 #include "vtkTree.h"
 #include "vtkVariantArray.h"
 
+#include <iostream>
 #include <map>
 
 //------------------------------------------------------------------------------
 VTK_ABI_NAMESPACE_BEGIN
-template <typename T>
-vtkVariant vtkGetValue(T* arr, vtkIdType index)
-{
-  return vtkVariant(arr[index]);
-}
-
-//------------------------------------------------------------------------------
-static vtkVariant vtkGetVariantValue(vtkAbstractArray* arr, vtkIdType i)
-{
-  vtkVariant val;
-  switch (arr->GetDataType())
-  {
-    vtkExtraExtendedTemplateMacro(
-      val = vtkGetValue(static_cast<VTK_TT*>(arr->GetVoidPointer(0)), i));
-  }
-  return val;
-}
-
 vtkStandardNewMacro(vtkTransferAttributes);
 
 vtkTransferAttributes::vtkTransferAttributes()
@@ -241,13 +223,13 @@ int vtkTransferAttributes::RequestData(vtkInformation* vtkNotUsed(request),
     // Create a map from sourceInput id to sourceInput index
     for (i = 0; i < sourceIdArray->GetNumberOfTuples(); i++)
     {
-      sourceInputIdMap[vtkGetVariantValue(sourceIdArray, i)] = i;
+      sourceInputIdMap[sourceIdArray->GetVariantValue(i)] = i;
     }
 
     // Now create the map from sourceInput index to targetInput index
     for (i = 0; i < targetIdArray->GetNumberOfTuples(); i++)
     {
-      vtkVariant id = vtkGetVariantValue(targetIdArray, i);
+      vtkVariant id = targetIdArray->GetVariantValue(i);
       if (sourceInputIdMap.count(id))
       {
         sourceIndexToTargetIndex[sourceInputIdMap[id]] = i;
@@ -271,9 +253,9 @@ int vtkTransferAttributes::RequestData(vtkInformation* vtkNotUsed(request),
   {
     if (sourceArray->GetVariantValue(i) < 0)
     {
-      cout << sourceIndexToTargetIndex[i] << " " << sourceArray->GetVariantValue(i).ToString()
-           << " " << sourceArray->GetNumberOfTuples() << " " << sourceIdArray->GetNumberOfTuples()
-           << " " << i << endl;
+      std::cout << sourceIndexToTargetIndex[i] << " " << sourceArray->GetVariantValue(i).ToString()
+                << " " << sourceArray->GetNumberOfTuples() << " "
+                << sourceIdArray->GetNumberOfTuples() << " " << i << endl;
 
       vtkErrorMacro("Bad value...");
       continue;

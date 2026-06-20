@@ -15,6 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
+
 /* -------------------------------------------------------------------- */
 /* convert a C++ templated type to pythonic dict form */
 size_t vtkWrapPython_PyTemplateName(const char* name, char* pname)
@@ -346,7 +349,7 @@ int vtkWrapPython_WrapTemplatedClass(
     /* the docstring for the templated class */
     fprintf(fp, "static const char *Py%s_Doc =\n", data->Name);
 
-    vtkWrapPython_ClassDoc(fp, file_info, data, hinfo, is_vtkobject);
+    vtkWrapPython_ClassDoc(fp, file_info, data, hinfo);
 
     fprintf(fp, "\n  \"\\nProvided Types:\\n\\n\"");
 
@@ -405,3 +408,6 @@ int vtkWrapPython_WrapTemplatedClass(
 
   return 0;
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

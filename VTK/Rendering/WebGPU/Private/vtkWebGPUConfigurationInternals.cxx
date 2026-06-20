@@ -17,7 +17,11 @@ void vtkWebGPUConfigurationInternals::AddInstanceRef()
   {
     // Create the instance to allow WaitAny.
     wgpu::InstanceDescriptor instanceDescriptor = {};
-    instanceDescriptor.capabilities.timedWaitAnyEnable = true;
+    std::vector<wgpu::InstanceFeatureName> features = {
+      wgpu::InstanceFeatureName::TimedWaitAny,
+    };
+    instanceDescriptor.requiredFeatures = features.data();
+    instanceDescriptor.requiredFeatureCount = features.size();
     Instance = wgpu::CreateInstance(&instanceDescriptor);
   }
   ++InstanceCount;
@@ -118,6 +122,7 @@ void vtkWebGPUConfigurationInternals::PopulateRequiredLimits(wgpu::Adapter adapt
 
   RequiredLimits.maxStorageBufferBindingSize = supportedLimits.maxStorageBufferBindingSize;
   RequiredLimits.maxBufferSize = supportedLimits.maxBufferSize;
+  RequiredLimits.maxStorageBuffersPerShaderStage = supportedLimits.maxStorageBuffersPerShaderStage;
 }
 
 //------------------------------------------------------------------------------

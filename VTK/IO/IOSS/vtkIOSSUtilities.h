@@ -34,7 +34,6 @@
 #include VTK_IOSS(Ioss_Transform.h)
 #include VTK_IOSS(Ioss_StructuredBlock.h)
 #include VTK_IOSS(Ioss_SideSet.h)
-#include VTK_IOSS(Ioss_SideBlock.h)
 // clang-format on
 
 #include <cassert>
@@ -162,6 +161,12 @@ void GetEntityAndFieldNames(const Ioss::Region* region, const std::vector<Entity
       attributeNames.begin(), attributeNames.end(), std::inserter(field_names, field_names.end()));
   }
 }
+
+/**
+ * Reads global fields from the region and populates `field_names`.
+ */
+void GetGlobalFieldNames(const Ioss::Region* region, std::set<std::string>& field_names);
+
 /**
  * Specialization for Ioss::SideSet (see paraview/paraview#21231).
  */

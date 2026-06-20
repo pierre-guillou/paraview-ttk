@@ -340,16 +340,10 @@ int vtkGaussianSplatter::RequestData(vtkInformation* vtkNotUsed(request),
       // Determine splat footprint
       for (i = 0; i < 3; i++)
       {
-        min[i] = static_cast<int>(floor(static_cast<double>(loc[i]) - this->SplatDistance[i]));
-        max[i] = static_cast<int>(ceil(static_cast<double>(loc[i]) + this->SplatDistance[i]));
-        if (min[i] < 0)
-        {
-          min[i] = 0;
-        }
-        if (max[i] >= this->SampleDimensions[i])
-        {
-          max[i] = this->SampleDimensions[i] - 1;
-        }
+        min[i] = static_cast<int>(floor(loc[i] - this->SplatDistance[i]));
+        max[i] = static_cast<int>(ceil(loc[i] + this->SplatDistance[i]));
+        min[i] = std::max(min[i], 0);
+        max[i] = std::min(max[i], this->SampleDimensions[i] - 1);
       }
 
       // Parallel splat the point
@@ -420,10 +414,7 @@ void vtkGaussianSplatter::ComputeModelBounds(
 
   for (maxDist = 0.0, i = 0; i < 3; i++)
   {
-    if ((bounds[2 * i + 1] - bounds[2 * i]) > maxDist)
-    {
-      maxDist = bounds[2 * i + 1] - bounds[2 * i];
-    }
+    maxDist = std::max(bounds[2 * i + 1] - bounds[2 * i], maxDist);
   }
   maxDist *= this->Radius;
   this->Radius2 = maxDist * maxDist;
@@ -487,10 +478,7 @@ void vtkGaussianSplatter::ComputeModelBounds(
 
   for (maxDist = 0.0, i = 0; i < 3; i++)
   {
-    if ((bounds[2 * i + 1] - bounds[2 * i]) > maxDist)
-    {
-      maxDist = bounds[2 * i + 1] - bounds[2 * i];
-    }
+    maxDist = std::max(bounds[2 * i + 1] - bounds[2 * i], maxDist);
   }
   maxDist *= this->Radius;
   this->Radius2 = maxDist * maxDist;

@@ -26,9 +26,9 @@ vtkStandardNewMacro(vtkPyramid);
 
 namespace
 {
-const double VTK_DIVERGED = 1.e6;
-const int VTK_MAX_ITERATION = 10;
-const double VTK_CONVERGED = 1.e-03;
+constexpr double VTK_DIVERGED = 1.e6;
+constexpr int VTK_MAX_ITERATION = 10;
+constexpr double VTK_CONVERGED = 1.e-03;
 }
 
 //------------------------------------------------------------------------------
@@ -288,10 +288,7 @@ int vtkPyramid::EvaluatePosition(const double x[3], double closestPoint[3], int&
     pt0 = pts + 3 * edges[i][0];
     pt1 = pts + 3 * edges[i][1];
     double d2 = vtkMath::Distance2BetweenPoints(pt0, pt1);
-    if (longestEdge < d2)
-    {
-      longestEdge = d2;
-    }
+    longestEdge = std::max(longestEdge, d2);
   }
   // longestEdge value is already squared
   double volumeBound = longestEdge * std::sqrt(longestEdge);
@@ -838,7 +835,7 @@ void vtkPyramid::Derivatives(
   jI[2] = j2;
   this->JacobianInverse(pcoords, jI, functionDerivs);
 
-  // now compute derivates of values provided
+  // now compute derivatives of values provided
   for (k = 0; k < dim; k++) // loop over values per point
   {
     sum[0] = sum[1] = sum[2] = 0.0;
@@ -943,9 +940,10 @@ int vtkPyramid::JacobianInverse(const double pcoords[3], double** inverse, doubl
   // now find the inverse
   if (vtkMath::InvertMatrix(m, inverse, 3) == 0)
   {
-    vtkErrorMacro(<< "Jacobian inverse not found"
-                  << "Matrix:" << m[0][0] << " " << m[0][1] << " " << m[0][2] << m[1][0] << " "
-                  << m[1][1] << " " << m[1][2] << m[2][0] << " " << m[2][1] << " " << m[2][2]);
+    vtkErrorMacro(<< "Jacobian inverse not found: "
+                  << "Matrix:" << m[0][0] << " " << m[0][1] << " " << m[0][2] << " " << m[1][0]
+                  << " " << m[1][1] << " " << m[1][2] << " " << m[2][0] << " " << m[2][1] << " "
+                  << m[2][2]);
     return 0;
   }
 

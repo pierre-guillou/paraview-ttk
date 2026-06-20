@@ -701,7 +701,7 @@
           <DataType value="vtkHyperTreeGrid"/>
         </DataTypeDomain>
         <Documentation>
-          This property specified the input to the ghost cell generator.
+          This property specifies the input to the ghost cell generator.
         </Documentation>
       </InputProperty>
       <!-- End vtkHyperTreeGridGhostCellsGenerator -->
@@ -1287,17 +1287,6 @@
       </IntVectorProperty>
     </SourceProxy>
 
-    <SourceProxy class="vtkPPolyDataNormals"
-                 label="Generate Surface Normals"
-                 base_proxyname="SurfaceNormals"
-                 base_proxygroup="filters"
-                 name="PolyDataNormals">
-      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
-        This has been renamed into 'SurfaceNormals'. Please consider using that instead.
-      </Deprecated>
-      <!-- End  PolyDataNormals -->
-    </SourceProxy>
-
     <!-- ==================================================================== -->
     <SourceProxy class="vtkPReflectionFilter"
                  label="Reflect"
@@ -1475,6 +1464,7 @@
         </ProxyGroupDomain>
         <DataTypeDomain name="input_type">
           <DataType value="vtkDataSet"/>
+          <DataType value="vtkCompositeDataSet"/>
         </DataTypeDomain>
         <Documentation>
           The input from which the selection is extracted.

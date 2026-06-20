@@ -15,8 +15,10 @@
 
 #include <string>
 
-static const int NPOINTS = 65;
-static const float INCX = 7.5;
+#include <iostream>
+
+static constexpr int NPOINTS = 65;
+static constexpr float INCX = 7.5;
 
 class vtkTestSineTableSource : public vtkTableAlgorithm
 {
@@ -129,7 +131,7 @@ int TestLinePlot(int, char*[])
   line->GetUnscaledInputBounds(bds);
   if (bds[0] * bds[1] > 0. || bds[2] * bds[3] > 0.)
   {
-    cerr << "ERROR: Data on both X and Y axes expected to cross origin.\n";
+    std::cerr << "ERROR: Data on both X and Y axes expected to cross origin.\n";
     status = EXIT_FAILURE;
   }
 
@@ -141,7 +143,7 @@ int TestLinePlot(int, char*[])
   line->GetUnscaledInputBounds(bds);
   if (bds[0] * bds[1] > 0. || bds[2] * bds[3] <= 0.)
   {
-    cerr << "ERROR: Data on X axis expected to cross origin.\n";
+    std::cerr << "ERROR: Data on X axis expected to cross origin.\n";
     status = EXIT_FAILURE;
   }
 

@@ -18,6 +18,8 @@
 #include "vtkTexture.h"
 #include "vtkTexturedSphereSource.h"
 
+#include <iostream>
+
 static vtkSmartPointer<vtkRIBProperty> cloth(const char* freq, const char* depth);
 static vtkSmartPointer<vtkRIBProperty> dented(const char* Km);
 static vtkSmartPointer<vtkRIBProperty> stippled(const char* grainsize, const char* stippling);
@@ -162,7 +164,7 @@ int TestRIBExporter(int argc, char* argv[])
   renWin->Render();
 
   vtkSmartPointer<vtkRIBExporter> aRib = vtkSmartPointer<vtkRIBExporter>::New();
-  aRib->SetInput(renWin);
+  aRib->SetRenderWindow(renWin);
   aRib->SetFilePrefix(prefix.c_str());
   aRib->SetTexturePrefix(prefix.c_str());
   aRib->BackgroundOn();

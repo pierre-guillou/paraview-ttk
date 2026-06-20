@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef _vtkAvtFileFormatAlgorithm_h
 #define _vtkAvtFileFormatAlgorithm_h
 
+#include <exception>
 #include <vector>
 #include "vtkIOVisItBridgeModule.h" //for export macro
 #include "vtkCompositeDataSetAlgorithm.h"
@@ -54,14 +55,42 @@ class avtMeshMetaData;
 //Call a VisitMethod that returns a vtkObject
 //if the call throws an exception we delete the object
 //and set it to NULL
-#define CATCH_VISIT_EXCEPTIONS( vtkObj,function) \
+#define CATCH_VISIT_EXCEPTIONS(vtkObj, function) \
 try \
   { \
   vtkObj = function; \
   } \
+catch(const VisItException &e) \
+  { \
+  vtkErrorMacro("VisIt Exception " << e.GetExceptionType() << " caught at " << e.GetFilename() \
+                << ":" << e.GetLine() << ": " << e.Message()); \
+  if ( vtkObj ) \
+    { \
+    vtkObj->Delete(); \
+    } \
+  vtkObj = NULL; \
+  } \
+catch(const std::exception &e) \
+  { \
+  vtkErrorMacro("VisIt Exception caught: " << e.what()); \
+  if ( vtkObj ) \
+    { \
+    vtkObj->Delete(); \
+    } \
+  vtkObj = NULL; \
+  } \
+catch(const std::string &e) \
+  { \
+  vtkErrorMacro("VisIt Exception caught: " << e); \
+  if ( vtkObj ) \
+    { \
+    vtkObj->Delete(); \
+    } \
+  vtkObj = NULL; \
+  } \
 catch(...) \
   { \
-  vtkErrorMacro("VisIt Exception caught."); \
+  vtkErrorMacro("Unknown VisIt Exception caught."); \
   if ( vtkObj ) \
     { \
     vtkObj->Delete(); \

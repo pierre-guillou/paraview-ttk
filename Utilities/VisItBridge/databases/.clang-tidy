@@ -17,6 +17,7 @@ bugprone-*,\
 -bugprone-not-null-terminated-result,\
 -bugprone-redundant-branch-condition,\
 -bugprone-reserved-identifier,\
+-bugprone-pointer-arithmetic-on-polymorphic-object,\
 -bugprone-signed-char-misuse,\
 -bugprone-sizeof-expression,\
 -bugprone-string-constructor,\

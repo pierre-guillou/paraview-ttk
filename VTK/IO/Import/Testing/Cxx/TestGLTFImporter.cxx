@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <vtkDoubleArray.h>
 #include <vtkFileResourceStream.h>
 #include <vtkGLTFImporter.h>
 #include <vtkLightCollection.h>
@@ -9,6 +10,9 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
+#include <vtkStringScanner.h>
+
+#include <iostream>
 
 int TestGLTFImporter(int argc, char* argv[])
 {
@@ -16,16 +20,20 @@ int TestGLTFImporter(int argc, char* argv[])
   {
     std::cout << "Usage: " << argv[0]
               << " <gltf file> <use_stream> <camera index> <expected nb of actors> <expected nb of "
-                 "lights> <expected nb of animations>"
-                 "<expected nb of cameras>"
+                 "lights> <expected nb of cameras> <expected nb of animations>"
+                 "<expected nb of timesteps in first animation>"
+                 "<time value to load>"
               << std::endl;
     return EXIT_FAILURE;
   }
 
-  vtkIdType cameraIndex = atoi(argv[3]);
+  vtkIdType cameraIndex;
+  VTK_FROM_CHARS_IF_ERROR_RETURN(argv[3], cameraIndex, EXIT_FAILURE);
 
   vtkNew<vtkGLTFImporter> importer;
-  if (atoi(argv[2]) > 0)
+  int useStream;
+  VTK_FROM_CHARS_IF_ERROR_RETURN(argv[2], useStream, EXIT_FAILURE);
+  if (useStream > 0)
   {
     bool is_binary = false;
     std::string extension = vtksys::SystemTools::GetFilenameLastExtension(argv[1]);
@@ -67,19 +75,25 @@ int TestGLTFImporter(int argc, char* argv[])
     return EXIT_FAILURE;
   }
 
-  if (importer->GetImportedActors()->GetNumberOfItems() != atoi(argv[4]))
+  int numberOfImportedActors;
+  VTK_FROM_CHARS_IF_ERROR_RETURN(argv[4], numberOfImportedActors, EXIT_FAILURE);
+  if (importer->GetImportedActors()->GetNumberOfItems() != numberOfImportedActors)
   {
     std::cerr << "ERROR: Unexpected number of imported actors: "
               << importer->GetImportedActors()->GetNumberOfItems() << "\n";
     return EXIT_FAILURE;
   }
-  if (importer->GetImportedLights()->GetNumberOfItems() != atoi(argv[5]))
+  int numberOfImportedLights;
+  VTK_FROM_CHARS_IF_ERROR_RETURN(argv[5], numberOfImportedLights, EXIT_FAILURE);
+  if (importer->GetImportedLights()->GetNumberOfItems() != numberOfImportedLights)
   {
     std::cerr << "ERROR: Unexpected number of imported lights: "
               << importer->GetImportedActors()->GetNumberOfItems() << "\n";
     return EXIT_FAILURE;
   }
-  if (importer->GetImportedCameras()->GetNumberOfItems() != atoi(argv[6]))
+  int numberOfImportedCameras;
+  VTK_FROM_CHARS_IF_ERROR_RETURN(argv[6], numberOfImportedCameras, EXIT_FAILURE);
+  if (importer->GetImportedCameras()->GetNumberOfItems() != numberOfImportedCameras)
   {
     std::cerr << "ERROR: Unexpected number of imported cameras: "
               << importer->GetImportedCameras()->GetNumberOfItems() << "\n";
@@ -91,11 +105,43 @@ int TestGLTFImporter(int argc, char* argv[])
               << "\n";
     return EXIT_FAILURE;
   }
-  if (importer->GetNumberOfAnimations() != atoi(argv[7]))
+  int numberOfAnimations;
+  VTK_FROM_CHARS_IF_ERROR_RETURN(argv[7], numberOfAnimations, EXIT_FAILURE);
+  if (importer->GetNumberOfAnimations() != numberOfAnimations)
   {
     std::cerr << "ERROR: Unexpected number of imported animations: "
               << importer->GetNumberOfAnimations() << "\n";
     return EXIT_FAILURE;
+  }
+
+  if (numberOfAnimations > 0)
+  {
+    int expectedNumberOfTimeSteps;
+    VTK_FROM_CHARS_IF_ERROR_RETURN(argv[8], expectedNumberOfTimeSteps, EXIT_FAILURE);
+
+    double timeRange[2];
+    int nbTimeSteps;
+    vtkNew<vtkDoubleArray> timeSteps;
+    if (!importer->GetTemporalInformation(0, timeRange, nbTimeSteps, timeSteps))
+    {
+      std::cerr << "ERROR: Unexpected GetTemporalInformation failure\n";
+      return EXIT_FAILURE;
+    }
+    if (nbTimeSteps != expectedNumberOfTimeSteps)
+    {
+      std::cerr << "ERROR: Unexpected number of time steps: " << nbTimeSteps << "\n";
+      return EXIT_FAILURE;
+    }
+
+    double timeValue;
+    VTK_FROM_CHARS_IF_ERROR_RETURN(argv[9], timeValue, EXIT_FAILURE);
+
+    importer->EnableAnimation(0);
+    if (!importer->UpdateAtTimeValue(1))
+    {
+      std::cerr << "ERROR: Unexpected UpdateAtTimeValue failure\n";
+      return EXIT_FAILURE;
+    }
   }
 
   std::cout << importer->GetImportedActors()->GetNumberOfItems() << std::endl;

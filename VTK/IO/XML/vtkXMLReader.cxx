@@ -590,6 +590,11 @@ int vtkXMLReader::ReadXMLInformation()
         if (name)
         {
           vtkAbstractArray* array = this->CreateArray(eNested);
+          if (!array)
+          {
+            vtkWarningMacro("Failed creating array named " << name);
+            continue;
+          }
           if (array->IsNumeric())
           {
             array->SetNumberOfTuples(1);
@@ -797,10 +802,13 @@ int vtkXMLDataReaderReadArrayValues(vtkXMLDataElement* da, vtkXMLDataParser* xml
     return 0;
   }
   vtkAbstractArray* array = iter->GetArray();
+  // XML Reader only creates AOS arrays.
+  auto aosArray = vtkAOSDataArrayTemplate<typename iterT::ValueType>::FastDownCast(array);
+  assert(aosArray != nullptr);
   // Number of expected words:
   size_t numWords = array->GetDataType() != VTK_BIT ? numValues : ((numValues + 7) / 8);
   int result;
-  void* data = array->GetVoidPointer(arrayIndex);
+  void* data = aosArray->GetPointer(arrayIndex);
   if (da->GetAttribute("offset"))
   {
     vtkTypeInt64 offset = 0;
@@ -844,7 +852,7 @@ int vtkXMLDataReaderReadArrayValues(vtkXMLDataElement* da, vtkXMLDataParser* xml
   tmp->SetNumberOfValues(numValues + bitShift);
   tmp->SetNumberOfComponents(array->GetNumberOfComponents());
 
-  void* data = tmp->GetVoidPointer(0);
+  void* data = tmp->GetPointer(0);
   if (da->GetAttribute("offset"))
   {
     vtkTypeInt64 offset = 0;
@@ -1111,30 +1119,44 @@ void vtkXMLReader::ReadFieldData()
   {
     vtkIdType numTuples;
     vtkFieldData* fieldData = this->GetCurrentOutput()->GetFieldData();
+    std::vector<vtkXMLDataElement*> elementsToRemove;
     for (int i = 0; i < this->FieldDataElement->GetNumberOfNestedElements() && !this->AbortExecute;
          i++)
     {
       vtkXMLDataElement* eNested = this->FieldDataElement->GetNestedElement(i);
-      vtkAbstractArray* array = this->CreateArray(eNested);
-      if (array)
+      const char* ename = eNested->GetAttribute("Name");
+      if (!fieldData->HasArray(ename))
       {
-        if (eNested->GetScalarAttribute("NumberOfTuples", numTuples))
+        vtkAbstractArray* array = this->CreateArray(eNested);
+        if (array)
         {
-          array->SetNumberOfTuples(numTuples);
-        }
-        else
-        {
-          numTuples = 0;
-        }
-        fieldData->AddArray(array);
-        array->Delete();
-        if (!this->ReadArrayValues(
-              eNested, 0, array, 0, numTuples * array->GetNumberOfComponents()) &&
-          numTuples)
-        {
-          this->DataError = 1;
+          if (eNested->GetScalarAttribute("NumberOfTuples", numTuples))
+          {
+            array->SetNumberOfTuples(numTuples);
+          }
+          else
+          {
+            numTuples = 0;
+          }
+          fieldData->AddArray(array);
+          array->Delete();
+          if (!this->ReadArrayValues(
+                eNested, 0, array, 0, numTuples * array->GetNumberOfComponents()) &&
+            numTuples)
+          {
+            this->DataError = 1;
+          }
         }
       }
+      else
+      {
+        vtkWarningMacro("Another cell data array named " << ename << " already exists. Ignoring.");
+        elementsToRemove.push_back(eNested);
+      }
+    }
+    for (const auto& elem : elementsToRemove)
+    {
+      this->FieldDataElement->RemoveNestedElement(elem);
     }
   }
 }

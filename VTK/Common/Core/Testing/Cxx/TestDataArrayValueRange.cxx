@@ -7,17 +7,16 @@
 #include "vtkDataArray.h"
 #include "vtkFloatArray.h"
 #include "vtkSOADataArrayTemplate.h"
-#include "vtkSmartPointer.h"
-#include "vtkTypeInt32Array.h"
-#ifdef VTK_USE_SCALED_SOA_ARRAYS
 #include "vtkScaledSOADataArrayTemplate.h"
-#endif
+#include "vtkSmartPointer.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <numeric>
 #include <type_traits>
 #include <utility>
+
+#include <iostream>
 
 namespace
 {
@@ -263,8 +262,6 @@ struct UnitTestValueRangeAPI
     CHECK_EQUAL(range.cend() - range.cbegin(), range.size());
     CHECK_EQUAL_NODUMP(*range.begin(), range[0]);
     CHECK_EQUAL_NODUMP(*(range.begin() + 1), range[1]);
-    CHECK_EQUAL_NODUMP(reinterpret_cast<std::intptr_t>(range.data()),
-      reinterpret_cast<std::intptr_t>(array->GetVoidPointer(0)));
 
     TestIota(range);
   }
@@ -292,8 +289,6 @@ struct UnitTestValueRangeAPI
     CHECK_TYPEDEF(typename Range::ArrayType, decltype(*range.GetArray()));
     CHECK_TYPEDEF(vtk::ValueIdType, decltype(range.GetBeginValueId()));
     CHECK_TYPEDEF(vtk::ValueIdType, decltype(range.GetEndValueId()));
-    CHECK_TYPEDEF(
-      typename Range::ValueType, typename vtk::detail::StripPointers<decltype(range.data())>::type);
 
     static_assert(Range::TupleSizeTag == RangeTupleSize, "Range::TupleSizeTag incorrect.");
   }
@@ -1026,9 +1021,9 @@ struct UnitTestValueReferenceAPI
     const APIType val1 = ref1;
     const APIType val2 = ref2;
 
-    const APIType one = static_cast<APIType>(1);
-    const APIType two = static_cast<APIType>(2);
-    const APIType bignum = static_cast<APIType>(120); // must fit in int8
+    constexpr APIType one = static_cast<APIType>(1);
+    constexpr APIType two = static_cast<APIType>(2);
+    constexpr APIType bignum = static_cast<APIType>(120); // must fit in int8
 
     // +=
     {
@@ -1163,8 +1158,8 @@ struct UnitTestValueReferenceAPI
     const APIType val1 = ref1;
     const APIType val2 = ref2;
 
-    const APIType one = static_cast<APIType>(1);
-    const APIType bignum = static_cast<APIType>(120); // must fit in int8
+    constexpr APIType one = static_cast<APIType>(1);
+    constexpr APIType bignum = static_cast<APIType>(120); // must fit in int8
 
     // ==
     CHECK_TRUE(ref1 == val1);
@@ -1243,9 +1238,9 @@ struct UnitTestValueReferenceAPI
     const APIType val1 = ref1;
     const APIType val2 = ref2;
 
-    const APIType one = static_cast<APIType>(1);
-    const APIType two = static_cast<APIType>(2);
-    const APIType bignum = static_cast<APIType>(120); // must fit in int8
+    constexpr APIType one = static_cast<APIType>(1);
+    constexpr APIType two = static_cast<APIType>(2);
+    constexpr APIType bignum = static_cast<APIType>(120); // must fit in int8
 
     // +
     {
@@ -1357,7 +1352,6 @@ struct UnitTestEdgeCases
     std::cerr << "AOS<float> <--> SOA<int>\n";
     DispatchValueCompat<vtkAOSDataArrayTemplate<float>, vtkSOADataArrayTemplate<int>>();
 
-#ifdef VTK_USE_SCALED_SOA_ARRAYS
     std::cerr << "ScaleSOA<float> <--> AOS<float>\n";
     DispatchValueCompat<vtkScaledSOADataArrayTemplate<float>, vtkAOSDataArrayTemplate<float>>();
 
@@ -1375,7 +1369,6 @@ struct UnitTestEdgeCases
 
     std::cerr << "AOS<float> <--> ScaleSOA<int>\n";
     DispatchValueCompat<vtkAOSDataArrayTemplate<float>, vtkScaledSOADataArrayTemplate<int>>();
-#endif
   }
 
   static void TestSpecializations()
@@ -1812,10 +1805,8 @@ int TestDataArrayValueRange(int, char*[])
   RunTestsForArray<vtkAOSDataArrayTemplate<float>>();
   std::cerr << "SOA:\n";
   RunTestsForArray<vtkSOADataArrayTemplate<float>>();
-#ifdef VTK_USE_SCALED_SOA_ARRAYS
   std::cerr << "ScaleSOA:\n";
   RunTestsForArray<vtkScaledSOADataArrayTemplate<float>>();
-#endif
   std::cerr << "vtkFloatArray:\n";
   RunTestsForArray<vtkFloatArray>();
   std::cerr << "MockDataArray<vtkTypeInt32>:\n";

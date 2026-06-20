@@ -11,13 +11,12 @@
 #include "vtkContextMouseEvent.h"
 #include "vtkContextScene.h"
 #include "vtkIdTypeArray.h"
-#include "vtkMath.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPen.h"
-#include "vtkPoints2D.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringFormatter.h"
 #include "vtkTransform2D.h"
 #include "vtkVector.h"
 
@@ -123,7 +122,7 @@ vtkControlPointsItem::vtkControlPointsItem()
   this->Callback->SetClientData(this);
   this->Callback->SetCallback(vtkControlPointsItem::CallComputePoints);
 
-  this->SetLabelFormat("%.3f, %.3f");
+  this->SetLabelFormat("{:.3f}, {:.3f}");
 
   this->AddPointItem->ControlPointsItem = this;
 }
@@ -1366,7 +1365,7 @@ void vtkControlPointsItem::Stroke(const vtkVector2f& newPos)
     vtkIdType lastPointId = this->CurrentPoint;
     double lastPoint[4] = { 0.0, 0.0, 0.0, 0.0 };
     this->GetControlPoint(lastPointId, lastPoint);
-    const double pointSpacing = 1.15;
+    constexpr double pointSpacing = 1.15;
     float oldScreenPointRadius = this->ScreenPointRadius;
     this->ScreenPointRadius *= pointSpacing;
     // ignore the stroke if it is too close from the last point
@@ -1714,11 +1713,11 @@ std::string vtkControlPointsItem::GetControlPointLabel(vtkIdType pointId)
   std::string result;
   if (this->LabelFormat)
   {
-    result.resize(1024);
     double point[4];
     this->GetControlPoint(pointId, point);
-    // NOLINTNEXTLINE(readability-container-data-pointer): needs C++17
-    snprintf(&result[0], 1024, this->LabelFormat, point[0], point[1], point[2], point[3]);
+    std::string labelFormat = this->LabelFormat ? vtk::to_std_format(this->LabelFormat) : "";
+    VTK_FORMAT_IF_ERROR_RETURN(
+      result = vtk::format(labelFormat, point[0], point[1], point[2], point[3]), "");
   }
   return result;
 }

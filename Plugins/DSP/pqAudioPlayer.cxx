@@ -4,6 +4,7 @@
 #include "pqAudioPlayer.h"
 #include "ui_pqAudioPlayer.h"
 
+#include "pqWidgetUtilities.h"
 #include <pqActiveObjects.h>
 #include <pqApplicationCore.h>
 #include <pqCoreUtilities.h>
@@ -33,6 +34,8 @@
 #include <vtksys/SystemTools.hxx>
 
 #include <QApplication>
+#include <QAudioDeviceInfo>
+#include <QAudioFormat>
 #include <QAudioOutput>
 #include <QBuffer>
 #include <QByteArray>
@@ -41,6 +44,10 @@
 #include <QSharedPointer>
 #include <QStyle>
 #include <QtMath>
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QMediaPlayer>
+#endif
 
 #include <cmath>
 #include <string>
@@ -179,6 +186,9 @@ public:
   std::string ArrayName;
   QSharedPointer<QBuffer> AudioBuffer;
   QSharedPointer<QAudioOutput> AudioOutput;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  QSharedPointer<QMediaPlayer> MediaPlayer;
+#endif
   QScopedPointer<QByteArray> ByteArray;
   int DefaultSampleRate = DEFAULT_SAMPLE_RATE;
   bool NeedUpdate = false;
@@ -200,10 +210,18 @@ pqAudioPlayer::pqInternals::pqInternals()
 //-----------------------------------------------------------------------------
 pqAudioPlayer::pqInternals::~pqInternals()
 {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   if (this->AudioOutput)
   {
     this->AudioOutput->stop();
   }
+#else
+  if (this->MediaPlayer)
+  {
+    this->MediaPlayer->stop();
+  }
+  this->MediaPlayer.clear();
+#endif
   this->AudioOutput.clear();
 
   if (this->AudioBuffer)
@@ -216,26 +234,43 @@ pqAudioPlayer::pqInternals::~pqInternals()
 //-----------------------------------------------------------------------------
 void pqAudioPlayer::pqInternals::play()
 {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   if (!this->AudioOutput)
   {
     return;
   }
   this->AudioOutput->start(this->AudioBuffer.get());
+#else
+  if (!this->MediaPlayer)
+  {
+    return;
+  }
+  this->MediaPlayer->play();
+#endif
 }
 
 //-----------------------------------------------------------------------------
 void pqAudioPlayer::pqInternals::pause()
 {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   if (!this->AudioOutput)
   {
     return;
   }
   this->AudioOutput->suspend();
+#else
+  if (!this->MediaPlayer)
+  {
+    return;
+  }
+  this->MediaPlayer->pause();
+#endif
 }
 
 //-----------------------------------------------------------------------------
 void pqAudioPlayer::pqInternals::rewind()
 {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   if (!this->AudioOutput)
   {
     return;
@@ -244,6 +279,14 @@ void pqAudioPlayer::pqInternals::rewind()
   // Pause and go to the beginning of the audio buffer
   this->AudioOutput->suspend();
   this->AudioBuffer->seek(0);
+#else
+  if (!this->MediaPlayer || !this->MediaPlayer->isSeekable())
+  {
+    return;
+  }
+
+  this->MediaPlayer->setPosition(0);
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -267,6 +310,7 @@ void pqAudioPlayer::pqInternals::setVolume(int value)
 bool pqAudioPlayer::pqInternals::fetchAndPrepareData()
 {
   // Stop player, clean current audio output and audio buffer (if any)
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   if (this->AudioOutput)
   {
     this->AudioOutput->stop();
@@ -274,6 +318,16 @@ bool pqAudioPlayer::pqInternals::fetchAndPrepareData()
     this->AudioBuffer->close();
     this->AudioBuffer.clear();
   }
+#else
+  if (this->MediaPlayer)
+  {
+    this->MediaPlayer->stop();
+    this->MediaPlayer.clear();
+    this->AudioOutput.clear();
+    this->AudioBuffer->close();
+    this->AudioBuffer.clear();
+  }
+#endif
 
   // If there is no current active source, no need to continue
   if (!this->ActiveSourceProxy)
@@ -394,6 +448,11 @@ bool pqAudioPlayer::pqInternals::fetchAndPrepareData()
   // Setup audio output
   this->AudioOutput = QSharedPointer<QAudioOutput>(new QAudioOutput(foundDeviceInfo, audioFormat));
   this->setVolume(this->VolumeSlider->value());
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  this->MediaPlayer = QSharedPointer<QMediaPlayer>(new QMediaPlayer(this));
+  this->MediaPlayer->setAudioOutput(this->AudioOutput);
+#endif
 
   return true;
 }
@@ -542,6 +601,7 @@ void pqAudioPlayer::constructor()
   this->setWindowTitle("Audio Player");
   QWidget* widget = new QWidget(this);
   this->Internals->setupUi(widget);
+  pqWidgetUtilities::formatChildTooltips(widget);
   this->setWidget(widget);
 
   QObject::connect(&pqActiveObjects::instance(), &pqActiveObjects::sourceChanged, this,
@@ -589,9 +649,11 @@ void pqAudioPlayer::onPlayButtonClicked()
     }
   }
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   // For monitoring the AudioOutput internal state
   QObject::connect(this->Internals->AudioOutput.get(), &QAudioOutput::stateChanged, this,
     &pqAudioPlayer::onPlayerStateChanged);
+#endif
 
   // Update UI
   this->Internals->swapToPlayButton(false);
@@ -627,6 +689,7 @@ void pqAudioPlayer::onStopButtonClicked()
   this->Internals->rewind();
 }
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 //-----------------------------------------------------------------------------
 void pqAudioPlayer::onPlayerStateChanged(QAudio::State newState)
 {
@@ -640,6 +703,7 @@ void pqAudioPlayer::onPlayerStateChanged(QAudio::State newState)
       break;
   }
 }
+#endif
 
 //-----------------------------------------------------------------------------
 void pqAudioPlayer::onActiveSourceChanged(pqPipelineSource* activeSource)

@@ -78,20 +78,11 @@
       </IntVectorProperty>
       <!-- End Coordinates -->
     </SourceProxy>
-    <SourceProxy class="vtkAppendLocationAttributes"
-                 base_proxyname="Coordinates"
-                 base_proxygroup="filters"
-                 name="AppendLocationAttributes">
-
-      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
-        This has been renamed into 'Coordinates'. Please consider using that instead.
-      </Deprecated>
-    </SourceProxy>
 
     <!-- ==================================================================== -->
     <SourceProxy class="vtkAxisAlignedReflectionFilter"
-                 label="Axis-Aligned Reflection Filter"
-                 name="AxisAlignedReflectionFilter">
+                 label="Axis-Aligned Reflect"
+                 name="AxisAlignedReflect">
       <Documentation long_help="This filter reflects the input over an axis-aligned plane."
                      short_help="Reflect input over an axis aligned plane.">
         The Axis Aligned Reflection filter reflects the input dataset across the
@@ -183,13 +174,13 @@
           All other arrays won't be reflected and will only be copied.
         </Documentation>
       </IntVectorProperty>
-      <!-- End AxisAlignedReflectionFilter -->
+      <!-- End AxisAlignedReflect -->
     </SourceProxy>
 
     <!-- ==================================================================== -->
     <SourceProxy class="vtkAxisAlignedTransformFilter"
-                 label="Axis-Aligned Transform Filter"
-                 name="AxisAlignedTransformFilter">
+                 label="Axis-Aligned Transform"
+                 name="AxisAlignedTransform">
       <Documentation long_help="This filter applies an axis-aligned affine transformation (translation, scaling, and rotation) ."
                      short_help="Apply an axis-aligned affine transformation.">
         The Axis Aligned Transform filter operates on any type of data
@@ -268,7 +259,7 @@
         </Documentation>
       </IntVectorProperty>
 
-      <!-- End AxisAlignedTransformFilter -->
+      <!-- End AxisAlignedTransform -->
     </SourceProxy>
 
     <!-- ==================================================================== -->
@@ -292,17 +283,7 @@
         filter.</Documentation>
       </InputProperty>
     </SourceProxy>
-    <SourceProxy class="vtkBlockIdScalars"
-                 label="Block Scalars"
-                 base_proxyname="BlockIds"
-                 base_proxygroup="filters"
-                 name="BlockIdScalars">
-      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
-        This filter has been replaced by 'BlockIds'.
-        Please consider using that instead.
-      </Deprecated>
-    </SourceProxy>
-      <!-- End GroupIdScalars -->
+      <!-- End BlockIds -->
     <!-- ==================================================================== -->
     <SourceProxy class="vtkBrownianPoints"
                  label="Random Vectors"
@@ -739,13 +720,13 @@
 
       <StringVectorProperty animateable="0"
                             command="SetDateFormat"
-                            default_values="%Y-%m-%d %H:%M:%S"
+                            default_values="{:%Y-%m-%d %H:%M:%S}"
                             name="DateFormat"
                             number_of_elements="1"
                             panel_visibility="default">
         <Documentation>
           This property specifies the first format to try using to parse dates. It
-          follows the standards of std::get_time.
+          follows the standards of std::format.
         </Documentation>
       </StringVectorProperty>
     </SourceProxy>
@@ -964,17 +945,7 @@
         <Documentation>This property specifies the input to the Level Scalars
         filter.</Documentation>
       </InputProperty>
-    </SourceProxy>
-
-    <SourceProxy class="vtkOverlappingAMRLevelIdScalars"
-                 label="Level Scalars(Overlapping AMR)"
-                 base_proxyname="OverlappingAMRLevelIds"
-                 base_proxygroup="filters"
-                 name="OverlappingLevelIdScalars">
-      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
-        This has been renamed into 'OverlappingAMRLevelIds'. Please consider using that instead.
-      </Deprecated>
-      <!-- End GroupIdScalars -->
+      <!-- End OverlappingAMRLevelIds -->
     </SourceProxy>
 
     <!-- ==================================================================== -->
@@ -1548,15 +1519,6 @@
       </PropertyGroup>
     </SourceProxy>
 
-    <SourceProxy class="vtkSpatioTemporalHarmonicsAttribute"
-                 base_proxyname="SpatioTemporalHarmonics"
-                 base_proxygroup="filters"
-                 name="GenerateSpatioTemporalHarmonics">
-      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
-        This has been renamed into 'SpatioTemporalHarmonics'. Please consider using that instead.
-      </Deprecated>
-    </SourceProxy>
-
     <!-- ==================================================================== -->
     <SourceProxy class="vtkMergeTimeFilter"
                  label="Merge Time"
@@ -1751,88 +1713,6 @@
         <Documentation>Keep columns specified as X,Y,Z as Data
         arrays. By default this will be off.</Documentation>
       </IntVectorProperty>
-    </SourceProxy>
-
-    <!-- ==================================================================== -->
-    <SourceProxy class="vtkTableToStructuredGrid"
-                 label="Table To Structured Grid"
-                 name="TableToStructuredGrid">
-      <Documentation long_help="Converts to table to structured grid."
-                     short_help="Converts to table to structured grid.">The
-                     TableToStructuredGrid filter converts a vtkTable to a
-                     vtkStructuredGrid. One must specifies the columns in the
-                     input table to use as the X, Y and Z coordinates for the
-                     points in the output, and the whole
-                     extent.</Documentation>
-      <InputProperty command="SetInputConnection"
-                     name="Input">
-        <ProxyGroupDomain name="groups">
-          <Group name="sources" />
-          <Group name="filters" />
-        </ProxyGroupDomain>
-        <InputArrayDomain attribute_type="row"
-                          name="input_array"
-                          number_of_components="1" />
-        <DataTypeDomain name="input_type">
-          <DataType value="vtkTable" />
-        </DataTypeDomain>
-        <Documentation>This property specifies the input.</Documentation>
-      </InputProperty>
-      <IntVectorProperty command="SetWholeExtent"
-                         default_values="0 0 0 0 0 0"
-                         name="WholeExtent"
-                         number_of_elements="6">
-        <!--
-        <ExtentDomain name="extent">
-          <RequiredProperties>
-             <Property name="Input" function="Input"/>
-          </RequiredProperties>
-        </ExtentDomain>
-        <Documentation>
-          This property gives the minimum and maximum point index (extent) in
-          each dimension for the output dataset.
-        </Documentation>
-        -->
-      </IntVectorProperty>
-      <StringVectorProperty command="SetXColumn"
-                            name="XColumn"
-                            number_of_elements="1">
-        <ArrayListDomain name="array_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </ArrayListDomain>
-        <Documentation>This property specifies which data array is going to be
-        used as the X coordinate in the generated polydata
-        dataset.</Documentation>
-      </StringVectorProperty>
-      <StringVectorProperty command="SetYColumn"
-                            name="YColumn"
-                            number_of_elements="1">
-        <ArrayListDomain name="array_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </ArrayListDomain>
-        <Documentation>This property specifies which data array is going to be
-        used as the Y coordinate in the generated polydata
-        dataset.</Documentation>
-      </StringVectorProperty>
-      <StringVectorProperty command="SetZColumn"
-                            name="ZColumn"
-                            number_of_elements="1">
-        <ArrayListDomain name="array_list">
-          <RequiredProperties>
-            <Property function="Input"
-                      name="Input" />
-          </RequiredProperties>
-        </ArrayListDomain>
-        <Documentation>This property specifies which data array is going to be
-        used as the Z coordinate in the generated polydata
-        dataset.</Documentation>
-      </StringVectorProperty>
     </SourceProxy>
 
     <!-- ==================================================================== -->

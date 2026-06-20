@@ -32,6 +32,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderer.h"
+#include "vtkStringFormatter.h"
 #include "vtkTexture.h"
 
 #include <cmath>
@@ -227,8 +228,12 @@ void vtkAnariSceneGraph::UpdateAnariFrameSize()
 {
   const uvec2 frameSize = { static_cast<uint32_t>(this->Size[0]),
     static_cast<uint32_t>(this->Size[1]) };
+  const size_t totalSize = this->Size[0] * this->Size[1];
   if ((uint32_t)this->Internal->ImageX == frameSize[0] &&
-    (uint32_t)this->Internal->ImageY == frameSize[1])
+    (uint32_t)this->Internal->ImageY == frameSize[1] && !this->Internal->ColorBuffer.empty() &&
+    !this->Internal->DepthBuffer.empty() &&
+    this->Internal->ColorBuffer.size() == totalSize * sizeof(float) &&
+    this->Internal->DepthBuffer.size() == totalSize)
   {
     return;
   }
@@ -236,7 +241,6 @@ void vtkAnariSceneGraph::UpdateAnariFrameSize()
   this->Internal->ImageX = frameSize[0];
   this->Internal->ImageY = frameSize[1];
 
-  const size_t totalSize = this->Size[0] * this->Size[1];
   this->Internal->ColorBuffer.resize(totalSize * sizeof(float));
   this->Internal->DepthBuffer.resize(totalSize);
 
@@ -257,7 +261,7 @@ void vtkAnariSceneGraph::UpdateAnariLights()
   {
     for (size_t i = 0; i < lightState.size(); i++)
     {
-      std::string lightName = "vtk_light_" + std::to_string(i);
+      std::string lightName = "vtk_light_" + vtk::to_string(i);
       anari::setParameter(anariDevice, lightState[i], "name", lightName.c_str());
       anari::commitParameters(anariDevice, lightState[i]);
     }
@@ -310,7 +314,7 @@ void vtkAnariSceneGraph::UpdateAnariVolumes()
   {
     for (size_t i = 0; i < volumeState.size(); i++)
     {
-      std::string volumeName = "vtk_volume_" + std::to_string(i);
+      std::string volumeName = "vtk_volume_" + vtk::to_string(i);
       anari::setParameter(anariDevice, volumeState[i], "name", volumeName.c_str());
       anari::commitParameters(anariDevice, volumeState[i]);
     }

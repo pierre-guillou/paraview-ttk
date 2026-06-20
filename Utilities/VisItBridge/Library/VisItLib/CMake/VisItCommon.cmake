@@ -1,6 +1,3 @@
-#Setup the version since some files need this
-set(VISIT_VERSION "2.7.0")
-
 if (COMMAND cmake_policy)
     cmake_policy(SET CMP0003 NEW)
 endif (COMMAND cmake_policy)
@@ -256,3 +253,13 @@ if (HAVE_SOCKLEN_T)
 else(HAVE_SOCKLEN_T)
     set(HAVE_SOCKLEN_T 0 CACHE INTERNAL "support for socklen_t")
 endif (HAVE_SOCKLEN_T)
+
+#-----------------------------------------------------------------------------
+# Provide VTK version to VisIt source with conditional execution.
+#-----------------------------------------------------------------------------
+string( REGEX REPLACE "([0-9]+).[0-9]+.[0-9]+[.0-9]*.*" "\\1" vtk_vermajor ${VTK_VERSION} )
+string( REGEX REPLACE "[0-9]+.([0-9]+).[0-9]+[.0-9]*.*" "\\1" vtk_verminor ${VTK_VERSION} )
+string( REGEX REPLACE "[0-9]+.[0-9]+.([0-9]+)[.0-9]*.*" "\\1" vtk_verpatch ${VTK_VERSION} )
+math( EXPR vtk_verhex "(${vtk_vermajor}<<16)|(${vtk_verminor}<<8)|(${vtk_verpatch})")
+set(VTK_VERSION_HEX "${vtk_verhex}" CACHE INTERNAL "")
+add_definitions("-DVTK_VERSION_HEX=${vtk_verhex}")

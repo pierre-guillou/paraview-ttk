@@ -5,14 +5,12 @@
 #include "vtkAlgorithmOutput.h"
 #include "vtkCellData.h"
 #include "vtkColorTransferFunction.h"
-#include "vtkCommand.h"
 #include "vtkContourValues.h"
 #include "vtkDataSet.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMath.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkMultiBlockVolumeMapper.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
@@ -25,7 +23,6 @@
 #include "vtkPolyDataMapper.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkRenderer.h"
-#include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 #include "vtkSmartVolumeMapper.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
@@ -35,7 +32,6 @@
 #include "vtkVolumeProperty.h"
 
 #include <algorithm>
-#include <map>
 #include <string>
 
 namespace
@@ -186,26 +182,12 @@ int vtkImageVolumeRepresentation::RequestData(
   {
     if (auto inputID = vtkImageData::GetData(inputVector[0], 0))
     {
-      vtkSmartPointer<vtkImageData> cache = nullptr;
-      if (auto inputUG = vtkUniformGrid::GetData(inputVector[0], 0))
-      {
-        cache = vtkSmartPointer<vtkUniformGrid>::New();
-        cache->ShallowCopy(inputUG);
+      vtkSmartPointer<vtkImageData> cache = vtkSmartPointer<vtkImageData>::New();
+      cache->ShallowCopy(inputID);
 
-        if (this->UseSeparateOpacityArray)
-        {
-          this->AppendOpacityComponent(cache);
-        }
-      }
-      else
+      if (this->UseSeparateOpacityArray)
       {
-        cache = vtkSmartPointer<vtkImageData>::New();
-        cache->ShallowCopy(inputID);
-
-        if (this->UseSeparateOpacityArray)
-        {
-          this->AppendOpacityComponent(cache);
-        }
+        this->AppendOpacityComponent(cache);
       }
       if (inputID->HasAnyGhostCells())
       {
@@ -254,7 +236,7 @@ int vtkImageVolumeRepresentation::RequestData(
     {
       if (!vtkMultiBlockVolumeMapper::SafeDownCast(this->VolumeMapper))
       {
-        vtkWarningMacro("Representation does not support rendering paritioned datasets yet.");
+        vtkWarningMacro("Representation does not support rendering partitioned datasets yet.");
       }
       else
       {

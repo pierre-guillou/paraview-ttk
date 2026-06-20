@@ -4,6 +4,8 @@
 #include "vtkMultiProcessStream.h"
 #include "vtkSpyPlotReader.h"
 #include "vtkSpyPlotUniReader.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 
 #include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
@@ -27,9 +29,8 @@ bool HasNumericalExtension(const char* filename, int& number)
     a++; // to exclude the "."
     if (isdigit(*a))
     {
-      char* ep;
-      number = static_cast<int>(strtol(a, &ep, 10));
-      if (ep[0] == '\0')
+      auto result = vtk::from_chars(a, number);
+      if (result.ptr[0] == '\0')
       {
         return true;
       }
@@ -128,7 +129,7 @@ vtkSpyPlotUniReader* vtkSpyPlotReaderMap::GetReader(
     it->second = vtkSpyPlotUniReader::New();
     it->second->SetCellArraySelection(parent->GetCellDataArraySelection());
     it->second->SetFileName(it->first.c_str());
-    // cout << parent->GetController()->GetLocalProcessId()
+    // std::cout << parent->GetController()->GetLocalProcessId()
     // << "Create reader: " << it->second << endl;
 
     // Set properties from parent class on the new reader. They can be overridden
@@ -153,7 +154,7 @@ void vtkSpyPlotReaderMap::TellReadersToCheck(vtkSpyPlotReader* parent)
 //-----------------------------------------------------------------------------
 bool vtkSpyPlotReaderMap::InitializeFromSpyFile(const char* filename)
 {
-  // cerr << "spydatafile\n";
+  // std::cerr << "spydatafile\n";
   // See if this is part of a series
   int currentNum = 0;
   bool isASeries = HasNumericalExtension(filename, currentNum);
@@ -179,16 +180,20 @@ bool vtkSpyPlotReaderMap::InitializeFromSpyFile(const char* filename)
   int found = currentNum;
   int minimum = currentNum;
   int maximum = currentNum;
-  while (1)
+  while (true)
   {
-    snprintf(buffer, sizeof(buffer), "%s/%s.%d", filePath.c_str(), fileNoExt.c_str(), idx);
-    // cerr << "buffer1 == " << buffer << endl;
+    auto result =
+      vtk::format_to_n(buffer, sizeof(buffer), "{:s}/{:s}.{:d}", filePath, fileNoExt, idx);
+    *result.out = '\0';
+    // std::cerr << "buffer1 == " << buffer << endl;
     if (!vtksys::SystemTools::FileExists(buffer))
     {
       int next = idx;
       for (idx = last; idx > next; idx--)
       {
-        snprintf(buffer, sizeof(buffer), "%s/%s.%d", filePath.c_str(), fileNoExt.c_str(), idx);
+        result =
+          vtk::format_to_n(buffer, sizeof(buffer), "{:s}/{:s}.{:d}", filePath, fileNoExt, idx);
+        *result.out = '\0';
         if (!vtksys::SystemTools::FileExists(buffer))
         {
           break;
@@ -207,16 +212,19 @@ bool vtkSpyPlotReaderMap::InitializeFromSpyFile(const char* filename)
   idx = currentNum + 100;
   last = currentNum;
   found = currentNum;
-  while (1)
+  while (true)
   {
-    snprintf(buffer, sizeof(buffer), "%s/%s.%d", filePath.c_str(), fileNoExt.c_str(), idx);
-    // cerr << "buffer2 == " << buffer << endl;
+    auto result =
+      vtk::format_to_n(buffer, sizeof(buffer), "{:s}/{:s}.{:d}", filePath, fileNoExt, idx);
+    *result.out = '\0';
     if (!vtksys::SystemTools::FileExists(buffer))
     {
       int next = idx;
       for (idx = last; idx < next; idx++)
       {
-        snprintf(buffer, sizeof(buffer), "%s/%s.%d", filePath.c_str(), fileNoExt.c_str(), idx);
+        result =
+          vtk::format_to_n(buffer, sizeof(buffer), "{:s}/{:s}.{:d}", filePath, fileNoExt, idx);
+        *result.out = '\0';
         if (!vtksys::SystemTools::FileExists(buffer))
         {
           break;
@@ -234,12 +242,11 @@ bool vtkSpyPlotReaderMap::InitializeFromSpyFile(const char* filename)
   maximum = found;
   for (idx = minimum; idx <= maximum; ++idx)
   {
-    snprintf(buffer, sizeof(buffer), "%s/%s.%d", filePath.c_str(), fileNoExt.c_str(), idx);
-    // cerr << "buffer3 == " << buffer << endl;
-    this->Files[buffer] = nullptr;
+    auto file = vtk::format("{:s}/{:s}.{:d}", filePath, fileNoExt, idx);
+    this->Files[file] = nullptr;
   }
   // Okay now open just the first file to get meta data
-  // cerr << "updating meta... " << endl;
+  // std::cerr << "updating meta... " << endl;
   return true;
 }
 
@@ -258,7 +265,7 @@ bool vtkSpyPlotReaderMap::InitializeFromCaseFile(const char* filename)
   if (!vtksys::SystemTools::GetLineFromStream(ifs, line)) // eat spycase line
   {
     vtkGenericWarningMacro("Syntax error in case file " << filename);
-    return 0;
+    return false;
   }
 
   while (vtksys::SystemTools::GetLineFromStream(ifs, line))

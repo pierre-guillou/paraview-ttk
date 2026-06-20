@@ -1187,12 +1187,13 @@ int yy_flex_debug = 0;
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 char* yytext;
-
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
 /*
 
-This file must be translated to C and modified to build everywhere.
+The file 'lex.yy.c' is generated from 'vtkParse.l'.
 
-See the adjacent README.txt file for instructions.
+See the adjacent README.md file for instructions.
 
 */
 
@@ -2760,11 +2761,11 @@ static int yy_get_next_buffer(void)
     /* Extend the array by 50%, plus the number we really need. */
     int new_size = (yy_n_chars) + number_to_move + ((yy_n_chars) >> 1);
     YY_CURRENT_BUFFER_LVALUE->yy_ch_buf =
-      (char*)yyrealloc((void*)YY_CURRENT_BUFFER_LVALUE->yy_ch_buf, (yy_size_t)new_size);
+      (char*)yyrealloc((void*)YY_CURRENT_BUFFER_LVALUE->yy_ch_buf, new_size);
     if (!YY_CURRENT_BUFFER_LVALUE->yy_ch_buf)
       YY_FATAL_ERROR("out of dynamic memory in yy_get_next_buffer()");
     /* "- 2" to take care of EOB's */
-    YY_CURRENT_BUFFER_LVALUE->yy_buf_size = (int)(new_size - 2);
+    YY_CURRENT_BUFFER_LVALUE->yy_buf_size = new_size - 2;
   }
 
   (yy_n_chars) += number_to_move;
@@ -2857,8 +2858,7 @@ static void yyunput(int c, char* yy_bp)
 
     yy_cp += (int)(dest - source);
     yy_bp += (int)(dest - source);
-    YY_CURRENT_BUFFER_LVALUE->yy_n_chars = (yy_n_chars) =
-      (int)YY_CURRENT_BUFFER_LVALUE->yy_buf_size;
+    YY_CURRENT_BUFFER_LVALUE->yy_n_chars = (yy_n_chars) = YY_CURRENT_BUFFER_LVALUE->yy_buf_size;
 
     if (yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2)
       YY_FATAL_ERROR("flex scanner push-back overflow");
@@ -4335,7 +4335,7 @@ const char* raw_string(const char* begin, int* has_ud_suffix)
           *dp++ = '\"';
           break;
         default:
-          sprintf(dp, "\\%3.3o", *textbuf);
+          snprintf(dp, m - (dp - result), "\\%3.3o", *textbuf);
           dp += 4;
           break;
       }
@@ -4638,6 +4638,9 @@ void print_preprocessor_error(int result, const char* cp, size_t n)
     case VTK_PARSE_OUT_OF_MEMORY:
       text = "out of memory";
       break;
+    case VTK_PARSE_OUT_OF_BOUNDS:
+      text = "out of bounds computation";
+      break;
   }
 
   /* be silent about missing include files */
@@ -4784,9 +4787,12 @@ void preprocessor_directive(const char* text, size_t l)
         macro->IsExcluded = 0;
         if (result < VTK_PARSE_MACRO_UNDEFINED)
         {
-          add_constant(vtkstrdup(macro->Name), vtkstrdup(macro->Definition), 0, 0, NULL, 1);
+          add_constant(vtkstrdup(macro->Name), vtkstrdup(macro->Definition), 0, NULL, 0, NULL, 1);
         }
       }
     }
   }
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

@@ -105,6 +105,15 @@ vtk_module_test_data(
   Data/vtkHDF/utf8_string.vtkhdf
   Data/vtkHDF/test_multiblock_static_multipiece.vtkhdf
 
+  Data/vtkHDF/polyhedron.vtu
+  Data/vtkHDF/polyhedron.vtkhdf
+  Data/vtkHDF/hexahedron.vtu
+  Data/vtkHDF/hexahedron.vtkhdf
+  
+  Data/vtkHDF/polyhedron_temporal.vtkhdf
+  Data/vtkHDF/polyhedron_temporal_0.vtu
+  Data/vtkHDF/polyhedron_temporal_1.vtu
+  
   Data/vtkHDF/distributed.vtm
   Data/vtkHDF/distributed/cone1.vtu
   Data/vtkHDF/distributed/sphere1.vtu
@@ -140,7 +149,10 @@ vtk_module_test_data(
   Data/vtkHDF/Transient/transient_expected_overlapping_amr_2/transient_expected_overlapping_amr_2_0.vti
   Data/vtkHDF/Transient/transient_expected_overlapping_amr_2/transient_expected_overlapping_amr_2_1.vti
 
+  Data/vtkHDF/composite_partial_array.vtkhdf
+
   Data/vtkHDF/multipiece_temporal_htg.hdf
+  Data/vtkHDF/sphere_onepiece.vtkhdf
   Data/vtkHDF/multipiece_htg.hdf
   Data/vtkHDF/randomhtg.hdf
   Data/vtkHDF/simple_htg.hdf

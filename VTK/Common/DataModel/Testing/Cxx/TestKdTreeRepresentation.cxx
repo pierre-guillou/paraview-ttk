@@ -18,13 +18,15 @@
 #include "vtkSmartPointer.h"
 #include "vtkSphereSource.h"
 
+#include <iostream>
+
 #define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
 
 int TestKdTreeFunctions()
 {
   int retVal = 0;
 
-  const int num_points = 10;
+  constexpr int num_points = 10;
   double p[num_points][3] = {
     { 0.840188, 0.394383, 0.783099 },
     { 0.79844, 0.911647, 0.197551 },
@@ -51,7 +53,7 @@ int TestKdTreeFunctions()
   vtkIdType id = kd->FindClosestPoint(0.5, 0.5, 0.5, distance);
   if (id != 3)
   {
-    cerr << "FindClosestPoint failed" << endl;
+    std::cerr << "FindClosestPoint failed" << std::endl;
     retVal++;
   }
 
@@ -65,7 +67,7 @@ int TestKdTreeFunctions()
   vtkIdType count = ids->GetNumberOfValues();
   if (count != 2)
   {
-    cerr << "FindPointsInArea failed" << endl;
+    std::cerr << "FindPointsInArea failed" << std::endl;
     retVal++;
   }
 
@@ -75,7 +77,7 @@ int TestKdTreeFunctions()
   vtkIdType n = idList->GetNumberOfIds();
   if (n != 10)
   {
-    cerr << "FindPointsWithinRadius failed" << endl;
+    std::cerr << "FindPointsWithinRadius failed" << std::endl;
     retVal++;
   }
 
@@ -85,7 +87,7 @@ int TestKdTreeFunctions()
 int TestKdTreeRepresentation(int argc, char* argv[])
 {
   double glyphSize = 0.05;
-  const vtkIdType num_points = 10;
+  constexpr vtkIdType num_points = 10;
   // random points generated on Linux (rand does not work the same on different
   // platforms)
   double p[num_points][3] = {

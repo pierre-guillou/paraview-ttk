@@ -5,6 +5,7 @@
 #include "vtkExtractCells.h"
 
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkBatch.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
@@ -141,9 +142,8 @@ vtkSmartPointer<vtkPoints> ExtractPoints(
   auto outputPoints = pts->GetData();
 
   ExtractPointsWorker<PointWorkT> worker;
-  using PointsDispatcher =
-    vtkArrayDispatch::Dispatch2ByValueTypeUsingArrays<vtkArrayDispatch::AllArrays,
-      vtkArrayDispatch::Reals, vtkArrayDispatch::Reals>;
+  using PointsDispatcher = vtkArrayDispatch::Dispatch2ByArray<vtkArrayDispatch::AllPointArrays,
+    vtkArrayDispatch::AOSPointArrays>;
   if (!PointsDispatcher::Execute(inputPoints, outputPoints, worker, work))
   {
     worker(inputPoints, outputPoints, work);

@@ -4,6 +4,7 @@
 #ifndef pqStatusBar_h
 #define pqStatusBar_h
 
+#include <QScopedPointer>
 #include <QStatusBar>
 
 #include "vtkNew.h"
@@ -11,7 +12,9 @@
 #include "pqApplicationComponentsModule.h"
 
 class vtkPVSystemConfigInformation;
+class QToolButton;
 class QProgressBar;
+class QStyle;
 
 /**
  * pqStatusBar extends QStatusBar to support showing paraview progress.
@@ -28,6 +31,12 @@ public:
   pqStatusBar(QWidget* parent = nullptr);
   ~pqStatusBar() override;
 
+Q_SIGNALS: // NOLINT(readability-redundant-access-specifiers)
+  void messageIndicatorPressed();
+
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers
+  void handleMessage(const QString& message, int type);
+  void resetMessageIndicators();
 protected Q_SLOTS:
   void updateServerConfigInfo();
   void updateMemoryProgressBar();
@@ -35,9 +44,18 @@ protected Q_SLOTS:
 protected: // NOLINT(readability-redundant-access-specifiers)
   vtkNew<vtkPVSystemConfigInformation> ServerConfigsInfo;
   QProgressBar* MemoryProgressBar;
+  QToolButton* ErrorIndicator;
+  std::uint64_t ErrorCount = 0;
+  QToolButton* WarningIndicator;
+  std::uint64_t WarningCount = 0;
 
 private:
   Q_DISABLE_COPY(pqStatusBar)
+
+  void updateWarningIndicator();
+  void updateErrorIndicator();
+
+  QScopedPointer<QStyle> ProgressBarStyle;
 };
 
 #endif

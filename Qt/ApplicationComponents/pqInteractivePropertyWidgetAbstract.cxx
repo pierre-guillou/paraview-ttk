@@ -11,6 +11,7 @@
 #include "pqServer.h"
 #include "pqView.h"
 #include "vtkCommand.h"
+#include "vtkLogger.h"
 #include "vtkNew.h"
 #include "vtkPVDataInformation.h"
 #include "vtkPVXMLElement.h"
@@ -24,6 +25,7 @@
 #include "vtkSMSourceProxy.h"
 #include "vtkSMTrace.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringScanner.h"
 #include "vtkWeakPointer.h"
 
 #include <cassert>
@@ -53,14 +55,8 @@ pqInteractivePropertyWidgetAbstract::pqInteractivePropertyWidgetAbstract(
   {
     if (const char* portIndex = visLink->GetAttribute("port"))
     {
-      try
-      {
-        this->LinkedPortIndex = std::stoi(portIndex);
-      }
-      catch (const std::exception&)
-      {
-        this->LinkedPortIndex = -1;
-      }
+      this->LinkedPortIndex = -1;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(portIndex, this->LinkedPortIndex);
     }
   }
 }
@@ -72,6 +68,7 @@ pqInteractivePropertyWidgetAbstract::~pqInteractivePropertyWidgetAbstract()
   {
     this->proxy()->RemoveObserver(this->Internals->UserEventObserverId);
     this->Internals->UserEventObserverId = 0;
+    this->proxy()->UnRegister(nullptr);
   }
 }
 
@@ -117,8 +114,23 @@ void pqInteractivePropertyWidgetAbstract::setupConnections(
 //-----------------------------------------------------------------------------
 void pqInteractivePropertyWidgetAbstract::setupUserObserver(vtkSMProxy* smproxy)
 {
+  if (this->Internals->UserEventObserverId > 0)
+  {
+    vtkLogF(ERROR,
+      "pqInteractivePropertyWidgetAbstract::setupUserObserver may only be called once per "
+      "instance");
+    return;
+  }
+  if (smproxy != this->proxy())
+  {
+    vtkLogF(ERROR,
+      "pqInteractivePropertyWidgetAbstract::setupUserObserver may only be called with the widget's "
+      "own proxy");
+    return;
+  }
   this->Internals->UserEventObserverId = smproxy->AddObserver(
     vtkCommand::UserEvent, this, &pqInteractivePropertyWidgetAbstract::handleUserEvent);
+  smproxy->Register(nullptr);
 }
 
 //-----------------------------------------------------------------------------

@@ -3,7 +3,6 @@
 #include "vtkExtractSurface.h"
 
 #include "vtkCellArray.h"
-#include "vtkDataArrayRange.h"
 #include "vtkFloatArray.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
@@ -17,7 +16,7 @@
 #include "vtkSMPTools.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
-#include <cfloat>
+#include <algorithm>
 #include <cmath>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -184,37 +183,28 @@ public:
   void CountBoundaryYZInts(unsigned char loc, unsigned char* edgeCases, vtkIdType* eMD[4]);
 
   // Produce the output triangles for this voxel cell.
-  struct GenerateTrisImpl
+  struct GenerateTrisImpl : public vtkCellArray::DispatchUtilities
   {
-    template <typename CellStateT>
-    void operator()(
-      CellStateT& state, const unsigned char* edges, int numTris, vtkIdType* eIds, vtkIdType& triId)
+    template <class OffsetsT, class ConnectivityT>
+    void operator()(OffsetsT* vtkNotUsed(offsets), ConnectivityT* conn, const unsigned char* edges,
+      int numTris, vtkIdType* eIds, vtkIdType& triId)
     {
-      using ValueType = typename CellStateT::ValueType;
-      auto* offsets = state.GetOffsets();
-      auto* conn = state.GetConnectivity();
-
-      auto offsetRange = vtk::DataArrayValueRange<1>(offsets);
-      auto offsetIter = offsetRange.begin() + triId;
-      auto connRange = vtk::DataArrayValueRange<1>(conn);
+      auto connRange = GetRange(conn);
       auto connIter = connRange.begin() + (triId * 3);
 
       while (numTris-- > 0)
       {
-        *offsetIter++ = static_cast<ValueType>(3 * triId++);
+        ++triId;
         *connIter++ = eIds[*edges++];
         *connIter++ = eIds[*edges++];
         *connIter++ = eIds[*edges++];
       }
-
-      // Write the last offset:
-      *offsetIter = static_cast<ValueType>(3 * triId);
     }
   };
   void GenerateTris(unsigned char eCase, unsigned char numTris, vtkIdType* eIds, vtkIdType& triId)
   {
     const unsigned char* edges = this->EdgeCases[eCase] + 1;
-    this->NewTris->Visit(GenerateTrisImpl{}, edges, numTris, eIds, triId);
+    this->NewTris->Dispatch(GenerateTrisImpl{}, edges, numTris, eIds, triId);
   }
 
   // Compute gradient on interior point.
@@ -1054,8 +1044,30 @@ void vtkExtractSurfaceAlgorithm<T>::GenerateOutput(
   // Determine the proximity to the boundary of volume. This information is
   // used to generate edge intersections.
   unsigned char loc, yLoc, zLoc, yzLoc;
-  yLoc = (row < 1 ? MinBoundary : (row >= (this->Dims[1] - 2) ? MaxBoundary : Interior));
-  zLoc = (slice < 1 ? MinBoundary : (slice >= (this->Dims[2] - 2) ? MaxBoundary : Interior));
+  if (row < 1)
+  {
+    yLoc = MinBoundary;
+  }
+  else if (row >= (this->Dims[1] - 2))
+  {
+    yLoc = MaxBoundary;
+  }
+  else
+  {
+    yLoc = Interior;
+  }
+  if (slice < 1)
+  {
+    zLoc = MinBoundary;
+  }
+  else if (slice >= (this->Dims[2] - 2))
+  {
+    zLoc = MaxBoundary;
+  }
+  else
+  {
+    zLoc = Interior;
+  }
   yzLoc = (yLoc << 2) | (zLoc << 4);
 
   // Run along voxels in x-row direction and generate output primitives. Note
@@ -1086,7 +1098,18 @@ void vtkExtractSurfaceAlgorithm<T>::GenerateOutput(
 
       // Now generate point(s) along voxel axes if needed. Remember to take
       // boundary into account.
-      loc = yzLoc | (i < 1 ? MinBoundary : (i >= (this->Dims[0] - 2) ? MaxBoundary : Interior));
+      if (i < 1)
+      {
+        loc = yzLoc | MinBoundary;
+      }
+      else if (i >= (this->Dims[0] - 2))
+      {
+        loc = yzLoc | MaxBoundary;
+      }
+      else
+      {
+        loc = yzLoc | Interior;
+      }
       if (this->CaseIncludesAxes(eCase) || loc != Interior)
       {
         unsigned char const* const edgeUses = this->GetEdgeUses(eCase);
@@ -1219,19 +1242,19 @@ void vtkExtractSurfaceAlgorithm<T>::Contour(vtkExtractSurface* self, vtkImageDat
     if (totalPts > 0)
     {
       newPts->GetData()->WriteVoidPointer(0, 3 * totalPts);
-      algo.NewPoints = static_cast<float*>(newPts->GetVoidPointer(0));
+      algo.NewPoints = vtkFloatArray::FastDownCast(newPts->GetData())->GetPointer(0);
       newTris->ResizeExact(numOutTris, 3 * numOutTris);
       algo.NewTris = newTris;
 
       if (newGradients)
       {
         newGradients->WriteVoidPointer(0, 3 * totalPts);
-        algo.NewGradients = static_cast<float*>(newGradients->GetVoidPointer(0));
+        algo.NewGradients = vtkFloatArray::FastDownCast(newGradients)->GetPointer(0);
       }
       if (newNormals)
       {
         newNormals->WriteVoidPointer(0, 3 * totalPts);
-        algo.NewNormals = static_cast<float*>(newNormals->GetVoidPointer(0));
+        algo.NewNormals = vtkFloatArray::FastDownCast(newNormals)->GetPointer(0);
       }
       algo.NeedGradients = (algo.NewGradients || algo.NewNormals);
 
@@ -1315,14 +1338,8 @@ int vtkExtractSurface::RequestData(
   inInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), exExt);
   for (int i = 0; i < 3; i++)
   {
-    if (inExt[2 * i] > exExt[2 * i])
-    {
-      exExt[2 * i] = inExt[2 * i];
-    }
-    if (inExt[2 * i + 1] < exExt[2 * i + 1])
-    {
-      exExt[2 * i + 1] = inExt[2 * i + 1];
-    }
+    exExt[2 * i] = std::max(inExt[2 * i], exExt[2 * i]);
+    exExt[2 * i + 1] = std::min(inExt[2 * i + 1], exExt[2 * i + 1]);
   }
   if (exExt[0] >= exExt[1] || exExt[2] >= exExt[3] || exExt[4] >= exExt[5])
   {
@@ -1341,6 +1358,7 @@ int vtkExtractSurface::RequestData(
   // Create necessary objects to hold output. We will defer the
   // actual allocation to a later point.
   vtkCellArray* newTris = vtkCellArray::New();
+  newTris->UseFixedSizeDefaultStorage(3);
   vtkPoints* newPts = vtkPoints::New();
   newPts->SetDataTypeToFloat();
   vtkFloatArray* newNormals = nullptr;

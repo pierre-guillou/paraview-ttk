@@ -5,12 +5,15 @@
 #include "vtkCellAttribute.h"
 #include "vtkCellGrid.h"
 #include "vtkDGOperatorEntry.h"
+#include "vtkStringFormatter.h"
 #include "vtkStringToken.h"
 #include "vtkTypeFloat32Array.h"
 #include "vtkTypeInt32Array.h"
 #include "vtkVector.h"
 
 #include <token/Singletons.h>
+
+#include <iostream>
 
 // Switch this to defined to get some debug printouts.
 #undef VTK_DBG_DGCELL
@@ -128,7 +131,7 @@ vtkDGCell::Source& vtkDGCell::GetCellSource(int sideType)
   }
   else if (sideType >= static_cast<int>(this->SideSpecs.size()))
   {
-    throw std::logic_error("No source specifier at index " + std::to_string(sideType));
+    throw std::logic_error("No source specifier at index " + vtk::to_string(sideType));
   }
   return this->SideSpecs[sideType];
 }
@@ -400,14 +403,8 @@ std::pair<int, int> vtkDGCell::GetSideRangeForDimension(int dimension) const
     auto shape = this->GetSideShape(rr.first);
     if (vtkDGCell::GetShapeDimension(shape) == dimension)
     {
-      if (lo > rr.first)
-      {
-        lo = rr.first;
-      }
-      if (hi < rr.second)
-      {
-        hi = rr.second;
-      }
+      lo = std::min(lo, rr.first);
+      hi = std::max(hi, rr.second);
     }
   }
   if (hi >= 0 && lo < hi)

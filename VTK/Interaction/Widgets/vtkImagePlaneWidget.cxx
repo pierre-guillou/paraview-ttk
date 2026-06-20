@@ -28,6 +28,7 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextActor.h"
 #include "vtkTextProperty.h"
 #include "vtkTexture.h"
@@ -1305,20 +1306,24 @@ void vtkImagePlaneWidget::ManageTextDisplay()
 
   if (this->State == vtkImagePlaneWidget::WindowLevelling)
   {
-    snprintf(this->TextBuff, VTK_IMAGE_PLANE_WIDGET_MAX_TEXTBUFF, "Window, Level: ( %g, %g )",
-      this->CurrentWindow, this->CurrentLevel);
+    auto result = vtk::format_to_n(this->TextBuff, VTK_IMAGE_PLANE_WIDGET_MAX_TEXTBUFF,
+      "Window, Level: ( {:g}, {:g} )", this->CurrentWindow, this->CurrentLevel);
+    *result.out = '\0';
   }
   else if (this->State == vtkImagePlaneWidget::Cursoring)
   {
     if (this->CurrentImageValue == VTK_DOUBLE_MAX)
     {
-      snprintf(this->TextBuff, VTK_IMAGE_PLANE_WIDGET_MAX_TEXTBUFF, "Off Image");
+      auto result =
+        vtk::format_to_n(this->TextBuff, VTK_IMAGE_PLANE_WIDGET_MAX_TEXTBUFF, "Off Image");
+      *result.out = '\0';
     }
     else
     {
-      snprintf(this->TextBuff, VTK_IMAGE_PLANE_WIDGET_MAX_TEXTBUFF, "( %g, %g, %g ): %g",
-        this->CurrentCursorPosition[0], this->CurrentCursorPosition[1],
-        this->CurrentCursorPosition[2], this->CurrentImageValue);
+      auto result = vtk::format_to_n(this->TextBuff, VTK_IMAGE_PLANE_WIDGET_MAX_TEXTBUFF,
+        "( {:g}, {:g}, {:g} ): {:g}", this->CurrentCursorPosition[0],
+        this->CurrentCursorPosition[1], this->CurrentCursorPosition[2], this->CurrentImageValue);
+      *result.out = '\0';
     }
   }
 
@@ -2146,8 +2151,7 @@ int vtkImagePlaneWidget::UpdateDiscreteCursor(double* q)
     iqtemp = static_cast<int>(std::round((closestPt[i] - origin[i]) / spacing[i]));
 
     // we have a valid pick already, just enforce bounds check
-    iq[i] = (iqtemp < extent[2 * i]) ? extent[2 * i]
-                                     : ((iqtemp > extent[2 * i + 1]) ? extent[2 * i + 1] : iqtemp);
+    iq[i] = std::min(std::max(iqtemp, extent[2 * i]), extent[2 * i + 1]);
 
     // compute image to world coords
     q[i] = iq[i] * spacing[i] + origin[i];
@@ -2771,7 +2775,8 @@ void vtkImagePlaneWidget::GenerateCursor()
 //------------------------------------------------------------------------------
 void vtkImagePlaneWidget::GenerateText()
 {
-  snprintf(this->TextBuff, VTK_IMAGE_PLANE_WIDGET_MAX_TEXTBUFF, "NA");
+  auto result = vtk::format_to_n(this->TextBuff, VTK_IMAGE_PLANE_WIDGET_MAX_TEXTBUFF, "NA");
+  *result.out = '\0';
   this->TextActor->SetInput(this->TextBuff);
   this->TextActor->SetTextScaleModeToNone();
 

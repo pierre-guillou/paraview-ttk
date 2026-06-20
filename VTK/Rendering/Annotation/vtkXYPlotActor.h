@@ -114,7 +114,7 @@ class vtkTextActor;
 class vtkTextMapper;
 class vtkTextProperty;
 
-class VTKRENDERINGANNOTATION_EXPORT VTK_MARSHALAUTO vtkXYPlotActor : public vtkActor2D
+class VTKRENDERINGANNOTATION_EXPORT VTK_MARSHALMANUAL vtkXYPlotActor : public vtkActor2D
 {
 public:
   vtkTypeMacro(vtkXYPlotActor, vtkActor2D);
@@ -123,7 +123,7 @@ public:
   /**
    * Instantiate object with autorange computation; bold, italic, and shadows
    * on; arial font family; the number of labels set to 5 for the x and y
-   * axes; a label format of "%-#6.3g"; and x coordinates computed from point
+   * axes; a label format of "{:<#6.3g}"; and x coordinates computed from point
    * ids.
    */
   static vtkXYPlotActor* New();
@@ -572,8 +572,8 @@ public:
 
   ///@{
   /**
-   * Set/Get the format with which to print the labels . This sets both X
-   * and Y label formats. GetLabelFormat() returns X label format.
+   * Set/Get the std::format or printf style format with which to print the labels . This sets both
+   * X and Y label formats. GetLabelFormat() returns X label format.
    */
   virtual void SetLabelFormat(const char*);
   const char* GetLabelFormat() { return this->GetXLabelFormat(); }
@@ -581,7 +581,7 @@ public:
 
   ///@{
   /**
-   * Set/Get the format with which to print the X label.
+   * Set/Get the std::format or printf style format with which to print the X label.
    */
   virtual void SetXLabelFormat(const char*);
   vtkGetStringMacro(XLabelFormat);
@@ -589,7 +589,7 @@ public:
 
   ///@{
   /**
-   * Set/Get the format with which to print the Y label.
+   * Set/Get the std::format or printf style format with which to print the Y label.
    */
   virtual void SetYLabelFormat(const char*);
   vtkGetStringMacro(YLabelFormat);
@@ -895,8 +895,8 @@ protected:
   vtkActor2D* TitleActor;
   vtkTextProperty* TitleTextProperty;
 
-  vtkAxisActor2D* XAxis;
-  vtkAxisActor2D* YAxis;
+  vtkNew<vtkAxisActor2D> XAxis;
+  vtkNew<vtkAxisActor2D> YAxis;
 
   vtkTextProperty* AxisTitleTextProperty;
   vtkTextProperty* AxisLabelTextProperty;
@@ -927,7 +927,7 @@ protected:
   vtkTypeBool Legend;
   double LegendPosition[2];
   double LegendPosition2[2];
-  vtkLegendBoxActor* LegendActor;
+  vtkNew<vtkLegendBoxActor> LegendActor;
   vtkGlyphSource2D* GlyphSource;
   vtkPlanes* ClipPlanes;
   double GlyphSize;

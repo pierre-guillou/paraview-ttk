@@ -23,8 +23,10 @@
 #include "vtkSmartPointer.h"
 #include "vtkSocketCommunicator.h"
 #include "vtkSocketController.h"
+#include "vtkStringScanner.h"
 
 #include <cassert>
+#include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
@@ -134,7 +136,8 @@ public:
     std::string client_url;
     if (pvserver.find(url))
     {
-      int port = atoi(pvserver.match(3).c_str());
+      int port;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(pvserver.match(3), port);
       port = (port < 0) ? 11111 : port;
 
       std::ostringstream stream;
@@ -147,7 +150,8 @@ public:
     else if (pvserver_reverse.find(url))
     {
       std::string hostname = pvserver_reverse.match(1);
-      int port = atoi(pvserver_reverse.match(3).c_str());
+      int port;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(pvserver_reverse.match(3), port);
       port = (port <= 0) ? 11111 : port;
       std::ostringstream stream;
       stream << "tcp://" << hostname.c_str() << ":" << port << "?" << handshake.str();
@@ -155,10 +159,11 @@ public:
     }
     else if (pvrenderserver.find(url))
     {
-      int dsport = atoi(pvrenderserver.match(3).c_str());
+      int dsport, rsport;
+      VTK_FROM_CHARS_IF_ERROR_BREAK(pvrenderserver.match(3), dsport);
       dsport = (dsport < 0) ? 11111 : dsport;
 
-      int rsport = atoi(pvrenderserver.match(6).c_str());
+      VTK_FROM_CHARS_IF_ERROR_BREAK(pvrenderserver.match(6), rsport);
       rsport = (rsport < 0) ? 22221 : rsport;
 
       if (vtkProcessModule::GetProcessType() == vtkProcessModule::PROCESS_RENDER_SERVER)
@@ -179,12 +184,13 @@ public:
     }
     else if (pvrenderserver_reverse.find(url))
     {
+      int dsport, rsport;
       std::string dataserverhost = pvrenderserver_reverse.match(1);
-      int dsport = atoi(pvrenderserver_reverse.match(3).c_str());
+      VTK_FROM_CHARS_IF_ERROR_BREAK(pvrenderserver_reverse.match(3), dsport);
       dsport = (dsport <= 0) ? 11111 : dsport;
 
       std::string renderserverhost = pvrenderserver_reverse.match(4);
-      int rsport = atoi(pvrenderserver_reverse.match(6).c_str());
+      VTK_FROM_CHARS_IF_ERROR_BREAK(pvrenderserver_reverse.match(6), rsport);
       rsport = (rsport <= 0) ? 22221 : rsport;
 
       if (vtkProcessModule::GetProcessType() == vtkProcessModule::PROCESS_RENDER_SERVER)
@@ -286,7 +292,7 @@ public:
     if (!alivedClients.empty())
     {
       this->Owner->SessionCore->GarbageCollectSIObject(
-        &alivedClients[0], static_cast<int>(alivedClients.size()));
+        alivedClients.data(), static_cast<int>(alivedClients.size()));
     }
   }
   //-----------------------------------------------------------------
@@ -410,7 +416,7 @@ bool vtkPVSessionServer::Connect()
       return false;
   }
 
-  cout << "Connection URL: " << url.str() << endl;
+  std::cout << "Connection URL: " << url.str() << endl;
   return this->Connect(url.str().c_str());
 }
 
@@ -432,7 +438,7 @@ bool vtkPVSessionServer::Connect(const char* url)
   {
     this->Internal->GetActiveController()->RegisterController(ccontroller);
     ccontroller->FastDelete();
-    cout << "Client connected." << endl;
+    std::cout << "Client connected." << endl;
   }
 
   if (this->MultipleConnection && !this->DisableFurtherConnections &&
@@ -516,9 +522,9 @@ void vtkPVSessionServer::OnClientServerMessageRMI(void* message, int message_len
       vtkSMMessage msg;
       msg.ParseFromString(string);
 
-      //      cout << "=================================" << endl;
+      //      std::cout << "=================================" << endl;
       //      msg.PrintDebugString();
-      //      cout << "=================================" << endl;
+      //      std::cout << "=================================" << endl;
 
       // Do we skip the processing ?
       if (!this->Internal->StoreShareOnly(&msg))

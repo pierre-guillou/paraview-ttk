@@ -23,6 +23,7 @@
 #define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
 
 #include <algorithm>
+#include <iostream>
 #include <list>
 #include <vector>
 
@@ -1896,7 +1897,7 @@ void vtkAMRDualGridHelper::MarshalDegenerateRegionMessage(void* messagePtr, int 
 void vtkAMRDualGridHelper::UnmarshalDegenerateRegionMessage(const void* messagePtr,
   int vtkNotUsed(messageLength), int vtkNotUsed(srcProc), bool hackLevelFlag)
 {
-  while (1)
+  while (true)
   {
     const int* gridPtr = static_cast<const int*>(messagePtr);
     int level;
@@ -2298,15 +2299,18 @@ int vtkAMRDualGridHelper::Initialize(vtkNonOverlappingAMR* input)
   // Add all of the blocks
   for (int level = 0; level < numLevels; ++level)
   {
-    numBlocks = input->GetNumberOfDataSets(level);
+    numBlocks = input->GetNumberOfBlocks(level);
     for (blockId = 0; blockId < numBlocks; ++blockId)
     {
-      //      vtkAMRBox box;
-      //      vtkImageData* image = input->GetDataSet(level,blockId,box);
-      vtkImageData* image = input->GetDataSet(level, blockId);
+      vtkCartesianGrid* cg = input->GetDataSetAsCartesianGrid(level, blockId);
+      vtkImageData* image = vtkImageData::SafeDownCast(cg);
       if (image)
       {
         this->AddBlock(level, blockId, image);
+      }
+      else if (cg)
+      {
+        vtkWarningMacro("Non vtkImageData in AMR are not supported and are skipped");
       }
     }
   }
@@ -2342,10 +2346,11 @@ int vtkAMRDualGridHelper::SetupData(vtkNonOverlappingAMR* input, const char* arr
   // Find the first that has data.
   for (int level = 0; level < numLevels; ++level)
   {
-    numBlocks = input->GetNumberOfDataSets(level);
+    numBlocks = input->GetNumberOfBlocks(level);
     for (blockId = 0; blockId < numBlocks; ++blockId)
     {
-      vtkImageData* image = input->GetDataSet(level, blockId);
+      vtkImageData* image =
+        vtkImageData::SafeDownCast(input->GetDataSetAsCartesianGrid(level, blockId));
       if (image)
       {
         vtkDataArray* da = image->GetCellData()->GetArray(this->ArrayName);
@@ -2728,12 +2733,11 @@ void vtkAMRDualGridHelper::ComputeGlobalMetaData(vtkNonOverlappingAMR* input)
   this->NumberOfBlocksInThisProcess = 0;
   for (int level = 0; level < numLevels; ++level)
   {
-    numBlocks = input->GetNumberOfDataSets(level);
+    numBlocks = input->GetNumberOfBlocks(level);
     for (blockId = 0; blockId < numBlocks; ++blockId)
     {
-      //      vtkAMRBox box;
-      //      vtkImageData* image = input->GetDataSet(level,blockId,box);
-      vtkImageData* image = input->GetDataSet(level, blockId);
+      vtkCartesianGrid* cg = input->GetDataSetAsCartesianGrid(level, blockId);
+      vtkImageData* image = vtkImageData::SafeDownCast(cg);
       if (image)
       {
         ++this->NumberOfBlocksInThisProcess;
@@ -2772,6 +2776,10 @@ void vtkAMRDualGridHelper::ComputeGlobalMetaData(vtkNonOverlappingAMR* input)
           // lowestDims[1] = cellDims[1];
           // lowestDims[2] = cellDims[2];
         }
+      }
+      else if (cg)
+      {
+        vtkWarningMacro("Non vtkImageData in AMR are not supported and are skipped");
       }
     }
   }

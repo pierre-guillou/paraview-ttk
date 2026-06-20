@@ -21,6 +21,8 @@
 #include "vtkTransformPolyDataFilter.h"
 #include "vtkViewport.h"
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLegendBoxActor);
 
@@ -697,10 +699,7 @@ int vtkLegendBoxActor::RenderOpaqueGeometry(vtkViewport* viewport)
         {
           sf = (bounds[1] - bounds[0]) / (bounds[3] - bounds[2]);
         }
-        if (sf > swr)
-        {
-          swr = sf;
-        }
+        swr = std::max(sf, swr);
       } // if symbol defined
 
       // We pick the one with highest ratio if both symbol and icon
@@ -718,10 +717,7 @@ int vtkLegendBoxActor::RenderOpaqueGeometry(vtkViewport* viewport)
         {
           sf = (bounds[1] - bounds[0]) / (bounds[3] - bounds[2]);
         }
-        if (sf > swr)
-        {
-          swr = sf;
-        }
+        swr = std::max(sf, swr);
       } // if icon defined.
     }
 
@@ -887,7 +883,7 @@ int vtkLegendBoxActor::RenderOpaqueGeometry(vtkViewport* viewport)
       } // if symbol defined
       else
       {
-        std::cout << "Symbol is not defined: " << std::endl;
+        std::cout << "Symbol is not defined: \n";
       }
     }
 

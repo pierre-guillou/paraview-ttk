@@ -24,6 +24,7 @@
 #include "vtkSMTrace.h"
 #include "vtkSMViewLayoutProxy.h"
 #include "vtkSMViewProxy.h"
+#include "vtkStringFormatter.h"
 
 #include <algorithm>
 #include <sstream>
@@ -85,7 +86,7 @@ protected:
     // Animation scene call render on each tick. We override that render call
     // since it's a waste of rendering, the code to save the images will call
     // render regardless.
-    this->AnimationScene->SetOverrideStillRender(1);
+    this->AnimationScene->SetOverrideStillRender(true);
     return true;
   }
 
@@ -109,7 +110,7 @@ protected:
 
   bool SaveFinalize() override
   {
-    this->AnimationScene->SetOverrideStillRender(0);
+    this->AnimationScene->SetOverrideStillRender(false);
     return true;
   }
 
@@ -243,7 +244,19 @@ public:
   /**
    * The suffix format to use to format the counter
    */
-  vtkSetStringMacro(SuffixFormat);
+  virtual void SetSuffixFormat(const char* suffix)
+  {
+    std::string format = suffix ? suffix : "";
+    if (vtk::is_printf_format(format))
+    {
+      // PARAVIEW_DEPRECATED_IN_6_1_0
+      vtkWarningMacro(<< "The given format " << format << " is a printf format. The format will be "
+                      << "converted to std::format. This conversion has been deprecated in 6.1.0");
+      format = vtk::printf_to_std_format(format);
+    }
+    const char* formatStr = format.c_str();
+    vtkSetStringBodyMacro(SuffixFormat, formatStr);
+  }
   vtkGetStringMacro(SuffixFormat);
 
   /**
@@ -285,7 +298,9 @@ protected:
     assert(remoteWriterAlgorithm);
 
     char buffer[1024];
-    snprintf(buffer, 1024, this->SuffixFormat, this->Counter);
+    VTK_FORMAT_IF_ERROR_RETURN(
+      auto result = vtk::format_to_n(buffer, 1024, this->SuffixFormat, this->Counter);
+      *result.out = '\0', false);
 
     std::ostringstream str;
     str << this->Prefix << buffer << this->Extension;

@@ -3,6 +3,7 @@
 
 #include "SMP/Common/vtkSMPToolsImpl.h"
 #include "SMP/TBB/vtkSMPToolsImpl.txx"
+#include "vtkStringScanner.h"
 
 #include <cstdlib> // For std::getenv()
 #include <mutex>   // For std::mutex
@@ -86,7 +87,7 @@ void vtkSMPToolsImpl<BackendType::TBB>::Initialize(int numThreads)
     const char* vtkSmpNumThreads = std::getenv("VTK_SMP_MAX_THREADS");
     if (vtkSmpNumThreads)
     {
-      numThreads = std::atoi(vtkSmpNumThreads);
+      VTK_FROM_CHARS_IF_ERROR_BREAK(vtkSmpNumThreads, numThreads);
     }
     else if (taskArena->is_active())
     {
@@ -94,7 +95,8 @@ void vtkSMPToolsImpl<BackendType::TBB>::Initialize(int numThreads)
       specifiedNumThreadsTBB = 0;
     }
   }
-  if (numThreads > 0 && numThreads <= taskArena->max_concurrency())
+  if (numThreads > 0 &&
+    numThreads <= vtkSMPToolsImpl<BackendType::TBB>::GetEstimatedDefaultNumberOfThreads())
   {
     if (taskArena->is_active())
     {
@@ -111,7 +113,9 @@ void vtkSMPToolsImpl<BackendType::TBB>::Initialize(int numThreads)
 template <>
 int vtkSMPToolsImpl<BackendType::TBB>::GetEstimatedNumberOfThreads()
 {
-  return specifiedNumThreadsTBB > 0 ? specifiedNumThreadsTBB : taskArena->max_concurrency();
+  return specifiedNumThreadsTBB > 0
+    ? specifiedNumThreadsTBB
+    : vtkSMPToolsImpl<BackendType::TBB>::GetEstimatedDefaultNumberOfThreads();
 }
 
 //------------------------------------------------------------------------------

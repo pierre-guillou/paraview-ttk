@@ -122,7 +122,7 @@ void vtkPVPythonAlgorithmPlugin::Initialize(
       PyObject* borrowed_item = PyList_GET_ITEM(result.GetPointer(), cc);
       if (PyUnicode_Check(borrowed_item))
       {
-        internals.XMLs.push_back(PyUnicode_AsUTF8(borrowed_item));
+        internals.XMLs.emplace_back(PyUnicode_AsUTF8(borrowed_item));
       }
     }
   }
@@ -193,6 +193,16 @@ bool vtkPVPythonAlgorithmPlugin::LoadPlugin(const char* pname)
     try
     {
       auto plugin = new vtkPVPythonAlgorithmPlugin(pname);
+      std::vector<std::string> xmls;
+      plugin->GetXMLs(xmls);
+
+      if (xmls.empty())
+      {
+        delete plugin;
+        throw std::runtime_error(
+          std::string("The script '") + pname + "' is not a paraview plugin.");
+      }
+
       return vtkPVPlugin::ImportPlugin(plugin);
     }
     catch (const std::runtime_error& err)

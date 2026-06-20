@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+// VTK_DEPRECATED_IN_9_5_0()
+// VTK_DEPRECATED_IN_9_6_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkAbstractArray.h"
 
 #include "vtkArrayDispatch.h"
@@ -569,26 +573,50 @@ void vtkAbstractArray::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //------------------------------------------------------------------------------
-const char* vtkAbstractArray::GetArrayTypeAsString() const
+const char* vtkAbstractArray::GetArrayTypeAsString(int arrayType)
 {
-  switch (this->GetArrayType())
+  switch (arrayType)
   {
-    case AbstractArray:
-      return "AbstractArray";
-    case DataArray:
-      return "DataArray";
-    case AoSDataArrayTemplate:
-      return "AoSDataArrayTemplate";
-    case SoADataArrayTemplate:
-      return "SoADataArrayTemplate";
-    case TypedDataArray:
+    case vtkArrayTypes::VTK_ABSTRACT_ARRAY:
+      return "VTK_ABSTRACT_ARRAY";
+    case vtkArrayTypes::VTK_DATA_ARRAY:
+      return "VTK_DATA_ARRAY";
+    case vtkArrayTypes::VTK_STRING_ARRAY:
+      return "VTK_STRING_ARRAY";
+    case vtkArrayTypes::VTK_VARIANT_ARRAY:
+      return "VTK_VARIANT_ARRAY";
+    case vtkArrayTypes::VTK_BIT_ARRAY:
+      return "VTK_BIT_ARRAY";
+    case vtkArrayTypes::VTK_AOS_DATA_ARRAY:
+      return "VTK_AOS_DATA_ARRAY";
+    case vtkArrayTypes::VTK_SOA_DATA_ARRAY:
+      return "VTK_SOA_DATA_ARRAY";
+    case vtkAbstractArray::TypedDataArray:
       return "TypedDataArray";
-    case MappedDataArray:
+    case vtkAbstractArray::MappedDataArray:
       return "MappedDataArray";
-    case ScaleSoADataArrayTemplate:
-      return "ScaleSoADataArrayTemplate";
-    case ImplicitArray:
-      return "ImplicitArray";
+    case vtkArrayTypes::VTK_SCALED_SOA_DATA_ARRAY:
+      return "VTK_SCALED_SOA_DATA_ARRAY";
+    case vtkArrayTypes::VTKM_DATA_ARRAY:
+      return "VTKM_DATA_ARRAY";
+    case vtkArrayTypes::VTK_PERIODIC_DATA_ARRAY:
+      return "VTK_PERIODIC_DATA_ARRAY";
+    case vtkArrayTypes::VTK_IMPLICIT_ARRAY:
+      return "VTK_IMPLICIT_ARRAY";
+    case vtkArrayTypes::VTK_AFFINE_ARRAY:
+      return "VTK_AFFINE_ARRAY";
+    case vtkArrayTypes::VTK_COMPOSITE_ARRAY:
+      return "VTK_COMPOSITE_ARRAY";
+    case vtkArrayTypes::VTK_CONSTANT_ARRAY:
+      return "VTK_CONSTANT_ARRAY";
+    case vtkArrayTypes::VTK_INDEXED_ARRAY:
+      return "VTK_INDEXED_ARRAY";
+    case vtkArrayTypes::VTK_STD_FUNCTION_ARRAY:
+      return "VTK_STD_FUNCTION_ARRAY";
+    case vtkArrayTypes::VTK_STRIDED_ARRAY:
+      return "VTK_STRIDED_ARRAY";
+    case vtkArrayTypes::VTK_STRUCTURED_POINT_ARRAY:
+      return "VTK_STRUCTURED_POINT_ARRAY";
   }
   return "Unknown";
 }
@@ -607,10 +635,11 @@ void vtkAbstractArray::GetProminentComponentValues(
 
   bool justCreated = false;
   vtkInformation* info = this->GetInformation();
-  const double* lastParams = info
-    ? (info->Has(DISCRETE_VALUE_SAMPLE_PARAMETERS()) ? info->Get(DISCRETE_VALUE_SAMPLE_PARAMETERS())
-                                                     : nullptr)
-    : nullptr;
+  const double* lastParams = nullptr;
+  if (info && info->Has(DISCRETE_VALUE_SAMPLE_PARAMETERS()))
+  {
+    lastParams = info->Get(DISCRETE_VALUE_SAMPLE_PARAMETERS());
+  }
   if (comp >= 0 && info)
   {
     vtkInformationVector* infoVec = info->Get(PER_COMPONENT());

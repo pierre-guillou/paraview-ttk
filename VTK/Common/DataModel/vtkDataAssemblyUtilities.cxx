@@ -12,6 +12,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPartitionedDataSetCollection.h"
 #include "vtkSMPTools.h"
+#include "vtkStringFormatter.h"
 #include "vtkUniformGrid.h"
 #include "vtkUniformGridAMR.h"
 
@@ -142,18 +143,18 @@ bool vtkDataAssemblyUtilities::GenerateHierarchyInternal(
 
   for (unsigned int level = 0, numLevels = amr->GetNumberOfLevels(); level < numLevels; ++level)
   {
-    const auto label = "Level " + std::to_string(level);
+    const auto label = "Level " + vtk::to_string(level);
     const auto name = vtkDataAssembly::MakeValidNodeName(label.c_str());
     auto node = hierarchy->AddNode(name.c_str());
     hierarchy->SetAttribute(node, "label", label.c_str());
     hierarchy->SetAttribute(node, "amr_level", level);
 
-    const auto numDataSets = amr->GetNumberOfDataSets(level);
+    const auto numDataSets = amr->GetNumberOfBlocks(level);
     // Add the composite index for each dataset in the AMR level.
     std::vector<unsigned int> datasetIndices(numDataSets);
     for (unsigned int cc = 0; cc < numDataSets; ++cc)
     {
-      datasetIndices[cc] = amr->GetCompositeIndex(level, cc);
+      datasetIndices[cc] = amr->GetAbsoluteBlockIndex(level, cc);
     }
     hierarchy->AddDataSetIndices(node, datasetIndices);
     hierarchy->SetAttribute(node, "number_of_datasets", numDataSets);
@@ -163,10 +164,10 @@ bool vtkDataAssemblyUtilities::GenerateHierarchyInternal(
       output->SetNumberOfPartitions(level, numDataSets);
       for (unsigned int cc = 0; cc < numDataSets; ++cc)
       {
-        output->SetPartition(level, cc, amr->GetDataSet(level, cc));
+        output->SetPartition(level, cc, amr->GetDataSetAsCartesianGrid(level, cc));
       }
       output->GetMetaData(level)->Set(
-        vtkCompositeDataSet::NAME(), "Level " + std::to_string(level));
+        vtkCompositeDataSet::NAME(), "Level " + vtk::to_string(level));
     }
   }
 
@@ -249,7 +250,7 @@ bool vtkDataAssemblyUtilities::GenerateHierarchyInternal(
         auto metadata = mb->HasMetaData(bidx) ? mb->GetMetaData(bidx) : nullptr;
 
         std::string label, name;
-        std::tie(name, label) = ::GetBlockNameAndLabel(metadata, "Block" + std::to_string(bidx));
+        std::tie(name, label) = ::GetBlockNameAndLabel(metadata, "Block" + vtk::to_string(bidx));
 
         auto child = hierarchy->AddNode(name.c_str(), nodeid);
         if (!label.empty())
@@ -326,7 +327,7 @@ bool vtkDataAssemblyUtilities::GenerateHierarchyInternal(vtkPartitionedDataSetCo
   {
     auto metadata = input->HasMetaData(p) ? input->GetMetaData(p) : nullptr;
     std::string name, label;
-    std::tie(name, label) = ::GetBlockNameAndLabel(metadata, "Block" + std::to_string(p));
+    std::tie(name, label) = ::GetBlockNameAndLabel(metadata, "Block" + vtk::to_string(p));
 
     auto node = hierarchy->AddNode(name.c_str());
 
@@ -530,7 +531,7 @@ vtkDataAssemblyUtilities::GenerateCompositeDataSetFromHierarchy(
   const auto dataType = hierarchy->GetAttributeOrDefault(root, "vtk_type", -1);
   if (vtkDataObjectTypes::TypeIdIsA(dataType, VTK_UNIFORM_GRID_AMR))
   {
-    std::vector<int> blocks_per_level;
+    std::vector<unsigned int> blocksPerLevel;
     for (const auto child : hierarchy->GetChildNodes(root, /*traverse_subtree=*/false))
     {
       auto level = hierarchy->GetAttributeOrDefault(child, "amr_level", 0u);
@@ -539,18 +540,17 @@ vtkDataAssemblyUtilities::GenerateCompositeDataSetFromHierarchy(
 
       const int count = indices.size() == 1 ? input->GetNumberOfPartitions(indices[0]) : 0;
 
-      if (level >= static_cast<unsigned int>(blocks_per_level.size()))
+      if (level >= static_cast<unsigned int>(blocksPerLevel.size()))
       {
-        blocks_per_level.resize(level + 1);
+        blocksPerLevel.resize(level + 1);
       }
 
-      blocks_per_level[level] = count;
+      blocksPerLevel[level] = count;
     }
 
     vtkSmartPointer<vtkUniformGridAMR> amr;
     amr.TakeReference(vtkUniformGridAMR::SafeDownCast(vtkDataObjectTypes::NewDataObject(dataType)));
-    amr->Initialize(static_cast<int>(blocks_per_level.size()),
-      !blocks_per_level.empty() ? blocks_per_level.data() : nullptr);
+    amr->Initialize(blocksPerLevel);
     for (const auto child : hierarchy->GetChildNodes(root, /*traverse_subtree=*/false))
     {
       auto level = hierarchy->GetAttributeOrDefault(child, "amr_level", 0u);

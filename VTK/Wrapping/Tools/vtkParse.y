@@ -1,23 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 %{
-
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
 /*
 
-This file must be translated to C and modified to build everywhere.
+The file 'vtkParse.tab.c' is generated from 'vtkParse.y'.
 
-Run bison like this (use bison 3.2.3 or later)
+See the adjacent README.md for instructions.
 
-  bison --no-lines -b vtkParse vtkParse.y
-
-Modify vtkParse.tab.c:
-  - replace all instances of "static inline" with "static"
-  - replace "#if ! defined lint || defined __GNUC__" with "#if 1"
-  - remove YY_ATTRIBUTE_UNUSED from yyfillin, yyfill, and yynormal
-  - remove the "break;" after "return yyreportAmbiguity"
-  - replace "(1-yyrhslen)" with "(1-(int)yyrhslen)"
-  - replace "sizeof yynewStates[0] with "sizeof (yyGLRState*)"
-  - replace "sizeof yynewLookaheadNeeds[0] with "sizeof (yybool)"
 */
 
 /*
@@ -115,6 +106,7 @@ to the more usual form y x; without parentheses.
 #endif
 
 #include "vtkParse.h"
+#include "vtkParseAttributes.h"
 #include "vtkParseData.h"
 #include "vtkParsePreprocess.h"
 #include "vtkParseSystem.h"
@@ -182,8 +174,6 @@ static TemplateInfo* currentTemplate = NULL;
 static const char* currentEnumName = NULL;
 static const char* currentEnumValue = NULL;
 static unsigned int currentEnumType = 0;
-static const char* deprecationReason = NULL;
-static const char* deprecationVersion = NULL;
 static parse_access_t access_level = VTK_ACCESS_PUBLIC;
 
 /* functions from vtkParse.l */
@@ -198,21 +188,24 @@ static void output_friend_function(void);
 static void output_function(void);
 static void reject_function(void);
 static void set_return(
-  FunctionInfo* func, unsigned int attributes, unsigned int type, const char* typeclass, int count);
+  FunctionInfo* func, unsigned int type, const char* typeclass, int n, const char** attrs);
 static void add_template_parameter(unsigned int datatype, unsigned int extra, const char* funcSig);
 static void add_using(const char* name, int is_namespace);
 static void start_enum(const char* name, int is_scoped, unsigned int type, const char* basename);
 static void add_enum(const char* name, const char* value);
 static void end_enum(void);
 static unsigned int guess_constant_type(const char* valstring);
-static void add_constant(const char* name, const char* value, unsigned int attributes,
-  unsigned int type, const char* typeclass, int flag);
+static void add_constant(const char* name, const char* value, unsigned int type,
+  const char* typeclass, int n, const char** attrs, int flag);
 static unsigned int guess_id_type(const char* cp);
 static unsigned int add_indirection(unsigned int type1, unsigned int type2);
 static unsigned int add_indirection_to_array(unsigned int type);
-static void handle_complex_type(ValueInfo* val, unsigned int attributes, unsigned int datatype,
+static void handle_complex_type(ValueInfo* val, int n, const char** attrs, unsigned int datatype,
   unsigned int extra, const char* funcSig);
-static void handle_attribute(const char* att, int pack);
+static void handle_attribute(const char* attr, int pack);
+static void handle_attribute_error(const char* attr, parse_attribute_return_t rcode);
+static void handle_decl_attributes(FunctionInfo* func, int n, const char** attrs);
+static void handle_value_attributes(ValueInfo* func, int n, const char** attrs);
 static void add_legacy_parameter(FunctionInfo* func, ValueInfo* param);
 
 /*----------------------------------------------------------------
@@ -1155,29 +1148,46 @@ static void postSigRightBracket(const char* s)
 /* "private" variables */
 static unsigned int storedType;
 static unsigned int typeStack[10];
-static unsigned int declAttributes;
-static unsigned int attributeStack[10];
+static int declAttrCount = 0;
+static int idAttrCount = 0;
+static int classAttrCount = 0;
+static const char** declAttrs = NULL;
+static const char** idAttrs = NULL;
+static const char** classAttrs = NULL;
+static struct
+{
+  const char** attrs;
+  int n;
+} declAttrStack[10];
 static int typeDepth = 0;
 
 /* save the type on the stack */
 static void pushType(void)
 {
-  attributeStack[typeDepth] = declAttributes;
+  declAttrStack[typeDepth].attrs = declAttrs;
+  declAttrStack[typeDepth].n = declAttrCount;
   typeStack[typeDepth++] = storedType;
+  declAttrs = NULL;
+  declAttrCount = 0;
+  storedType = 0;
 }
 
 /* pop the type stack */
 static void popType(void)
 {
   storedType = typeStack[--typeDepth];
-  declAttributes = attributeStack[typeDepth];
+  free(declAttrs);
+  declAttrs = declAttrStack[typeDepth].attrs;
+  declAttrCount = declAttrStack[typeDepth].n;
 }
 
 /* clear the storage type */
 static void clearType(void)
 {
   storedType = 0;
-  declAttributes = 0;
+  free(declAttrs);
+  declAttrs = NULL;
+  declAttrCount = 0;
 }
 
 /* save the type */
@@ -1282,15 +1292,73 @@ static unsigned int buildTypeBase(unsigned int a, unsigned int b)
 }
 
 /* add an attribute specifier to the current declaration */
-static void addAttribute(unsigned int flags)
+static void addDeclAttr(const char* att)
 {
-  declAttributes |= flags;
+  vtkParse_AddStringToArray(&declAttrs, &declAttrCount, att);
 }
 
-/* check if an attribute is set for the current declaration */
-static int getAttributes(void)
+/* get the number of attributes for the current declaration */
+static int getDeclAttrCount(void)
 {
-  return declAttributes;
+  return declAttrCount;
+}
+
+/* get the attributes for the current declaration */
+static const char** getDeclAttrs(void)
+{
+  return declAttrs;
+}
+
+/* add an attribute specifier for the preceding identifier */
+static void addIdAttr(const char* att)
+{
+  vtkParse_AddStringToArray(&idAttrs, &idAttrCount, att);
+}
+
+/* get the number of attributes for the preceding identifier */
+static int getIdAttrCount(void)
+{
+  return idAttrCount;
+}
+
+/* get the attributes for the preceding identifier */
+static const char** getIdAttrs(void)
+{
+  return idAttrs;
+}
+
+/* clear the current set of identifier attributes */
+static void clearIdAttrs(void)
+{
+  free(idAttrs);
+  idAttrs = NULL;
+  idAttrCount = 0;
+}
+
+/* add an attribute specifier for the current class */
+static void addClassAttr(const char* att)
+{
+  vtkParse_AddStringToArray(&classAttrs, &classAttrCount, att);
+}
+
+/* get the number of attributes for the current class */
+static int getClassAttrCount(void)
+{
+  return classAttrCount;
+}
+
+/* get the attributes for the current class */
+static const char** getClassAttrs(void)
+{
+  return classAttrs;
+}
+
+/* clear the current set of class attributes */
+static void clearClassAttrs(void)
+{
+  free(classAttrs);
+  classAttrs = NULL;
+  classAttrCount = 0;
 }
 
 /*----------------------------------------------------------------
@@ -1778,6 +1846,14 @@ static unsigned int add_indirection_to_array(unsigned int type)
 
 translation_unit:
     opt_declaration_seq
+    {
+      /* release various resources when parse is done */
+      clearType();
+      clearTypeId();
+      clearTemplate();
+      clearIdAttrs();
+      clearClassAttrs();
+    }
 
 opt_declaration_seq:
   | opt_declaration_seq
@@ -2127,8 +2203,7 @@ typedef_declarator_id:
       item->ItemType = VTK_TYPEDEF_INFO;
       item->Access = access_level;
 
-      handle_complex_type(item, getAttributes(), getType(), $<integer>1,
-                          getSig());
+      handle_complex_type(item, getDeclAttrCount(), getDeclAttrs(), getType(), $<integer>1, getSig());
 
       if (currentTemplate)
       {
@@ -2188,7 +2263,7 @@ alias_declaration:
       item->ItemType = VTK_TYPEDEF_INFO;
       item->Access = access_level;
 
-      handle_complex_type(item, getAttributes(), getType(), $<integer>7, copySig());
+      handle_complex_type(item, getDeclAttrCount(), getDeclAttrs(), getType(), $<integer>7, copySig());
 
       item->Name = $<str>2;
       item->Comment = vtkstrdup(getComment());
@@ -2332,7 +2407,7 @@ conversion_function:
     {
       postSig("(");
       currentFunction->IsExplicit = ((getType() & VTK_PARSE_EXPLICIT) != 0);
-      set_return(currentFunction, getAttributes(), getType(), getTypeId(), 0);
+      set_return(currentFunction, getType(), getTypeId(), getDeclAttrCount(), getDeclAttrs());
     }
     parameter_declaration_clause ')' { postSig(")"); }
     function_trailer_clause
@@ -2364,7 +2439,7 @@ operator_function_sig:
     {
       postSig("(");
       currentFunction->IsOperator = 1;
-      set_return(currentFunction, getAttributes(), getType(), getTypeId(), 0);
+      set_return(currentFunction, getType(), getTypeId(), getDeclAttrCount(), getDeclAttrs());
     }
     parameter_declaration_clause ')' { postSig(")"); }
 
@@ -2444,7 +2519,7 @@ trailing_return_type:
     trailing_type_specifier_seq
     {
       chopSig();
-      set_return(currentFunction, getAttributes(), getType(), getTypeId(), 0);
+      set_return(currentFunction, getType(), getTypeId(), getDeclAttrCount(), getDeclAttrs());
     }
 
 function_body:
@@ -2462,7 +2537,7 @@ function_sig:
     unqualified_id id_attribute_specifier_seq '('
     {
       postSig("(");
-      set_return(currentFunction, getAttributes(), getType(), getTypeId(), 0);
+      set_return(currentFunction, getType(), getTypeId(), getDeclAttrCount(), getDeclAttrs());
     }
     parameter_declaration_clause ')' { postSig(")"); }
 
@@ -2486,18 +2561,11 @@ structor_declaration:
       {
         currentFunction->IsExplicit = 1;
       }
-      if (getAttributes() & VTK_PARSE_WRAPEXCLUDE)
-      {
-        currentFunction->IsExcluded = 1;
-      }
-      if (getAttributes() & VTK_PARSE_DEPRECATED)
-      {
-        currentFunction->IsDeprecated = 1;
-        currentFunction->DeprecatedReason = deprecationReason;
-        currentFunction->DeprecatedVersion = deprecationVersion;
-      }
       currentFunction->Name = $<str>1;
       currentFunction->Comment = vtkstrdup(getComment());
+
+      /* handle any attributes present in the declaration */
+      handle_decl_attributes(currentFunction, getDeclAttrCount(), getDeclAttrs());
     }
     opt_ctor_initializer
     {
@@ -2548,7 +2616,7 @@ parameter_declaration:
       ValueInfo* param = (ValueInfo*)malloc(sizeof(ValueInfo));
       vtkParse_InitValue(param);
 
-      handle_complex_type(param, getAttributes(), getType(), $<integer>4, copySig());
+      handle_complex_type(param, getDeclAttrCount(), getDeclAttrs(), getType(), $<integer>4, copySig());
       add_legacy_parameter(currentFunction, param);
 
       if (getVarName())
@@ -2595,14 +2663,15 @@ variable_declaration:
 init_declarator_id:
     direct_declarator opt_initializer
     {
-      unsigned int attributes = getAttributes();
+      const char** attrs = getDeclAttrs();
+      int n = getDeclAttrCount();
       unsigned int type = getType();
       ValueInfo* var = (ValueInfo*)malloc(sizeof(ValueInfo));
       vtkParse_InitValue(var);
       var->ItemType = VTK_VARIABLE_INFO;
       var->Access = access_level;
 
-      handle_complex_type(var, attributes, type, $<integer>1, getSig());
+      handle_complex_type(var, n, attrs, type, $<integer>1, getSig());
 
       if (currentTemplate)
       {
@@ -3113,7 +3182,7 @@ decl_attribute_specifier_seq:
   attribute_specifier_seq { clearAttributeRole(); }
 
 id_attribute_specifier_seq:
-  { setAttributeRole(VTK_PARSE_ATTRIB_ID); }
+  { setAttributeRole(VTK_PARSE_ATTRIB_ID); clearIdAttrs(); }
   attribute_specifier_seq { clearAttributeRole(); }
 
 ref_attribute_specifier_seq:
@@ -3129,7 +3198,7 @@ array_attribute_specifier_seq:
   attribute_specifier_seq { clearAttributeRole(); }
 
 class_attribute_specifier_seq:
-  { setAttributeRole(VTK_PARSE_ATTRIB_CLASS); }
+  { setAttributeRole(VTK_PARSE_ATTRIB_CLASS); clearClassAttrs(); }
   attribute_specifier_seq { clearAttributeRole(); }
 
 attribute_specifier_seq:
@@ -3154,7 +3223,7 @@ attribute_list:
 
 attribute:
     { markSig(); } attribute_sig attribute_pack
-    { handle_attribute(cutSig(), $<integer>3); }
+    { chopSig(); handle_attribute(cutSig(), $<integer>3); }
 
 attribute_pack:
     { $<integer>$ = 0; }
@@ -3446,7 +3515,7 @@ ignored_left_parenthesis:
     '(' | LP | LA
 
 %%
-#include <string.h>
+/* NOLINTNEXTLINE(bugprone-suspicious-include) */
 #include "lex.yy.c"
 
 /* fill in the type name if none given */
@@ -3529,6 +3598,11 @@ static const char* type_class(unsigned int type, const char* classname)
 static void start_class(const char* classname, int is_struct_or_union)
 {
   ClassInfo* outerClass = currentClass;
+  int i;
+  int n = getClassAttrCount();
+  const char** attrs = getClassAttrs();
+  parse_attribute_return_t attrResult;
+
   pushClass();
   currentClass = (ClassInfo*)malloc(sizeof(ClassInfo));
   vtkParse_InitClass(currentClass);
@@ -3542,29 +3616,10 @@ static void start_class(const char* classname, int is_struct_or_union)
     currentClass->ItemType = VTK_UNION_INFO;
   }
 
-  if (getAttributes() & VTK_PARSE_WRAPEXCLUDE)
+  for (i = 0; i < n; i++)
   {
-    currentClass->IsExcluded = 1;
-  }
-
-  if (getAttributes() & VTK_PARSE_DEPRECATED)
-  {
-    currentClass->IsDeprecated = 1;
-    currentClass->DeprecatedReason = deprecationReason;
-    currentClass->DeprecatedVersion = deprecationVersion;
-  }
-
-  if (getAttributes() & VTK_PARSE_MARSHALAUTO)
-  {
-    currentClass->MarshalType = VTK_MARSHAL_AUTO_MODE;
-  }
-  else if (getAttributes() & VTK_PARSE_MARSHALMANUAL)
-  {
-    currentClass->MarshalType = VTK_MARSHAL_MANUAL_MODE;
-  }
-  else
-  {
-    currentClass->MarshalType = VTK_MARSHAL_NONE;
+    attrResult = vtkParse_ClassAttribute(currentClass, attrs[i], preprocessor);
+    handle_attribute_error(attrs[i], attrResult);
   }
 
   if (classname && classname[0] != '\0')
@@ -3687,6 +3742,10 @@ static void add_using(const char* name, int is_namespace)
 static void start_enum(const char* name, int is_scoped, unsigned int type, const char* basename)
 {
   EnumInfo* item;
+  int i;
+  int n = getClassAttrCount();
+  const char** attrs = getClassAttrs();
+  parse_attribute_return_t attrResult;
 
   currentEnumType = (type ? type : VTK_PARSE_INT);
   currentEnumName = "int";
@@ -3706,16 +3765,10 @@ static void start_enum(const char* name, int is_scoped, unsigned int type, const
     item->Comment = vtkstrdup(getComment());
     item->Access = access_level;
 
-    if (getAttributes() & VTK_PARSE_WRAPEXCLUDE)
+    for (i = 0; i < n; i++)
     {
-      item->IsExcluded = 1;
-    }
-
-    if (getAttributes() & VTK_PARSE_DEPRECATED)
-    {
-      item->IsDeprecated = 1;
-      item->DeprecatedReason = deprecationReason;
-      item->DeprecatedVersion = deprecationVersion;
+      attrResult = vtkParse_ClassAttribute(currentClass, attrs[i], preprocessor);
+      handle_attribute_error(attrs[i], attrResult);
     }
 
     if (currentClass)
@@ -3757,7 +3810,6 @@ static void end_enum(void)
 static void add_enum(const char* name, const char* value)
 {
   static char text[2048];
-  unsigned int attribs = getAttributes();
   int i;
   long j;
 
@@ -3782,7 +3834,7 @@ static void add_enum(const char* name, const char* value)
         i--;
       }
       j = (int)strtol(&text[i], NULL, 10);
-      sprintf(&text[i], "%li", j + 1);
+      snprintf(&text[i], sizeof(text) - i, "%li", j + 1);
     }
     else
     {
@@ -3797,7 +3849,8 @@ static void add_enum(const char* name, const char* value)
     currentEnumValue = "0";
   }
 
-  add_constant(name, currentEnumValue, attribs, currentEnumType, currentEnumName, 2);
+  add_constant(
+    name, currentEnumValue, currentEnumType, currentEnumName, getIdAttrCount(), getIdAttrs(), 2);
 }
 
 /* for a macro constant, guess the constant type, doesn't do any math */
@@ -3997,8 +4050,8 @@ static unsigned int guess_constant_type(const char* valstring)
 }
 
 /* add a constant to the current class or namespace */
-static void add_constant(const char* name, const char* value, unsigned int attributes,
-  unsigned int type, const char* typeclass, int flag)
+static void add_constant(const char* name, const char* value, unsigned int type,
+  const char* typeclass, int nattrs, const char** attrs, int flag)
 {
   ValueInfo* con = (ValueInfo*)malloc(sizeof(ValueInfo));
   vtkParse_InitValue(con);
@@ -4006,7 +4059,6 @@ static void add_constant(const char* name, const char* value, unsigned int attri
   con->Name = name;
   con->Comment = vtkstrdup(getComment());
   con->Value = value;
-  con->Attributes = attributes;
   con->Type = type;
   con->Class = type_class(type, typeclass);
 
@@ -4014,6 +4066,9 @@ static void add_constant(const char* name, const char* value, unsigned int attri
   {
     con->IsEnum = 1;
   }
+
+  /* handle any attributes that were present in the declaration */
+  handle_value_attributes(con, nattrs, attrs);
 
   if (flag == 1)
   {
@@ -4100,41 +4155,65 @@ static void add_template_parameter(unsigned int datatype, unsigned int extra, co
 {
   ValueInfo* param = (ValueInfo*)malloc(sizeof(ValueInfo));
   vtkParse_InitValue(param);
-  handle_complex_type(param, 0, datatype, extra, funcSig);
+  handle_complex_type(param, 0, NULL, datatype, extra, funcSig);
   param->Name = getVarName();
   vtkParse_AddParameterToTemplate(currentTemplate, param);
 }
 
+/* attach attributes to a value (variable, parameter, etc.) */
+static void handle_value_attributes(ValueInfo* val, int n, const char** attrs)
+{
+  int i;
+  parse_attribute_return_t attrResult;
+
+  for (i = 0; i < n; ++i)
+  {
+    attrResult = vtkParse_ValueAttribute(val, attrs[i], preprocessor);
+    handle_attribute_error(attrs[i], attrResult);
+  }
+}
+
+/* attach attributes to either the function or its return value */
+static void handle_decl_attributes(FunctionInfo* func, int n, const char** attrs)
+{
+  int i;
+  parse_attribute_return_t attrResult;
+
+  for (i = 0; i < n; ++i)
+  {
+    attrResult = vtkParse_FunctionAttribute(func, attrs[i], preprocessor);
+    if (func->ReturnValue && attrResult == VTK_ATTRIB_HANDLER_SKIPPED)
+    {
+      attrResult = vtkParse_ValueAttribute(func->ReturnValue, attrs[i], preprocessor);
+    }
+    handle_attribute_error(attrs[i], attrResult);
+  }
+}
+
 /* set the return type for the current function */
 static void set_return(
-  FunctionInfo* func, unsigned int attributes, unsigned int type, const char* typeclass, int count)
+  FunctionInfo* func, unsigned int type, const char* typeclass, int n, const char** attrs)
 {
-  char text[64];
   ValueInfo* val = (ValueInfo*)malloc(sizeof(ValueInfo));
 
   vtkParse_InitValue(val);
-  val->Attributes = attributes;
   val->Type = type;
   val->Class = type_class(type, typeclass);
 
-  if (count)
-  {
-    val->Count = count;
-    snprintf(text, sizeof(text), "%i", count);
-    vtkParse_AddStringToArray(&val->Dimensions, &val->NumberOfDimensions, vtkstrdup(text));
-  }
-
   if (func->ReturnValue)
   {
+    /* there will already be a placeholder if we are setting a trailing
+     * return return value, so we free the placeholder first */
     vtkParse_FreeValue(func->ReturnValue);
   }
   func->ReturnValue = val;
 
+  /* attach attributes to either the function or its return value */
+  handle_decl_attributes(func, n, attrs);
+
 #ifndef VTK_PARSE_LEGACY_REMOVE
   func->ReturnType = val->Type;
   func->ReturnClass = val->Class;
-  func->HaveHint = (count > 0);
-  func->HintSize = count;
 #endif
 }
 
@@ -4175,7 +4254,7 @@ static int count_from_dimensions(ValueInfo* val)
 }
 
 /* deal with types that include function pointers or arrays */
-static void handle_complex_type(ValueInfo* val, unsigned int attributes, unsigned int datatype,
+static void handle_complex_type(ValueInfo* val, int n, const char** attrs, unsigned int datatype,
   unsigned int extra, const char* funcSig)
 {
   FunctionInfo* func = 0;
@@ -4197,7 +4276,6 @@ static void handle_complex_type(ValueInfo* val, unsigned int attributes, unsigne
     func = getFunction();
     func->ReturnValue = (ValueInfo*)malloc(sizeof(ValueInfo));
     vtkParse_InitValue(func->ReturnValue);
-    func->ReturnValue->Attributes = attributes;
     func->ReturnValue->Type = datatype;
     func->ReturnValue->Class = type_class(datatype, getTypeId());
     if (funcSig)
@@ -4205,6 +4283,12 @@ static void handle_complex_type(ValueInfo* val, unsigned int attributes, unsigne
       func->Signature = vtkstrdup(funcSig);
     }
     val->Function = func;
+
+    /* attach attributes to either the function or its return value */
+    handle_decl_attributes(func, n, attrs);
+
+    /* set n=0 since all attributes have been consumed */
+    n = 0;
 
 #ifndef VTK_PARSE_LEGACY_REMOVE
     func->ReturnType = func->ReturnValue->Type;
@@ -4215,7 +4299,6 @@ static void handle_complex_type(ValueInfo* val, unsigned int attributes, unsigne
     clearTypeId();
     setTypeId(func->Class ? "method" : "function");
     datatype = (extra & (VTK_PARSE_UNQUALIFIED_TYPE | VTK_PARSE_RVALUE));
-    attributes = 0;
   }
   else if ((extra & VTK_PARSE_INDIRECT) == VTK_PARSE_BAD_INDIRECT)
   {
@@ -4266,9 +4349,6 @@ static void handle_complex_type(ValueInfo* val, unsigned int attributes, unsigne
     }
   }
 
-  /* get the attributes */
-  val->Attributes = attributes;
-
   /* get the data type */
   val->Type = datatype;
   val->Class = type_class(datatype, getTypeId());
@@ -4280,19 +4360,18 @@ static void handle_complex_type(ValueInfo* val, unsigned int attributes, unsigne
 
   /* count is the product of the dimensions */
   val->Count = count_from_dimensions(val);
+
+  /* handle any attributes that were present in the declaration */
+  handle_value_attributes(val, n, attrs);
 }
 
 /* handle [[attributes]] */
-static void handle_attribute(const char* att, int pack)
+static void handle_attribute(const char* attr, int pack)
 {
   /* the role means "this is what the attribute applies to" */
   int role = getAttributeRole();
 
-  size_t l = 0;
-  size_t la = 0;
-  const char* args = NULL;
-
-  if (!att)
+  if (!attr)
   {
     return;
   }
@@ -4300,212 +4379,89 @@ static void handle_attribute(const char* att, int pack)
   /* append the prefix from the "using" statement */
   if (getAttributePrefix())
   {
-    att = vtkstrcat(getAttributePrefix(), att);
+    attr = vtkstrcat(getAttributePrefix(), attr);
   }
 
-  /* search for arguments */
-  l = vtkParse_SkipId(att);
-  while (att[l] == ':' && att[l + 1] == ':')
+  if (pack && strncmp(attr, "vtk::", 5) == 0)
   {
-    l += 2;
-    l += vtkParse_SkipId(&att[l]);
-  }
-  if (att[l] == '(')
-  {
-    /* strip the parentheses and whitespace from the args */
-    args = &att[l + 1];
-    while (*args == ' ')
-    {
-      args++;
-    }
-    la = strlen(args);
-    while (la > 0 && args[la - 1] == ' ')
-    {
-      la--;
-    }
-    if (la > 0 && args[la - 1] == ')')
-    {
-      la--;
-    }
-    while (la > 0 && args[la - 1] == ' ')
-    {
-      la--;
-    }
+    /* pack attributes are not handled (yet) */
+    const char* errtext = "\"...\" not allowed with VTK attributes.";
+    print_parser_error(attr, errtext, strlen(errtext));
+    exit(1);
   }
 
-  /* check for namespace */
-  if (strncmp(att, "vtk::", 5) == 0)
+  if (role == VTK_PARSE_ATTRIB_DECL)
   {
-    if (pack)
-    {
-      /* no current vtk attributes use '...' */
-      print_parser_error("attribute takes no ...", att, l);
-      exit(1);
-    }
-    else if (l == 16 && strncmp(att, "vtk::wrapexclude", l) == 0 && !args &&
-      (role == VTK_PARSE_ATTRIB_DECL || role == VTK_PARSE_ATTRIB_CLASS))
-    {
-      addAttribute(VTK_PARSE_WRAPEXCLUDE);
-    }
-    else if (l == 16 && strncmp(att, "vtk::propexclude", l) == 0 && !args &&
-      role == VTK_PARSE_ATTRIB_DECL)
-    {
-      addAttribute(VTK_PARSE_PROPEXCLUDE);
-    }
-    else if (l == 16 && strncmp(att, "vtk::newinstance", l) == 0 && !args &&
-      role == VTK_PARSE_ATTRIB_DECL)
-    {
-      addAttribute(VTK_PARSE_NEWINSTANCE);
-    }
-    else if (l == 13 && strncmp(att, "vtk::zerocopy", l) == 0 && !args &&
-      role == VTK_PARSE_ATTRIB_DECL)
-    {
-      addAttribute(VTK_PARSE_ZEROCOPY);
-    }
-    else if (l == 19 && strncmp(att, "vtk::unblockthreads", l) == 0 && !args &&
-      role == VTK_PARSE_ATTRIB_DECL)
-    {
-      addAttribute(VTK_PARSE_UNBLOCKTHREADS);
-    }
-    else if (l == 13 && strncmp(att, "vtk::filepath", l) == 0 && !args &&
-      role == VTK_PARSE_ATTRIB_DECL)
-    {
-      addAttribute(VTK_PARSE_FILEPATH);
-    }
-    else if (l == 15 && strncmp(att, "vtk::deprecated", l) == 0 &&
-      (role == VTK_PARSE_ATTRIB_DECL || role == VTK_PARSE_ATTRIB_CLASS ||
-        role == VTK_PARSE_ATTRIB_ID))
-    {
-      addAttribute(VTK_PARSE_DEPRECATED);
-      deprecationReason = NULL;
-      deprecationVersion = NULL;
-      if (args)
-      {
-        size_t lr = vtkParse_SkipQuotes(args);
-        deprecationReason = vtkstrndup(args, lr);
-        if (lr < la && args[lr] == ',')
-        {
-          /* skip spaces and get the next argument */
-          do
-          {
-            ++lr;
-          } while (lr < la && args[lr] == ' ');
-          deprecationVersion = vtkstrndup(&args[lr], vtkParse_SkipQuotes(&args[lr]));
-        }
-      }
-    }
-    else if (l == 12 && strncmp(att, "vtk::expects", l) == 0 && args &&
-      role == VTK_PARSE_ATTRIB_FUNC)
-    {
-      /* add to the preconditions */
-      vtkParse_AddStringToArray(
-        &currentFunction->Preconds, &currentFunction->NumberOfPreconds, vtkstrndup(args, la));
-    }
-    else if (l == 13 && strncmp(att, "vtk::sizehint", l) == 0 && args &&
-      role == VTK_PARSE_ATTRIB_FUNC)
-    {
-      /* first arg is parameter name, unless return value hint */
-      ValueInfo* arg = currentFunction->ReturnValue;
-      size_t n = vtkParse_SkipId(args);
-      preproc_int_t count;
-      int is_unsigned;
-      int i;
+    /* store the attribute until declaration is complete */
+    addDeclAttr(attr);
+  }
+  else if (role == VTK_PARSE_ATTRIB_ID)
+  {
+    /* store the attribute until the identifier is processed */
+    addIdAttr(attr);
+  }
+  else if (role == VTK_PARSE_ATTRIB_CLASS)
+  {
+    /* store the attribute until the class declaration begins */
+    addClassAttr(attr);
+  }
+  else if (role == VTK_PARSE_ATTRIB_FUNC)
+  {
+    /* this is for attributes that follow the parameter list */
+    parse_attribute_return_t attrResult;
+    attrResult = vtkParse_AfterFunctionAttribute(currentFunction, attr, preprocessor);
+    handle_attribute_error(attr, attrResult);
+  }
+  else if (role == VTK_PARSE_ATTRIB_REF)
+  {
+    /* no handling for attributes that modify *, &, etc. */
+    handle_attribute_error(attr, VTK_ATTRIB_HANDLER_SKIPPED);
+  }
+  else if (role == VTK_PARSE_ATTRIB_ARRAY)
+  {
+    /* no handling for attributes that modify arrays */
+    handle_attribute_error(attr, VTK_ATTRIB_HANDLER_SKIPPED);
+  }
+}
 
-      l = n;
-      while (args[n] == ' ')
-      {
-        n++;
-      }
-      if (l > 0 && args[n] == ',')
-      {
-        do
-        {
-          n++;
-        } while (args[n] == ' ');
-        /* find the named parameter */
-        for (i = 0; i < currentFunction->NumberOfParameters; i++)
-        {
-          arg = currentFunction->Parameters[i];
-          if (arg->Name && strlen(arg->Name) == l && strncmp(arg->Name, args, l) == 0)
-          {
-            break;
-          }
-        }
-        if (i == currentFunction->NumberOfParameters)
-        {
-          /* underscore by itself signifies the return value */
-          if (l == 1 && args[0] == '_')
-          {
-            arg = currentFunction->ReturnValue;
-          }
-          else
-          {
-            print_parser_error("unrecognized parameter name", args, l);
-            exit(1);
-          }
-        }
-        /* advance args to second attribute arg */
-        args += n;
-        la -= n;
-      }
-      /* set the size hint */
-      arg->CountHint = vtkstrndup(args, la);
-      /* see if hint is an integer */
-      if (VTK_PARSE_OK ==
-        vtkParsePreprocess_EvaluateExpression(preprocessor, arg->CountHint, &count, &is_unsigned))
-      {
-        if (count > 0 && count < 127)
-        {
-          arg->CountHint = NULL;
-          arg->Count = (int)count;
-#ifndef VTK_PARSE_LEGACY_REMOVE
-          if (arg == currentFunction->ReturnValue)
-          {
-            currentFunction->HaveHint = 1;
-            currentFunction->HintSize = arg->Count;
-          }
-#endif
-        }
-      }
-    }
-    else if (l == 16 && strncmp(att, "vtk::marshalauto", l) == 0 && !args &&
-      (role == VTK_PARSE_ATTRIB_DECL || role == VTK_PARSE_ATTRIB_CLASS))
+/* check attribute handling return code for error information */
+static void handle_attribute_error(const char* attr, parse_attribute_return_t rcode)
+{
+  if (rcode == VTK_ATTRIB_HANDLER_ERRORED)
+  {
+    /* get error text and print it */
+    size_t n = 0;
+    const char* errtext = vtkParse_GetAttributeError();
+    if (errtext)
     {
-      addAttribute(VTK_PARSE_MARSHALAUTO);
+      n = strlen(errtext);
     }
-    else if (l == 18 && strncmp(att, "vtk::marshalmanual", l) == 0 && !args &&
-      (role == VTK_PARSE_ATTRIB_DECL || role == VTK_PARSE_ATTRIB_CLASS))
+    print_parser_error(attr, errtext, n);
+    exit(1); /* fatal error */
+  }
+  else if (rcode == VTK_ATTRIB_HANDLER_NO_ARGS)
+  {
+    size_t l = vtkParse_SkipId(attr);
+    while (attr[l] == ':' && attr[l + 1] == ':')
     {
-      addAttribute(VTK_PARSE_MARSHALMANUAL);
+      l += 2;
+      l += vtkParse_SkipId(&attr[l]);
     }
-    else if (l == 19 && strncmp(att, "vtk::marshalexclude", l) == 0 && args &&
-      role == VTK_PARSE_ATTRIB_DECL)
+    if (attr[l] == '(')
     {
-      currentFunction->IsMarshalExcluded = 1;
-      currentFunction->MarshalExcludeReason = vtkstrndup(args, la);
+      const char* errtext = "attribute takes no arguments.";
+      print_parser_error(attr, errtext, strlen(errtext));
+      exit(1); /* fatal error */
     }
-    else if (l == 18 && (strncmp(att, "vtk::marshalgetter", l) == 0 ||
-      strncmp(att, "vtk::marshalsetter", l) == 0) && args &&
-      role == VTK_PARSE_ATTRIB_DECL)
+  }
+  else if (rcode == VTK_ATTRIB_HANDLER_SKIPPED)
+  {
+    /* is this an unrecognized VTK attribute? */
+    if (strncmp(attr, "vtk::", 5) == 0)
     {
-      if (args[0] != '"')
-      {
-        print_parser_error("args were not quoted here! Check macro definition in vtkWrappingHints.h", att, l);
-        exit(1);
-      }
-      /* advance args to next attribute arg */
-      while ((args[0] == '"') || (args[0] == ' '))
-      {
-        args += 1;
-        la -= 1;
-      }
-      size_t n = vtkParse_SkipId(args);
-      currentFunction->MarshalPropertyName = vtkstrndup(args, n);
-    }
-    else
-    {
-      print_parser_error("attribute cannot be used here", att, l);
-      exit(1);
+      const char* errtext = "attribute is not recognized in this context.";
+      print_parser_error(attr, errtext, strlen(errtext));
+      exit(1); /* fatal error */
     }
   }
 }
@@ -4579,29 +4535,6 @@ static void output_function(void)
   /* check return value for specifiers that apply to the function */
   if (currentFunction->ReturnValue)
   {
-    if (currentFunction->ReturnValue->Attributes & VTK_PARSE_WRAPEXCLUDE)
-    {
-      /* remove "wrapexclude" attrib from ReturnValue, attach it to function */
-      currentFunction->ReturnValue->Attributes ^= VTK_PARSE_WRAPEXCLUDE;
-      currentFunction->IsExcluded = 1;
-    }
-
-    if (currentFunction->ReturnValue->Attributes & VTK_PARSE_PROPEXCLUDE)
-    {
-      /* remove "propexclude" attrib from ReturnValue, attach it to function */
-      currentFunction->ReturnValue->Attributes ^= VTK_PARSE_PROPEXCLUDE;
-      currentFunction->IsPropExcluded = 1;
-    }
-
-    if (currentFunction->ReturnValue->Attributes & VTK_PARSE_DEPRECATED)
-    {
-      /* remove "deprecated" attrib from ReturnValue, attach it to function */
-      currentFunction->ReturnValue->Attributes ^= VTK_PARSE_DEPRECATED;
-      currentFunction->IsDeprecated = 1;
-      currentFunction->DeprecatedReason = deprecationReason;
-      currentFunction->DeprecatedVersion = deprecationVersion;
-    }
-
     if (currentFunction->ReturnValue->Type & VTK_PARSE_FRIEND)
     {
       /* remove "friend" specifier from ReturnValue */
@@ -5230,3 +5163,6 @@ const char* vtkParse_FindIncludeFile(const char* filename)
 
   return vtkParsePreprocess_FindIncludeFile(&info, filename, VTK_PARSE_SOURCE_INCLUDE, &val);
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

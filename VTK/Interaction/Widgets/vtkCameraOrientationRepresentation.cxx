@@ -52,9 +52,9 @@ vtkStandardNewMacro(vtkCameraOrientationRepresentation);
 //-----------------------------------------------------------------------------
 namespace
 {
-const double xyzBaseColor[3][3] = { { 0.870, 0.254, 0.188 }, { 0.952, 0.752, 0.090 },
+constexpr double xyzBaseColor[3][3] = { { 0.870, 0.254, 0.188 }, { 0.952, 0.752, 0.090 },
   { 0.654, 0.823, 0.549 } };
-const double minusXyzTextBgColor[3][3] = { { 0.655, 0.157, 0.106 }, { 0.898, 0.698, 0.047 },
+constexpr double minusXyzTextBgColor[3][3] = { { 0.655, 0.157, 0.106 }, { 0.898, 0.698, 0.047 },
   { 0.49, 0.737, 0.333 } };
 
 enum class HandleDirType : int
@@ -338,7 +338,7 @@ void vtkCameraOrientationRepresentation::ApplyInteractionState(const Interaction
 void vtkCameraOrientationRepresentation::ApplyInteractionState(const int& state)
 {
   // Clamp to allowable values
-  const int clamped = state < 0 ? 0 : (state > 2 ? 2 : state);
+  const int clamped = std::max(std::min(0, state), 2);
   this->ApplyInteractionState(static_cast<InteractionStateType>(clamped));
 }
 
@@ -724,6 +724,112 @@ GETLABELPROPERTY(X, Minus)
 GETLABELPROPERTY(Y, Minus)
 //-----------------------------------------------------------------------------
 GETLABELPROPERTY(Z, Minus)
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::SetXAxisColor(double color[3])
+{
+  this->SetAxisColor(Axis::XAxis, color);
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::SetYAxisColor(double color[3])
+{
+  this->SetAxisColor(Axis::YAxis, color);
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::SetZAxisColor(double color[3])
+{
+  this->SetAxisColor(Axis::ZAxis, color);
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::SetAxisColor(int ax, double color[3])
+{
+  double* currColor = this->GetAxisColor(ax);
+  if (currColor[0] != color[0] || currColor[1] != color[1] || currColor[2] != color[2])
+  {
+    double bgcolor[3] = { 0.9 * color[0], 0.9 * color[1], 0.9 * color[2] };
+    this->AxesColors->SetTypedTuple(ax, color);
+    this->AxisVectorTextProperties[ax][to_underlying(HandleDirType::Plus)]->SetBackgroundColor(
+      color);
+    this->AxisVectorTextProperties[ax][to_underlying(HandleDirType::Minus)]->SetBackgroundColor(
+      bgcolor);
+  }
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::SetXAxisColor(double r, double g, double b)
+{
+  this->SetAxisColor(Axis::XAxis, r, g, b);
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::SetYAxisColor(double r, double g, double b)
+{
+  this->SetAxisColor(Axis::YAxis, r, g, b);
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::SetZAxisColor(double r, double g, double b)
+{
+  this->SetAxisColor(Axis::ZAxis, r, g, b);
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::SetAxisColor(int ax, double r, double g, double b)
+{
+  double color[3] = { r, g, b };
+  this->SetAxisColor(ax, color);
+}
+
+//-----------------------------------------------------------------------------
+double* vtkCameraOrientationRepresentation::GetXAxisColor()
+{
+  return this->GetAxisColor(Axis::XAxis);
+}
+
+//-----------------------------------------------------------------------------
+double* vtkCameraOrientationRepresentation::GetYAxisColor()
+{
+  return this->GetAxisColor(Axis::YAxis);
+}
+
+//-----------------------------------------------------------------------------
+double* vtkCameraOrientationRepresentation::GetZAxisColor()
+{
+  return this->GetAxisColor(Axis::ZAxis);
+}
+
+//-----------------------------------------------------------------------------
+double* vtkCameraOrientationRepresentation::GetAxisColor(int ax)
+{
+  return this->AxesColors->GetTuple(ax);
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::GetXAxisColor(double color[3])
+{
+  this->GetAxisColor(Axis::XAxis, color);
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::GetYAxisColor(double color[3])
+{
+  this->GetAxisColor(Axis::YAxis, color);
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::GetZAxisColor(double color[3])
+{
+  this->GetAxisColor(Axis::ZAxis, color);
+}
+
+//-----------------------------------------------------------------------------
+void vtkCameraOrientationRepresentation::GetAxisColor(int ax, double color[3])
+{
+  this->AxesColors->GetTuple(ax, color);
+}
 
 //-----------------------------------------------------------------------------
 void vtkCameraOrientationRepresentation::SetContainerVisibility(bool state)

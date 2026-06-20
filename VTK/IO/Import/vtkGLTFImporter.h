@@ -40,6 +40,15 @@
  *   The importer supports the KHR_lights_punctual extension except for this feature:
  *   - VTK does not support changing the falloff of the cone with innerConeAngle and outerConeAngle.
  *     The importer uses outerConeAngle and ignores innerConeAngle as specified for this situation.
+ * - KHR_materials_unlit
+ * - KHR_texture_transform :
+ *   The importer supports the KHR_texture_transform extension, but assumes all texture transforms
+ * are equal. The base color texture transform is used for all textures.
+ *
+ * When selecting the input method, `Stream` has a
+ * higher priority than `FileName` i.e. if a stream is provided, the filename is ignored.
+ * \note When readering from stream, if the stream contains non-data URIs, specifying a custom uri
+ * loader is crucial. \sa SetStreamURILoader() \sa SetStreamIsBinary()
  *
  * @sa
  * vtkImporter
@@ -51,9 +60,8 @@
 
 #include "vtkIOImportModule.h" // For export macro
 #include "vtkImporter.h"
-#include "vtkResourceStream.h" // For Stream
-#include "vtkSmartPointer.h"   // For SmartPointer
-#include "vtkURILoader.h"      // For URILoader
+#include "vtkSmartPointer.h" // For SmartPointer
+#include "vtkURILoader.h"    // For URILoader
 
 #include <map>    // For map
 #include <vector> // For vector
@@ -74,28 +82,6 @@ public:
 
   vtkTypeMacro(vtkGLTFImporter, vtkImporter);
   void PrintSelf(ostream& os, vtkIndent indent) override;
-
-  ///@{
-  /**
-   * Specify the name of the file to read.
-   */
-  vtkSetFilePathMacro(FileName);
-  vtkGetFilePathMacro(FileName);
-  ///@}
-
-  ///@{
-  /**
-   * Specify the glTF source stream to read from. When selecting the input method, `Stream` has a
-   * higher priority than `FileName` i.e. if a stream is provided, the filename is ignored.
-   *
-   * \note If the stream contains non-data URIs, specifying a custom uri loader is crucial.
-   * \sa SetStreamURILoader()
-   *
-   * \sa SetStreamIsBinary()
-   */
-  vtkSetSmartPointerMacro(Stream, vtkResourceStream);
-  vtkGetSmartPointerMacro(Stream, vtkResourceStream);
-  ///@}
 
   ///@{
   /**
@@ -176,6 +162,7 @@ public:
   void SetCamera(vtkIdType camIndex) override;
 
   /**
+   * DEPRECATED, use the version without framerate
    * Get temporal information for the provided animationIndex and frameRate.
    * frameRate is used to define the number of frames for one second of simulation,
    * set to zero if timeSteps are not needed.
@@ -183,12 +170,31 @@ public:
    * If animation is present and frameRate > 0, nbTimeSteps and timeSteps will also be set, return
    * true. If animation is not present, return false.
    */
+  VTK_DEPRECATED_IN_9_6_0("Use GetTemporalInformation without framerate parameter instead.")
   bool GetTemporalInformation(vtkIdType animationIndex, double frameRate, int& nbTimeSteps,
     double timeRange[2], vtkDoubleArray* timeSteps) override;
 
+  /**
+   * Get temporal information for the provided animationIndex.
+   * If animation is present in the dataset, timeRange, nbTimeSteps and timeSteps
+   * will be set by this method and then returns true.
+   * If animation is not present, return false.
+   */
+  bool GetTemporalInformation(vtkIdType animationIndex, double timeRange[2], int& nbTimeSteps,
+    vtkDoubleArray* timeSteps) override;
+
+  /**
+   * Get the level of interpolation animation support in this importer, which is always
+   * InterpolationAnimationSupportLevel::CAPABLE
+   */
+  InterpolateAnimationSupportLevel GetInterpolateAnimationSupportLevel() override
+  {
+    return InterpolateAnimationSupportLevel::CAPABLE;
+  }
+
 protected:
   vtkGLTFImporter() = default;
-  ~vtkGLTFImporter() override;
+  ~vtkGLTFImporter() override = default;
 
   /**
    * Initialize the document loader.
@@ -200,6 +206,7 @@ protected:
   void ImportActors(vtkRenderer* renderer) override;
   void ImportCameras(vtkRenderer* renderer) override;
   void ImportLights(vtkRenderer* renderer) override;
+  void ImportEnd() override;
 
   void ApplySkinningMorphing();
 
@@ -211,8 +218,6 @@ protected:
    */
   virtual void ApplyArmatureProperties(vtkActor* actor);
 
-  char* FileName = nullptr;
-  vtkSmartPointer<vtkResourceStream> Stream;
   vtkSmartPointer<vtkURILoader> StreamURILoader;
   bool StreamIsBinary = false;
 
@@ -229,6 +234,12 @@ private:
   void operator=(const vtkGLTFImporter&) = delete;
 
   std::map<int, vtkSmartPointer<vtkActor>> ArmatureActors;
+
+  /**
+   * Move each camera's focal point along its view direction taking actors into account
+   * so focal point is in a usable location for interactions
+   */
+  void GuessCamerasFocalPoints();
 };
 
 VTK_ABI_NAMESPACE_END

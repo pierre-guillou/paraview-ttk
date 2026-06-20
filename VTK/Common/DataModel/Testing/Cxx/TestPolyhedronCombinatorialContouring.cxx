@@ -10,6 +10,8 @@
 #include "vtkUnstructuredGrid.h"
 #include "vtkXMLPolyDataWriter.h"
 
+#include <iostream>
+
 /* This is the layout of a cube with points on each edge
    In the test below we're going to test all combinations of
    edge points being present. As there are 12 edge points, the
@@ -43,7 +45,7 @@ Point indices:                       Face indices:
 #define FACES 6
 #define NPOINTS (CORNERS + EDGES + FACES)
 
-const int Faces[FACES][8] = {
+constexpr int Faces[FACES][8] = {
   { 0, 8, 1, 17, 5, 12, 4, 16 },
   { 1, 9, 2, 18, 6, 13, 5, 17 },
   { 2, 10, 3, 19, 7, 14, 6, 18 },
@@ -52,7 +54,7 @@ const int Faces[FACES][8] = {
   { 4, 12, 5, 13, 6, 14, 7, 15 },
 };
 
-const double Points[CORNERS + EDGES + FACES][3] = {
+constexpr double Points[CORNERS + EDGES + FACES][3] = {
   // first the corner points
   // lower plane
   { 0, 0, 0 },
@@ -188,7 +190,7 @@ int TestPolyhedronCombinatorialContouring(int vtkNotUsed(argc), char* vtkNotUsed
     vtkPolyData* result = cf->GetOutput();
     if (!result || result->GetNumberOfCells() < 1)
     {
-      cerr << "Case " << aCase << " has no contour" << endl;
+      std::cerr << "Case " << aCase << " has no contour" << std::endl;
       return EXIT_FAILURE;
     }
 
@@ -211,7 +213,7 @@ int TestPolyhedronCombinatorialContouring(int vtkNotUsed(argc), char* vtkNotUsed
     vtkUnstructuredGrid* less = clipLess->GetOutput();
     if (!less || less->GetNumberOfCells() < 1)
     {
-      cerr << "Case " << aCase << " has no 'less' clip result" << endl;
+      std::cerr << "Case " << aCase << " has no 'less' clip result" << std::endl;
       return EXIT_FAILURE;
     }
 
@@ -219,7 +221,7 @@ int TestPolyhedronCombinatorialContouring(int vtkNotUsed(argc), char* vtkNotUsed
     vtkUnstructuredGrid* more = clipMore->GetOutput();
     if (!more || more->GetNumberOfCells() < 1)
     {
-      cerr << "Case " << aCase << " has no 'more' clip result" << endl;
+      std::cerr << "Case " << aCase << " has no 'more' clip result" << std::endl;
       return EXIT_FAILURE;
     }
   }

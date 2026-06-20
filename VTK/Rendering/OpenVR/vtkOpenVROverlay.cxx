@@ -5,12 +5,14 @@
 #include "vtkDataArray.h"
 #include "vtkImageData.h"
 #include "vtkJPEGReader.h"
+#include "vtkMemoryResourceStream.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenVROverlayInternal.h"
 #include "vtkOpenVRRenderWindow.h"
 #include "vtkPointData.h"
 #include "vtkRendererCollection.h"
 #include "vtkTextureObject.h"
+#include "vtkUnsignedCharArray.h"
 #include "vtkXMLDataElement.h"
 #include "vtkXMLUtilities.h"
 #include "vtksys/FStream.hxx"
@@ -188,10 +190,7 @@ void vtkOpenVROverlay::LoadNextCameraPose()
   // find the next pose index in the map
   for (auto p : this->SavedCameraPoses)
   {
-    if (p.first < firstValue)
-    {
-      firstValue = p.first;
-    }
+    firstValue = std::min(p.first, firstValue);
     if (p.first > this->LastCameraPoseIndex)
     {
       nextValue = p.first;
@@ -228,8 +227,9 @@ void vtkOpenVROverlay::Hide()
 
 void vtkOpenVROverlay::SetDashboardImageData(vtkJPEGReader* imgReader)
 {
-  imgReader->SetMemoryBuffer(OpenVRDashboard);
-  imgReader->SetMemoryBufferLength(sizeof(OpenVRDashboard));
+  vtkNew<vtkMemoryResourceStream> stream;
+  stream->SetBuffer(OpenVRDashboard, sizeof(OpenVRDashboard));
+  imgReader->SetStream(stream);
   imgReader->Update();
 }
 
@@ -298,7 +298,7 @@ void vtkOpenVROverlay::Create(vtkOpenVRRenderWindow* win)
   this->CurrentTextureData = new unsigned char[dims[0] * dims[1] * 4];
   unsigned char* dataPtr = this->OriginalTextureData;
   unsigned char* inPtr =
-    static_cast<unsigned char*>(id->GetPointData()->GetScalars()->GetVoidPointer(0));
+    vtkUnsignedCharArray::FastDownCast(id->GetPointData()->GetScalars())->GetPointer(0);
   for (int j = 0; j < dims[1]; j++)
   {
     for (int i = 0; i < dims[0]; i++)

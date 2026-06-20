@@ -5,18 +5,15 @@
 #include "vtkCollection.h"
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringFormatter.h"
 
 vtkStandardNewMacro(vtkPVXMLElement);
 
 #include <cctype>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#define SNPRINTF _snprintf
-#else
-#define SNPRINTF snprintf
-#endif
 
 struct vtkPVXMLElementInternals
 {
@@ -132,8 +129,8 @@ void vtkPVXMLElement::AddAttribute(const char* attrName, const char* attrValue)
     return;
   }
 
-  this->Internal->AttributeNames.push_back(attrName);
-  this->Internal->AttributeValues.push_back(attrValue);
+  this->Internal->AttributeNames.emplace_back(attrName);
+  this->Internal->AttributeValues.emplace_back(attrValue);
 }
 
 //----------------------------------------------------------------------------
@@ -231,7 +228,7 @@ void vtkPVXMLElement::AddNestedElement(vtkPVXMLElement* element, int setParent)
   {
     element->SetParent(this);
   }
-  this->Internal->NestedElements.push_back(element);
+  this->Internal->NestedElements.emplace_back(element);
 }
 
 //----------------------------------------------------------------------------
@@ -263,7 +260,7 @@ const char* vtkPVXMLElement::GetCharacterData()
 //----------------------------------------------------------------------------
 void vtkPVXMLElement::PrintXML()
 {
-  this->PrintXML(cout, vtkIndent());
+  this->PrintXML(std::cout, vtkIndent());
 }
 
 //----------------------------------------------------------------------------
@@ -608,7 +605,9 @@ std::string vtkPVXMLElement::Encode(const char* plaintext)
     if (*escape_char)
     {
       char temp[20];
-      SNPRINTF(temp, 20, "&#x%x;", static_cast<int>(*escape_char));
+      auto result =
+        vtk::format_to_n(temp, sizeof(temp), "&#x{:x};", static_cast<int>(*escape_char));
+      *result.out = '\0';
       sanitized += temp;
     }
     else

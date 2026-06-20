@@ -7,6 +7,8 @@
 #include "vtkObjectFactory.h"
 #include "vtkThreadedImageAlgorithm.h"
 
+#include <iostream>
+
 #define TEST_SUCCESS 0
 #define TEST_FAILURE 1
 
@@ -140,12 +142,21 @@ bool ThreadedImageAlgorithmTester::TestSplitExtent(int extent[6], vtkIdType piec
     std::cerr << "Piece: " << i << " of " << n << "\n";
     std::cerr << "MinimumPieceSize: " << this->MinimumPieceSize[0] << " "
               << this->MinimumPieceSize[1] << " " << this->MinimumPieceSize[2] << "\n";
-    std::cerr << "SplitMode: "
-              << (this->SplitMode == SLAB
-                     ? "Slab\n"
-                     : (this->SplitMode == BEAM
-                           ? "Beam\n"
-                           : (this->SplitMode == BLOCK ? "Block\n" : "Unknown\n")));
+    switch (this->SplitMode)
+    {
+      case SLAB:
+        std::cerr << "SplitMode: Slab\n";
+        break;
+      case BEAM:
+        std::cerr << "SplitMode: Beam\n";
+        break;
+      case BLOCK:
+        std::cerr << "SplitMode: Block\n";
+        break;
+      default:
+        std::cerr << "SplitMode: Unknown\n";
+        break;
+    }
     std::cerr << "SplitPath:";
     for (int k = 0; k < this->SplitPathLength; k++)
     {
@@ -161,7 +172,7 @@ int TestThreadedImageAlgorithmSplitExtent(int, char*[])
 {
   vtkNew<ThreadedImageAlgorithmTester> tester;
 
-  const int splitPaths[6][3] = {
+  constexpr int splitPaths[6][3] = {
     { 2, 1, 0 },
     { 1, 2, 0 },
     { 0, 2, 1 },

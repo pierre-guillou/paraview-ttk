@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRStreamingPriorityQueue.h"
 
-#include "vtkAMRInformation.h"
 #include "vtkBoundingBox.h"
 #include "vtkMath.h"
 #include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include "vtkStreamingPriorityQueue.h"
 
 #include <cassert>
@@ -17,7 +17,7 @@ class vtkAMRStreamingPriorityQueue::vtkInternals
 {
 public:
   vtkStreamingPriorityQueue<> PriorityQueue;
-  vtkSmartPointer<vtkAMRInformation> AMRMetadata;
+  vtkSmartPointer<vtkOverlappingAMRMetaData> AMRMetadata;
 };
 
 vtkStandardNewMacro(vtkAMRStreamingPriorityQueue);
@@ -39,17 +39,17 @@ vtkAMRStreamingPriorityQueue::~vtkAMRStreamingPriorityQueue()
 }
 
 //----------------------------------------------------------------------------
-void vtkAMRStreamingPriorityQueue::Initialize(vtkAMRInformation* amr)
+void vtkAMRStreamingPriorityQueue::Initialize(vtkOverlappingAMRMetaData* amr)
 {
   delete this->Internals;
   this->Internals = new vtkInternals();
   this->Internals->AMRMetadata = amr;
 
-  for (unsigned int cc = 0; cc < amr->GetTotalNumberOfBlocks(); cc++)
+  for (unsigned int cc = 0; cc < amr->GetNumberOfBlocks(); cc++)
   {
     vtkStreamingPriorityQueueItem item;
     item.Identifier = cc;
-    item.Priority = (amr->GetTotalNumberOfBlocks() - cc);
+    item.Priority = (amr->GetNumberOfBlocks() - cc);
 
     unsigned int level = 0, index = 0;
     this->Internals->AMRMetadata->ComputeIndexPair(item.Identifier, level, index);
@@ -70,7 +70,7 @@ void vtkAMRStreamingPriorityQueue::Reinitialize()
 {
   if (this->Internals->AMRMetadata)
   {
-    vtkSmartPointer<vtkAMRInformation> info = this->Internals->AMRMetadata;
+    vtkSmartPointer<vtkOverlappingAMRMetaData> info = this->Internals->AMRMetadata;
     this->Initialize(info);
   }
 }

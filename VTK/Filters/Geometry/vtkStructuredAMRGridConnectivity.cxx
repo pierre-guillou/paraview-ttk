@@ -12,6 +12,8 @@
 #include <cmath>
 #include <cstdlib>
 
+#include <iostream>
+
 //------------------------------------------------------------------------------
 #define IMIN(ext) ext[0]
 #define IMAX(ext) ext[1]
@@ -43,7 +45,7 @@ vtkStandardNewMacro(vtkStructuredAMRGridConnectivity);
 vtkStructuredAMRGridConnectivity::vtkStructuredAMRGridConnectivity()
 {
   this->DataDimension = 0;
-  this->DataDescription = VTK_EMPTY;
+  this->DataDescription = vtkStructuredData::VTK_STRUCTURED_EMPTY;
   this->NumberOfGrids = 0;
   this->MaxLevel = -1;
   this->RefinementRatio = -1;
@@ -1109,37 +1111,37 @@ void vtkStructuredAMRGridConnectivity::CreateGhostedExtent(int gridId, int N)
 
   switch (this->DataDescription)
   {
-    case VTK_X_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_X_LINE:
       IMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::LEFT)) ? N : 0;
       IMAX(ext) += (this->HasBlockConnection(gridId, AMRBlockFace::RIGHT)) ? N : 0;
       break;
-    case VTK_Y_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Y_LINE:
       JMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::BOTTOM)) ? N : 0;
       JMAX(ext) += (this->HasBlockConnection(gridId, AMRBlockFace::TOP)) ? N : 0;
       break;
-    case VTK_Z_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Z_LINE:
       KMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::BACK)) ? N : 0;
       KMAX(ext) += (this->HasBlockConnection(gridId, AMRBlockFace::FRONT)) ? N : 0;
       break;
-    case VTK_XY_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XY_PLANE:
       IMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::LEFT)) ? N : 0;
       IMAX(ext) += (this->HasBlockConnection(gridId, AMRBlockFace::RIGHT)) ? N : 0;
       JMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::BOTTOM)) ? N : 0;
       JMAX(ext) += (this->HasBlockConnection(gridId, AMRBlockFace::TOP)) ? N : 0;
       break;
-    case VTK_YZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_YZ_PLANE:
       JMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::BOTTOM)) ? N : 0;
       JMAX(ext) += (this->HasBlockConnection(gridId, AMRBlockFace::TOP)) ? N : 0;
       KMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::BACK)) ? N : 0;
       KMAX(ext) += (this->HasBlockConnection(gridId, AMRBlockFace::FRONT)) ? N : 0;
       break;
-    case VTK_XZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XZ_PLANE:
       IMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::LEFT)) ? N : 0;
       IMAX(ext) += (this->HasBlockConnection(gridId, AMRBlockFace::RIGHT)) ? N : 0;
       KMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::BACK)) ? N : 0;
       KMAX(ext) += (this->HasBlockConnection(gridId, AMRBlockFace::FRONT)) ? N : 0;
       break;
-    case VTK_XYZ_GRID:
+    case vtkStructuredData::VTK_STRUCTURED_XYZ_GRID:
       IMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::LEFT)) ? N : 0;
       IMAX(ext) += (this->HasBlockConnection(gridId, AMRBlockFace::RIGHT)) ? N : 0;
       JMIN(ext) -= (this->HasBlockConnection(gridId, AMRBlockFace::BOTTOM)) ? N : 0;
@@ -1315,37 +1317,37 @@ void vtkStructuredAMRGridConnectivity::GetNodeOrientation(
   orientation[0] = orientation[1] = orientation[2] = AMRBlockFace::NOT_ON_BLOCK_FACE;
   switch (this->DataDescription)
   {
-    case VTK_X_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_X_LINE:
       orientation[0] = this->Get1DOrientation(i, ext[0], ext[1], AMRBlockFace::LEFT,
         AMRBlockFace::RIGHT, AMRBlockFace::NOT_ON_BLOCK_FACE);
       break;
-    case VTK_Y_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Y_LINE:
       orientation[1] = this->Get1DOrientation(j, ext[2], ext[3], AMRBlockFace::BOTTOM,
         AMRBlockFace::TOP, AMRBlockFace::NOT_ON_BLOCK_FACE);
       break;
-    case VTK_Z_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Z_LINE:
       orientation[2] = this->Get1DOrientation(k, ext[4], ext[5], AMRBlockFace::BACK,
         AMRBlockFace::FRONT, AMRBlockFace::NOT_ON_BLOCK_FACE);
       break;
-    case VTK_XY_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XY_PLANE:
       orientation[0] = this->Get1DOrientation(i, ext[0], ext[1], AMRBlockFace::LEFT,
         AMRBlockFace::RIGHT, AMRBlockFace::NOT_ON_BLOCK_FACE);
       orientation[1] = this->Get1DOrientation(j, ext[2], ext[3], AMRBlockFace::BOTTOM,
         AMRBlockFace::TOP, AMRBlockFace::NOT_ON_BLOCK_FACE);
       break;
-    case VTK_YZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_YZ_PLANE:
       orientation[1] = this->Get1DOrientation(j, ext[2], ext[3], AMRBlockFace::BOTTOM,
         AMRBlockFace::TOP, AMRBlockFace::NOT_ON_BLOCK_FACE);
       orientation[2] = this->Get1DOrientation(k, ext[4], ext[5], AMRBlockFace::BACK,
         AMRBlockFace::FRONT, AMRBlockFace::NOT_ON_BLOCK_FACE);
       break;
-    case VTK_XZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XZ_PLANE:
       orientation[0] = this->Get1DOrientation(i, ext[0], ext[1], AMRBlockFace::LEFT,
         AMRBlockFace::RIGHT, AMRBlockFace::NOT_ON_BLOCK_FACE);
       orientation[2] = this->Get1DOrientation(k, ext[4], ext[5], AMRBlockFace::BACK,
         AMRBlockFace::FRONT, AMRBlockFace::NOT_ON_BLOCK_FACE);
       break;
-    case VTK_XYZ_GRID:
+    case vtkStructuredData::VTK_STRUCTURED_XYZ_GRID:
       orientation[0] = this->Get1DOrientation(i, ext[0], ext[1], AMRBlockFace::LEFT,
         AMRBlockFace::RIGHT, AMRBlockFace::NOT_ON_BLOCK_FACE);
       orientation[1] = this->Get1DOrientation(j, ext[2], ext[3], AMRBlockFace::BOTTOM,
@@ -1366,46 +1368,46 @@ bool vtkStructuredAMRGridConnectivity::IsNodeWithinExtent(int i, int j, int k, i
   bool status = false;
   switch (this->DataDescription)
   {
-    case VTK_X_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_X_LINE:
       if ((GridExtent[0] <= i) && (i <= GridExtent[1]))
       {
         status = true;
       }
       break;
-    case VTK_Y_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Y_LINE:
       if ((GridExtent[2] <= j) && (j <= GridExtent[3]))
       {
         status = true;
       }
       break;
-    case VTK_Z_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Z_LINE:
       if ((GridExtent[4] <= k) && (k <= GridExtent[5]))
       {
         status = true;
       }
       break;
-    case VTK_XY_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XY_PLANE:
       if ((GridExtent[0] <= i) && (i <= GridExtent[1]) && (GridExtent[2] <= j) &&
         (j <= GridExtent[3]))
       {
         status = true;
       }
       break;
-    case VTK_YZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_YZ_PLANE:
       if ((GridExtent[2] <= j) && (j <= GridExtent[3]) && (GridExtent[4] <= k) &&
         (k <= GridExtent[5]))
       {
         status = true;
       }
       break;
-    case VTK_XZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XZ_PLANE:
       if ((GridExtent[0] <= i) && (i <= GridExtent[1]) && (GridExtent[4] <= k) &&
         (k <= GridExtent[5]))
       {
         status = true;
       }
       break;
-    case VTK_XYZ_GRID:
+    case vtkStructuredData::VTK_STRUCTURED_XYZ_GRID:
       if ((GridExtent[0] <= i) && (i <= GridExtent[1]) && (GridExtent[2] <= j) &&
         (j <= GridExtent[3]) && (GridExtent[4] <= k) && (k <= GridExtent[5]))
       {
@@ -1451,43 +1453,43 @@ bool vtkStructuredAMRGridConnectivity::IsNodeOnBoundaryOfExtent(int i, int j, in
   bool status = false;
   switch (this->DataDescription)
   {
-    case VTK_X_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_X_LINE:
       if (i == ext[0] || i == ext[1])
       {
         status = true;
       }
       break;
-    case VTK_Y_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Y_LINE:
       if (j == ext[2] || j == ext[3])
       {
         status = true;
       }
       break;
-    case VTK_Z_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Z_LINE:
       if (k == ext[4] || k == ext[5])
       {
         status = true;
       }
       break;
-    case VTK_XY_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XY_PLANE:
       if ((i == ext[0] || i == ext[1]) || (j == ext[2] || j == ext[3]))
       {
         status = true;
       }
       break;
-    case VTK_YZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_YZ_PLANE:
       if ((j == ext[2] || j == ext[3]) || (k == ext[4] || k == ext[5]))
       {
         status = true;
       }
       break;
-    case VTK_XZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XZ_PLANE:
       if ((i == ext[0] || i == ext[1]) || (k == ext[4] || k == ext[5]))
       {
         status = true;
       }
       break;
-    case VTK_XYZ_GRID:
+    case vtkStructuredData::VTK_STRUCTURED_XYZ_GRID:
       if ((i == ext[0] || i == ext[1]) || (j == ext[2] || j == ext[3]) ||
         (k == ext[4] || k == ext[5]))
       {
@@ -1508,43 +1510,43 @@ bool vtkStructuredAMRGridConnectivity::IsNodeInterior(int i, int j, int k, int G
   bool status = false;
   switch (this->DataDescription)
   {
-    case VTK_X_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_X_LINE:
       if ((GridExtent[0] < i) && (i < GridExtent[1]))
       {
         status = true;
       }
       break;
-    case VTK_Y_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Y_LINE:
       if ((GridExtent[2] < j) && (j < GridExtent[3]))
       {
         status = true;
       }
       break;
-    case VTK_Z_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Z_LINE:
       if ((GridExtent[4] < k) && (k < GridExtent[5]))
       {
         status = true;
       }
       break;
-    case VTK_XY_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XY_PLANE:
       if ((GridExtent[0] < i) && (i < GridExtent[1]) && (GridExtent[2] < j) && (j < GridExtent[3]))
       {
         status = true;
       }
       break;
-    case VTK_YZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_YZ_PLANE:
       if ((GridExtent[2] < j) && (j < GridExtent[3]) && (GridExtent[4] < k) && (k < GridExtent[5]))
       {
         status = true;
       }
       break;
-    case VTK_XZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XZ_PLANE:
       if ((GridExtent[0] < i) && (i < GridExtent[1]) && (GridExtent[4] < k) && (k < GridExtent[5]))
       {
         status = true;
       }
       break;
-    case VTK_XYZ_GRID:
+    case vtkStructuredData::VTK_STRUCTURED_XYZ_GRID:
       if ((GridExtent[0] < i) && (i < GridExtent[1]) && (GridExtent[2] < j) &&
         (j < GridExtent[3]) && (GridExtent[4] < k) && (k < GridExtent[5]))
       {
@@ -1576,10 +1578,7 @@ void vtkStructuredAMRGridConnectivity::RegisterGrid(int gridIdx, int level, int 
   assert("pre: Grid index is out-of-bounds!" &&
     ((gridIdx >= 0) && (gridIdx < static_cast<int>(this->NumberOfGrids))));
 
-  if (level > this->MaxLevel)
-  {
-    this->MaxLevel = level;
-  }
+  this->MaxLevel = std::max(level, this->MaxLevel);
 
   this->GridLevels[gridIdx] = level;
   this->InsertGridAtLevel(level, gridIdx);
@@ -1837,43 +1836,43 @@ void vtkStructuredAMRGridConnectivity::GetOrientationVector(
 {
   switch (dataDescription)
   {
-    case VTK_X_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_X_LINE:
       ndim = 1;
       orient[0] = 0;
       orient[1] = -1;
       orient[2] = -1;
       break;
-    case VTK_Y_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Y_LINE:
       ndim = 1;
       orient[0] = 1;
       orient[1] = -1;
       orient[2] = -1;
       break;
-    case VTK_Z_LINE:
+    case vtkStructuredData::VTK_STRUCTURED_Z_LINE:
       ndim = 1;
       orient[0] = 2;
       orient[1] = -1;
       orient[2] = -1;
       break;
-    case VTK_XY_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XY_PLANE:
       ndim = 2;
       orient[0] = 0;
       orient[1] = 1;
       orient[2] = -1;
       break;
-    case VTK_YZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_YZ_PLANE:
       ndim = 2;
       orient[0] = 1;
       orient[1] = 2;
       orient[2] = -1;
       break;
-    case VTK_XZ_PLANE:
+    case vtkStructuredData::VTK_STRUCTURED_XZ_PLANE:
       ndim = 2;
       orient[0] = 0;
       orient[1] = 2;
       orient[2] = -1;
       break;
-    case VTK_XYZ_GRID:
+    case vtkStructuredData::VTK_STRUCTURED_XYZ_GRID:
       ndim = 3;
       orient[0] = 0;
       orient[1] = 1;
@@ -2095,17 +2094,8 @@ void vtkStructuredAMRGridConnectivity::ComputeWholeExtent()
     {
       for (int dim = 0; dim < 3; ++dim)
       {
-
-        if (this->WholeExtent[dim * 2] > ext[dim * 2])
-        {
-          this->WholeExtent[dim * 2] = ext[dim * 2];
-        }
-
-        if (this->WholeExtent[dim * 2 + 1] < ext[dim * 2 + 1])
-        {
-          this->WholeExtent[dim * 2 + 1] = ext[dim * 2 + 1];
-        }
-
+        this->WholeExtent[dim * 2] = std::min(this->WholeExtent[dim * 2], ext[dim * 2]);
+        this->WholeExtent[dim * 2 + 1] = std::max(this->WholeExtent[dim * 2 + 1], ext[dim * 2 + 1]);
       } // END for all dimensions
     }   // END else
   }     // END for all grids at level L0

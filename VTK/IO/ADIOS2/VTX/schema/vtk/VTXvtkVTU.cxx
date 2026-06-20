@@ -149,8 +149,9 @@ void VTXvtkVTU::ReadPiece(size_t step, size_t pieceID)
     types::DataArray& connectivity = itConnectivity->second;
     if (connectivity.IsUpdated)
     {
-      vtkIdTypeArray* iconnectivity = vtkIdTypeArray::SafeDownCast(connectivity.Data.GetPointer());
-      vtkIdType* pconn = iconnectivity->GetPointer(0);
+      vtkNew<vtkIdTypeArray> iconnectivity;
+      iconnectivity->ShallowCopy(connectivity.Data); // this may deep copy if different
+      auto pconn = iconnectivity->GetPointer(0);
 
       // increase the connectivity offsets to match the local block point id
       vtkIdType blockOffset = 0;
@@ -181,7 +182,7 @@ void VTXvtkVTU::ReadPiece(size_t step, size_t pieceID)
         ++itBlocks;
       }
 
-      vtkIdType size = connectivity.Data->GetSize();
+      vtkIdType size = connectivity.Data->GetNumberOfValues();
       vtkNew<vtkCellArray> cellArray;
 
       cellArray->AllocateExact(size, iconnectivity->GetNumberOfValues() - size);
@@ -196,7 +197,7 @@ void VTXvtkVTU::ReadPiece(size_t step, size_t pieceID)
       types::DataArray& types = dataSet.at("types");
 
       // single type cells
-      if (types.Data->GetSize() == 1)
+      if (types.Data->GetDataSize() == 1)
       {
         int type = -1;
 

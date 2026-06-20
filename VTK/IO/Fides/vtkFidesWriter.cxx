@@ -17,6 +17,7 @@
 #include "vtkPartitionedDataSet.h"
 #include "vtkPartitionedDataSetCollection.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringFormatter.h"
 #include "vtkmlib/DataSetConverters.h"
 #include "vtksys/SystemTools.hxx"
 
@@ -307,7 +308,7 @@ void vtkFidesWriter::WriteData()
 
   for (unsigned int pdsIdx = 0; pdsIdx < inputPDC->GetNumberOfPartitionedDataSets(); ++pdsIdx)
   {
-    vtkLogScopeF(TRACE, "pdsIdx %d", pdsIdx);
+    vtkLogScopeF(TRACE, "pdsIdx %u", pdsIdx);
     // process PDS
     auto inputPDS = inputPDC->GetPartitionedDataSet(pdsIdx);
     assert(inputPDS != nullptr);
@@ -316,7 +317,7 @@ void vtkFidesWriter::WriteData()
     std::vector<std::string> fieldsToWrite;
     for (unsigned int partIdx = 0; partIdx < inputPDS->GetNumberOfPartitions(); ++partIdx)
     {
-      vtkLogScopeF(TRACE, "partIdx %d", partIdx);
+      vtkLogScopeF(TRACE, "partIdx %u", partIdx);
       auto partition = inputPDS->GetPartition(partIdx);
 
       if (partIdx == 0)
@@ -345,7 +346,8 @@ void vtkFidesWriter::WriteData()
         }
       }
 
-      viskores::cont::DataSet ds = tovtkm::Convert(partition, tovtkm::FieldsFlag::PointsAndCells);
+      viskores::cont::DataSet ds =
+        tovtkm::Convert(partition, tovtkm::FieldsFlag::PointsAndCells, /*forceViskores=*/true);
       vtkmPDS.AppendPartition(ds);
     }
 
@@ -353,7 +355,7 @@ void vtkFidesWriter::WriteData()
     if (inputPDC->GetNumberOfPartitionedDataSets() > 1)
     {
       pathComponents[pathComponents.size() - 1] =
-        fileBase + "-p" + std::to_string(pdsIdx) + fileExt;
+        fileBase + "-p" + vtk::to_string(pdsIdx) + fileExt;
       fname = vtksys::SystemTools::JoinPath(pathComponents);
     }
     vtkLog(TRACE, "fname " << fname);

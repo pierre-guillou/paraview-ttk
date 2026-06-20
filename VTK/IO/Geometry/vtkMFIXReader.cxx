@@ -22,10 +22,16 @@
 #include "vtkQuad.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkWedge.h"
+
 #include "vtksys/FStream.hxx"
+
 #include <string>
+
+#include <iostream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMFIXReader);
@@ -694,9 +700,10 @@ void vtkMFIXReader::SetProjectName(const char* infile)
 //------------------------------------------------------------------------------
 void vtkMFIXReader::RestartVersionNumber(const char* buffer)
 {
-  char s1[512];
-  char s2[512];
-  sscanf(buffer, "%s %s %f", s1, s2, &this->VersionNumber);
+  auto result = vtk::scan<std::string_view, std::string_view, float>(
+    std::string_view(buffer), "{:s} {:s} {:f}");
+  auto& [s1, s2, versionNumber] = result->values();
+  this->VersionNumber = versionNumber;
   strncpy(this->Version, buffer, 100);
 }
 
@@ -777,7 +784,7 @@ void vtkMFIXReader::SkipBytes(istream& in, int n)
 //------------------------------------------------------------------------------
 void vtkMFIXReader::GetBlockOfDoubles(istream& in, vtkDoubleArray* v, int n)
 {
-  const int numberOfDoublesInBlock = 512 / sizeof(double);
+  constexpr int numberOfDoublesInBlock = 512 / sizeof(double);
   double tempArray[numberOfDoublesInBlock];
   int numberOfRecords;
 
@@ -810,7 +817,7 @@ void vtkMFIXReader::GetBlockOfDoubles(istream& in, vtkDoubleArray* v, int n)
 //------------------------------------------------------------------------------
 void vtkMFIXReader::GetBlockOfInts(istream& in, vtkIntArray* v, int n)
 {
-  const int numberOfIntsInBlock = 512 / sizeof(int);
+  constexpr int numberOfIntsInBlock = 512 / sizeof(int);
   int tempArray[numberOfIntsInBlock];
   int numberOfRecords;
 
@@ -843,7 +850,7 @@ void vtkMFIXReader::GetBlockOfInts(istream& in, vtkIntArray* v, int n)
 //------------------------------------------------------------------------------
 void vtkMFIXReader::GetBlockOfFloats(istream& in, vtkFloatArray* v, int n)
 {
-  const int numberOfFloatsInBlock = 512 / sizeof(float);
+  constexpr int numberOfFloatsInBlock = 512 / sizeof(float);
   float tempArray[numberOfFloatsInBlock];
   int numberOfRecords;
 
@@ -898,7 +905,7 @@ void vtkMFIXReader::ReadRestartFile()
 
   if (!in)
   {
-    // cout << "could not open file" << endl;
+    // std::cout << "could not open file" << endl;
     return;
   }
 
@@ -1090,7 +1097,7 @@ void vtkMFIXReader::ReadRestartFile()
     this->SkipBytes(in, 364);
   }
 
-  const int numberOfFloatsInBlock = 512 / sizeof(float);
+  constexpr int numberOfFloatsInBlock = 512 / sizeof(float);
 
   if (this->IJKMaximum2 % numberOfFloatsInBlock == 0)
   {
@@ -1669,7 +1676,8 @@ void vtkMFIXReader::CreateVariableNames()
             strcpy(vString, "V_s_");
             strcpy(wString, "W_s_");
             strcpy(svString, "Solids_Velocity_");
-            snprintf(tempString, sizeof(tempString), "%d", j + 1);
+            auto result = vtk::format_to_n(tempString, sizeof(tempString), "{:d}", j + 1);
+            *result.out = '\0';
             strcat(uString, tempString);
             strcat(vString, tempString);
             strcat(wString, tempString);
@@ -1700,7 +1708,8 @@ void vtkMFIXReader::CreateVariableNames()
               ropString[k] = 0;
             }
             strcpy(ropString, "ROP_s_");
-            snprintf(tempString, sizeof(tempString), "%d", j + 1);
+            auto result = vtk::format_to_n(tempString, sizeof(tempString), "{:d}", j + 1);
+            *result.out = '\0';
             strcat(ropString, tempString);
             this->VariableNames->InsertValue(cnt++, ropString);
             this->VariableIndexToSPX->InsertValue(cnt - 1, 5);
@@ -1741,7 +1750,8 @@ void vtkMFIXReader::CreateVariableNames()
                 temperatureString[k] = 0;
               }
               strcpy(temperatureString, "T_s_");
-              snprintf(tempString, sizeof(tempString), "%d", j + 1);
+              auto result = vtk::format_to_n(tempString, sizeof(tempString), "{:d}", j + 1);
+              *result.out = '\0';
               strcat(temperatureString, tempString);
               this->VariableNames->InsertValue(cnt++, temperatureString);
               this->VariableIndexToSPX->InsertValue(cnt - 1, 6);
@@ -1758,7 +1768,8 @@ void vtkMFIXReader::CreateVariableNames()
               variableString[k] = 0;
             }
             strcpy(variableString, "X_g_");
-            snprintf(tempString, sizeof(tempString), "%d", j + 1);
+            auto result = vtk::format_to_n(tempString, sizeof(tempString), "{:d}", j + 1);
+            *result.out = '\0';
             strcat(variableString, tempString);
             this->VariableNames->InsertValue(cnt++, variableString);
             this->VariableIndexToSPX->InsertValue(cnt - 1, 7);
@@ -1776,8 +1787,10 @@ void vtkMFIXReader::CreateVariableNames()
                 variableString[k] = 0;
               }
               strcpy(variableString, "X_s_");
-              snprintf(tempString1, sizeof(tempString1), "%d", m);
-              snprintf(tempString2, sizeof(tempString2), "%d", j + 1);
+              auto result = vtk::format_to_n(tempString1, sizeof(tempString1), "{:d}", j + 1);
+              *result.out = '\0';
+              result = vtk::format_to_n(tempString2, sizeof(tempString2), "{:d}", j + 1);
+              *result.out = '\0';
               strcat(variableString, tempString1);
               strcat(variableString, "_");
               strcat(variableString, tempString2);
@@ -1796,7 +1809,8 @@ void vtkMFIXReader::CreateVariableNames()
               variableString[k] = 0;
             }
             strcpy(variableString, "Theta_m_");
-            snprintf(tempString, sizeof(tempString), "%d", j + 1);
+            auto result = vtk::format_to_n(tempString, sizeof(tempString), "{:d}", j + 1);
+            *result.out = '\0';
             strcat(variableString, tempString);
             this->VariableNames->InsertValue(cnt++, variableString);
             this->VariableIndexToSPX->InsertValue(cnt - 1, 8);
@@ -1812,7 +1826,8 @@ void vtkMFIXReader::CreateVariableNames()
               variableString[k] = 0;
             }
             strcpy(variableString, "Scalar_");
-            snprintf(tempString, sizeof(tempString), "%d", j + 1);
+            auto result = vtk::format_to_n(tempString, sizeof(tempString), "{:d}", j + 1);
+            *result.out = '\0';
             strcat(variableString, tempString);
             this->VariableNames->InsertValue(cnt++, variableString);
             this->VariableIndexToSPX->InsertValue(cnt - 1, 9);
@@ -1828,7 +1843,8 @@ void vtkMFIXReader::CreateVariableNames()
               variableString[k] = 0;
             }
             strcpy(variableString, "RRates_");
-            snprintf(tempString, sizeof(tempString), "%d", j + 1);
+            auto result = vtk::format_to_n(tempString, sizeof(tempString), "{:d}", j + 1);
+            *result.out = '\0';
             strcat(variableString, tempString);
             this->VariableNames->InsertValue(cnt++, variableString);
             this->VariableIndexToSPX->InsertValue(cnt - 1, 10);
@@ -2042,10 +2058,7 @@ void vtkMFIXReader::MakeTimeStepTable(int numberOfVariables)
           (int)((float)this->MaximumTimestep / (float)this->VariableTimesteps->GetValue(i) + 0.5);
         timestep++;
       }
-      if (timestep > this->VariableTimesteps->GetValue(i))
-      {
-        timestep = this->VariableTimesteps->GetValue(i);
-      }
+      timestep = std::min(timestep, this->VariableTimesteps->GetValue(i));
     }
   }
 }
@@ -2162,10 +2175,7 @@ void vtkMFIXReader::CalculateMaxTimeStep()
   this->MaximumTimestep = 0;
   for (int i = 0; i <= this->VariableNames->GetMaxId(); i++)
   {
-    if (this->VariableTimesteps->GetValue(i) > this->MaximumTimestep)
-    {
-      this->MaximumTimestep = this->VariableTimesteps->GetValue(i);
-    }
+    this->MaximumTimestep = std::max(this->VariableTimesteps->GetValue(i), this->MaximumTimestep);
   }
 }
 

@@ -13,10 +13,12 @@
 #include "vtkObject.h"
 #include "vtkRemotingServerManagerModule.h" //needed for exports
 
-#include <string> // for std::string
-#include <vector> // for std::vector
+#include <optional> // for std::optional
+#include <string>   // for std::string
+#include <vector>   // for std::vector
 
 class vtkSMProxy;
+class vtkSMStringVectorProperty;
 
 class VTKREMOTINGSERVERMANAGER_EXPORT vtkSMCoreUtilities : public vtkObject
 {
@@ -71,7 +73,7 @@ public:
    *    and keeps the range unchanged.
    * 2. If the range[0] == range[1] (using logic to handle nearly similar
    *    floating points numbers), then the range[1] is adjusted to be such that
-   *    range[1] > range[0p].
+   *    range[1] > range[0].
    * 3. If range[0] < range[1] (beyond the margin of error checked for in (2),
    *    then range is left unchanged.
    *
@@ -117,13 +119,24 @@ public:
    */
   static const char* GetStringForCellType(int cellType);
 
+  ///@{
   /**
    * Replaces input proxy, which should be a reader proxy, by a new proxy in the pipeline.
    * The new input files are stored in files, and `propName` should be the file name property
    * in the reader (usually "FileName" or "FileNames").
+   * Optionally, the `userModifiedName` flag can be specified to tell if the proxy name has been
+   * modified by the user. In case the user modified the name, we keep it in the replacement
+   * process. `userModifiedName`  is set to false when calling the function without the flag
+   * argument.
    */
   static void ReplaceReaderFileName(
-    vtkSMProxy* proxy, const std::vector<std::string>& files, const char* propName);
+    vtkSMProxy* proxy, const std::vector<std::string>& files, const char* propName)
+  {
+    vtkSMCoreUtilities::ReplaceReaderFileName(proxy, files, propName, false);
+  }
+  static void ReplaceReaderFileName(vtkSMProxy* proxy, const std::vector<std::string>& files,
+    const char* propName, bool userModifiedName);
+  ///@}
 
   /**
    * Find the largest prefix that matches all file names in files, and then append a '*'
@@ -131,6 +144,21 @@ public:
    * this returns '*'.
    */
   static std::string FindLargestPrefix(const std::vector<std::string>& files);
+
+  /**
+   * Return the registration name assigned to the given proxy by looking for a property called
+   * "RegistrationName". If it does not exist, it returns std::nullopt.
+   */
+  static std::optional<std::string> RecoverRegistrationName(vtkSMProxy* proxy);
+
+  //@{
+  /**
+   * Return the name that the proxy will take depending on a list of files given by te `fileNames`
+   * parameter or `stringVectorProperty`.
+   */
+  static std::string GetFileNameFromFileNameList(const std::vector<std::string>& fileNames);
+  static std::string GetFileNameFromFileNameList(vtkSMStringVectorProperty* stringVectorProperty);
+  //@}
 
 protected:
   vtkSMCoreUtilities();

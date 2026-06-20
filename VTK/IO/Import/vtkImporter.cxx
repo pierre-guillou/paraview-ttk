@@ -24,6 +24,7 @@ vtkImporter::vtkImporter() = default;
 //------------------------------------------------------------------------------
 vtkImporter::~vtkImporter()
 {
+  this->SetFileName(nullptr);
   this->SetRenderWindow(nullptr);
 
   if (this->Renderer)
@@ -112,6 +113,17 @@ void vtkImporter::PrintSelf(ostream& os, vtkIndent indent)
   {
     os << "(none)\n";
   }
+
+  os << indent << "Stream: ";
+  if (this->Stream)
+  {
+    this->Stream->PrintSelf(os, indent.GetNextIndent());
+  }
+  else
+  {
+    os << "(none)\n";
+  }
+  os << indent << "File Name: " << (this->FileName ? this->FileName : "(none)") << "\n";
 }
 
 //------------------------------------------------------------------------------
@@ -212,6 +224,7 @@ vtkIdType vtkImporter::GetNumberOfAnimations()
 }
 
 //------------------------------------------------------------------------------
+// VTK_DEPRECATED_IN_9_6_0
 bool vtkImporter::GetTemporalInformation(vtkIdType vtkNotUsed(animationIdx),
   double vtkNotUsed(frameRate), int& vtkNotUsed(nbTimeSteps), double vtkNotUsed(timeRange)[2],
   vtkDoubleArray* vtkNotUsed(timeSteps))
@@ -220,14 +233,11 @@ bool vtkImporter::GetTemporalInformation(vtkIdType vtkNotUsed(animationIdx),
 }
 
 //------------------------------------------------------------------------------
-void vtkImporter::UpdateTimeStep(double timeValue)
+bool vtkImporter::GetTemporalInformation(vtkIdType vtkNotUsed(animationIdx),
+  double vtkNotUsed(timeRange)[2], int& vtkNotUsed(nbTimeSteps),
+  vtkDoubleArray* vtkNotUsed(timeSteps))
 {
-  this->UpdateAtTimeValue(timeValue);
+  return false;
 }
 
-//------------------------------------------------------------------------------
-bool vtkImporter::UpdateAtTimeValue(double vtkNotUsed(timeValue))
-{
-  return this->Update();
-}
 VTK_ABI_NAMESPACE_END

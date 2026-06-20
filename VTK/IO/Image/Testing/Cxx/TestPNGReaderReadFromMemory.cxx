@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkImageData.h"
 #include "vtkImageViewer.h"
@@ -14,12 +15,14 @@
 #include <fstream>
 #include <vector>
 
+#include <iostream>
+
 int TestPNGReaderReadFromMemory(int argc, char* argv[])
 {
 
   if (argc <= 1)
   {
-    cout << "Usage: " << argv[0] << " <png file>" << endl;
+    std::cout << "Usage: " << argv[0] << " <png file>" << std::endl;
     return EXIT_FAILURE;
   }
 

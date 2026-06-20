@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRFlashReaderInternal.h"
 
+#include <algorithm>
 #include <vector>
 
 //------------------------------------------------------------------------------
@@ -181,7 +182,7 @@ void vtkFlashReaderInternal::Init()
 //------------------------------------------------------------------------------
 int vtkFlashReaderInternal::GetCycle()
 {
-  const bool bTmCycle = true;
+  constexpr bool bTmCycle = true;
 
   hid_t fileIndx = H5Fopen(this->FileName, H5F_ACC_RDONLY, H5P_DEFAULT);
   if (fileIndx < 0)
@@ -199,7 +200,7 @@ int vtkFlashReaderInternal::GetCycle()
 //------------------------------------------------------------------------------
 double vtkFlashReaderInternal::GetTime()
 {
-  const bool bTmCycle = true;
+  constexpr bool bTmCycle = true;
 
   hid_t fileIndx = H5Fopen(this->FileName, H5F_ACC_RDONLY, H5P_DEFAULT);
   if (fileIndx < 0)
@@ -212,6 +213,14 @@ double vtkFlashReaderInternal::GetTime()
   H5Fclose(fileIndx);
 
   return this->SimulationParameters.Time;
+}
+
+//------------------------------------------------------------------------------
+const char* vtkFlashReaderInternal::GetParticleName(char* variableName)
+{
+  static std::string particleName;
+  particleName = vtkFlashReaderInternal::GetSeparatedParticleName(std::string(variableName));
+  return particleName.c_str();
 }
 
 //------------------------------------------------------------------------------
@@ -804,35 +813,12 @@ void vtkFlashReaderInternal::ReadBlockBounds()
           this->Blocks[b].MaxBounds[d] = 0;
         }
 
-        if (this->Blocks[b].MinBounds[0] < this->MinBounds[0])
-        {
-          this->MinBounds[0] = this->Blocks[b].MinBounds[0];
-        }
-
-        if (this->Blocks[b].MinBounds[1] < this->MinBounds[1])
-        {
-          this->MinBounds[1] = this->Blocks[b].MinBounds[1];
-        }
-
-        if (this->Blocks[b].MinBounds[2] < this->MinBounds[2])
-        {
-          this->MinBounds[2] = this->Blocks[b].MinBounds[2];
-        }
-
-        if (this->Blocks[b].MaxBounds[0] > this->MaxBounds[0])
-        {
-          this->MaxBounds[0] = this->Blocks[b].MaxBounds[0];
-        }
-
-        if (this->Blocks[b].MaxBounds[1] > this->MaxBounds[1])
-        {
-          this->MaxBounds[1] = this->Blocks[b].MaxBounds[1];
-        }
-
-        if (this->Blocks[b].MaxBounds[2] > this->MaxBounds[2])
-        {
-          this->MaxBounds[2] = this->Blocks[b].MaxBounds[2];
-        }
+        this->MinBounds[0] = std::min(this->Blocks[b].MinBounds[0], this->MinBounds[0]);
+        this->MinBounds[1] = std::min(this->Blocks[b].MinBounds[1], this->MinBounds[1]);
+        this->MinBounds[2] = std::min(this->Blocks[b].MinBounds[2], this->MinBounds[2]);
+        this->MaxBounds[0] = std::max(this->Blocks[b].MaxBounds[0], this->MaxBounds[0]);
+        this->MaxBounds[1] = std::max(this->Blocks[b].MaxBounds[1], this->MaxBounds[1]);
+        this->MaxBounds[2] = std::max(this->Blocks[b].MaxBounds[2], this->MaxBounds[2]);
       }
 
       bbox_line = nullptr;
@@ -868,35 +854,12 @@ void vtkFlashReaderInternal::ReadBlockBounds()
         this->Blocks[b].MinBounds[d] = bbox_line[d * 2 + 0];
         this->Blocks[b].MaxBounds[d] = bbox_line[d * 2 + 1];
 
-        if (this->Blocks[b].MinBounds[0] < this->MinBounds[0])
-        {
-          this->MinBounds[0] = this->Blocks[b].MinBounds[0];
-        }
-
-        if (this->Blocks[b].MinBounds[1] < this->MinBounds[1])
-        {
-          this->MinBounds[1] = this->Blocks[b].MinBounds[1];
-        }
-
-        if (this->Blocks[b].MinBounds[2] < this->MinBounds[2])
-        {
-          this->MinBounds[2] = this->Blocks[b].MinBounds[2];
-        }
-
-        if (this->Blocks[b].MaxBounds[0] > this->MaxBounds[0])
-        {
-          this->MaxBounds[0] = this->Blocks[b].MaxBounds[0];
-        }
-
-        if (this->Blocks[b].MaxBounds[1] > this->MaxBounds[1])
-        {
-          this->MaxBounds[1] = this->Blocks[b].MaxBounds[1];
-        }
-
-        if (this->Blocks[b].MaxBounds[2] > this->MaxBounds[2])
-        {
-          this->MaxBounds[2] = this->Blocks[b].MaxBounds[2];
-        }
+        this->MinBounds[0] = std::min(this->Blocks[b].MinBounds[0], this->MinBounds[0]);
+        this->MinBounds[1] = std::min(this->Blocks[b].MinBounds[1], this->MinBounds[1]);
+        this->MinBounds[2] = std::min(this->Blocks[b].MinBounds[2], this->MinBounds[2]);
+        this->MaxBounds[0] = std::max(this->Blocks[b].MaxBounds[0], this->MaxBounds[0]);
+        this->MaxBounds[1] = std::max(this->Blocks[b].MaxBounds[1], this->MaxBounds[1]);
+        this->MaxBounds[2] = std::max(this->Blocks[b].MaxBounds[2], this->MaxBounds[2]);
       }
 
       bbox_line = nullptr;
@@ -1132,10 +1095,7 @@ void vtkFlashReaderInternal::ReadRefinementLevels()
   {
     int level = refinement_array[b];
     this->Blocks[b].Level = level;
-    if (level > this->NumberOfLevels)
-    {
-      this->NumberOfLevels = level;
-    }
+    this->NumberOfLevels = std::max(level, this->NumberOfLevels);
   }
 
   H5Tclose(refinement_data_type);
@@ -1260,7 +1220,7 @@ void vtkFlashReaderInternal::ReadParticleAttributes()
   for (int i = 0; i < numMembers; i++)
   {
     char* member_name = H5Tget_member_name(point_raw_type, i);
-    std::string nice_name = GetSeparatedParticleName(member_name);
+    std::string nice_name = vtkFlashReaderInternal::GetSeparatedParticleName(member_name);
     hid_t member_raw_type = H5Tget_member_type(point_raw_type, i);
     hid_t member_type = H5Tget_native_type(member_raw_type, H5T_DIR_ASCEND);
     int index = (int)(this->ParticleAttributeTypes.size());
@@ -1386,7 +1346,7 @@ void vtkFlashReaderInternal::ReadParticleAttributesFLASH3()
 
     if (name != "particle_x" && name != "particle_y" && name != "particle_z")
     {
-      std::string nice_name = GetSeparatedParticleName(name);
+      std::string nice_name = vtkFlashReaderInternal::GetSeparatedParticleName(name);
       this->ParticleAttributeTypes.push_back(H5T_NATIVE_DOUBLE);
       this->ParticleAttributeNames.push_back(name);
       this->ParticleAttributeNamesToIds[nice_name] = i;

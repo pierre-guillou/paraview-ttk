@@ -18,6 +18,8 @@
 #include <vtkTexture.h>
 #include <vtkTubeFilter.h>
 
+#include <iostream>
+
 namespace
 {
 void InitializePolyData(vtkPolyData* polyData, int dataType)
@@ -28,7 +30,7 @@ void InitializePolyData(vtkPolyData* polyData, int dataType)
 
   vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
   vtkSmartPointer<vtkCellArray> verts = vtkSmartPointer<vtkCellArray>::New();
-  const int npts = 30;
+  constexpr int npts = 30;
   verts->InsertNextCell(npts);
   vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
   lines->InsertNextCell(npts);

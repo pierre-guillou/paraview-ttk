@@ -9,7 +9,7 @@
 #include "vtkBezierTriangle.h"
 #include "vtkBezierWedge.h"
 #include "vtkCellType.h"
-#include "vtkCellTypes.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkDataArray.h"
 #include "vtkExtentTranslator.h"
 #include "vtkInformation.h"
@@ -88,7 +88,7 @@ int vtkCellTypeSource::GetCellDimension()
 {
   if (SupportedCellTypes.find(this->CellType) != SupportedCellTypes.end())
   {
-    return vtkCellTypes::GetDimension(this->CellType);
+    return vtkCellTypeUtilities::GetDimension(this->CellType);
   }
   return -1;
 }
@@ -986,7 +986,7 @@ void vtkCellTypeSource::GeneratePentagonalPrism(vtkUnstructuredGrid* output, int
 
   EdgeToPointMap edgeToPointId;
   // pairs go from lower to higher point id
-  const vtkIdType edgePairs[2][2] = { { 0, 2 }, { 5, 7 } };
+  constexpr vtkIdType edgePairs[2][2] = { { 0, 2 }, { 5, 7 } };
 
   for (int k = 0; k < zDim; k++)
   {
@@ -1039,7 +1039,7 @@ void vtkCellTypeSource::GenerateHexagonalPrism(vtkUnstructuredGrid* output, int 
 
   EdgeToPointMap edgeToPointId;
   // pairs go from lower to higher point id
-  const vtkIdType edgePairs[4][2] = { { 0, 2 }, { 3, 5 }, { 6, 8 }, { 9, 11 } };
+  constexpr vtkIdType edgePairs[4][2] = { { 0, 2 }, { 3, 5 }, { 6, 8 }, { 9, 11 } };
 
   for (int k = 0; k < zDim; k++)
   {
@@ -1095,7 +1095,7 @@ void vtkCellTypeSource::GenerateQuadraticTetras(vtkUnstructuredGrid* output, int
 
   EdgeToPointMap edgeToPointId;
   // pairs go from lower to higher point id
-  const vtkIdType edgePairs[12][6][2] = {
+  constexpr vtkIdType edgePairs[12][6][2] = {
     { { 0, 1 }, { 1, 2 }, { 0, 2 }, { 0, 8 }, { 1, 8 }, { 2, 8 } },
     { { 0, 2 }, { 3, 2 }, { 0, 3 }, { 0, 8 }, { 2, 8 }, { 3, 8 } },
     { { 5, 6 }, { 4, 5 }, { 4, 6 }, { 6, 8 }, { 5, 8 }, { 4, 8 } },
@@ -1194,7 +1194,7 @@ void vtkCellTypeSource::GenerateQuadraticHexahedron(vtkUnstructuredGrid* output,
 
   EdgeToPointMap edgeToPointId;
   // pairs go from lower to higher point id
-  const vtkIdType edgePairs[12][2] = {
+  constexpr vtkIdType edgePairs[12][2] = {
     { 0, 1 },
     { 1, 2 },
     { 3, 2 },
@@ -1278,7 +1278,7 @@ void vtkCellTypeSource::GenerateQuadraticWedges(vtkUnstructuredGrid* output, int
 
   EdgeToPointMap edgeToPointId;
   // pairs go from lower to higher point id
-  const vtkIdType edgePairs[2][9][2] = {
+  constexpr vtkIdType edgePairs[2][9][2] = {
     {
       { 0, 3 }, { 1, 3 }, { 0, 1 }, //
       { 4, 7 }, { 5, 7 }, { 4, 5 }, //
@@ -1355,7 +1355,7 @@ void vtkCellTypeSource::GenerateQuadraticPyramids(vtkUnstructuredGrid* output, i
 
   EdgeToPointMap edgeToPointId;
   // pairs go from lower to higher point id
-  const vtkIdType edgePairs[6][8][2] = {
+  constexpr vtkIdType edgePairs[6][8][2] = {
     {
       { 0, 1 }, { 1, 2 }, { 3, 2 }, { 0, 3 }, //
       { 0, 8 }, { 1, 8 }, { 2, 8 }, { 3, 8 }  //
@@ -1685,18 +1685,6 @@ void vtkCellTypeSource::GenerateHighOrderCurves(
 }
 
 //------------------------------------------------------------------------------
-void vtkCellTypeSource::GenerateLagrangeCurves(vtkUnstructuredGrid* output, int extent[6])
-{
-  GenerateHighOrderCurves(output, extent, VTK_LAGRANGE_CURVE, this->CellOrder);
-}
-
-//------------------------------------------------------------------------------
-void vtkCellTypeSource::GenerateBezierCurves(vtkUnstructuredGrid* output, int extent[6])
-{
-  GenerateHighOrderCurves(output, extent, VTK_BEZIER_CURVE, this->CellOrder);
-}
-
-//------------------------------------------------------------------------------
 void vtkCellTypeSource::GenerateHighOrderTris(
   vtkUnstructuredGrid* output, int extent[6], int cellType, int order, bool complete)
 {
@@ -1780,18 +1768,6 @@ void vtkCellTypeSource::GenerateHighOrderTris(
   }
 }
 
-void vtkCellTypeSource::GenerateLagrangeTris(vtkUnstructuredGrid* output, int extent[6])
-{
-  GenerateHighOrderTris(output, extent, VTK_LAGRANGE_TRIANGLE, this->CellOrder,
-    this->CompleteQuadraticSimplicialElements);
-}
-
-//------------------------------------------------------------------------------
-void vtkCellTypeSource::GenerateBezierTris(vtkUnstructuredGrid* output, int extent[6])
-{
-  GenerateHighOrderTris(output, extent, VTK_BEZIER_TRIANGLE, this->CellOrder, false);
-}
-
 //------------------------------------------------------------------------------
 void vtkCellTypeSource::GenerateHighOrderQuads(
   vtkUnstructuredGrid* output, int extent[6], int cellType, int cellOrder)
@@ -1841,18 +1817,6 @@ void vtkCellTypeSource::GenerateHighOrderQuads(
       output->InsertNextCell(cellType, numPtsPerCell, conn.data());
     }
   }
-}
-
-void vtkCellTypeSource::GenerateLagrangeTets(vtkUnstructuredGrid* output, int extent[6])
-{
-  GenerateHighOrderTets(output, extent, VTK_LAGRANGE_TETRAHEDRON, this->CellOrder,
-    this->CompleteQuadraticSimplicialElements);
-}
-
-//------------------------------------------------------------------------------
-void vtkCellTypeSource::GenerateBezierTets(vtkUnstructuredGrid* output, int extent[6])
-{
-  GenerateHighOrderTets(output, extent, VTK_BEZIER_TETRAHEDRON, this->CellOrder, false);
 }
 
 //------------------------------------------------------------------------------
@@ -2045,18 +2009,6 @@ void vtkCellTypeSource::GenerateHighOrderHexes(
       } // i
     }   // j
   }     // k
-}
-
-void vtkCellTypeSource::GenerateLagrangeWedges(vtkUnstructuredGrid* output, int extent[6])
-{
-  GenerateHighOrderWedges(
-    output, extent, VTK_LAGRANGE_WEDGE, this->CellOrder, this->CompleteQuadraticSimplicialElements);
-}
-
-//------------------------------------------------------------------------------
-void vtkCellTypeSource::GenerateBezierWedges(vtkUnstructuredGrid* output, int extent[6])
-{
-  GenerateHighOrderWedges(output, extent, VTK_BEZIER_WEDGE, this->CellOrder, false);
 }
 
 //------------------------------------------------------------------------------

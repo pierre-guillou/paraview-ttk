@@ -22,8 +22,8 @@ VTK_DATA_ROOT = vtkGetDataRoot()
 def NumCells(out):
   n =0
   for i in range(out.GetNumberOfLevels()):
-    for j in range(out.GetNumberOfDataSets(i)):
-      m = out.GetDataSet(i,j).GetNumberOfCells()
+    for j in range(out.GetNumberOfBlocks(i)):
+      m = out.GetDataSetAsImageData(i,j).GetNumberOfCells()
       #print (i,j,m)
       n = n + m
   return n
@@ -43,7 +43,11 @@ filter.SetOffsetFromOrigin(0.86)
 filter.SetMaxResolution(7)
 filter.Update()
 out = filter.GetOutputDataObject(0)
-out.Audit()
+
+if (not out.CheckValidity()):
+  print("Output is not valid")
+  exit(1)
+
 if NumCells(out) != 800:
   print("Wrong number of cells in the output")
   exit(1)

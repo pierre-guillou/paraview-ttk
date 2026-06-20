@@ -2,6 +2,9 @@
 // SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
 // SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
+// VTK_DEPRECATED_IN_9_6_0
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkLabelPlacer.h"
 
 #include "vtkCamera.h"
@@ -26,6 +29,8 @@
 #include "vtkTimerLog.h"
 
 #include <vector>
+
+#include <iostream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLabelPlacer);
@@ -66,10 +71,8 @@ public:
         d2 = d2 < d3 ? d2 : d3;
         if (d0 < 1. && d2 < 1.)
         {
-          if (d0 < opacity)
-            opacity = d0;
-          if (d2 < opacity)
-            opacity = d2;
+          opacity = std::min(d0, opacity);
+          opacity = std::min(d2, opacity);
         }
       }
       return true;
@@ -630,15 +633,13 @@ int vtkLabelPlacer::RequestData(vtkInformation* vtkNotUsed(request),
       case HorizontalLeftBit:
         t1 = dispx[0] < kdbounds[0] ? kdbounds[0] : dispx[0];
         t2 = dispx[0] + sz[0];
-        if (t2 > kdbounds[1])
-          t2 = kdbounds[1];
+        t2 = std::min<double>(t2, kdbounds[1]);
         ll[0] = ul[0] = t1;
         lr[0] = ur[0] = t2;
         break;
       case HorizontalRightBit:
         t1 = dispx[0] - sz[0];
-        if (t1 < kdbounds[0])
-          t1 = kdbounds[0];
+        t1 = std::max<double>(t1, kdbounds[0]);
         t2 = dispx[0] > kdbounds[1] ? kdbounds[1] : dispx[0];
         ll[0] = ul[0] = t1;
         lr[0] = ur[0] = t2;
@@ -646,11 +647,9 @@ int vtkLabelPlacer::RequestData(vtkInformation* vtkNotUsed(request),
       default:
       case HorizontalCenterBit:
         t1 = dispx[0] - sz[0] / 2;
-        if (t1 < kdbounds[0])
-          t1 = kdbounds[0];
+        t1 = std::max<double>(t1, kdbounds[0]);
         t2 = dispx[0] + sz[0] / 2;
-        if (t2 > kdbounds[1])
-          t2 = kdbounds[1];
+        t2 = std::min<double>(t2, kdbounds[1]);
         ll[0] = ul[0] = t1;
         lr[0] = ur[0] = t2;
         break;
@@ -666,15 +665,13 @@ int vtkLabelPlacer::RequestData(vtkInformation* vtkNotUsed(request),
       case VerticalBaselineBit:
         t1 = dispx[1] < kdbounds[2] ? kdbounds[2] : dispx[1];
         t2 = dispx[1] + sz[1];
-        if (t2 > kdbounds[3])
-          t2 = kdbounds[3];
+        t2 = std::min<double>(t2, kdbounds[3]);
         ll[1] = lr[1] = t1;
         ul[1] = ur[1] = t2;
         break;
       case VerticalTopBit:
         t1 = dispx[1] - sz[1];
-        if (t1 < kdbounds[2])
-          t1 = kdbounds[2];
+        t1 = std::max<double>(t1, kdbounds[2]);
         t2 = dispx[1] > kdbounds[3] ? kdbounds[3] : dispx[1];
         ll[1] = lr[1] = t1;
         ul[1] = ur[1] = t2;
@@ -682,11 +679,9 @@ int vtkLabelPlacer::RequestData(vtkInformation* vtkNotUsed(request),
       default:
       case VerticalCenterBit:
         t1 = dispx[1] - sz[1] / 2;
-        if (t1 < kdbounds[2])
-          t1 = kdbounds[2];
+        t1 = std::max<double>(t1, kdbounds[2]);
         t2 = dispx[1] + sz[1] / 2;
-        if (t2 > kdbounds[3])
-          t2 = kdbounds[3];
+        t2 = std::min<double>(t2, kdbounds[3]);
         ll[1] = lr[1] = t1;
         ul[1] = ur[1] = t2;
         break;
@@ -784,8 +779,8 @@ int vtkLabelPlacer::RequestData(vtkInformation* vtkNotUsed(request),
   (void)placed;
   (void)occluded;
   vtkDebugMacro("------");
-  // cout << "Not Placed: " << notPlaced << endl;
-  // cout << "Labels Occluded: " << occluded << endl;
+  // std::cout << "Not Placed: " << notPlaced << endl;
+  // std::cout << "Labels Occluded: " << occluded << endl;
 
   inIter->Delete();
   delete[] zPtr;

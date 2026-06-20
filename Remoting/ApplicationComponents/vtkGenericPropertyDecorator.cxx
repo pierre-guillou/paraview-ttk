@@ -14,6 +14,7 @@
 #include "vtkSMProxyListDomain.h"
 #include "vtkSMProxyProperty.h"
 #include "vtkSMUncheckedPropertyHelper.h"
+#include "vtkStringScanner.h"
 #include "vtkWeakPointer.h"
 
 #include "vtkSMProxy.h"
@@ -46,9 +47,9 @@ public:
     , Enabled(true)
     , Visible(true)
     , NumberOfComponents(-1)
-    , Mode(ENABLED_STATE)
     , ObserverId(0)
     , Self(self)
+    , Mode(ENABLED_STATE)
   {
   }
 
@@ -202,7 +203,7 @@ void vtkGenericPropertyDecorator::Initialize(vtkPVXMLElement* config, vtkSMProxy
   }
   else
   {
-    this->Internals->Values.push_back(value);
+    this->Internals->Values.emplace_back(value);
   }
 
   const char* mode = config->GetAttribute("mode");
@@ -227,7 +228,8 @@ void vtkGenericPropertyDecorator::Initialize(vtkPVXMLElement* config, vtkSMProxy
 
   if (config->GetAttribute("number_of_components"))
   {
-    this->Internals->NumberOfComponents = atoi(config->GetAttribute("number_of_components"));
+    VTK_FROM_CHARS_IF_ERROR_RETURN(
+      config->GetAttribute("number_of_components"), this->Internals->NumberOfComponents, );
   }
 
   this->Internals->ObserverId = this->Internals->Property->AddObserver(

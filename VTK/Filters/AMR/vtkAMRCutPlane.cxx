@@ -257,16 +257,6 @@ vtkSmartPointer<vtkUnstructuredGrid> vtkAMRCutPlane::CutAMRBlock(
 }
 
 //------------------------------------------------------------------------------
-void vtkAMRCutPlane::CutAMRBlock(
-  vtkPlane* cutPlane, unsigned int blockIdx, vtkUniformGrid* grid, vtkMultiBlockDataSet* dataSet)
-{
-  if (auto mesh = this->CutAMRBlock(cutPlane, grid))
-  {
-    dataSet->SetBlock(blockIdx, mesh);
-  }
-}
-
-//------------------------------------------------------------------------------
 void vtkAMRCutPlane::ExtractCellFromGrid(vtkUniformGrid* grid, vtkCell* cell,
   std::map<vtkIdType, vtkIdType>& grdPntMapping, vtkPoints* nodes, vtkCellArray* cells)
 {
@@ -428,12 +418,12 @@ void vtkAMRCutPlane::ComputeAMRBlocksToLoad(vtkPlane* p, vtkOverlappingAMR* m)
   for (; level <= static_cast<unsigned int>(maxLevelToLoad); ++level)
   {
     unsigned int dataIdx = 0;
-    for (; dataIdx < m->GetNumberOfDataSets(level); ++dataIdx)
+    for (; dataIdx < m->GetNumberOfBlocks(level); ++dataIdx)
     {
       m->GetBounds(level, dataIdx, bounds);
       if (this->PlaneIntersectsAMRBox(plane, bounds))
       {
-        unsigned int amrGridIdx = m->GetCompositeIndex(level, dataIdx);
+        unsigned int amrGridIdx = m->GetAbsoluteBlockIndex(level, dataIdx);
         this->BlocksToLoad.push_back(amrGridIdx);
       }
     } // END for all data
@@ -523,6 +513,6 @@ bool vtkAMRCutPlane::IsAMRData2D(vtkOverlappingAMR* input)
 {
   assert("pre: Input AMR dataset is nullptr" && (input != nullptr));
 
-  return input->GetGridDescription() != VTK_XYZ_GRID;
+  return input->GetGridDescription() != vtkStructuredData::VTK_STRUCTURED_XYZ_GRID;
 }
 VTK_ABI_NAMESPACE_END

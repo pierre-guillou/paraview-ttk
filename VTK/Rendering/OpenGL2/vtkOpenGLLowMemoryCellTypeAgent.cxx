@@ -24,6 +24,8 @@
 
 #include <memory>
 
+#include <iostream>
+
 VTK_ABI_NAMESPACE_BEGIN
 
 // Uncomment to view cell group information from `BindArraysToTextureBuffers()` and `Draw()`
@@ -80,6 +82,15 @@ void vtkOpenGLLowMemoryCellTypeAgent::PreDraw(
     needLighting = (isTrisOrStrips ||
       (!isTrisOrStrips && actor->GetProperty()->GetInterpolation() != VTK_FLAT &&
         mapper->HasPointNormals));
+  }
+  if (actor->GetProperty()->GetRenderLinesAsTubes() && actor->GetProperty()->GetLineWidth() > 1.0)
+  {
+    needLighting = true;
+  }
+  if (actor->GetProperty()->GetRenderPointsAsSpheres() &&
+    mapper->ElementType == vtkDrawTexturedElements::ElementShape::Point)
+  {
+    needLighting = true;
   }
   mapper->ShaderProgram->SetUniformi("enable_lights", needLighting);
   mapper->ShaderProgram->SetUniformi("vertex_pass", this->InVertexVisibilityPass);

@@ -64,6 +64,14 @@
 #define QT_ENDL Qt::endl
 #endif
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+#define vtk_qVariantType(variant) variant.type()
+#define vtk_qMetaType(name) QVariant::name
+#else
+#define vtk_qVariantType(variant) variant.typeId()
+#define vtk_qMetaType(name) QMetaType::name
+#endif
+
 namespace
 {
 template <class T>
@@ -682,12 +690,7 @@ void pqSMAdaptor::setSelectionProperty(
 
   QString name = value[0].toString();
   QVariant status = value[1];
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-  auto typeId = static_cast<QMetaType::Type>(status.type());
-#else
-  auto typeId = status.typeId();
-#endif
-  if (typeId == QMetaType::Bool)
+  if (vtk_qVariantType(status) == vtk_qMetaType(Bool))
   {
     status = status.toInt();
   }
@@ -807,11 +810,12 @@ void pqSMAdaptor::setSelectionProperty(
     smValueInts.push_back(0); // avoids need to check for size==0.
     if (Type == CHECKED)
     {
-      ivp->SetElements(&smValueInts[0], static_cast<unsigned int>(smValueInts.size() - 1));
+      ivp->SetElements(smValueInts.data(), static_cast<unsigned int>(smValueInts.size() - 1));
     }
     else
     {
-      ivp->SetUncheckedElements(&smValueInts[0], static_cast<unsigned int>(smValueInts.size() - 1));
+      ivp->SetUncheckedElements(
+        smValueInts.data(), static_cast<unsigned int>(smValueInts.size() - 1));
     }
   }
   else if (timeStepsDomain)
@@ -821,12 +825,12 @@ void pqSMAdaptor::setSelectionProperty(
     smValueDoubles.push_back(0); // avoids need to check for size==0.
     if (Type == CHECKED)
     {
-      dvp->SetElements(&smValueDoubles[0], static_cast<unsigned int>(smValueDoubles.size() - 1));
+      dvp->SetElements(smValueDoubles.data(), static_cast<unsigned int>(smValueDoubles.size() - 1));
     }
     else
     {
       dvp->SetUncheckedElements(
-        &smValueDoubles[0], static_cast<unsigned int>(smValueDoubles.size() - 1));
+        smValueDoubles.data(), static_cast<unsigned int>(smValueDoubles.size() - 1));
     }
   }
 }
@@ -1594,12 +1598,7 @@ void pqSMAdaptor::setMultipleElementProperty(
     int v = Value.toInt(&ok);
     if (!ok)
     {
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-      bool canConvert = Value.canConvert(QVariant::Bool);
-#else
-      bool canConvert = Value.canConvert(QMetaType(QMetaType::Bool));
-#endif
-      if (canConvert)
+      if (Value.canConvert<bool>())
       {
         v = Value.toBool() ? 1 : 0;
         ok = true;

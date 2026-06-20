@@ -18,6 +18,7 @@
 #include "vtkPVLogger.h"
 #include "vtkPVPostFilter.h"
 #include "vtkStringArray.h"
+#include "vtkStringFormatter.h"
 
 #include <algorithm>
 #include <map>
@@ -27,7 +28,7 @@
 
 namespace
 {
-static constexpr size_t MAX_STRING_VALUES = 6;
+constexpr size_t MAX_STRING_VALUES = 6;
 
 vtkTuple<double, 2> MergeRanges(const vtkTuple<double, 2>& r1, const vtkTuple<double, 2>& r2)
 {
@@ -83,7 +84,7 @@ void vtkPVArrayInformation::PrintSelf(ostream& os, vtkIndent indent)
   auto cname = [](size_t comp)
   {
     return (comp == 0 ? std::string("(magnitude)")
-                      : std::string("(comp=") + std::to_string(comp - 1) + ")");
+                      : std::string("(comp=") + vtk::to_string(comp - 1) + ")");
   };
 
   os << indent << "Ranges: " << endl;

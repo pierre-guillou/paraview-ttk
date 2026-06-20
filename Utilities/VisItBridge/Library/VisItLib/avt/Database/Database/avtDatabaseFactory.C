@@ -338,6 +338,9 @@ avtDatabaseFactory::SetBackendType(const int bType)
 //    Allow file permission check to be bypassed. We don't want it for batch
 //    in situ.
 //
+//    Eric Brugger, Fri May  1 12:39:32 PDT 2020
+//    Correct the parsing of !TIME when the time was 0.
+//
 // ****************************************************************************
 
 avtDatabase *
@@ -396,7 +399,7 @@ avtDatabaseFactory::FileList(DatabasePluginManager *dbmgr,
              char *endptr = 0;
              errno = 0;
              double time = strtod(filelist[fileIndex] + strlen("!TIME "), &endptr);
-             if (errno != 0 || (time == 0.0 || endptr == filelist[fileIndex] + strlen("!TIME ")))
+             if (errno != 0 || (time == 0.0 && endptr == filelist[fileIndex] + strlen("!TIME ")))
              {
                  debug1 << "BAD SYNTAX FOR !TIME, \"" << filelist[fileIndex] << "\", RESETTING TO ";
                  if (times.size())
@@ -474,9 +477,9 @@ avtDatabaseFactory::FileList(DatabasePluginManager *dbmgr,
                 // The options aren't in the default options.  Maybe defaults
                 // have been added to the plugin since they saved their settings.
                 // Try to get it from the plugin.
-                DBOptionsAttributes *opts = info->GetReadOptions();
-                if (opts)
-                    info->SetReadOptions(opts);
+                DBOptionsAttributes *rdopts = info->GetReadOptions();
+                if (rdopts)
+                    info->SetReadOptions(rdopts);
             }
             else
             {
@@ -558,9 +561,9 @@ avtDatabaseFactory::FileList(DatabasePluginManager *dbmgr,
                 // The options aren't in the default options.  Maybe
                 // defaults have been added to the plugin since they saved 
                 // their settings. Try to get it from the plugin.
-                DBOptionsAttributes *opts = info->GetReadOptions();
-                if (opts)
-                    info->SetReadOptions(opts);
+                DBOptionsAttributes *rdopts = info->GetReadOptions();
+                if (rdopts)
+                    info->SetReadOptions(rdopts);
             }
             else
             {
@@ -648,9 +651,9 @@ avtDatabaseFactory::FileList(DatabasePluginManager *dbmgr,
                     // The options aren't in the default options.  Maybe
                     // defaults have been added to the plugin since they saved 
                     // their settings. Try to get it from the plugin.
-                    DBOptionsAttributes *opts = info->GetReadOptions();
-                    if (opts)
-                        info->SetReadOptions(opts);
+                    DBOptionsAttributes *rdopts = info->GetReadOptions();
+                    if (rdopts)
+                        info->SetReadOptions(rdopts);
                 }
                 else
                 {
@@ -786,9 +789,9 @@ avtDatabaseFactory::FileList(DatabasePluginManager *dbmgr,
                 // The options aren't in the default options.  Maybe
                 // defaults have been added to the plugin since they saved 
                 // their settings. Try to get it from the plugin.
-                DBOptionsAttributes *opts = info->GetReadOptions();
-                if (opts)
-                    info->SetReadOptions(opts);
+                DBOptionsAttributes *rdopts = info->GetReadOptions();
+                if (rdopts)
+                    info->SetReadOptions(rdopts);
             }
             else
             {

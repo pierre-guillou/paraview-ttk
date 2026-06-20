@@ -121,8 +121,9 @@
 #define vtkPolyhedron_h
 
 #include "vtkCell3D.h"
+#include "vtkCellStatus.h"            // For enum.
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For VTK_DEPRECATED
+#include "vtkDeprecation.h"           // VTK_DEPRECATED_IN_9_6_0()
 #include "vtkNew.h"                   // For vtkNew
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -144,6 +145,9 @@ class VTKCOMMONDATAMODEL_EXPORT vtkPolyhedron : public vtkCell3D
 {
 public:
   using vtkPointIdMap = std::map<vtkIdType, vtkIdType>;
+
+  /// Adopt vtkCellStatus to describe degenerate polyhedral cells.
+  using Status = vtkCellStatus;
 
   ///@{
   /**
@@ -194,11 +198,6 @@ public:
   }
   bool GetCentroid(double centroid[3]) const override;
   ///@}
-
-  /**
-   * See vtkCell3D API for description of this method.
-   */
-  double* GetParametricCoords() override;
 
   /**
    * See the vtkCell API for descriptions of these methods.
@@ -369,7 +368,8 @@ public:
    * addition a leading count indicating the total number of faces in
    * the list.
    */
-  void SetFaces(vtkIdType* faces) override;
+  VTK_DEPRECATED_IN_9_6_0("This function is deprecated, use SetCellFaces")
+  void SetFaces(vtkIdType* faces);
 
   /**
    * Get the faces of the polyhedron.
@@ -387,7 +387,8 @@ public:
    * count is missing. In order to get the number of faces, please use the
    * vtkPolyhedron::GetNumberOfFaces() method.
    */
-  vtkIdType* GetFaces() override;
+  VTK_DEPRECATED_IN_9_6_0("This function is deprecated, use GetCellFaces")
+  vtkIdType* GetFaces();
 
   /**
    * Set the faces of the polyhedron.
@@ -422,8 +423,19 @@ public:
    * from Devillers et al., "Checking the Convexity of Polytopes and the
    * Planarity of Subdivisions", Computational Geometry, Volume 11, Issues
    * 3 - 4, December 1998, Pages 187 - 208.
+   *
+   * Some variants have a return value which indicates a particular reason
+   * for the cell to be marked non-convex (currently non-planar face(s) or
+   * a concave arrangement of neighboring faces). These variants accept a
+   * \a planarThreshold for the degree of non-planarity allowed.
+   * The \a planarThreshold is the maximum ratio of the distance out of the
+   * plane of the face compared to the size in the plane of the polygon.
+   * If a face exceeds \a planarThreshold, then IsConvex() will return false.
+   * Pass \a planarThreshold < 0 to ignore non-planar faces.
+   * The default \a planarThreshold is 0.1.
    */
   bool IsConvex();
+  Status IsConvex(double planarThreshold);
 
   /**
    * Construct polydata if no one exist, then return this->PolyData
@@ -455,6 +467,7 @@ protected:
   // These faces are numbered in global id space
   vtkNew<vtkCellArray> GlobalFaces;
 
+  // VTK_DEPRECATED_IN_9_6_0()
   // Backward compatibility
   vtkNew<vtkIdTypeArray> LegacyGlobalFaces;
 
@@ -480,9 +493,6 @@ protected:
   void ComputeParametricCoordinate(const double x[3], double pc[3]);
   void ComputePositionFromParametricCoordinate(const double pc[3], double x[3]);
 
-  VTK_DEPRECATED_IN_9_4_0("Use GeneratePointToIncidentFaces instead.")
-  void GeneratePointToIncidentFacesAndValenceAtPoint() { this->GeneratePointToIncidentFaces(); }
-
   // Members for supporting geometric operations
   int PolyDataConstructed = 0;
   vtkNew<vtkPolyData> PolyData;
@@ -507,6 +517,10 @@ private:
   vtkPointIdMap PointIdMap;
 
   void GeneratePointToIncidentFaces();
+
+  // This variant of GenerateEdges() always regenerates edges but also populates
+  // \a unevenCoedges with a map from edge ID to the signed number of mismatched coedges.
+  int GenerateEdges(std::map<vtkIdType, int>& unevenCoedges);
 
   // Members used in GetPointToIncidentFaces
   std::vector<std::vector<vtkIdType>> PointToIncidentFaces;

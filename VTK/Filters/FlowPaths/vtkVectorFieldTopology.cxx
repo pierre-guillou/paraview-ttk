@@ -8,7 +8,7 @@
 #include <vtkCellData.h>
 #include <vtkCellDataToPointData.h>
 #include <vtkCellLocator.h>
-#include <vtkCellTypes.h>
+#include <vtkCellType.h>
 #include <vtkCompositeDataIterator.h>
 #include <vtkContourFilter.h>
 #include <vtkDataSet.h>
@@ -45,7 +45,7 @@
 #include <vtkStreamTracer.h>
 #include <vtkTetra.h>
 #include <vtkTriangle.h>
-#include <vtkUniformGrid.h>
+#include <vtkUniformGridAMR.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkVector.h>
 #include <vtkVertex.h>
@@ -779,8 +779,8 @@ int vtkVectorFieldTopology::ComputeSeparatricesBoundarySwitchPoints(
   double offsetAwayFromBoundary = this->OffsetAwayFromBoundary;
   if (integrationStepUnit == vtkStreamTracer::CELL_LENGTH_UNIT)
   {
-    dist *= sqrt(static_cast<double>(dataset->GetCell(0)->GetLength2()));
-    offsetAwayFromBoundary *= sqrt(static_cast<double>(dataset->GetCell(0)->GetLength2()));
+    dist *= sqrt(dataset->GetCell(0)->GetLength2());
+    offsetAwayFromBoundary *= sqrt(dataset->GetCell(0)->GetLength2());
   }
 
   vtkNew<vtkStreamTracer> streamTracer;
@@ -975,8 +975,8 @@ int vtkVectorFieldTopology::ComputeSeparatricesBoundarySwitchLines(vtkPolyData* 
   double offsetAwayFromBoundary = this->OffsetAwayFromBoundary;
   if (integrationStepUnit == vtkStreamTracer::CELL_LENGTH_UNIT)
   {
-    dist *= sqrt(static_cast<double>(dataset->GetCell(0)->GetLength2()));
-    offsetAwayFromBoundary *= sqrt(static_cast<double>(dataset->GetCell(0)->GetLength2()));
+    dist *= sqrt(dataset->GetCell(0)->GetLength2());
+    offsetAwayFromBoundary *= sqrt(dataset->GetCell(0)->GetLength2());
   }
 
   vtkDataArray* vectors = dataset->GetPointData()->GetArray(this->NameOfVectorArray);
@@ -1400,7 +1400,7 @@ int vtkVectorFieldTopology::ComputeSeparatrices(vtkPolyData* criticalPoints,
   // adapt dist if cell unit was selected
   if (integrationStepUnit == vtkStreamTracer::CELL_LENGTH_UNIT)
   {
-    dist *= sqrt(static_cast<double>(dataset->GetCell(0)->GetLength2()));
+    dist *= sqrt(dataset->GetCell(0)->GetLength2());
   }
 
   // Compute eigenvectors & eigenvalues
@@ -1868,11 +1868,11 @@ int vtkVectorFieldTopology::RequestData(vtkInformation* vtkNotUsed(request),
   {
     dataset = vtkDataSet::SafeDownCast(field);
   }
-  else if (field->IsA("vtkUniformGridAMR"))
+  else if (field->IsA("vtkAMRDataObject"))
   {
-    vtkUniformGridAMR* data = vtkUniformGridAMR::SafeDownCast(field);
-    dataset = data->GetDataSet(0, 0);
-    this->Dimension = vtkImageData::SafeDownCast(dataset)->GetDataDimension();
+    vtkAMRDataObject* data = vtkAMRDataObject::SafeDownCast(field);
+    dataset = data->GetDataSetAsCartesianGrid(0, 0);
+    this->Dimension = vtkCartesianGrid::SafeDownCast(dataset)->GetDataDimension();
   }
 
   int vecType(0);

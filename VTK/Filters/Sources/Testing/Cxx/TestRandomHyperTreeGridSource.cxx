@@ -16,6 +16,7 @@
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextActor.h"
 #include "vtkTextProperty.h"
 
@@ -23,6 +24,8 @@
 #include <sstream>
 
 #include <numeric>
+
+#include <iostream>
 
 namespace
 {
@@ -182,7 +185,7 @@ void TripAll(vtkHyperTreeGrid* htGrid)
   while (it.GetNextTree(crtTreeIndex)) // Masked or non
   {
     assert(crtTreeIndex == crtOffsetTree ||
-      GuruMeditation("This missed cell " + std::to_string(crtOffsetTree) + " isn't possible."));
+      GuruMeditation("This missed cell " + vtk::to_string(crtOffsetTree) + " isn't possible."));
     ++crtOffsetTree;
   }
 }

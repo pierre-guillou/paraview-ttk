@@ -262,7 +262,7 @@ static int db_get_index(DBnamescheme const *ns, int natnum);
 // ****************************************************************************
 
 avtSiloFileFormat::avtSiloFileFormat(const char *toc_name,
-                                     DBOptionsAttributes *rdatts)
+                                     const DBOptionsAttributes *rdatts)
     : avtSTMDFileFormat(&toc_name, 1)
 {
     //
@@ -1137,7 +1137,7 @@ avtSiloFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
     // to read the extra data arrays, except for material names and 
     // numbers and colors.
     //
-    DBSetDataReadMask2(DBMatMatnames|DBMatMatnos|DBMatMatcolors);
+    DBSetDataReadMask2(DBMatMatnames|DBMatMatnos|DBMatMatcolors|DBMBNamesAndTypes|DBMBOptions);
 
     //
     // Do a recursive search through the subdirectories.
@@ -3714,6 +3714,11 @@ avtSiloFileFormat::ReadMaterials(DBfile *dbfile,
 //    Mark C. Miller, Thu Feb 25 12:40:17 PST 2016
 //    Add logic to check mesh identified by mmesh_name member and then fall
 //    back to fuzzy match if it doesn't exist.
+//
+//    Alister Maguire, Mon Jan  4 09:06:58 PST 2021
+//    If we encounter a negative material number, bail and let the user
+//    know that this isn't allowed.
+//
 // ****************************************************************************
 void
 avtSiloFileFormat::ReadMultimats(DBfile *dbfile,
@@ -3727,6 +3732,7 @@ avtSiloFileFormat::ReadMultimats(DBfile *dbfile,
         DBmultimat *mm = 0;
         DBmaterial *mat = 0;
         avtSiloMultiMatCacheEntry *mm_ent = NULL;
+        bool foundNegativeMats = false;
         TRY
         {
             name_w_dir = GenerateName(dirname, multimat_names[i], topDir.c_str());
@@ -3829,6 +3835,18 @@ avtSiloFileFormat::ReadMultimats(DBfile *dbfile,
             {
                 for (j = 0 ; j < minfo_nmats ; j++)
                 {
+                    //
+                    // We don't allow negative material numbers. If we've
+                    // encountered them, we need to bail. This exception
+                    // will be caught below, so we need to truly bail and
+                    // send a proper message later on.
+                    //
+                    if (minfo_matnos[j] < 0)
+                    {
+                        foundNegativeMats = true;
+                        EXCEPTION0(ImproperUseException);
+                    }
+
                     char *num = NULL;
                     int dlen = int(log10(float(minfo_matnos[j]+1))) + 1;
                     if (minfo_matnames == NULL || minfo_matnames[j] == NULL)
@@ -3931,6 +3949,7 @@ avtSiloFileFormat::ReadMultimats(DBfile *dbfile,
             }
 
             debug1 << "Giving up on multi-mat \"" << multimat_names[i] << "\"" << endl;
+
             vector<string> no_matnames;
             avtMaterialMetaData *mmd = new avtMaterialMetaData(name_w_dir, "unknown",
                                           0, no_matnames);
@@ -3941,6 +3960,18 @@ avtSiloFileFormat::ReadMultimats(DBfile *dbfile,
 
         if (mat) DBFreeMaterial(mat);
         if (name_w_dir) delete [] name_w_dir;
+
+        //
+        // If we've encountered negative material numbers, now is the time
+        // to truly bail and let the user know that this is not allowed.
+        //
+        if (foundNegativeMats)
+        {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Material numbers must "
+                "be >= 0, but values < 0 have been encountered.");
+            EXCEPTION1(ImproperUseException, msg);
+        }
     }
 }
 
@@ -5180,6 +5211,10 @@ avtSiloFileFormat::GetConnectivityAndGroupInformation(DBfile *dbfile,
 //    Mark C. Miller, Wed Jun 15 09:22:14 PDT 2016
 //    Read the Domains_BlockNums data to support adding block decompposition
 //    as a variable.
+//
+//    Cyrus Harrison, Fri Dec  9 14:45:57 PST 2022
+//    Add support for the rare `6th` decomp format discovered in the wild.
+//
 // ****************************************************************************
 
 void
@@ -5433,25 +5468,41 @@ avtSiloFileFormat::FindStandardConnectivity(DBfile *dbfile, int &ndomains,
     if (!packed_conn_info) // use standard connectivity info
     {
         debug1 << "avtSiloFileFormat: using standard connectivity info" <<endl;
-        for (int j = 0 ; j < ndomains ; j++)
+
+        // Look for absence of `Domain_0/BlockNum` along with the
+        // existence of `Domains_BlockNums` & `Domain_Extents`
+        // to identify the rare "6th" silo decomp format.
+        //
+        // (yes, Domain_Extents is singular not plural form)
+        //
+        // This case is a blend of some of the arrays used for the mmadj and
+        // "standard" format flavors.
+        //
+        // It came to town in a file that has decomp dirs but the blocks
+        // are all independent and neighborless.
+        // 
+        // mmadj can't represent this case (all relationships can't be empty,
+        // in a mmadj -- its simply too dire of a state for the mmadj to face.)
+        //
+        // CYRUS NOTE: This might not actually be the "6th" format
+        // (it's at least the 5th :-), but the name conveys multitude of
+        // formats, and helps us reflect on our collective decomp decisions.
+        //
+        if( !DBInqVarExists(dbfile,"Domain_0/BlockNum") &&
+             DBInqVarExists(dbfile,"Domains_BlockNums") &&
+             DBInqVarExists(dbfile,"Domain_Extents") )
         {
+            debug1 << "avtSiloFileFormat: using the `6th` connectivity info "
+                   << "format variant" <<endl;
             bool err = false;
-            char varname[256];
-            if (needConnectivityInfo)
-            {
-                sprintf(varname, "Domain_%d/Extents", j);
-                err |= DBReadVar(dbfile, varname, &extents[j*6]) != 0;
-
-                sprintf(varname, "Domain_%d/NumNeighbors", j);
-                err |= DBReadVar(dbfile, varname, &nneighbors[j]) != 0;
-
-                lneighbors += nneighbors[j] * 11;
-            }
-
             if (needGroupInfo)
             {
-                sprintf(varname, "Domain_%d/BlockNum", j);
-                err |= DBReadVar(dbfile, varname, &(groupIds[j])) != 0;
+                err |= DBReadVar(dbfile,"Domains_BlockNums", groupIds) != 0;
+            }
+
+            if(needConnectivityInfo)
+            {
+                err |= DBReadVar(dbfile, "Domain_Extents", extents) != 0;
             }
 
             if (err)
@@ -5459,6 +5510,49 @@ avtSiloFileFormat::FindStandardConnectivity(DBfile *dbfile, int &ndomains,
                 ndomains = -1;
                 numGroups = -1;
                 return;
+            }
+
+            if(needConnectivityInfo)
+            {
+                // NOTE: The 6th format only appears during a full moon,
+                // and there will be no neighbors willing to connect.
+                for (int j = 0 ; j < ndomains ; j++)
+                {
+                    nneighbors[j] = 0;
+                }
+                lneighbors = 0;
+            }
+        }
+        else
+        {
+            // the original std connectivity info 
+            for (int j = 0 ; j < ndomains ; j++)
+            {
+                bool err = false;
+                char varname[256];
+                if (needConnectivityInfo)
+                {
+                    sprintf(varname, "Domain_%d/Extents", j);
+                    err |= DBReadVar(dbfile, varname, &extents[j*6]) != 0;
+
+                    sprintf(varname, "Domain_%d/NumNeighbors", j);
+                    err |= DBReadVar(dbfile, varname, &nneighbors[j]) != 0;
+
+                    lneighbors += nneighbors[j] * 11;
+                }
+
+                if (needGroupInfo)
+                {
+                    sprintf(varname, "Domain_%d/BlockNum", j);
+                    err |= DBReadVar(dbfile, varname, &(groupIds[j])) != 0;
+                }
+
+                if (err)
+                {
+                    ndomains = -1;
+                    numGroups = -1;
+                    return;
+                }
             }
         }
 
@@ -5558,6 +5652,173 @@ avtSiloFileFormat::FindStandardConnectivity(DBfile *dbfile, int &ndomains,
 }
 
 // ****************************************************************************
+//  Function: copy_mmadj_neighbor_entry
+//
+//  Purpose: Utility function for process_pbcs_for_one_domain to copy a single
+//  neighbor entry from source DBmultieshadj to destination DBmultimeshadj.
+//  Note that for the nodelist (and zonelist if present) data, we're copying a
+//  POINTER. So, we null out the entry in the source DBmultimeshadj so that
+//  later on when that object is freed, we won't loose the copied data the
+//  POINTER points at. Finally, its way too complicated to try to deal with
+//  back member data here. So, we ignore that here and re-build it after we're
+//  done building the new mmadj object.
+//
+//  Mark C. Miller, Thu Oct 24 19:12:18 PDT 2024
+// ****************************************************************************
+static void copy_mmadj_neighbor_entry(DBmultimeshadj *dst, int dstidx,
+    DBmultimeshadj const *src, int srcidx)
+{
+    dst->neighbors[dstidx] = src->neighbors[srcidx];
+    // We don't deal with dst->back here. We re-build it later after we're
+    // done building the new mmadj object.
+    if (src->nodelists)
+    {
+        dst->lnodelists[dstidx] = src->lnodelists[srcidx];
+        dst->nodelists[dstidx] = src->nodelists[srcidx];
+        src->nodelists[srcidx] = 0; // above, we copied the pointer
+    }
+    if (src->zonelists)
+    {
+        dst->lzonelists[dstidx] = src->lzonelists[srcidx];
+        dst->zonelists[dstidx] = src->zonelists[srcidx];
+        src->zonelists[srcidx] = 0; // above, we copied the pointer
+    }
+}
+
+// ****************************************************************************
+//  Function: process_pbcs_for_one_domain
+//
+//  Purpose: This function is designed to assume it is applied in order
+//  starting with the first domain at index 0 and ending with the last domain
+//  at index ndomains-1. For the given domain, it copies only the neigbhor info
+//  for domains which are not periodic boundary neighbors (identified by the
+//  pbcBndList and pbcDomList parallel array arguments).
+//
+//  Mark C. Miller, Thu Oct 24 19:12:18 PDT 2024
+// ****************************************************************************
+static bool 
+process_pbcs_for_one_domain(int dom, int const nBndEntries,
+    int &pbcidx, int const *pbcBndList, int const *pbcDomList,
+    int &onidx, DBmultimeshadj const *old_mmadj,
+    int &nnidx, DBmultimeshadj *new_mmadj)
+{
+    int ncopied = 0;
+
+    if (pbcDomList[pbcidx] > dom)       // copy all neighbor info for this dom
+    {
+        int nneighbors = old_mmadj->nneighbors[dom];
+        for (int i = 0; i < nneighbors; nnidx++, onidx++, ncopied++, i++)
+            copy_mmadj_neighbor_entry(new_mmadj, nnidx, old_mmadj, onidx);
+    }
+    else if (pbcDomList[pbcidx] == dom) // copy only non-pbc neighbors for this dom
+    {
+        int i;
+        int nneighbors = old_mmadj->nneighbors[dom];
+        for (i = 0; (i < nneighbors) &&
+                    (pbcidx < nBndEntries) &&
+                    (pbcDomList[pbcidx] == dom); i++)
+        {
+            if (i < pbcBndList[pbcidx])
+            {
+                copy_mmadj_neighbor_entry(new_mmadj, nnidx, old_mmadj, onidx);
+                nnidx++;
+                onidx++;
+                ncopied++;    
+            }
+            else if (i == pbcBndList[pbcidx])
+            {
+                onidx++;
+                pbcidx++;
+            }
+            else
+            {
+                return false; // should never happen
+            }
+        }
+        // Copy any entries that still remain
+        for (int j = i; j < nneighbors; nnidx++, onidx++, ncopied++, j++)
+            copy_mmadj_neighbor_entry(new_mmadj, nnidx, old_mmadj, onidx);
+    }
+    else
+    {
+        return false; // should never happen
+    }
+
+    new_mmadj->nneighbors[dom] = ncopied;
+
+    // These consistency checks assume a rectangular arrangement of domains.
+    // 7 is for domains on extreme corners; 11 for domains on edges, 17
+    // for domains on faces and 26 for wholly internal domains
+    return ncopied == 7 || ncopied == 11 ||
+          ncopied == 17 || ncopied == 26;
+}
+
+// ****************************************************************************
+//  Function: get_mmadj_offset, PrintNeighborConfigForDomain
+//
+//  Mark C. Miller, Mon Nov 18 16:01:26 PST 2024
+//  Two functions useful for traversing mmadj data and checking its validity.
+//
+// ****************************************************************************
+#ifndef NDEBUG
+static int
+get_mmadj_offset(DBmultimeshadj* const mmadj, int k)
+{
+    int noff = 0;
+    for (int i = 0; i < k; i++)
+        noff += mmadj->nneighbors[i];
+    return noff;
+}
+
+static void
+PrintNeighborConfigForDomain(DBmultimeshadj* const mmadj, int dom)
+{
+    int nneighbors = mmadj->nneighbors[dom];
+    int noff = get_mmadj_offset(mmadj, dom);
+
+    printf("Domain %04d has %02d neighbors...\n", dom, nneighbors);
+    for (int i = 0; i < nneighbors; i++)
+    {
+        int neighbor = mmadj->neighbors[noff+i];
+        printf("    neighbor %02d: %04d\n", i, neighbor);
+        int back = mmadj->back?mmadj->back[noff+i]:-1;
+        if (back >= 0)
+        {
+            printf("        this domain is locally indexed as %02d in this neighbor", back);
+            int bnoff = get_mmadj_offset(mmadj, neighbor);
+            if (mmadj->neighbors[bnoff+back] == dom)
+                printf(" (confirmed)\n");
+            else
+                printf(" (FAILED!)\n");
+
+        }
+        if (mmadj->nodelists)
+        {
+            printf("        shared nodes config %d:", mmadj->lnodelists[noff+i]);
+            for (int j = 0; j < mmadj->lnodelists[noff+i]; j++)
+            {
+                printf(" %04d", mmadj->nodelists[noff+i][j]);
+                if ((j+1)%8==0)
+                    printf("\n                               ");
+            }
+            printf("\n");
+        }
+        if (mmadj->zonelists)
+        {
+            printf("        shares zones config %d:", mmadj->lzonelists[noff+i]);
+            for (int j = 0; j < mmadj->lzonelists[noff+i]; j++)
+            {
+                printf(" %04d", mmadj->zonelists[noff+i][j]);
+                if ((j+1)%8==0)
+                    printf("\n                               ");
+            }
+            printf("\n");
+        }
+    }
+}
+#endif
+
+// ****************************************************************************
 //  Method: avtSiloFileFormat::FindMultiMeshAdjConnectivity
 //
 //  Purpose:
@@ -5581,8 +5842,15 @@ avtSiloFileFormat::FindStandardConnectivity(DBfile *dbfile, int &ndomains,
 //
 //    Mark C. Miller, Wed Nov 11 12:28:25 PST 2009
 //    Added guard against case where some mmadj->nodelists arrays are null.
+//
+//    Mark C. Miller, Mon Nov 11 16:20:29 PST 2024
+//    Add logic to remove PBC neighbors from mmadj using PeriodicBndList and
+//    PeriodicDomList if present.
+//
+//    Mark C. Miller, Mon Nov 18 16:21:38 PST 2024
+//    Add logic to properly rebuild the `back` member of the new mmadj object
+//    when PBC removal is performed.
 // ****************************************************************************
-
 void
 avtSiloFileFormat::FindMultiMeshAdjConnectivity(DBfile *dbfile, int &ndomains,
             int *&nneighbors, int *&extents, int &lneighbors, int *&neighbors,
@@ -5627,6 +5895,143 @@ avtSiloFileFormat::FindMultiMeshAdjConnectivity(DBfile *dbfile, int &ndomains,
 
     if (needConnectivityInfo)
     {
+
+        /* If we have information needed to break periodic boundary conditions
+           (PBCs) from completely enshrouding the whole mesh, read and process it */
+        if (DBInqVarExists(dbfile, "PeriodicBndList") &&
+            DBInqVarExists(dbfile, "PeriodicDomList"))
+        {
+            int nBndEntries = DBGetVarLength(dbfile, "PeriodicBndList");
+            int nDomEntries = DBGetVarLength(dbfile, "PeriodicDomList");
+            if (nBndEntries != nDomEntries)
+            {
+                DBFreeMultimeshadj(mmadj_obj);
+                EXCEPTION1(InvalidFilesException, "PeriodicBndList size != PeriodicDomList size");
+            }
+
+            int *pbcBndList = (int*) DBGetVar(dbfile, "PeriodicBndList");
+            int *pbcDomList = (int*) DBGetVar(dbfile, "PeriodicDomList");
+
+            // Build a new DBmultimeshadj object
+            // We don't bother to populate meshtypes member here. Its not needed
+            // for any of the logic that follows.
+            int new_lneighbors = mmadj_obj->lneighbors - nBndEntries;
+            DBmultimeshadj *mmadj_newobj = DBAllocMultimeshadj(ndomains);
+            mmadj_newobj->lneighbors = new_lneighbors;
+            mmadj_newobj->neighbors = (int *) malloc(new_lneighbors*sizeof(int));
+            if (mmadj_obj->back)
+                mmadj_newobj->back = (int *) malloc(new_lneighbors*sizeof(int));
+            if (mmadj_obj->nodelists)
+            {
+                mmadj_newobj->lnodelists = (int *) malloc(new_lneighbors*sizeof(int));
+                mmadj_newobj->nodelists = (int **) malloc(new_lneighbors*sizeof(int*));
+            }
+            if (mmadj_obj->zonelists)
+            {
+                mmadj_newobj->lzonelists = (int *) malloc(new_lneighbors*sizeof(int));
+                mmadj_newobj->zonelists = (int **) malloc(new_lneighbors*sizeof(int*));
+            }
+
+            // Perform an iteration over all domains which is driven by the contents
+            // of the PeriodicBndList and PeriodicDomList parallel arrays. For each
+            // domain, we copy over into the new DBmultimeshadj object all the 
+            // information for each neighbor that is NOT a PBC neighbor.
+
+            int nnidx = 0; // index into mmadj_newobj->neighbors
+            int onidx = 0; // index into mmadj_obj->neighbors
+            int pbcidx = 0; // index into pbc lists
+            int failed_dom = -1;
+            for (int i = 0; i < ndomains; i++)
+            {
+                bool ok = process_pbcs_for_one_domain(i, nBndEntries,
+                             pbcidx, pbcBndList, pbcDomList,
+                             onidx, mmadj_obj,
+                             nnidx, mmadj_newobj);
+
+                if (i < (ndomains-1) && pbcidx >= nBndEntries)
+                    ok = false;
+
+                if (!ok)
+                {
+                    failed_dom = i;
+                    break;
+                }
+            }
+
+            // Silo's DBFreeMultimeshadj method is smart enough to not free nodelists 
+            // (or zonelists) that were already nulled in process_pbcs_for_one_domain()
+            // when their pointers were copied over.
+            DBFreeMultimeshadj(mmadj_obj);
+            free(pbcBndList);
+            free(pbcDomList);
+
+            if (failed_dom != -1 ||
+                new_lneighbors != nnidx ||
+                pbcidx != nBndEntries)
+            {
+                char msg[128];
+                snprintf(msg, sizeof(msg), "Problem removing periodic boundary "
+                    "neighbors from multimeshadj for domain %d\n", failed_dom);
+                if (failed_dom == -1) msg[63] = '\0'; // truncate message
+                DBFreeMultimeshadj(mmadj_newobj);
+                EXCEPTION1(InvalidFilesException, msg);
+            }
+
+            //
+            // Up until here, we've completely ignored the mmadj `back` member
+            // That member parallels the neighbors member but instead holds the
+            // local domain index (0...num neighbors) of a given domain in each
+            // of its neighbor's lists of domains. We can just rebuild that
+            // information now.
+            //
+
+            // Build temporary offset index into neighbors list
+            int *noffs = new int[ndomains];
+            for (int i = 0, noff = 0; i < ndomains; i++)
+            {
+                noffs[i] = noff;
+                noff += mmadj_newobj->nneighbors[i];
+            }
+            
+            // Build the new mmadj's back data
+            for (int i = 0; i < ndomains; i++)
+            {
+                int nneighbors = mmadj_newobj->nneighbors[i];
+                int const *neighbors = &mmadj_newobj->neighbors[noffs[i]];
+                int *back = &mmadj_newobj->back[noffs[i]];
+
+                // Visit each neighbor dom and find this domain's local index in
+                // that neighbor's list of neighbors
+                for (int j = 0; j < nneighbors; j++)
+                {
+                    int n = neighbors[j];
+                    int nn = mmadj_newobj->nneighbors[n];
+                    int const *ns = &mmadj_newobj->neighbors[noffs[n]];
+                    bool found = false;
+                    for (int k = 0; (k < nn) && !found; k++)
+                    {
+                        if (ns[k] == i)
+                        {
+                            back[j] = k;
+                            found = true;
+                        }
+                    }
+                    if (!found)
+                    {
+                        char msg[128];
+                        snprintf(msg, sizeof(msg), "Problem rebuilding back pointers "
+                            "for domain %d after PBC removal.\n", i);
+                        DBFreeMultimeshadj(mmadj_newobj);
+                        EXCEPTION1(InvalidFilesException, msg);
+                    }
+                }
+            }
+            delete [] noffs;
+
+            // Replace original multimeshadj with the new one
+            mmadj_obj = mmadj_newobj;
+        }
+
         extents = new int[ndomains*6];
         nneighbors = new int[ndomains];
         lneighbors = 0;
@@ -9158,8 +9563,6 @@ avtSiloFileFormat::GetQuadVar(DBfile *dbfile, const char *vname,
         int nz = qv->ndims == 3 ? qv->dims[2] : 1;
         if (qv->datatype == DB_DOUBLE)
             CopyAndReorderQuadVar((double *) var2, nx, ny, nz, var);
-        else if (qv->datatype == DB_LONG)
-            CopyAndReorderQuadVar((long *) var2, nx, ny, nz, var);
         else if (qv->datatype == DB_LONG_LONG)
             CopyAndReorderQuadVar((long long *) var2, nx, ny, nz, var);
         else if (qv->datatype == DB_LONG)
@@ -9712,6 +10115,10 @@ RemapFacelistForPolyhedronZones(DBfacelist *sfl, DBzonelist *szl)
 //
 //    Mark C. Miller, Wed Feb 11 17:06:02 PST 2015
 //    Made it return a point mesh for a DBucdmesh with no topology defined.
+//
+//    Mark C. Miller, Fri Nov 22 16:19:58 PST 2024
+//    Fix mesh name used to cache global node ids in the case this UCD mesh is
+//    really just a point mesh.
 // ****************************************************************************
 
 vtkDataSet *
@@ -9803,7 +10210,7 @@ avtSiloFileFormat::GetUnstructuredMesh(DBfile *dbfile, const char *mn,
             // so that it can be obtained through the GetAuxiliaryData call
             //
             void_ref_ptr vr = void_ref_ptr(arr, avtVariableCache::DestructVTKObject);
-            cache->CacheVoidRef(mn, AUXILIARY_DATA_GLOBAL_NODE_IDS, timestep, domain, vr);
+            cache->CacheVoidRef(mesh, AUXILIARY_DATA_GLOBAL_NODE_IDS, timestep, domain, vr);
         }
 
         points->Delete();
@@ -10149,6 +10556,9 @@ MakePHZonelistFromZonelistArbFragment(const int *nl, int shapecnt)
 //
 //    Kathleen Biagas, Mon Aug 15 14:09:55 PDT 2016
 //    VTK-8, API for updating GhostLevel changed.
+// 
+//    Justin Privitera, Thu May 16 15:38:19 PDT 2024
+//    Use VTK_POLYHEDRON instead of magic number.
 //
 // ****************************************************************************
 
@@ -10164,8 +10574,7 @@ avtSiloFileFormat::ReadInConnectivity(vtkUnstructuredGrid *ugrid,
     // that is all handled here at the bottom of this function. All the
     // logic prior to that simply walks over the arb. polyhedral zones but
     // keeps track of where they occur in the zonelist so we can handle them
-    // later. Note that a setting of 'vtk_zonetype' of -2 represents the
-    // arb. polyhedral zonetype.
+    // later.
     //
     size_t   i, j, k;
     int nsdims = um->ndims; (void) nsdims;
@@ -10181,7 +10590,7 @@ avtSiloFileFormat::ReadInConnectivity(vtkUnstructuredGrid *ugrid,
     for (i = 0 ; i < (size_t)zl->nshapes ; i++)
     {
         int vtk_zonetype = SiloZoneTypeToVTKZoneType(zl->shapetype[i]);
-        if (vtk_zonetype != -2)
+        if (vtk_zonetype != VTK_POLYHEDRON)
         {
             numCells += zl->shapecnt[i];
             if (zl->shapesize[i] > 0)
@@ -10234,7 +10643,7 @@ avtSiloFileFormat::ReadInConnectivity(vtkUnstructuredGrid *ugrid,
         int effective_vtk_zonetype = vtk_zonetype;
         int effective_shapesize = shapesize;
 
-        if (vtk_zonetype < 0 && vtk_zonetype != -2)
+        if (vtk_zonetype < 0)
         {
             EXCEPTION1(InvalidZoneTypeException, zl->shapetype[i]);
         }
@@ -10267,7 +10676,7 @@ avtSiloFileFormat::ReadInConnectivity(vtkUnstructuredGrid *ugrid,
         // "Handle" arbitrary polyhedra by skipping over them here.
         // We deal with them later on in this func.
         //
-        if (vtk_zonetype == -2)
+        if (vtk_zonetype == VTK_POLYHEDRON)
         {
             //
             // There are shapecnt zones of arb. type in this segment
@@ -13925,12 +14334,12 @@ avtSiloFileFormat::GetAuxiliaryData(const char *var, int domain,
     }
     else if (strcmp(type, AUXILIARY_DATA_GLOBAL_NODE_IDS) == 0)
     {
-        rv = (void *) GetGlobalNodeIds(domain, var);
+        rv = (void *) GetGlobalIds(domain, var, "node");
         df = avtVariableCache::DestructVTKObject;
     }
     else if (strcmp(type, AUXILIARY_DATA_GLOBAL_ZONE_IDS) == 0)
     {
-        rv = (void *) GetGlobalZoneIds(domain, var);
+        rv = (void *) GetGlobalIds(domain, var, "zone");
         df = avtVariableCache::DestructVTKObject;
     }
     else if (strcmp(type, AUXILIARY_DATA_SPATIAL_EXTENTS) == 0)
@@ -14211,15 +14620,15 @@ avtSiloFileFormat::GetSpecies(int dom, const char *spec)
 
 
 // ****************************************************************************
-//  Method: avtSiloFileFormat::AllocAndDetermineMeshnameForUcdmesh
+//  Method: avtSiloFileFormat::DetermineMeshnameForMeshType
 //
 //  Purpose:
-//      Allocate space for and determine the real mesh name for a ucd mesh,
-//      which may be a multimesh 
+//      Determine the real mesh name for a multiblock mesh of a specific type.
 //
 //  Arguments:
 //      dom     The domain of the mesh.
-//      mesh    The mesh we want the real name for 
+//      mesh    The mesh we want the real name for .
+//      mtype   The Silo type for the mesh.
 //
 //  Returns:    The real mesh name 
 //
@@ -14231,68 +14640,65 @@ avtSiloFileFormat::GetSpecies(int dom, const char *spec)
 //    Limited support for Silo nameschemes, use new multi block cache data
 //    structures.
 //
+//    Mark C. Miller, Tue Feb 13 09:23:13 PST 2024
+//    Switch from char * to string return value.
 // ****************************************************************************
 
-char *
-avtSiloFileFormat::AllocAndDetermineMeshnameForUcdmesh(int dom, const char *mesh)
+string
+avtSiloFileFormat::DetermineMeshnameForMeshType(int dom, const char *mesh, int mtype)
 {
     //
     // Get the file handle, throw an exception if it hasn't already been opened
     //
+    string       mb_meshname = "";
     DBfile *dbfile = GetFile(tocIndex);
 
     //
     // Silo can't accept consts, so cast it away.
     //
-    char *m = const_cast< char * >(mesh);
     VisitMutexLock("avtSiloFileFormat");
-    int type = DBInqVarType(dbfile, m);
+    int type = DBInqVarType(dbfile, mesh);
     VisitMutexUnlock("avtSiloFileFormat");
 
-    if (type != DB_MULTIMESH && type != DB_UCDMESH)
+    if (type != DB_MULTIMESH && type != mtype)
     {
         //
-        // This is not a ucd mesh or a multi-mesh, so it does not have a
-        // facelist.
+        // This is not the desired mesh type or a multi-mesh.
         //
-        return NULL;
+        return mb_meshname;
     }
 
     DBmultimesh *mm = NULL;
     avtSiloMultiMeshCacheEntry *mm_ent = NULL;
-    string       mb_meshname = "";
-    char        *meshname = NULL;
 
     if (type == DB_MULTIMESH)
     {
-        GetMultiMesh("", m, &mm_ent);
+        GetMultiMesh("", mesh, &mm_ent);
         if(mm_ent != NULL)
             mm = mm_ent->DataObject();
         if (mm == NULL)
         {
-            EXCEPTION1(InvalidFilesException, m);
+            EXCEPTION1(InvalidFilesException, mesh);
         }
         if (dom >= mm->nblocks || dom < 0 )
         {
             EXCEPTION2(BadDomainException, dom, mm->nblocks);
         }
-        if (mm_ent->MeshType(dom) != DB_UCDMESH)
+        if (mm_ent->MeshType(dom) != mtype)
         {
-            return NULL;
+            return mb_meshname;
         }
         mb_meshname = mm_ent->GenerateName(dom);
-        meshname = CXX_strdup(mb_meshname.c_str());
     }
-    else // (type == DB_UCDMESH)
+    else // (type == mtype)
     {
         if (dom != 0)
         {
             EXCEPTION2(BadDomainException, dom, 1);
         }
-        meshname = CXX_strdup(mesh);
     }
 
-    return meshname;
+    return mb_meshname;
 }
 
 
@@ -14341,8 +14747,8 @@ avtSiloFileFormat::GetExternalFacelist(int dom, const char *mesh)
 
     DBfile *dbfile = GetFile(tocIndex);
 
-    char *meshname = AllocAndDetermineMeshnameForUcdmesh(dom, mesh);
-    if (meshname == NULL || string(meshname) == "EMPTY")
+    string meshname = DetermineMeshnameForMeshType(dom, mesh, DB_UCDMESH);
+    if (meshname == "" || meshname == "EMPTY")
         return NULL;
 
     //
@@ -14351,25 +14757,18 @@ avtSiloFileFormat::GetExternalFacelist(int dom, const char *mesh)
     //
     DBfile *domain_file = dbfile;
     string directory_mesh;
-    DetermineFileAndDirectory(meshname, "", domain_file,  directory_mesh);
+    DetermineFileAndDirectory(meshname.c_str(), "", domain_file,  directory_mesh);
 
     avtFacelist *rv = CalcExternalFacelist(domain_file, directory_mesh.c_str());
-
-    if (meshname != NULL)
-    {
-        delete [] meshname;
-        meshname = NULL;
-    }
 
     return rv;
 }
 
-
 // ****************************************************************************
-//  Method: avtSiloFileFormat::GetGlobalNodeIds
+//  Method: avtSiloFileFormat::GetGlobalIds
 //
 //  Purpose:
-//      Gets the global node ids from the Silo file
+//      Gets global mesh entity (nodes or zones) ids from the Silo file
 //
 //  Programmer: Mark C. Miller
 //  Creation:   August 4, 2004
@@ -14399,19 +14798,46 @@ avtSiloFileFormat::GetExternalFacelist(int dom, const char *mesh)
 //    Moved debug5 output lines indicating that global node ids are being read
 //    down so that it appears in debug logs only when there is actually data
 //    being read and returned from the plugin.
+//
+//    Mark C. Miller, Mon Feb 12 20:26:21 PST 2024
+//    Refactored away GetGlobalZoneIds and GetGlobalNodeIds into this one
+//    method that does both and does so for both UCD and POINT meshes.
+//    The main tricks are to a) set Silo's data read mask appropriately (and
+//    then also reset it when done) and then b) to allow VisIt's cache to take
+//    ownership of the resulting data. We do this by zeroing the Silo object's
+//    data member holding the global ids and keeping a separate local pointer
+//    to the data. For point meshes, nodes and zones are one in the same so the
+//    logic for both is the same. For UCD meshes, there is separate logic for
+//    global node ids and global zone ids embodied by a different set of args
+//    to the LOAD_GLOBAL_IDS macro'd logic.
 // ****************************************************************************
+#define LOAD_GLOBAL_IDS(DBTYP, GETFUNC, CKMEMBR, FREEFUNC, MASK, GIDTYP, NIDS, IDS) \
+do {                                                                       \
+    DBSetDataReadMask2(MASK);                                              \
+    DBTYP *obj = GETFUNC(domain_file, directory_mesh.c_str());             \
+    if (obj && obj->CKMEMBR)                                               \
+    {                                                                      \
+        gids = obj->IDS;                                                   \
+        ngids = obj->NIDS;                                                 \
+        gidtype = obj->GIDTYP;                                             \
+        obj->IDS = 0;                                                      \
+    }                                                                      \
+    FREEFUNC(obj);                                                         \
+} while (0)
 
 vtkDataArray *
-avtSiloFileFormat::GetGlobalNodeIds(int dom, const char *mesh)
+avtSiloFileFormat::GetGlobalIds(int dom, char const *mesh, char const *idtype)
 {
     DBfile *dbfile = GetFile(tocIndex);
 
-    char *meshname = AllocAndDetermineMeshnameForUcdmesh(dom, mesh);
-    if (meshname == NULL || string(meshname) == "EMPTY")
+    int mtype = DB_UCDMESH;
+    string meshname = DetermineMeshnameForMeshType(dom, mesh, mtype);
+    if (meshname == "" || meshname == "EMPTY")
     {
-        if (meshname != NULL)
-            delete [] meshname;
-        return NULL;
+        mtype = DB_POINTMESH;
+        meshname = DetermineMeshnameForMeshType(dom, mesh, mtype);
+        if (meshname == "" || meshname == "EMPTY")
+            return NULL;
     }
 
     //
@@ -14420,42 +14846,40 @@ avtSiloFileFormat::GetGlobalNodeIds(int dom, const char *mesh)
     //
     DBfile *domain_file = dbfile;
     string directory_mesh;
-    DetermineFileAndDirectory(meshname, "", domain_file, directory_mesh);
+    DetermineFileAndDirectory(meshname.c_str(), "", domain_file, directory_mesh);
 
-    // We want to get just the global node ids.  So we need to get the ReadMask,
-    // set it to read global node ids, then set it back.
-    unsigned long long mask = DBGetDataReadMask2();
-    DBSetDataReadMask2(DBUMGlobNodeNo);
-    DBucdmesh *um = DBGetUcdmesh(domain_file, directory_mesh.c_str());
-    DBSetDataReadMask2(mask);
-    if (um == NULL)
+    // Save whatever current data read mask is
+    unsigned long long saved_mask = DBGetDataReadMask2();
+
+    int ngids, gidtype;
+    void *gids = 0;
+    if (mtype == DB_UCDMESH)
     {
-        if (!ignoreMissingBlocks)
-        {
-            EXCEPTION1(InvalidVariableException, mesh);
-        }
-        return 0;
+        if (string(idtype) == "node")
+            LOAD_GLOBAL_IDS(DBucdmesh, DBGetUcdmesh, gnodeno, DBFreeUcdmesh, DBUMGlobNodeNo, gnznodtype, nnodes, gnodeno);
+        else
+            LOAD_GLOBAL_IDS(DBucdmesh, DBGetUcdmesh, zones && obj->zones->gzoneno, DBFreeUcdmesh,
+                DBUMZonelist|DBZonelistGlobZoneNo|DBZonelistInfo,
+                zones->gnznodtype, zones->nzones, zones->gzoneno);
     }
+    else if (mtype == DB_POINTMESH)
+    {
+        LOAD_GLOBAL_IDS(DBpointmesh, DBGetPointmesh, gnodeno, DBFreePointmesh, DBPMGlobNodeNo, gnznodtype, nels, gnodeno);
+    }
+    DBSetDataReadMask2(saved_mask);
 
     vtkDataArray *rv = NULL;
-    if (um->gnodeno != NULL)
+    if (gids)
     {
 
-        debug5 << "Reading in domain " << dom << ", global node ids for " << mesh << endl;
+        debug5 << "Reading in domain " << dom << ", global " << idtype << " ids for " << mesh << endl;
         debug5 << "Reading in from toc " << filenames[tocIndex] << endl;
 
-        rv = CreateDataArray(um->gnznodtype, um->gnodeno, um->nnodes);
-        um->gnodeno = 0; // vtkDataArray owns the data now.
-
+        rv = CreateDataArray(gidtype, gids, ngids);
     }
-
-    DBFreeUcdmesh(um);
-
-    delete [] meshname;
 
     return rv;
 }
-
 
 // ****************************************************************************
 //  Method: avtSiloFileFormat::GetLocalDomainBoundaryInfo
@@ -14538,90 +14962,6 @@ avtSiloFileFormat::GetLocalDomainBoundaryInfo(int domain, const char *var)
 
     //res->Print(cout);
     return res;
-}
-
-// ****************************************************************************
-//  Method: avtSiloFileFormat::GetGlobalZoneIds
-//
-//  Purpose:
-//      Gets the global zone ids from the Silo file
-//
-//  Programmer: Mark C. Miller
-//  Creation:   August 9, 2004
-//
-//  Modifications:
-//    Mark C. Miller, Thu Oct 14 15:18:31 PDT 2004
-//    Uncommented the data read mask
-//
-//    Mark C. Miller, Tue Jun 28 17:28:56 PDT 2005
-//    Made it handle the new "EMPTY" domain convention
-//
-//    Mark C. Miller, Sun Dec  3 12:20:11 PST 2006
-//    Moved code to set data read mask back to its original value to *before*
-//    throwing of exeption.
-//
-//    Mark C. Miller, Thu Oct 15 21:31:07 PDT 2009
-//    Add DBZonelistInfo to data read mask to work around a bug in Silo
-//    library where attempt to DBGetUcdmesh causes call to DBGetZonelist
-//    and a subsequent segv down in the bowels of Silo due to invalid
-//    assumptions regarding the existence of certain zonelist strutures.
-//
-//    Mark C. Miller, Tue Jan 12 17:55:54 PST 2010
-//    Use CreateDataArray for global zone numbers, handling long long too.
-//
-//    Cyrus Harrison, Wed Dec 21 15:22:21 PST 2011
-//    Limited support for Silo nameschemes, use new multi block cache data
-//    structures.
-//
-// ****************************************************************************
-
-vtkDataArray *
-avtSiloFileFormat::GetGlobalZoneIds(int dom, const char *mesh)
-{
-    debug5 << "Reading in domain " << dom << ", global zone ids for " << mesh << endl;
-    debug5 << "Reading in from toc " << filenames[tocIndex] << endl;
-
-    DBfile *dbfile = GetFile(tocIndex);
-
-    char *meshname = AllocAndDetermineMeshnameForUcdmesh(dom, mesh);
-    if (meshname == NULL || string(meshname) == "EMPTY")
-        return NULL;
-
-    //
-    // Some Silo objects are distributed across several files,
-    // so handle that here.
-    //
-    DBfile *domain_file = dbfile;
-    string directory_mesh;
-    DetermineFileAndDirectory(meshname, "", domain_file, directory_mesh);
-
-    // We want to get just the global node ids.  So we need to get the ReadMask,
-    // set it to read global node ids, then set it back.
-    unsigned long long mask = DBGetDataReadMask2();
-    DBSetDataReadMask2(DBUMZonelist|DBZonelistGlobZoneNo|DBZonelistInfo);
-    DBucdmesh *um = DBGetUcdmesh(domain_file, directory_mesh.c_str());
-    DBSetDataReadMask2(mask);
-    if (um == NULL)
-    {
-        if (!ignoreMissingBlocks)
-        {
-            EXCEPTION1(InvalidVariableException, mesh);
-        }
-        return 0;
-    }
-
-    vtkDataArray *rv = NULL;
-    if (um->zones->gzoneno != NULL)
-    {
-        rv = CreateDataArray(um->zones->gnznodtype, um->zones->gzoneno, um->zones->nzones); 
-        um->zones->gzoneno = 0; // vtkDataArray owns the data now.
-    }
-
-    DBFreeUcdmesh(um);
-
-    delete [] meshname;
-
-    return rv;
 }
 
 // ****************************************************************************
@@ -16179,6 +16519,10 @@ SplitDirVarName(const char *dirvar, const char *curdir,
 //
 //  Programmer:  Hank Childs
 //  Creation:    August 15, 2000
+// 
+//  Modifications:
+//     Justin Privitera, Thu May 16 15:38:19 PDT 2024
+//     Use VTK_POLYHEDRON instead of magic number.
 //
 // ****************************************************************************
 
@@ -16199,7 +16543,7 @@ SiloZoneTypeToVTKZoneType(int zonetype)
         vtk_zonetype = VTK_QUAD;
         break;
       case DB_ZONETYPE_POLYHEDRON:
-        vtk_zonetype = -2;
+        vtk_zonetype = VTK_POLYHEDRON;
         break;
       case DB_ZONETYPE_TET:
         vtk_zonetype = VTK_TETRA;

@@ -28,6 +28,7 @@ public:
 #ifndef __VTK_WRAP__
 #undef vtkDataArray
 #endif
+  using DataTypeTag = std::integral_constant<int, VTK_ID_TYPE>;
   static vtkIdTypeArray* New();
   static vtkIdTypeArray* ExtendedNew();
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -49,7 +50,7 @@ public:
     // vtkIdType from a long long or an int since vtkIdType
     // is simply a typedef. This means that
     // vtkAOSDataArrayTemplate<vtkIdType> != vtkIdTypeArray.
-    return VTK_ID_TYPE;
+    return vtkIdTypeArray::DataTypeTag::value;
   }
 #endif
 
@@ -60,16 +61,6 @@ public:
   {
     return static_cast<vtkIdTypeArray*>(Superclass::FastDownCast(source));
   }
-
-  /**
-   * Get the minimum data value in its native type.
-   */
-  static vtkIdType GetDataTypeValueMin() { return VTK_ID_MIN; }
-
-  /**
-   * Get the maximum data value in its native type.
-   */
-  static vtkIdType GetDataTypeValueMax() { return VTK_ID_MAX; }
 
 protected:
   vtkIdTypeArray();

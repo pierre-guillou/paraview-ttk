@@ -3,19 +3,15 @@
 
 #include "vtkMPICommunicator.h"
 
-#include "vtkImageData.h"
 #include "vtkMPI.h"
 #include "vtkMPIController.h"
 #include "vtkObjectFactory.h"
 #include "vtkProcessGroup.h"
-#include "vtkRectilinearGrid.h"
-#include "vtkSmartPointer.h"
-#include "vtkStructuredGrid.h"
+
 #define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
 
 #include <algorithm>
 #include <cassert>
-#include <type_traits> // for std::is_pointer
 #include <vector>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -922,23 +918,13 @@ void vtkMPICommunicator::Duplicate(vtkMPICommunicator* source)
 //------------------------------------------------------------------------------
 char* vtkMPICommunicator::Allocate(size_t size)
 {
-#ifdef MPIPROALLOC
-  char* ptr;
-  MPI_Alloc_mem(size, nullptr, &ptr);
-  return ptr;
-#else
   return new char[size];
-#endif
 }
 
 //------------------------------------------------------------------------------
 void vtkMPICommunicator::Free(char* ptr)
 {
-#ifdef MPIPROALLOC
-  MPI_Free_mem(ptr);
-#else
   delete[] ptr;
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1390,6 +1376,15 @@ void vtkMPICommunicator::Request::Cancel()
     vtkGenericWarningMacro("MPI error occurred: " << msg);
     delete[] msg;
   }
+}
+
+//------------------------------------------------------------------------------
+int vtkMPICommunicator::AllToAllVVoidArray(const void* sendBuffer, const int* sendCounts,
+  const int* sendOffsets, void* recvBuffer, const int* recvCounts, const int* recvOffsets, int type)
+{
+  return MPI_Alltoallv(sendBuffer, sendCounts, sendOffsets, vtkMPICommunicatorGetMPIType(type),
+    recvBuffer, recvCounts, recvOffsets, vtkMPICommunicatorGetMPIType(type),
+    *this->MPIComm->Handle);
 }
 
 //------------------------------------------------------------------------------

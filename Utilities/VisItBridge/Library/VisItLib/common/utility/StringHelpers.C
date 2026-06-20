@@ -7,11 +7,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <stdarg.h>
-#if defined(_WIN32)
 #include <regex>
-#else
-#include <regex.h>
-#endif
 #include <stdlib.h>
 #include <algorithm>
 #include <map>
@@ -387,7 +383,7 @@ StringHelpers::GroupStringsFixedAlpha(
         return;
 
     int i = 0;
-    stringGroups.reserve(stringList.size() / groupSize);
+    stringGroups.reserve(stringList.size() / groupSize + 1);
     for(std::set<std::string>::const_iterator it = stringList.begin();
         it != stringList.end(); ++it, ++i)
     {
@@ -402,6 +398,49 @@ StringHelpers::GroupStringsFixedAlpha(
         stringGroups[groupNum].insert(*it);
     }
 }
+
+
+// ****************************************************************************
+//  Function: GroupStringsFixedAlpha
+//
+//  Purpose: Groups a list of strings into a fixed number of groups
+//  by dividing the passed alphabetized list into pieces
+//
+//  Copied from version directly above, except it uses container that have
+//  a case-insensitive comparator.  See maptypes.h for definitions.
+//
+//  Programmer: Kathleen Biagas
+//  Creation:   October 23, 2020
+//
+// ****************************************************************************
+
+void
+StringHelpers::GroupStringsFixedAlpha(
+    const CIStringSet &stringList,
+    int groupSize, CIStringSetVector  &stringGroups)
+{
+    int nStrings = stringList.size();
+
+    if (nStrings == 0)
+        return;
+
+    int i = 0;
+    stringGroups.reserve(stringList.size() / groupSize + 1);
+    for(CIStringSet::const_iterator it = stringList.begin();
+        it != stringList.end(); ++it, ++i)
+    {
+        int groupNum = i / groupSize;
+        int groupIdx = i % groupSize;
+
+        if (groupIdx == 0)
+        {
+            CIStringSet newGroup;
+            stringGroups.push_back(newGroup);
+        }
+        stringGroups[groupNum].insert(*it);
+    }
+}
+
 
 // ****************************************************************************
 //  Function: FindRE
@@ -419,6 +458,10 @@ StringHelpers::GroupStringsFixedAlpha(
 //
 //    Mark C. Miller, Mon Aug 31 14:37:23 PDT 2009
 //    Made string version use const references.
+//
+//    Kathleen Biagas, Wed Aug 2, 2023
+//    Use std::regex per patch from Cory Quammen @ Kitware.
+//
 // ****************************************************************************
 
 int
@@ -429,7 +472,6 @@ StringHelpers::FindRE(const string &s, const string &re)
 int
 StringHelpers::FindRE(const char *strToSearch, const char *re)
 {
-#if defined(_WIN32)
     std::regex cre;
     try
     {
@@ -451,28 +493,6 @@ StringHelpers::FindRE(const char *strToSearch, const char *re)
         return FindError;
 
     return (int) (m[0].first - strToSearch);
-#else
-    regex_t cre;
-    regmatch_t pm;
-
-    if (regcomp(&cre, re, REG_EXTENDED))
-        return FindError;
-
-    int rval = regexec(&cre, strToSearch, 1, &pm, 0);
-
-    regfree(&cre);
-
-    if (rval == REG_NOMATCH)
-        return FindNone;
-
-    if (pm.rm_so >= (int)strlen(strToSearch))
-        return FindError;
-
-    if (pm.rm_so < 0)
-        return FindError;
-
-    return (int) pm.rm_so;
-#endif
 }
 
 // ****************************************************************************
@@ -559,14 +579,14 @@ StringHelpers::Replace(const string &source,
 //  Programmer: Mark C. Miller
 //  Creation:   June 12, 2007
 //
+//  Modifications:
+//    Kathleen Biagas, Wed Aug 2, 2023
+//    Use std::regex per patch from Cory Quammen @ Kitware.
+//
 // ****************************************************************************
 std::string
 StringHelpers::ExtractRESubstr(const char *strToSearch, const char *re)
 {
-#if !defined(_WIN32)
-    regex_t cre;
-    regmatch_t pm[255];
-#endif
     string reToUse;
     string retval = "";
 
@@ -598,7 +618,6 @@ StringHelpers::ExtractRESubstr(const char *strToSearch, const char *re)
         return retval;
     }
 
-#if defined(_WIN32)
     std::regex cre;
     try
     {
@@ -626,29 +645,6 @@ StringHelpers::ExtractRESubstr(const char *strToSearch, const char *re)
             break;
         }
     }
-#else
-    if (regcomp(&cre, reToUse.c_str(), REG_EXTENDED))
-        return retval;
-
-    int rval = regexec(&cre, strToSearch, 255, pm, 0);
-
-    regfree(&cre);
-
-    if (rval == REG_NOMATCH)
-        return retval;
-
-    for (int i = 0; i < 255; i++)
-    {
-        if (pm[i].rm_so == -1)
-            continue;
-        if (i == matchToExtract)
-        {
-            retval = std::string(strToSearch, pm[i].rm_so,
-                                              pm[i].rm_eo - pm[i].rm_so);
-            break;
-        }
-    }
-#endif
     return retval;
 }
 
@@ -929,7 +925,7 @@ StringHelpers::append(std::vector<std::string> &argv,
 //
 // ****************************************************************************
 std::vector<std::string>
-StringHelpers::split(const std::string input, const char separator)
+StringHelpers::split(const std::string &input, const char separator)
 {
     std::istringstream iss(input);
     std::string cur;
@@ -1134,7 +1130,7 @@ StringHelpers::IsPureASCII(const char *const txt, size_t length)
 }
 
 // ****************************************************************************
-// Method:  StringHelpers::CaseInsenstiveEqual
+// Method:  StringHelpers::CaseInsensitiveEqual
 //
 // Purpose:
 //   Check to see two strings compare as equal, after result of ::tolower.
@@ -1145,16 +1141,35 @@ StringHelpers::IsPureASCII(const char *const txt, size_t length)
 // Programmer:  Cyrus Harrison
 // Creation:    Mon Sep 19 16:23:05 PDT 2011
 //
+//    Mark C. Miller, Mon Oct 14 21:24:39 PDT 2024
+//    Modified to use stdlib's strcasecmp and friends for WIN32 and Linux
 // ****************************************************************************
 bool
-StringHelpers::CaseInsenstiveEqual(const std::string &str_a,
-                                   const std::string &str_b)
+StringHelpers::CaseInsensitiveEqual(const char *str_a, const char *str_b, size_t n)
 {
-    std::string sa_l = str_a;
-    std::string sb_l = str_b;
-    std::transform(sa_l.begin(),sa_l.end(),sa_l.begin(),::tolower);
-    std::transform(sb_l.begin(),sb_l.end(),sb_l.begin(),::tolower);
-    return sa_l == sb_l;
+    if (n == 0)
+    {
+#if defined(_WIN32)
+        return _stricmp(str_a, str_b) == 0;
+#else
+        return strcasecmp(str_a, str_b) == 0;
+#endif
+    }
+    else
+    {
+#if defined(_WIN32)
+        return _strnicmp(str_a, str_b, n) == 0;
+#else
+        return strncasecmp(str_a, str_b, n) == 0;
+#endif
+    }
+}
+bool
+StringHelpers::CaseInsensitiveEqual(const std::string &str_a,
+                                   const std::string &str_b,
+                                   size_t n)
+{
+    return StringHelpers::CaseInsensitiveEqual(str_a.c_str(), str_b.c_str(), n);
 }
 
 // ****************************************************************************
@@ -1305,7 +1320,7 @@ StringHelpers::StringToInt(const string &input, int &output)
 //
 // ****************************************************************************
 bool
-StringHelpers::ParseRange(const string range, std::vector<int> &list)
+StringHelpers::ParseRange(const string &range, std::vector<int> &list)
 {
     std::vector<std::string> rangeTokens = StringHelpers::split(range, ',');
 
@@ -1377,5 +1392,101 @@ StringHelpers::ParseRange(const string range, std::vector<int> &list)
     }
   
     return parseError;
+}
+
+// ****************************************************************************
+//  Method:  StringHelpers::EscapeString
+//
+//  Purpose:
+//   Escapes any special chars in a string. Need when you want to
+//   prepare a string that can later be parsed by JSON.
+//
+//  Logic from:
+//   conduit::utils::escape_special_chars in:
+//  https://github.com/LLNL/conduit/blob/develop/src/libs/conduit/conduit_utils.cpp
+//
+//
+//  Programmer:  Cyrus Harrison
+//  Creation:    Wed Mar 15 10:28:03 PDT 2023
+//
+//  Modifications:
+//
+// ****************************************************************************
+std::string
+StringHelpers::EscapeSpecialChars(const std::string &input)
+{
+        std::string res;
+        for(size_t i = 0; i < input.size(); ++i)
+        {
+            char val = input[i];
+            // supported special chars
+            switch(val)
+            {
+                // quotes and slashes
+                case '\"':
+                case '\\':
+                {
+                    res += '\\';
+                    res += val;
+                    break;
+                }
+                // newline
+                case '\n':
+                {
+                    res += "\\n";
+                    break;
+                }
+                // tab
+                case '\t':
+                {
+                    res += "\\t";
+                    break;
+                }
+                // backspace
+                case '\b':
+                {
+                    res += "\\b";
+                    break;
+                }
+                // formfeed
+                case '\f':
+                {
+                    res += "\\f";
+                    break;
+                }
+                // carriage return
+                case '\r':
+                {
+                    res += "\\r";
+                    break;
+                }
+
+                default:
+                {
+                    res += val;
+                }
+            }
+        }
+
+        return res;
+}
+
+// ****************************************************************************
+//  Method:  StringHelpers::ends_with
+//
+//  Purpose:
+//   Checks if string ends with another string
+//
+//  Programmer:  Cyrus Harrison
+//  Creation:    Thu Mar  2 09:24:16 PST 2023
+//
+//  Modifications:
+//
+// ****************************************************************************
+bool
+StringHelpers::ends_with(const std::string &var, const std::string &test)
+{
+    return std::equal(test.rbegin(),
+                      test.rend(), var.rbegin());
 }
 

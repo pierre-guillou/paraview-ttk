@@ -272,10 +272,7 @@ int vtkTextActor::SetMultipleConstrainedFontSize(vtkViewport* viewport, int targ
     {
       actors[i]->GetTextProperty()->SetFontSize(fontSize);
       aSize = actors[i]->SetConstrainedFontSize(viewport, targetWidth, targetHeight);
-      if (aSize < fontSize)
-      {
-        fontSize = aSize;
-      }
+      fontSize = std::min(aSize, fontSize);
     }
   }
 
@@ -500,6 +497,7 @@ void vtkTextActor::SetOrientation(float orientation)
 }
 
 //------------------------------------------------------------------------------
+// VTK_DEPRECATED_IN_9_6_0
 int vtkTextActor::GetAlignmentPoint()
 {
   int alignmentCode = 0;
@@ -520,7 +518,7 @@ int vtkTextActor::GetAlignmentPoint()
       alignmentCode = 2;
       break;
     default:
-      vtkErrorMacro(<< "Unknown justifaction code.");
+      vtkErrorMacro(<< "Unknown justification code.");
   }
   switch (this->TextProperty->GetVerticalJustification())
   {
@@ -534,12 +532,13 @@ int vtkTextActor::GetAlignmentPoint()
       alignmentCode += 6;
       break;
     default:
-      vtkErrorMacro(<< "Unknown justifaction code.");
+      vtkErrorMacro(<< "Unknown justification code.");
   }
   return alignmentCode;
 }
 
 //------------------------------------------------------------------------------
+// VTK_DEPRECATED_IN_9_6_0
 void vtkTextActor::SetAlignmentPoint(int val)
 {
   vtkWarningMacro(<< "Alignment point is being deprecated.  You should use "
@@ -707,14 +706,8 @@ void vtkTextActor::ComputeScaledFont(vtkViewport* viewport)
         this->LastSize[1] = size[1];
 
         // limit by minimum size
-        if (this->MinimumSize[0] > size[0])
-        {
-          size[0] = this->MinimumSize[0];
-        }
-        if (this->MinimumSize[1] > size[1])
-        {
-          size[1] = this->MinimumSize[1];
-        }
+        size[0] = std::max(this->MinimumSize[0], size[0]);
+        size[1] = std::max(this->MinimumSize[1], size[1]);
         int max_height = static_cast<int>(this->MaximumLineHeight * size[1]);
 
         vtkWindow* win = viewport->GetVTKWindow();
@@ -809,41 +802,33 @@ void vtkTextActor::ComputeRectangle(vtkViewport* viewport)
     this->SpecifiedToDisplay(position2, viewport, this->Position2Coordinate->GetCoordinateSystem());
     double maxWidth = position2[0] - position1[0];
     double maxHeight = position2[1] - position1[1];
-    // I could get rid of "GetAlignmentPoint" and use justification directly.
-    switch (this->GetAlignmentPoint())
+    switch (this->TextProperty->GetJustification())
     {
-      case 0:
+      case VTK_TEXT_LEFT:
         break;
-      case 1:
+      case VTK_TEXT_CENTERED:
         xo = (maxWidth - dims[0]) * 0.5;
         break;
-      case 2:
+      case VTK_TEXT_RIGHT:
         xo = (maxWidth - dims[0]);
         break;
-      case 3:
+      default:
+        vtkErrorMacro(<< "Unknown justifaction code.");
+        break;
+    }
+
+    switch (this->TextProperty->GetVerticalJustification())
+    {
+      case VTK_TEXT_BOTTOM:
+        break;
+      case VTK_TEXT_CENTERED:
         yo = (maxHeight - dims[1]) * 0.5;
         break;
-      case 4:
-        xo = (maxWidth - dims[0]) * 0.5;
-        yo = (maxHeight - dims[1]) * 0.5;
-        break;
-      case 5:
-        xo = (maxWidth - dims[0]);
-        yo = (maxHeight - dims[1]) * 0.5;
-        break;
-      case 6:
-        yo = (maxHeight - dims[1]);
-        break;
-      case 7:
-        xo = (maxWidth - dims[0]) * 0.5;
-        yo = (maxHeight - dims[1]);
-        break;
-      case 8:
-        xo = (maxWidth - dims[0]);
+      case VTK_TEXT_TOP:
         yo = (maxHeight - dims[1]);
         break;
       default:
-        vtkErrorMacro(<< "Bad alignment point value.");
+        vtkErrorMacro(<< "Unknown justifaction code.");
     }
   }
   else
@@ -912,19 +897,19 @@ void vtkTextActor::SpecifiedToDisplay(double* pos, vtkViewport* vport, int speci
   {
     case VTK_WORLD:
       vport->WorldToView(pos[0], pos[1], pos[2]);
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
     case VTK_VIEW:
       vport->ViewToNormalizedViewport(pos[0], pos[1], pos[2]);
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
     case VTK_NORMALIZED_VIEWPORT:
       vport->NormalizedViewportToViewport(pos[0], pos[1]);
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
     case VTK_VIEWPORT:
       vport->ViewportToNormalizedDisplay(pos[0], pos[1]);
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
     case VTK_NORMALIZED_DISPLAY:
       vport->NormalizedDisplayToDisplay(pos[0], pos[1]);
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
     case VTK_DISPLAY:
       break;
   }

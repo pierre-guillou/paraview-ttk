@@ -13,9 +13,10 @@
 #include "vtkPythonOverload.h"
 #include "PyVTKReference.h"
 #include "vtkABINamespace.h"
-#include "vtkPythonUtil.h"
-
+#include "vtkAOSDataArrayTemplate.h"
 #include "vtkObject.h"
+#include "vtkPythonUtil.h"
+#include "vtkStringScanner.h"
 
 #include <algorithm>
 #include <vector>
@@ -703,7 +704,8 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
           }
 
           cptr++;
-          sizeneeded = (Py_ssize_t)strtol(cptr, &cptr, 0);
+          auto result = vtk::from_chars(cptr, sizeneeded);
+          cptr = const_cast<char*>(result.ptr);
           if (*cptr == ']')
           {
             cptr++;
@@ -741,10 +743,7 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
           Py_DECREF(sarg);
         }
         // always consider PySequence to std::vector as a conversion
-        if (penalty < VTK_PYTHON_NEEDS_CONVERSION)
-        {
-          penalty = VTK_PYTHON_NEEDS_CONVERSION;
-        }
+        penalty = std::max<int>(penalty, VTK_PYTHON_NEEDS_CONVERSION);
       }
       else
       {

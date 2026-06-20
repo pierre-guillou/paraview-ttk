@@ -31,6 +31,8 @@
 #include "vtkAnariTestInteractor.h"
 #include "vtkAnariTestUtilities.h"
 
+#include <iostream>
+
 //------------------------------------------------------------------------------
 int TestAnariPBRMapping(int argc, char* argv[])
 {
@@ -65,6 +67,8 @@ int TestAnariPBRMapping(int argc, char* argv[])
   vtkNew<vtkTexture> textureCubemap;
   textureCubemap->CubeMapOn();
   textureCubemap->UseSRGBColorSpaceOn();
+  textureCubemap->InterpolateOn();
+  textureCubemap->MipmapOn();
 
   std::string pathSkybox[6] = { "Data/skybox/posx.jpg", "Data/skybox/negx.jpg",
     "Data/skybox/posy.jpg", "Data/skybox/negy.jpg", "Data/skybox/posz.jpg",

@@ -28,7 +28,7 @@ vtkPVDiscretizableColorTransferFunction::vtkPVDiscretizableColorTransferFunction
 
   this->ActiveAnnotatedValues = vtkVariantArray::New();
 
-  this->UseActiveValues = 1;
+  this->UseActiveValues = true;
 
   this->TransferFunction2D = nullptr;
 }
@@ -297,11 +297,10 @@ void vtkPVDiscretizableColorTransferFunction::SetIndexedOpacityInFullSet(
     this->Modified();
   }
 
-  double currentAlpha;
-  this->IndexedOpacitiesInFullSet->GetTypedTuple(index, &currentAlpha);
+  double currentAlpha = this->IndexedOpacitiesInFullSet->GetValue(index);
   if (currentAlpha != alpha)
   {
-    this->IndexedOpacitiesInFullSet->SetTypedTuple(index, &alpha);
+    this->IndexedOpacitiesInFullSet->SetValue(index, alpha);
     this->Modified();
   }
 }

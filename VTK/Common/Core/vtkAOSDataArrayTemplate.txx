@@ -23,26 +23,6 @@ vtkAOSDataArrayTemplate<ValueTypeT>* vtkAOSDataArrayTemplate<ValueTypeT>::New()
 
 //-----------------------------------------------------------------------------
 template <class ValueTypeT>
-vtkAOSDataArrayTemplate<typename vtkAOSDataArrayTemplate<ValueTypeT>::ValueType>*
-vtkAOSDataArrayTemplate<ValueTypeT>::FastDownCast(vtkAbstractArray* source)
-{
-  if (source)
-  {
-    switch (source->GetArrayType())
-    {
-      case vtkAbstractArray::AoSDataArrayTemplate:
-        if (vtkDataTypesCompare(source->GetDataType(), vtkTypeTraits<ValueType>::VTK_TYPE_ID))
-        {
-          return static_cast<vtkAOSDataArrayTemplate<ValueType>*>(source);
-        }
-        break;
-    }
-  }
-  return nullptr;
-}
-
-//-----------------------------------------------------------------------------
-template <class ValueTypeT>
 vtkAOSDataArrayTemplate<ValueTypeT>::vtkAOSDataArrayTemplate()
 {
   this->Buffer = vtkBuffer<ValueType>::New();
@@ -257,13 +237,13 @@ template <class ValueTypeT>
 double* vtkAOSDataArrayTemplate<ValueTypeT>::GetTuple(vtkIdType tupleIdx)
 {
   ValueTypeT* data = this->Buffer->GetBuffer() + tupleIdx * this->NumberOfComponents;
-  double* tuple = &this->LegacyTuple[0];
+  double* tuple = this->LegacyTuple.data();
   // See note in SetTuple about std::copy vs for loops on MSVC.
   for (int i = 0; i < this->NumberOfComponents; ++i)
   {
     tuple[i] = static_cast<double>(data[i]);
   }
-  return &this->LegacyTuple[0];
+  return this->LegacyTuple.data();
 }
 
 //-----------------------------------------------------------------------------

@@ -40,6 +40,7 @@
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringScanner.h"
 #include "vtkTimerLog.h"
 #include "vtkTransform.h"
 #include "vtkVersion.h"
@@ -50,6 +51,8 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+
+#include <iostream>
 
 // By default, the entry point is "main" (stand-alone program)
 #ifndef IMAGE_BENCHMARK_MAIN
@@ -342,7 +345,7 @@ static vtkThreadedImageAlgorithm* CreateFilter(const std::string& filterName, co
         return nullptr;
       }
       std::string num = args[1].substr(n + 1);
-      kernelsize = std::atoi(num.c_str());
+      VTK_FROM_CHARS_IF_ERROR_RETURN(num, kernelsize, nullptr);
     }
 
     filter->SetKernelSize(kernelsize, kernelsize, kernelsize);
@@ -390,7 +393,7 @@ static vtkThreadedImageAlgorithm* CreateFilter(const std::string& filterName, co
           return nullptr;
         }
         std::string num = args[k].substr(n + 1);
-        kernelsize = std::atoi(num.c_str());
+        VTK_FROM_CHARS_IF_ERROR_RETURN(num, kernelsize, nullptr);
         if (kernelsize < 1 || kernelsize > 10)
         {
           std::cerr << "reslice kernelsize must be between 1 and 10\n";
@@ -405,7 +408,7 @@ static vtkThreadedImageAlgorithm* CreateFilter(const std::string& filterName, co
           n++;
           size_t endpos = args[k].find('/', n);
           std::string num = args[k].substr(n, endpos - n);
-          rotation[j++] = atof(num.c_str());
+          VTK_FROM_CHARS_IF_ERROR_RETURN(num, rotation[j++], nullptr);
           n = endpos;
         }
         if (n != std::string::npos || j != 4)
@@ -550,7 +553,7 @@ static vtkThreadedImageAlgorithm* CreateFilter(const std::string& filterName, co
           return nullptr;
         }
         std::string num = args[k].substr(n + 1);
-        kernelsize = std::atoi(num.c_str());
+        VTK_FROM_CHARS_IF_ERROR_RETURN(num, kernelsize, nullptr);
         if (kernelsize < 1 || kernelsize > 10)
         {
           std::cerr << "resize kernelsize must be between 1 and 10\n";
@@ -596,7 +599,7 @@ static vtkThreadedImageAlgorithm* CreateFilter(const std::string& filterName, co
         return nullptr;
       }
       std::string num = args[1].substr(n + 1);
-      kernelsize = std::atoi(num.c_str());
+      VTK_FROM_CHARS_IF_ERROR_RETURN(num, kernelsize, nullptr);
       if (kernelsize != 3 && kernelsize != 5 && kernelsize != 7)
       {
         std::cerr << "convolve kernelsize must be 3, 5, or 7\n";
@@ -687,7 +690,7 @@ static vtkThreadedImageAlgorithm* CreateFilter(const std::string& filterName, co
         return nullptr;
       }
       std::string num = args[1].substr(n + 1);
-      kernelsize = std::atoi(num.c_str());
+      VTK_FROM_CHARS_IF_ERROR_RETURN(num, kernelsize, nullptr);
       if (kernelsize % 2 != 1)
       {
         std::cerr << "separable kernelsize must be odd\n";
@@ -746,7 +749,7 @@ static vtkThreadedImageAlgorithm* CreateFilter(const std::string& filterName, co
         return nullptr;
       }
       std::string num = args[1].substr(n + 1);
-      kernelsize = std::atoi(num.c_str());
+      VTK_FROM_CHARS_IF_ERROR_RETURN(num, kernelsize, nullptr);
       if (kernelsize % 2 != 1)
       {
         std::cerr << "gaussian kernelsize must be odd\n";
@@ -788,7 +791,7 @@ static vtkThreadedImageAlgorithm* CreateFilter(const std::string& filterName, co
           return nullptr;
         }
         std::string num = args[k].substr(n + 1);
-        comps = std::atoi(num.c_str());
+        VTK_FROM_CHARS_IF_ERROR_RETURN(num, comps, nullptr);
       }
       else if (args[k] == "greyscale")
       {
@@ -834,7 +837,9 @@ static vtkThreadedImageAlgorithm* CreateFilter(const std::string& filterName, co
         return nullptr;
       }
       std::string num = args[1].substr(n + 1);
-      filter->SetSplineDegree(std::atoi(num.c_str()));
+      int degree;
+      VTK_FROM_CHARS_IF_ERROR_RETURN(num, degree, nullptr);
+      filter->SetSplineDegree(degree);
     }
 
     filter->Register(nullptr);
@@ -916,7 +921,7 @@ static vtkThreadedImageAlgorithm* CreateFilter(const std::string& filterName, co
     return filter;
   }
 
-  cerr << "unrecognized option for --filter\n";
+  std::cerr << "unrecognized option for --filter\n";
 
   return nullptr;
 }
@@ -987,7 +992,7 @@ static vtkImageData* CreateData(
   }
   else
   {
-    cerr << "unrecognized option for --source\n";
+    std::cerr << "unrecognized option for --source\n";
     return nullptr;
   }
 

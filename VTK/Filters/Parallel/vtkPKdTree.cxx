@@ -16,6 +16,7 @@
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 #include "vtkSocketController.h"
+#include "vtkStringFormatter.h"
 #include "vtkSubGroup.h"
 #include "vtkTimerLog.h"
 #include "vtkUnstructuredGrid.h"
@@ -212,11 +213,14 @@ int vtkPKdTree::AllCheckForFailure(int rc, const char* where, const char* how)
   {
     if (rc)
     {
-      snprintf(errmsg, sizeof(errmsg), "%s on my node (%s)", how, where);
+      auto result = vtk::format_to_n(errmsg, sizeof(errmsg), "{:s} on my node ({:s})", how, where);
+      *result.out = '\0';
     }
     else
     {
-      snprintf(errmsg, sizeof(errmsg), "%s on a remote node (%s)", how, where);
+      auto result =
+        vtk::format_to_n(errmsg, sizeof(errmsg), "{:s} on a remote node ({:s})", how, where);
+      *result.out = '\0';
     }
     VTKWARNING(errmsg);
 
@@ -1010,8 +1014,7 @@ int vtkPKdTree::Select(int dim, int L, int R)
   if ((this->MyId <= hasKleft) && (this->NumCells[this->MyId] > 0))
   {
     int start = this->EndVal[this->MyId];
-    if (start > K - 1)
-      start = K - 1;
+    start = std::min(start, K - 1);
 
     pt = this->GetLocalVal(start) + dim;
 
@@ -1211,10 +1214,8 @@ int* vtkPKdTree::PartitionSubArray(int L, int R, int K, int dim, int p1, int p2)
   int myL = this->StartVal[me];
   int myR = this->EndVal[me];
 
-  if (myL < L)
-    myL = L;
-  if (myR > R)
-    myR = R;
+  myL = std::max(myL, L);
+  myR = std::min(myR, R);
 
   // Get Kth element
 
@@ -1833,14 +1834,8 @@ void vtkPKdTree::GetLocalMinMax(int L, int R, int me, float* min, float* max)
   int from = this->StartVal[me];
   int to = this->EndVal[me];
 
-  if (L > from)
-  {
-    from = L;
-  }
-  if (R < to)
-  {
-    to = R;
-  }
+  from = std::max(L, from);
+  to = std::min(R, to);
 
   if (from <= to)
   {
@@ -3027,7 +3022,7 @@ int vtkPKdTree::AssignRegionsContiguous()
   }
   floorLogP--;
 
-  int P = 1 << floorLogP;
+  int P = (floorLogP >= 0) ? (1 << floorLogP) : 0;
 
   if (nProcesses == P)
   {

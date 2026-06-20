@@ -29,11 +29,15 @@
 #ifndef vtkImageReader2_h
 #define vtkImageReader2_h
 
+#include "vtkDeprecation.h"   // For VTK_DEPRECATED_IN_9_5_0
 #include "vtkIOImageModule.h" // For export macro
 #include "vtkImageAlgorithm.h"
+#include "vtkResourceStream.h" // For stream
+#include "vtkSmartPointer.h"   // For smart pointer
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkStringArray;
+class vtkResourceStream;
 
 #define VTK_FILE_BYTE_ORDER_BIG_ENDIAN 0
 #define VTK_FILE_BYTE_ORDER_LITTLE_ENDIAN 1
@@ -68,38 +72,57 @@ public:
 
   ///@{
   /**
-   * Specify file prefix for the image file or files.  This can be
-   * used in place of SetFileName or SetFileNames if the filenames
+   * Specify file prefix for the image file or files.
+   * This can be used in place of SetFileName or SetFileNames if the filenames
    * follow a specific naming pattern, but you must explicitly set
    * the DataExtent so that the reader will know what range of slices
    * to load.
    */
-  virtual void SetFilePrefix(VTK_FILEPATH const char*);
+  vtkSetFilePathMacro(FilePrefix);
   vtkGetFilePathMacro(FilePrefix);
   ///@}
 
   ///@{
   /**
-   * The snprintf-style format string used to build filename from
+   * The std::format or printf style format string used to build filename from
    * FilePrefix and slice number.
    */
   virtual void SetFilePattern(VTK_FILEPATH const char*);
   vtkGetFilePathMacro(FilePattern);
   ///@}
 
+  ///@{
+  /**
+   * Specify stream to read from
+   * When both `Stream` and `Filename` or `FilePattern` are set, it's left to the implementation to
+   * determine which one is used.
+   */
+  vtkSetSmartPointerMacro(Stream, vtkResourceStream);
+  vtkGetSmartPointerMacro(Stream, vtkResourceStream);
+  ///@}
+
+  ///@{
   /**
    * Specify the in memory image buffer.
    * May be used by a reader to allow the reading
    * of an image from memory instead of from file.
+   * This should be reworked to use vtkResourceStream instead
    */
+  VTK_DEPRECATED_IN_9_6_0("Use SetStream instead")
   virtual void SetMemoryBuffer(const void*);
-  virtual const void* GetMemoryBuffer() { return this->MemoryBuffer; }
+  VTK_DEPRECATED_IN_9_6_0("Use GetStream instead")
+  virtual const void* GetMemoryBuffer();
+  ///@}
 
+  ///@{
   /**
    * Specify the in memory image buffer length.
    */
+  VTK_DEPRECATED_IN_9_6_0("Use SetStream instead")
   virtual void SetMemoryBufferLength(vtkIdType buflen);
-  vtkIdType GetMemoryBufferLength() { return this->MemoryBufferLength; }
+  VTK_DEPRECATED_IN_9_6_0("Use GetStream instead")
+  vtkIdType GetMemoryBufferLength();
+  ///@}
 
   /**
    * Set the data type of pixels in the file.
@@ -284,6 +307,11 @@ public:
    */
   virtual const char* GetDescriptiveName() { return nullptr; }
 
+  /**
+   * Overridden to take into account mtime from the internal vtkResourceStream.
+   */
+  vtkMTimeType GetMTime() override;
+
 protected:
   vtkImageReader2();
   ~vtkImageReader2() override;
@@ -298,7 +326,10 @@ protected:
   int NumberOfScalarComponents;
   vtkTypeBool FileLowerLeft;
 
+  VTK_DEPRECATED_IN_9_6_0("Use GetStream instead")
   const void* MemoryBuffer;
+
+  VTK_DEPRECATED_IN_9_6_0("Use GetStream instead")
   vtkIdType MemoryBufferLength;
 
   istream* File;
@@ -327,6 +358,8 @@ protected:
 private:
   vtkImageReader2(const vtkImageReader2&) = delete;
   void operator=(const vtkImageReader2&) = delete;
+
+  vtkSmartPointer<vtkResourceStream> Stream;
 };
 
 VTK_ABI_NAMESPACE_END

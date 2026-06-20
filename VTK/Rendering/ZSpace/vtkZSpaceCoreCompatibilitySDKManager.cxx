@@ -7,6 +7,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkRenderWindow.h"
 #include "vtkSmartPointer.h"
+#include "vtkStringFormatter.h"
 #include "vtkTransform.h"
 #include "vtkVector.h"
 
@@ -37,7 +38,7 @@ vtkStandardNewMacro(vtkZSpaceCoreCompatibilitySDKManager);
       std::string(#fn) +                                                                           \
       "\" failed with error "                                                                      \
       "code " +                                                                                    \
-      std::to_string(error) + ".";                                                                 \
+      vtk::to_string(static_cast<int>(error)) + ".";                                               \
     vtkErrorMacro(<< "vtkZSpaceCoreCompatibilitySDKManager::" << #fn << " error : " << error);     \
   }
 
@@ -50,21 +51,10 @@ static const char* ZSPACE_CORE_COMPATIBILITY_DLL_FILE_PATH = "zSpaceCoreCompatib
   ;
 
 //------------------------------------------------------------------------------
-vtkZSpaceCoreCompatibilitySDKManager::vtkZSpaceCoreCompatibilitySDKManager()
-{
-  this->InitializeZSpace();
-}
+vtkZSpaceCoreCompatibilitySDKManager::vtkZSpaceCoreCompatibilitySDKManager() = default;
 
 //------------------------------------------------------------------------------
-vtkZSpaceCoreCompatibilitySDKManager::~vtkZSpaceCoreCompatibilitySDKManager()
-{
-  ZSPACE_RETURN_IF_NOT_INIT();
-
-  ZCCompatError error;
-
-  error = this->EntryPts.zccompatShutDown(this->ZSpaceContext);
-  ZSPACE_CHECK_ERROR(zccompatShutDown, error);
-}
+vtkZSpaceCoreCompatibilitySDKManager::~vtkZSpaceCoreCompatibilitySDKManager() = default;
 
 //------------------------------------------------------------------------------
 void vtkZSpaceCoreCompatibilitySDKManager::ShutDown()
@@ -134,11 +124,6 @@ bool vtkZSpaceCoreCompatibilitySDKManager::loadZspaceCoreCompatibilityEntryPoint
 //------------------------------------------------------------------------------
 void vtkZSpaceCoreCompatibilitySDKManager::InitializeZSpace()
 {
-  if (this->Initialized)
-  {
-    return;
-  }
-
   const bool didSucceed = loadZspaceCoreCompatibilityEntryPoints(
     ZSPACE_CORE_COMPATIBILITY_DLL_FILE_PATH, this->zSpaceCoreCompatDllModuleHandle, this->EntryPts);
 
@@ -167,6 +152,7 @@ void vtkZSpaceCoreCompatibilitySDKManager::InitializeZSpace()
   int numDisplays;
   error = this->EntryPts.zccompatGetNumDisplays(this->ZSpaceContext, &numDisplays);
 
+  this->Displays.clear();
   this->Displays.reserve(numDisplays);
 
   for (int i = 0; i < numDisplays; i++)
@@ -199,6 +185,11 @@ void vtkZSpaceCoreCompatibilitySDKManager::InitializeZSpace()
   // a zSpace stereo frustum, which is responsible for various stereoscopic
   // 3D calculations such as calculating the view and projection matrices for
   // each eye.
+  if (this->ViewportHandle != nullptr)
+  {
+    this->EntryPts.zccompatDestroyViewport(this->ViewportHandle);
+    this->ViewportHandle = nullptr;
+  }
   error = this->EntryPts.zccompatGetPrimaryViewport(this->ZSpaceContext, &this->ViewportHandle);
   ZSPACE_CHECK_ERROR(zccompatCreateViewport, error);
 

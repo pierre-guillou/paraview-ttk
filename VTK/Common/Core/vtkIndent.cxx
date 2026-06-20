@@ -13,17 +13,14 @@ vtkIndent* vtkIndent::New()
 constexpr int VTK_STD_INDENT = 2;
 constexpr int VTK_NUMBER_OF_BLANKS = 40;
 
-static const char blanks[VTK_NUMBER_OF_BLANKS + 1] = "                                        ";
+static constexpr char blanks[VTK_NUMBER_OF_BLANKS + 1] = "                                        ";
 
 // Determine the next indentation level. Keep indenting by two until the
 // max of forty.
 vtkIndent vtkIndent::GetNextIndent()
 {
   int indent = this->Indent + VTK_STD_INDENT;
-  if (indent > VTK_NUMBER_OF_BLANKS)
-  {
-    indent = VTK_NUMBER_OF_BLANKS;
-  }
+  indent = std::min(indent, VTK_NUMBER_OF_BLANKS);
   return vtkIndent(indent);
 }
 

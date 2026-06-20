@@ -15,7 +15,10 @@
 #include "vtkVariantArray.h"
 
 #include <algorithm>
+#include <iostream>
 #include <vector>
+
+using std::cout;
 
 //
 // Standard functions
@@ -55,7 +58,7 @@ vtkTable::~vtkTable()
 void vtkTable::PrintSelf(ostream& os, vtkIndent indent)
 {
   vtkDataObject::PrintSelf(os, indent);
-  os << indent << "RowData: " << (this->RowData ? "" : "(none)") << endl;
+  os << indent << "RowData:" << (this->RowData ? "" : " (none)") << endl;
   if (this->RowData)
   {
     this->RowData->PrintSelf(os, indent.GetNextIndent());
@@ -63,16 +66,16 @@ void vtkTable::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //------------------------------------------------------------------------------
-void vtkTable::Dump(unsigned int colWidth, int rowLimit)
+void vtkTable::Dump(unsigned int colWidth, int rowLimit, unsigned int indent)
 
 {
   if (!this->GetNumberOfColumns())
   {
-    cout << "++\n++\n";
+    std::cout << "++\n++\n";
     return;
   }
 
-  std::string lineStr;
+  std::string lineStr(indent, ' ');
   for (int c = 0; c < this->GetNumberOfColumns(); ++c)
   {
     lineStr += "+-";
@@ -84,58 +87,60 @@ void vtkTable::Dump(unsigned int colWidth, int rowLimit)
   }
   lineStr += "-+\n";
 
-  cout << lineStr;
+  std::cout << lineStr;
 
+  std::cout << std::string(indent, ' ');
   for (int c = 0; c < this->GetNumberOfColumns(); ++c)
   {
-    cout << "| ";
+    std::cout << "| ";
     const char* name = this->GetColumnName(c);
     std::string str = name ? name : "";
 
     if (colWidth < str.length())
     {
-      cout << str.substr(0, colWidth);
+      std::cout << str.substr(0, colWidth);
     }
     else
     {
-      cout << str;
+      std::cout << str;
       for (unsigned int i = static_cast<unsigned int>(str.length()); i < colWidth; ++i)
       {
-        cout << " ";
+        std::cout << " ";
       }
     }
   }
 
-  cout << " |\n" << lineStr;
+  std::cout << " |\n" << lineStr;
 
   if (rowLimit != 0)
   {
     for (vtkIdType r = 0; r < this->GetNumberOfRows(); ++r)
     {
+      std::cout << std::string(indent, ' ');
       for (int c = 0; c < this->GetNumberOfColumns(); ++c)
       {
-        cout << "| ";
+        std::cout << "| ";
         std::string str = this->GetValue(r, c).ToString();
 
         if (colWidth < str.length())
         {
-          cout << str.substr(0, colWidth);
+          std::cout << str.substr(0, colWidth);
         }
         else
         {
-          cout << str;
+          std::cout << str;
           for (unsigned int i = static_cast<unsigned int>(str.length()); i < colWidth; ++i)
           {
-            cout << " ";
+            std::cout << " ";
           }
         }
       }
-      cout << " |\n";
+      std::cout << " |\n";
       if (rowLimit != -1 && r >= rowLimit)
         break;
     }
-    cout << lineStr;
-    cout.flush();
+    std::cout << lineStr;
+    std::cout.flush();
   }
 }
 

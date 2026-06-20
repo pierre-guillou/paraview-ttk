@@ -3,7 +3,6 @@
 #include "vtkResampledAMRImageSource.h"
 
 #include "vtkAMRBox.h"
-#include "vtkAMRInformation.h"
 #include "vtkBoundingBox.h"
 #include "vtkCellData.h"
 #include "vtkIdList.h"
@@ -12,10 +11,11 @@
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOverlappingAMR.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include "vtkPVStreamingMacros.h"
 #include "vtkPointData.h"
 #include "vtkUniformGrid.h"
-#include "vtkUniformGridAMRDataIterator.h"
+#include "vtkUniformGridAMRIterator.h"
 #include "vtkVoxel.h"
 
 #include <algorithm>
@@ -23,7 +23,7 @@
 
 namespace
 {
-static inline vtkIdType FindCell(vtkImageData* image, double point[3])
+inline vtkIdType FindCell(vtkImageData* image, double point[3])
 {
   double pcoords[3];
   int subid = 0;
@@ -64,9 +64,8 @@ void vtkResampledAMRImageSource::UpdateResampledVolume(vtkOverlappingAMR* amr)
   // Now, fill in values from datasets in the amr.
 
   bool something_changed = false;
-  const vtkAMRInformation* amrInfo = amr->GetAMRInfo();
-  vtkSmartPointer<vtkUniformGridAMRDataIterator> iter;
-  iter.TakeReference(vtkUniformGridAMRDataIterator::SafeDownCast(amr->NewIterator()));
+  vtkSmartPointer<vtkUniformGridAMRIterator> iter;
+  iter.TakeReference(vtkUniformGridAMRIterator::SafeDownCast(amr->NewIterator()));
   for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
   {
     // note: this iteration "naturally" goes from datasets at lower levels to
@@ -77,7 +76,7 @@ void vtkResampledAMRImageSource::UpdateResampledVolume(vtkOverlappingAMR* amr)
     unsigned int level = iter->GetCurrentLevel();
     unsigned int index = iter->GetCurrentIndex();
 
-    const vtkAMRBox& box = amrInfo->GetAMRBox(level, index);
+    const vtkAMRBox& box = amr->GetAMRBox(level, index);
     bool val = this->UpdateResampledVolume(level, index, box, data);
     something_changed |= val;
   }
@@ -103,7 +102,7 @@ void vtkResampledAMRImageSource::UpdateResampledVolume(vtkOverlappingAMR* amr)
 //----------------------------------------------------------------------------
 bool vtkResampledAMRImageSource::Initialize(vtkOverlappingAMR* amr)
 {
-  if (amr->GetNumberOfLevels() < 1 || amr->GetNumberOfDataSets(0) < 1)
+  if (amr->GetNumberOfLevels() < 1 || amr->GetNumberOfBlocks(0) < 1)
   {
     // this is an empty AMR. Nothing to do here.
     return false;
@@ -143,9 +142,9 @@ bool vtkResampledAMRImageSource::Initialize(vtkOverlappingAMR* amr)
 
   // get the spacing at the maximum level. That will help us compute the maximum
   // refinement we can get from the data.
-  assert(amr->GetAMRInfo()->HasSpacing(amr->GetNumberOfLevels() - 1));
+  assert(amr->GetOverlappingAMRMetaData()->HasSpacing(amr->GetNumberOfLevels() - 1));
   double data_spacing[3];
-  amr->GetAMRInfo()->GetSpacing(amr->GetNumberOfLevels() - 1, data_spacing);
+  amr->GetSpacing(amr->GetNumberOfLevels() - 1, data_spacing);
 
   // now for a box covering the bounds, with this data-spacing, we can get the
   // following resolution.
@@ -190,13 +189,13 @@ bool vtkResampledAMRImageSource::Initialize(vtkOverlappingAMR* amr)
 
   // locate first non-nullptr uniform grid in the AMR. That's the one we use to
   // model the field arrays.
-  vtkImageData* reference = nullptr;
+  vtkCartesianGrid* reference = nullptr;
   for (unsigned int level = 0; reference == nullptr && level < amr->GetNumberOfLevels(); level++)
   {
-    for (unsigned int index = 0; reference == nullptr && index < amr->GetNumberOfDataSets(level);
+    for (unsigned int index = 0; reference == nullptr && index < amr->GetNumberOfBlocks(level);
          index++)
     {
-      reference = amr->GetDataSet(level, index);
+      reference = amr->GetDataSetAsCartesianGrid(level, index);
     }
   }
   if (!reference)

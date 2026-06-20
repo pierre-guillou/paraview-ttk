@@ -19,6 +19,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPVPostFilterExecutive.h"
 #include "vtkPointData.h"
+#include "vtkStringScanner.h"
 
 #if VTK_MODULE_ENABLE_VTK_FiltersCore
 #include "vtkCellDataToPointData.h"
@@ -220,16 +221,7 @@ int vtkPVPostFilter::RequestData(
     }
     else
     {
-      csOutput->CopyStructure(csInput);
-      vtkCompositeDataIterator* iter = csInput->NewIterator();
-      for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
-      {
-        vtkDataObject* obj = iter->GetCurrentDataObject()->NewInstance();
-        obj->ShallowCopy(iter->GetCurrentDataObject());
-        csOutput->SetDataSet(iter, obj);
-        obj->FastDelete();
-      }
-      iter->Delete();
+      csOutput->CompositeShallowCopy(csInput);
     }
     if (this->Information->Has(vtkPVPostFilterExecutive::POST_ARRAYS_TO_PROCESS()))
     {
@@ -309,7 +301,7 @@ int vtkPVPostFilter::DoAnyNeededConversions(vtkDataSet* output, const char* requ
 
     case vtkDataObject::FIELD_ASSOCIATION_POINTS_THEN_CELLS:
       vtkWarningMacro("Case not handled");
-      VTK_FALLTHROUGH;
+      [[fallthrough]];
 
     default:
       return 0;
@@ -510,7 +502,7 @@ int vtkPVPostFilter::ExtractComponent(vtkDataSetAttributes* dsa, const char* req
   // go onto doing a pure conversion of the string to integer and using that.
   if (!found)
   {
-    cIndex = atoi(demangled_component_name);
+    VTK_FROM_CHARS_IF_ERROR_RETURN(demangled_component_name, cIndex, 0);
   }
 
   // when we compute the magnitude we must place

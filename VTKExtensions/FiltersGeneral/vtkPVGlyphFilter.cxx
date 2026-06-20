@@ -3,6 +3,7 @@
 #include "vtkPVGlyphFilter.h"
 
 // VTK includes
+#include "vtkAMRDataObject.h"
 #include "vtkBoundingBox.h"
 #include "vtkCellCenters.h"
 #include "vtkCellData.h"
@@ -30,7 +31,6 @@
 #include "vtkTriangleFilter.h"
 #include "vtkTuple.h"
 #include "vtkUniformGrid.h"
-#include "vtkUniformGridAMR.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
@@ -231,7 +231,7 @@ public:
         }
         break;
       case vtkPVGlyphFilter::SPATIALLY_UNIFORM_INVERSE_TRANSFORM_SAMPLING_SURFACE:
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case vtkPVGlyphFilter::SPATIALLY_UNIFORM_INVERSE_TRANSFORM_SAMPLING_VOLUME:
       {
         // No cells means no sampling possible
@@ -453,9 +453,9 @@ public:
         return self->GetStride() <= 1 || (ptId % self->GetStride()) == 0;
 
       case vtkPVGlyphFilter::SPATIALLY_UNIFORM_DISTRIBUTION:
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case vtkPVGlyphFilter::SPATIALLY_UNIFORM_INVERSE_TRANSFORM_SAMPLING_SURFACE:
-        VTK_FALLTHROUGH;
+        [[fallthrough]];
       case vtkPVGlyphFilter::SPATIALLY_UNIFORM_INVERSE_TRANSFORM_SAMPLING_VOLUME:
         // This will initialize the needed structure and compute visible points
         // that should be glyphed.
@@ -608,7 +608,7 @@ int vtkPVGlyphFilter::RequestDataObject(
       clone->FastDelete();
     }
   }
-  else if (vtkUniformGridAMR::GetData(inputVector[0], 0))
+  else if (vtkAMRDataObject::GetData(inputVector[0], 0))
   {
     // eventually, this will be PDC.
     auto output = vtkMultiBlockDataSet::GetData(outputVector, 0);
@@ -853,7 +853,7 @@ bool vtkPVGlyphFilter::Execute(unsigned int index, vtkDataSet* input,
   if (numPts < 1)
   {
     vtkDebugMacro(<< "No points to glyph!");
-    return 1;
+    return true;
   }
 
   vtkSmartPointer<vtkPolyData> source = this->GetSource(0, sourceVector);

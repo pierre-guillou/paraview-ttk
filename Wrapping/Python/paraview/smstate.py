@@ -122,12 +122,14 @@ def get_state(options=None, source_set=[], filter=None, raw=False,
         skipRenderingComponents = options.SkipRenderingComponents
         skipActiveComponents = options.SkipActiveComponents
         skipLayoutComponents = options.SkipLayoutComponents
+        skipAnimationComponents = options.SkipAnimationComponents
     else:
         propertiesToTraceOnCreate = RECORD_MODIFIED_PROPERTIES
         skipHiddenRepresentations = True
         skipRenderingComponents = False
         skipActiveComponents = False
         skipLayoutComponents = False
+        skipAnimationComponents = False
 
     # essential to ensure any obsolete accessors don't linger - can cause havoc
     # when saving state following a Python trace session
@@ -145,8 +147,9 @@ def get_state(options=None, source_set=[], filter=None, raw=False,
     if source_set:
         start_set = source_set
     else:
-        # if nothing is specified, we save all views, sources and animation scene
+        # if nothing is specified, we save all views, sources, selections and animation scene
         start_set = [x for x in simple.GetSources().values()]
+        start_set += [x for x in simple.GetSelections().values()]
         start_set += simple.GetViews()
         start_set += [simple.GetAnimationScene()]
 
@@ -163,7 +166,6 @@ def get_state(options=None, source_set=[], filter=None, raw=False,
 
     # proxies_of_interest is set of all proxies that we should trace.
     proxies_of_interest = producers.union(consumers)
-    # print ("proxies_of_interest", proxies_of_interest)
 
     tracer = smtrace.ScopedTracer(preamble="")
     with tracer:
@@ -237,18 +239,38 @@ def get_state(options=None, source_set=[], filter=None, raw=False,
                 "# ----------------------------------------------------------------"])
 
         # --------------------------------------------------------------------------
-        # Next, trace selections.
+        # Next, trace selection sources.
         sorted_proxies_of_interest = __toposort(proxies_of_interest)
-        sorted_selections = [x for x in sorted_proxies_of_interest \
+        sorted_selection_sources = [x for x in sorted_proxies_of_interest \
                              if smtrace.Trace.get_registered_name(x, "selection_sources")]
-        if sorted_selections:
+
+        if sorted_selection_sources:
+            trace.append_separated([ \
+                "# ----------------------------------------------------------------",
+                "# setup the selection sources",
+                "# ----------------------------------------------------------------"])
+            for selection in sorted_selection_sources:
+                traceitem = smtrace.RegisterSelectionProxy(selection)
+                traceitem.finalize("selection_sources")
+                del traceitem
+            trace.append_separated(smtrace.get_current_trace_output_and_reset(raw=True))
+
+        # --------------------------------------------------------------------------
+        # Next, trace selections.
+        sorted_selections = [x for x in sorted_proxies_of_interest \
+                             if smtrace.Trace.get_registered_name(x, "selections")]
+        selected_source_id = None
+        if sorted_selections and len(sorted_selections) > 1:
             trace.append_separated([ \
                 "# ----------------------------------------------------------------",
                 "# setup the selections",
                 "# ----------------------------------------------------------------"])
             for selection in sorted_selections:
                 traceitem = smtrace.RegisterSelectionProxy(selection)
-                traceitem.finalize()
+                traceitem.finalize("selections")
+                if selection.GetXMLName() == "AppendSelections":
+                    selected_source_id = selection.GetSelectionId()
+                    selected_source_port = selection.GetSelectionPort()
                 del traceitem
             trace.append_separated(smtrace.get_current_trace_output_and_reset(raw=True))
 
@@ -264,8 +286,17 @@ def get_state(options=None, source_set=[], filter=None, raw=False,
             for source in sorted_sources:
                 traceitem = smtrace.RegisterPipelineProxy(source, saving_state=True)
                 traceitem.finalize()
+                if source.GetGlobalID() == selected_source_id:
+                    selected_source_varname = traceitem.varname
                 del traceitem
             trace.append_separated(smtrace.get_current_trace_output_and_reset(raw=True))
+
+        # --------------------------------------------------------------------------
+        # Link selections to selected source
+        if sorted_selections and len(sorted_selections) > 1:
+            trace.append_separated([ \
+                f"appendSelections.SetSelectionId({selected_source_varname}.GetGlobalID())",
+                f"appendSelections.SetSelectionPort({selected_source_port})"])
 
         # --------------------------------------------------------------------------
         # Can't decide if the representations should be saved with the pipeline
@@ -386,7 +417,7 @@ def get_state(options=None, source_set=[], filter=None, raw=False,
         # There should be only one but keep the code generic
         anims = set([x for x in proxies_of_interest \
                      if smtrace.Trace.get_registered_name(x, "animation")])
-        if not skipRenderingComponents and anims:
+        if not skipRenderingComponents and anims and not skipAnimationComponents:
             trace.append_separated([ \
                 "# ----------------------------------------------------------------",
                 "# setup animation scene, tracks and keyframes",

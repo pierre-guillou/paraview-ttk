@@ -45,9 +45,11 @@ VTK_ABI_NAMESPACE_END
 VTK_ABI_NAMESPACE_BEGIN
 template <class ValueTypeT>
 class VTKCOMMONCORE_EXPORT vtkAOSDataArrayTemplate
-  : public vtkGenericDataArray<vtkAOSDataArrayTemplate<ValueTypeT>, ValueTypeT>
+  : public vtkGenericDataArray<vtkAOSDataArrayTemplate<ValueTypeT>, ValueTypeT,
+      vtkArrayTypes::VTK_AOS_DATA_ARRAY>
 {
-  typedef vtkGenericDataArray<vtkAOSDataArrayTemplate<ValueTypeT>, ValueTypeT> GenericDataArrayType;
+  using GenericDataArrayType = vtkGenericDataArray<vtkAOSDataArrayTemplate<ValueTypeT>, ValueTypeT,
+    vtkArrayTypes::VTK_AOS_DATA_ARRAY>;
 
   // Friendship required by vtkDataArray(Value/Tuple)Range so that it can access the memory buffer
   // which is required to avoid accessing raw pointers that might no longer be valid.
@@ -58,9 +60,11 @@ class VTKCOMMONCORE_EXPORT vtkAOSDataArrayTemplate
   friend struct vtk::detail::ValueRange;
 
 public:
-  typedef vtkAOSDataArrayTemplate<ValueTypeT> SelfType;
+  using SelfType = vtkAOSDataArrayTemplate<ValueTypeT>;
   vtkTemplateTypeMacro(SelfType, GenericDataArrayType);
-  typedef typename Superclass::ValueType ValueType;
+  using typename Superclass::ArrayTypeTag;
+  using typename Superclass::DataTypeTag;
+  using typename Superclass::ValueType;
 
   enum DeleteMethod
   {
@@ -290,21 +294,9 @@ public:
    * TODO Deprecate?
    */
   typedef ValueType* Iterator;
-  Iterator Begin() { return Iterator(this->GetVoidPointer(0)); }
-  Iterator End() { return Iterator(this->GetVoidPointer(this->MaxId + 1)); }
+  Iterator Begin() { return Iterator(this->GetPointer(0)); }
+  Iterator End() { return Iterator(this->GetPointer(this->MaxId + 1)); }
 
-  ///@{
-  /**
-   * Perform a fast, safe cast from a vtkAbstractArray to a
-   * vtkAOSDataArrayTemplate.
-   * This method checks if source->GetArrayType() returns AOSDataArrayTemplate
-   * or a more derived type, checks the data types, and performs a static_cast
-   * to return source as a vtkDataArray pointer. Otherwise, nullptr is returned.
-   */
-  static vtkAOSDataArrayTemplate<ValueType>* FastDownCast(vtkAbstractArray* source);
-  ///@}
-
-  int GetArrayType() const override { return vtkAbstractArray::AoSDataArrayTemplate; }
   VTK_NEWINSTANCE vtkArrayIterator* NewIterator() override;
   bool HasStandardMemoryLayout() const override { return true; }
   void ShallowCopy(vtkDataArray* other) override;
@@ -346,7 +338,7 @@ private:
   vtkAOSDataArrayTemplate(const vtkAOSDataArrayTemplate&) = delete;
   void operator=(const vtkAOSDataArrayTemplate&) = delete;
 
-  friend class vtkGenericDataArray<vtkAOSDataArrayTemplate<ValueTypeT>, ValueTypeT>;
+  friend class vtkGenericDataArray<SelfType, ValueType, ArrayTypeTag::value>;
 };
 
 // Declare vtkArrayDownCast implementations for AoS containers:
@@ -358,8 +350,14 @@ VTK_ABI_NAMESPACE_END
 // declarations for these functions such that the wrapper
 // can see them. The wrappers ignore vtkAOSDataArrayTemplate.
 #define vtkCreateWrappedArrayInterface(T)                                                          \
-  vtkCreateReadOnlyWrappedArrayInterface(T) void SetTypedTuple(vtkIdType i, const T* tuple)        \
-    VTK_EXPECTS(0 <= i && i < GetNumberOfTuples());                                                \
+  int GetDataType() const override;                                                                \
+  T GetDataTypeValueMin() const;                                                                   \
+  T GetDataTypeValueMax() const;                                                                   \
+  void GetTypedTuple(vtkIdType i, T* tuple) VTK_EXPECTS(0 <= i && i < GetNumberOfTuples());        \
+  T GetValue(vtkIdType id) const VTK_EXPECTS(0 <= id && id < GetNumberOfValues());                 \
+  T* GetValueRange(int comp) VTK_SIZEHINT(2);                                                      \
+  T* GetValueRange() VTK_SIZEHINT(2);                                                              \
+  void SetTypedTuple(vtkIdType i, const T* tuple) VTK_EXPECTS(0 <= i && i < GetNumberOfTuples());  \
   void InsertTypedTuple(vtkIdType i, const T* tuple) VTK_EXPECTS(0 <= i);                          \
   vtkIdType InsertNextTypedTuple(const T* tuple);                                                  \
   void SetValue(vtkIdType id, T value) VTK_EXPECTS(0 <= id && id < GetNumberOfValues());           \
@@ -370,13 +368,6 @@ VTK_ABI_NAMESPACE_END
   T* GetPointer(vtkIdType id);                                                                     \
   void SetArray(VTK_ZEROCOPY T* array, vtkIdType size, int save);                                  \
   void SetArray(VTK_ZEROCOPY T* array, vtkIdType size, int save, int deleteMethod)
-
-#define vtkCreateReadOnlyWrappedArrayInterface(T)                                                  \
-  int GetDataType() const override;                                                                \
-  void GetTypedTuple(vtkIdType i, T* tuple) VTK_EXPECTS(0 <= i && i < GetNumberOfTuples());        \
-  T GetValue(vtkIdType id) const VTK_EXPECTS(0 <= id && id < GetNumberOfValues());                 \
-  T* GetValueRange(int comp) VTK_SIZEHINT(2);                                                      \
-  T* GetValueRange() VTK_SIZEHINT(2);
 
 #endif // header guard
 
@@ -408,6 +399,29 @@ VTK_ABI_NAMESPACE_END
 VTK_ABI_NAMESPACE_BEGIN
 vtkExternTemplateMacro(extern template class VTKCOMMONCORE_EXPORT vtkAOSDataArrayTemplate);
 VTK_ABI_NAMESPACE_END
+
+namespace vtkDataArrayPrivate
+{
+VTK_ABI_NAMESPACE_BEGIN
+
+// These are instantiated in vtkFloatArray.cxx, vtkDoubleArray.cxx, etc
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<float>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<double>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<char>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<signed char>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<unsigned char>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<short>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<unsigned short>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<int>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<unsigned int>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<long>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<unsigned long>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<long long>, double)
+VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<unsigned long long>, double)
+
+VTK_ABI_NAMESPACE_END
+} // namespace vtkDataArrayPrivate
+
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif

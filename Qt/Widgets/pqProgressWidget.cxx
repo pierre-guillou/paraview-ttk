@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "pqProgressWidget.h"
 
+#include "pqWidgetUtilities.h"
+
 #include <QApplication>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -112,7 +114,7 @@ pqProgressWidget::pqProgressWidget(QWidget* _parent /*=0*/)
   this->AbortButton->setObjectName("AbortButton");
   this->AbortButton->setIcon(QIcon(QString::fromUtf8(":/QtWidgets/Icons/pqDelete.svg")));
   this->AbortButton->setIconSize(QSize(12, 12));
-  this->AbortButton->setToolTip(tr("Abort"));
+  this->AbortButton->setToolTip(pqWidgetUtilities::formatTooltip(tr("Abort")));
   this->AbortButton->setEnabled(false);
   QObject::connect(this->AbortButton, SIGNAL(pressed()), this, SIGNAL(abortPressed()));
   hbox->addWidget(this->AbortButton);
@@ -185,6 +187,29 @@ void pqProgressWidget::updateUI()
 {
   this->ProgressBar->repaint();
   this->AbortButton->repaint();
+}
+
+//-----------------------------------------------------------------------------
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+void pqProgressWidget::enterEvent(QEvent* e)
+#else
+void pqProgressWidget::enterEvent(QEnterEvent* e)
+#endif
+{
+  if (this->ProgressBar->showProgress())
+  {
+    QApplication::setOverrideCursor(Qt::ArrowCursor);
+  }
+  this->Superclass::enterEvent(e);
+}
+
+//-----------------------------------------------------------------------------
+void pqProgressWidget::leaveEvent(QEvent* e)
+{
+  // do not check for ProgressBar->showProgress() here since we want to restore the cursor
+  // even if the progress bar is not showing progress.
+  QApplication::restoreOverrideCursor();
+  this->Superclass::leaveEvent(e);
 }
 
 //-----------------------------------------------------------------------------

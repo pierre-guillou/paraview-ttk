@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParallelAMRUtilities.h"
 #include "vtkAMRBox.h"
-#include "vtkAMRInformation.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkMultiProcessController.h"
 #include "vtkOverlappingAMR.h"
+#include "vtkOverlappingAMRMetaData.h"
 #include "vtkSmartPointer.h"
 #include "vtkUniformGrid.h"
 #include <cassert>
 #include <cmath>
 #include <limits>
+
+#include <iostream>
 
 //------------------------------------------------------------------------------
 VTK_ABI_NAMESPACE_BEGIN
@@ -23,7 +25,7 @@ void vtkParallelAMRUtilities::PrintSelf(std::ostream& os, vtkIndent indent)
 void vtkParallelAMRUtilities::DistributeProcessInformation(
   vtkOverlappingAMR* amr, vtkMultiProcessController* controller, std::vector<int>& processMap)
 {
-  processMap.resize(amr->GetTotalNumberOfBlocks(), -1);
+  processMap.resize(amr->GetNumberOfBlocks(), -1);
   vtkSmartPointer<vtkCompositeDataIterator> iter;
   iter.TakeReference(amr->NewIterator());
   iter->SkipEmptyNodesOn();
@@ -73,12 +75,12 @@ void vtkParallelAMRUtilities::DistributeProcessInformation(
     {
       vtkIdType offset = offsets[i];
       int n = numBlocks[i];
-      cout << "Rank " << i << " has: ";
+      std::cout << "Rank " << i << " has: ";
       for (vtkIdType j = offset; j < offset + n; j++)
       {
-        cout << allBlocks[j] << " ";
+        std::cout << allBlocks[j] << " ";
       }
-      cout << endl;
+      std::cout << endl;
     }
   }
 #endif
@@ -111,22 +113,28 @@ void vtkParallelAMRUtilities::StripGhostLayers(vtkOverlappingAMR* ghostedAMRData
 void vtkParallelAMRUtilities::BlankCells(
   vtkOverlappingAMR* amr, vtkMultiProcessController* myController)
 {
-  vtkAMRInformation* info = amr->GetAMRInfo();
-  if (!info->HasRefinementRatio())
+  vtkOverlappingAMRMetaData* amrMData = amr->GetOverlappingAMRMetaData();
+  if (!amrMData)
   {
-    info->GenerateRefinementRatio();
+    vtkErrorWithObjectMacro(amr, "Could not recover AMR Meta Data, aborting");
+    return;
   }
-  if (!info->HasChildrenInformation())
+
+  if (!amrMData->HasRefinementRatio())
   {
-    info->GenerateParentChildInformation();
+    amrMData->GenerateRefinementRatio();
+  }
+  if (!amrMData->HasChildrenInformation())
+  {
+    amrMData->GenerateParentChildInformation();
   }
 
   std::vector<int> processorMap;
   vtkParallelAMRUtilities::DistributeProcessInformation(amr, myController, processorMap);
-  unsigned int numLevels = info->GetNumberOfLevels();
+  unsigned int numLevels = amr->GetNumberOfLevels();
   for (unsigned int i = 0; i < numLevels; i++)
   {
-    vtkAMRUtilities::BlankGridsAtLevel(amr, i, info->GetChildrenAtLevel(i), processorMap);
+    vtkAMRUtilities::BlankGridsAtLevel(amr, i, amrMData->GetChildrenAtLevel(i), processorMap);
   }
 }
 VTK_ABI_NAMESPACE_END

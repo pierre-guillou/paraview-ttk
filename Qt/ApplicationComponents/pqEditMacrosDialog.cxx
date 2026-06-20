@@ -12,6 +12,7 @@
 #include "pqPythonManager.h"
 #include "pqPythonScriptEditor.h"
 #include "pqPythonTabWidget.h"
+#include "pqWidgetUtilities.h"
 
 // Qt
 #include <QAbstractItemModel>
@@ -70,7 +71,7 @@ struct pqEditMacrosDialog::pqInternals
       {
         return result;
       }
-      const QString fileName = fileNames[row];
+      const QString& fileName = fileNames[row];
       if (column == pqInternals::Icons)
       {
         switch (role)
@@ -161,7 +162,7 @@ struct pqEditMacrosDialog::pqInternals
       {
         return false;
       }
-      const QString macroPath = fileNames[row];
+      const QString& macroPath = fileNames[row];
       const QString text = value.toString();
       if (column == pqInternals::Icons)
       {
@@ -421,6 +422,7 @@ pqEditMacrosDialog::pqEditMacrosDialog(QWidget* parent)
   , Internals(new pqInternals)
 {
   this->Internals->Ui->setupUi(this);
+  pqWidgetUtilities::formatChildTooltips(this);
   // hide the Context Help item (it's a "?" in the Title Bar for Windows, a menu item for Linux)
   this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
 

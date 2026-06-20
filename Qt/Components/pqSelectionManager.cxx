@@ -17,8 +17,11 @@
 #include "vtkPVDataInformation.h"
 #include "vtkSMInputProperty.h"
 #include "vtkSMPropertyHelper.h"
+#include "vtkSMProxyManager.h"
 #include "vtkSMRenderViewProxy.h"
+#include "vtkSMSelectionHelper.h"
 #include "vtkSMSelectionLink.h"
+#include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSMStringVectorProperty.h"
@@ -62,6 +65,9 @@ pqSelectionManager::pqSelectionManager(QObject* _parent /*=nullptr*/)
     model, SIGNAL(sourceAdded(pqPipelineSource*)), this, SLOT(onSourceAdded(pqPipelineSource*)));
   QObject::connect(model, SIGNAL(sourceRemoved(pqPipelineSource*)), this,
     SLOT(onSourceRemoved(pqPipelineSource*)));
+
+  QObject::connect(pqApplicationCore::instance(),
+    SIGNAL(stateLoaded(vtkPVXMLElement*, vtkSMProxyLocator*)), this, SLOT(onStateLoaded()));
 
   pqApplicationCore::instance()->registerManager("SelectionManager", this);
 
@@ -123,6 +129,38 @@ void pqSelectionManager::onItemRemoved(pqServerManagerModelItem* item)
 }
 
 //-----------------------------------------------------------------------------
+void pqSelectionManager::onStateLoaded()
+{
+  vtkSMSessionProxyManager* pxm =
+    vtkSMProxyManager::GetProxyManager()->GetActiveSessionProxyManager();
+  vtkSMSession* activeSession = vtkSMProxyManager::GetProxyManager()->GetActiveSession();
+
+  vtkSMSourceProxy* appendSelectionProxy =
+    vtkSMSourceProxy::SafeDownCast(pxm->GetProxy("selections", "AppendSelections"));
+  if (!appendSelectionProxy)
+  {
+    return;
+  }
+
+  vtkSMProxy* inputProxy = vtkSMProxy::SafeDownCast(
+    activeSession->GetRemoteObject(appendSelectionProxy->GetSelectionId()));
+  vtkSMSourceProxy* inputSourceProxy = vtkSMSourceProxy::SafeDownCast(inputProxy);
+  inputSourceProxy->SetSelectionInput(
+    appendSelectionProxy->GetSelectionPort(), appendSelectionProxy, 0);
+
+  pqPipelineSource* pqSource =
+    pqApplicationCore::instance()->getServerManagerModel()->findItem<pqPipelineSource*>(inputProxy);
+  if (pqSource)
+  {
+    pqOutputPort* port = pqSource->getOutputPort(appendSelectionProxy->GetSelectionPort());
+    if (port)
+    {
+      this->select(port);
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
 void pqSelectionManager::expandSelection(int layers, bool removeSeed, bool removeIntermediateLayers)
 {
   for (auto port : this->Implementation->SelectedPorts)
@@ -134,12 +172,14 @@ void pqSelectionManager::expandSelection(int layers, bool removeSeed, bool remov
       {
         auto selectionSource =
           vtkSMPropertyHelper(appendSelections->GetProperty("Input")).GetAsProxy(i);
-        vtkSMPropertyHelper numberOfLayersHelper(selectionSource, "NumberOfLayers");
-        numberOfLayersHelper.Set(numberOfLayersHelper.GetAsInt() + layers);
-        vtkSMPropertyHelper(selectionSource, "RemoveSeed").Set(removeSeed);
-        vtkSMPropertyHelper(selectionSource, "RemoveIntermediateLayers")
-          .Set(removeIntermediateLayers);
-        selectionSource->UpdateVTKObjects();
+        vtkSMSelectionHelper::ExpandSelection(
+          selectionSource, layers, removeSeed, removeIntermediateLayers);
+
+        SM_SCOPED_TRACE(CallFunction)
+          .arg(layers > 0 ? "GrowSelection" : "ShrinkSelection")
+          .arg("source", port->getSource()->getProxy())
+          .arg("layers", layers > 0 ? layers : -layers)
+          .arg("comment", "Grow selection");
       }
     }
     port->renderAllViews();

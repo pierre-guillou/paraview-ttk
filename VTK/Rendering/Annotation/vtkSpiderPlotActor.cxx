@@ -14,6 +14,7 @@
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper2D.h"
 #include "vtkProperty2D.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextMapper.h"
 #include "vtkTextProperty.h"
 #include "vtkTrivialProducer.h"
@@ -104,7 +105,6 @@ vtkSpiderPlotActor::vtkSpiderPlotActor()
 
   this->LegendVisibility = 1;
 
-  this->LegendActor = vtkLegendBoxActor::New();
   this->LegendActor->GetPositionCoordinate()->SetCoordinateSystemToViewport();
   this->LegendActor->GetPosition2Coordinate()->SetCoordinateSystemToViewport();
   this->LegendActor->GetPosition2Coordinate()->SetReferenceCoordinate(nullptr);
@@ -159,7 +159,6 @@ vtkSpiderPlotActor::~vtkSpiderPlotActor()
   this->SetLabelTextProperty(nullptr);
   this->SetTitleTextProperty(nullptr);
 
-  this->LegendActor->Delete();
   this->GlyphSource->Delete();
 
   this->Initialize();
@@ -441,10 +440,7 @@ int vtkSpiderPlotActor::PlaceAxes(vtkViewport* viewport, const int* vtkNotUsed(s
     }
     numColumns += array->GetNumberOfComponents();
     numTuples = array->GetNumberOfTuples();
-    if (numTuples < numRows)
-    {
-      numRows = numTuples;
-    }
+    numRows = std::min(numTuples, numRows);
   }
 
   // Determine the number of independent variables
@@ -492,14 +488,8 @@ int vtkSpiderPlotActor::PlaceAxes(vtkViewport* viewport, const int* vtkNotUsed(s
         {
           // v = field->GetComponent(i,j);
           ::vtkSpiderPlotActorGetComponent(field, i, j, &v);
-          if (v < this->Mins[k])
-          {
-            this->Mins[k] = v;
-          }
-          if (v > this->Maxs[k])
-          {
-            this->Maxs[k] = v;
-          }
+          this->Mins[k] = std::min(v, this->Mins[k]);
+          this->Maxs[k] = std::max(v, this->Maxs[k]);
         }
         k++;
       }
@@ -516,14 +506,8 @@ int vtkSpiderPlotActor::PlaceAxes(vtkViewport* viewport, const int* vtkNotUsed(s
             // non-numeric component, simply skip.
             continue;
           }
-          if (v < this->Mins[j])
-          {
-            this->Mins[j] = v;
-          }
-          if (v > this->Maxs[j])
-          {
-            this->Maxs[j] = v;
-          }
+          this->Mins[j] = std::min(v, this->Mins[j]);
+          this->Maxs[j] = std::max(v, this->Maxs[j]);
         }
       }
     }
@@ -633,7 +617,8 @@ int vtkSpiderPlotActor::PlaceAxes(vtkViewport* viewport, const int* vtkNotUsed(s
       }
       else
       {
-        snprintf(label, sizeof(label), "%d", static_cast<int>(i));
+        auto result = vtk::format_to_n(label, sizeof(label), "{:d}", i);
+        *result.out = '\0';
         this->LabelMappers[i]->SetInput(label);
       }
       this->LabelMappers[i]->GetTextProperty()->ShallowCopy(this->LabelTextProperty);
@@ -701,7 +686,8 @@ int vtkSpiderPlotActor::PlaceAxes(vtkViewport* viewport, const int* vtkNotUsed(s
       color = this->LegendActor->GetEntryColor(j);
       colors->InsertNextTuple3(255 * color[0], 255 * color[1], 255 * color[2]);
       this->LegendActor->SetEntrySymbol(j, this->GlyphSource->GetOutput());
-      snprintf(buf, sizeof(buf), "%d", static_cast<int>(j));
+      auto result = vtk::format_to_n(buf, sizeof(buf), "{:d}", j);
+      *result.out = '\0';
       this->LegendActor->SetEntryString(j, buf);
       for (i = 0, k = 0; i < numColumns && k < numComponents; k++)
       {
@@ -744,7 +730,8 @@ int vtkSpiderPlotActor::PlaceAxes(vtkViewport* viewport, const int* vtkNotUsed(s
       color = this->LegendActor->GetEntryColor(j);
       colors->InsertNextTuple3(255 * color[0], 255 * color[1], 255 * color[2]);
       this->LegendActor->SetEntrySymbol(j, this->GlyphSource->GetOutput());
-      snprintf(buf, sizeof(buf), "%d", static_cast<int>(j));
+      auto result = vtk::format_to_n(buf, sizeof(buf), "{:d}", j);
+      *result.out = '\0';
       this->LegendActor->SetEntryString(j, buf);
       for (i = 0; i < numRows; i++)
       {
@@ -848,6 +835,12 @@ const char* vtkSpiderPlotActor::GetAxisLabel(int i)
 }
 
 //------------------------------------------------------------------------------
+int vtkSpiderPlotActor::GetNumberOfAxisLabels()
+{
+  return static_cast<int>(this->Labels->size());
+}
+
+//------------------------------------------------------------------------------
 void vtkSpiderPlotActor::SetAxisRange(int i, double min, double max)
 {
   if (i < 0)
@@ -880,6 +873,12 @@ void vtkSpiderPlotActor::GetAxisRange(int i, double range[2])
   vtkAxisRange arange = this->Ranges->at(i);
   range[0] = arange.Min;
   range[1] = arange.Max;
+}
+
+//------------------------------------------------------------------------------
+int vtkSpiderPlotActor::GetNumberOfAxisRanges()
+{
+  return static_cast<int>(this->Ranges->size());
 }
 
 //------------------------------------------------------------------------------

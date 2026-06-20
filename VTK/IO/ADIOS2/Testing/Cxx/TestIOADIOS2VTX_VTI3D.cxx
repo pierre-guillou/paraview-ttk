@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "vtkAffineArray.h"
 #include "vtkAlgorithm.h"
 #include "vtkCellData.h"
 #include "vtkDataArray.h"
@@ -35,6 +36,7 @@
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringFormatter.h"
 #include "vtkTestUtilities.h"
 
 #include <adios2.h>
@@ -87,24 +89,15 @@ void ExpectEqual(const T& one, const T& two, const std::string& message)
 }
 
 template <class T>
-void TStep(std::vector<T>& data, const size_t step, const int rank)
-{
-  const T initialValue = static_cast<T>(step + rank);
-  std::iota(data.begin(), data.end(), initialValue);
-}
-
-template <class T>
 bool CompareData(
   const std::string& name, vtkImageData* imageData, const size_t step, const int rank)
 {
   vtkDataArray* vtkInput = imageData->GetCellData()->GetArray(name.c_str());
 
   // expected
-  std::vector<T> Texpected(vtkInput->GetDataSize());
-  TStep(Texpected, step, rank);
-
-  T* vtkInputData = reinterpret_cast<T*>(vtkInput->GetVoidPointer(0));
-  return std::equal(Texpected.begin(), Texpected.end(), vtkInputData);
+  vtkNew<vtkAffineArray<T>> Texpected;
+  Texpected->ConstructBackend(step, step + rank);
+  return vtkTestUtilities::CompareAbstractArray(vtkInput, Texpected);
 }
 } // end empty namespace
 
@@ -259,7 +252,7 @@ int TestIOADIOS2VTX_VTI3D(int argc, char* argv[])
     // 3D tests
     for (const auto id : ids)
     {
-      fileName = "Data/ADIOS2/vtx/" + dir + "/heat3D_" + std::to_string(id) + ".bp";
+      fileName = "Data/ADIOS2/vtx/" + dir + "/heat3D_" + vtk::to_string(id) + ".bp";
       filePath = vtkTestUtilities::ExpandDataFileName(argc, argv, fileName.c_str());
       lf_DoTest(filePath, steps);
     }

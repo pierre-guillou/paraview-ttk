@@ -10,6 +10,7 @@
 #include "vtkStringArray.h"
 #include "vtkVariantArray.h"
 
+#include <algorithm>
 #include <cassert>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -805,8 +806,8 @@ void vtkLookupTableMapData(vtkLookupTable* self, T* input, unsigned char* output
 
   // Resize the internal table to hold the special colors at the
   // end. When this function is called repeatedly with the same size
-  // lookup table, memory reallocation will be done only one the first
-  // call if at all.
+  // lookup table, memory reallocation will be done only on the first
+  // call, if at all.
 
   vtkUnsignedCharArray* lookupTable = self->GetTable();
 
@@ -1328,7 +1329,8 @@ void vtkLookupTable::SetTableValue(vtkIdType indx, double r, double g, double b,
 // components are expressed as [0,1] double values.
 void vtkLookupTable::GetTableValue(vtkIdType indx, double rgba[4])
 {
-  indx = (indx < 0 ? 0 : (indx >= this->NumberOfColors ? this->NumberOfColors - 1 : indx));
+  indx = std::max<vtkIdType>(indx, 0);
+  indx = std::min<vtkIdType>(indx, this->NumberOfColors - 1);
 
   const unsigned char* _rgba = this->Table->GetPointer(indx * 4);
 

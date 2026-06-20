@@ -21,6 +21,9 @@ This file provides a unified front-end for the wrapper generators.
 #include <windows.h>
 #endif
 
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
+
 /* This is the struct that contains the options */
 static OptionInfo options;
 
@@ -676,3 +679,6 @@ char** vtkParse_WideArgsToUTF8(int argc, wchar_t* wargv[])
   return argv;
 }
 #endif
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

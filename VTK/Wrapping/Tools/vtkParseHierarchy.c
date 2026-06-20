@@ -10,6 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// NOLINTBEGIN(bugprone-unsafe-functions)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
+
 static size_t skip_space(const char* text)
 {
   size_t i = 0;
@@ -1309,3 +1312,6 @@ const char* vtkParseHierarchy_QualifiedEnumName(
 
   return NULL;
 }
+
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(bugprone-unsafe-functions)

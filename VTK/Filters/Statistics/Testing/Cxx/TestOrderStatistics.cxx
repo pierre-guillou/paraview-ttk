@@ -5,18 +5,21 @@
 // Thanks to Philippe Pebay from Sandia National Laboratories
 // for implementing this test.
 
+#include "vtkDataAssembly.h"
 #include "vtkDataSetAttributes.h"
 #include "vtkDoubleArray.h"
 #include "vtkInformation.h"
 #include "vtkMath.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkOrderStatistics.h"
+#include "vtkStatisticalModel.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 #include "vtkUnsignedCharArray.h"
 
 #include <map>
 #include <vector>
+
+#include <iostream>
 
 //=============================================================================
 int TestOrderStatistics(int, char*[])
@@ -184,9 +187,9 @@ int TestOrderStatistics(int, char*[])
   vtkOrderStatistics* os = vtkOrderStatistics::New();
 
   // First verify that absence of input does not cause trouble
-  cout << "## Verifying that absence of input does not cause trouble... ";
+  std::cout << "## Verifying that absence of input does not cause trouble... ";
   os->Update();
-  cout << "done.\n";
+  std::cout << "done.\n";
 
   // Prepare first test with data
   os->SetInputData(vtkStatisticsAlgorithm::INPUT_DATA, datasetTable);
@@ -217,20 +220,20 @@ int TestOrderStatistics(int, char*[])
 
   // Get output data and meta tables
   vtkTable* outputData = os->GetOutput(vtkStatisticsAlgorithm::OUTPUT_DATA);
-  vtkMultiBlockDataSet* outputModelDS = vtkMultiBlockDataSet::SafeDownCast(
-    os->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
-  unsigned nbq = outputModelDS->GetNumberOfBlocks() - 1;
-  vtkTable* outputQuantiles = vtkTable::SafeDownCast(outputModelDS->GetBlock(nbq));
-  vtkTable* outputCard = vtkTable::SafeDownCast(outputModelDS->GetBlock(nbq - 1));
+  auto* outputModelDS = os->GetOutputModel();
+  vtkTable* outputQuantiles =
+    outputModelDS->FindTableByName(vtkStatisticalModel::Derived, "Quantiles");
+  vtkTable* outputCard =
+    outputModelDS->FindTableByName(vtkStatisticalModel::Derived, "Cardinalities");
   vtkTable* outputTest = os->GetOutput(vtkStatisticsAlgorithm::OUTPUT_TEST);
 
-  cout
+  std::cout
     << "## Calculated the following quartiles with InverseCDFAveragedSteps quantile definition:\n";
   outputQuantiles->Dump();
   for (vtkIdType c = 1; c < outputQuantiles->GetNumberOfColumns(); ++c)
   {
     std::string colName = outputQuantiles->GetColumnName(c);
-    cout << "   Variable=" << colName << "\n";
+    std::cout << "   Variable=" << colName << "\n";
 
     // Check some results of the Derive operation
     for (int r = 0; r < outputQuantiles->GetNumberOfRows(); ++r)
@@ -274,11 +277,11 @@ int TestOrderStatistics(int, char*[])
       for (std::map<int, int>::iterator hit = histoQuantiles.begin(); hit != histoQuantiles.end();
            ++hit)
       {
-        cout << "    IQR " << hit->first << ": " << hit->second << " observations\n";
+        std::cout << "    IQR " << hit->first << ": " << hit->second << " observations\n";
 
         totalHist += hit->second;
       }
-      cout << "    Total: " << totalHist << " observations\n";
+      std::cout << "    Total: " << totalHist << " observations\n";
 
       if (nVals != totalHist)
       {
@@ -288,27 +291,31 @@ int TestOrderStatistics(int, char*[])
       }
     }
 
-    cout << "\n";
+    std::cout << "\n";
   }
 
-  cout << "## Calculated the following histograms:\n";
-  for (unsigned b = 0; b < outputModelDS->GetNumberOfBlocks() - 2; ++b)
+  std::cout << "## Calculated the following histograms:\n";
+  for (int b = 0; b < outputModelDS->GetNumberOfTables(vtkStatisticalModel::Learned); ++b)
   {
-    std::string varName = outputModelDS->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
-    cout << "   Variable=" << varName << "\n";
-
-    vtkTable* histoTab = vtkTable::SafeDownCast(outputModelDS->GetBlock(b));
-    histoTab->Dump();
+    vtkTable* histoTab = outputModelDS->GetTable(vtkStatisticalModel::Learned, b);
+    // Allow a null histogram table because we requested an invalid input-data column ("Metric 3"):
+    if (histoTab)
+    {
+      std::string varName = outputModelDS->GetTableName(vtkStatisticalModel::Learned, b);
+      std::cout << "   Variable=" << varName << "\n";
+      histoTab->Dump();
+    }
   }
 
   // Check cardinalities
-  cout << "\n## Calculated the following cardinalities:\n";
+  std::cout << "\n## Calculated the following cardinalities:\n";
   for (vtkIdType r = 0; r < outputCard->GetNumberOfRows(); ++r)
   {
-    cout << "   ";
+    std::cout << "   ";
     for (int i = 0; i < outputCard->GetNumberOfColumns(); ++i)
     {
-      cout << outputCard->GetColumnName(i) << "=" << outputCard->GetValue(r, i).ToString() << "  ";
+      std::cout << outputCard->GetColumnName(i) << "=" << outputCard->GetValue(r, i).ToString()
+                << "  ";
     }
 
     // Check whether total cardinality is correct
@@ -320,20 +327,21 @@ int TestOrderStatistics(int, char*[])
       testStatus = 1;
     }
 
-    cout << "\n";
+    std::cout << "\n";
   }
 
   // Check some results of the Test operation
-  cout << "\n## Calculated the following Kolmogorov-Smirnov statistics:\n";
+  std::cout << "\n## Calculated the following Kolmogorov-Smirnov statistics:\n";
   for (vtkIdType r = 0; r < outputTest->GetNumberOfRows(); ++r)
   {
-    cout << "   ";
+    std::cout << "   ";
     for (int i = 0; i < outputTest->GetNumberOfColumns(); ++i)
     {
-      cout << outputTest->GetColumnName(i) << "=" << outputTest->GetValue(r, i).ToString() << "  ";
+      std::cout << outputTest->GetColumnName(i) << "=" << outputTest->GetValue(r, i).ToString()
+                << "  ";
     }
 
-    cout << "\n";
+    std::cout << "\n";
   }
 
   // Select Columns of Interest (no more bogus columns)
@@ -359,13 +367,11 @@ int TestOrderStatistics(int, char*[])
   };
 
   // Get calculated model
-  outputModelDS = vtkMultiBlockDataSet::SafeDownCast(
-    os->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
-  nbq = outputModelDS->GetNumberOfBlocks() - 1;
-  outputQuantiles = vtkTable::SafeDownCast(outputModelDS->GetBlock(nbq));
+  outputModelDS = os->GetOutputModel();
+  outputQuantiles = outputModelDS->FindTableByName(vtkStatisticalModel::Derived, "Quantiles");
 
-  cout << "\n## Calculated the following quartiles with InverseCDFAveragedSteps quantile "
-          "definition:\n";
+  std::cout << "\n## Calculated the following quartiles with InverseCDFAveragedSteps quantile "
+               "definition:\n";
   outputQuantiles->Dump();
   for (vtkIdType c = 1; c < outputQuantiles->GetNumberOfColumns(); ++c)
   {
@@ -385,16 +391,17 @@ int TestOrderStatistics(int, char*[])
   }
 
   // Check some results of the Test operation
-  cout << "\n## Calculated the following Kolmogorov-Smirnov statistics:\n";
+  std::cout << "\n## Calculated the following Kolmogorov-Smirnov statistics:\n";
   for (vtkIdType r = 0; r < outputTest->GetNumberOfRows(); ++r)
   {
-    cout << "   ";
+    std::cout << "   ";
     for (int i = 0; i < outputTest->GetNumberOfColumns(); ++i)
     {
-      cout << outputTest->GetColumnName(i) << "=" << outputTest->GetValue(r, i).ToString() << "  ";
+      std::cout << outputTest->GetColumnName(i) << "=" << outputTest->GetValue(r, i).ToString()
+                << "  ";
     }
 
-    cout << "\n";
+    std::cout << "\n";
   }
 
   // Test Learn, Derive, and Test operation for deciles with InverseCDF quantile definition (as with
@@ -404,25 +411,24 @@ int TestOrderStatistics(int, char*[])
   os->Update();
 
   // Get calculated model
-  outputModelDS = vtkMultiBlockDataSet::SafeDownCast(
-    os->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
-  nbq = outputModelDS->GetNumberOfBlocks() - 1;
-  outputQuantiles = vtkTable::SafeDownCast(outputModelDS->GetBlock(nbq));
+  outputModelDS = os->GetOutputModel();
+  outputQuantiles = outputModelDS->FindTableByName(vtkStatisticalModel::Derived, "Quantiles");
 
-  cout << "\n## Calculated the following deciles with InverseCDF quantile definition:\n";
+  std::cout << "\n## Calculated the following deciles with InverseCDF quantile definition:\n";
   outputQuantiles->Dump();
 
   // Check some results of the Test operation
-  cout << "\n## Calculated the following Kolmogorov-Smirnov statistics:\n";
+  std::cout << "\n## Calculated the following Kolmogorov-Smirnov statistics:\n";
   for (vtkIdType r = 0; r < outputTest->GetNumberOfRows(); ++r)
   {
-    cout << "   ";
+    std::cout << "   ";
     for (int i = 0; i < outputTest->GetNumberOfColumns(); ++i)
     {
-      cout << outputTest->GetColumnName(i) << "=" << outputTest->GetValue(r, i).ToString() << "  ";
+      std::cout << outputTest->GetColumnName(i) << "=" << outputTest->GetValue(r, i).ToString()
+                << "  ";
     }
 
-    cout << "\n";
+    std::cout << "\n";
   }
 
   // Clean up
@@ -469,21 +475,21 @@ int TestOrderStatistics(int, char*[])
 
   // Get output data and meta tables
   vtkTable* outputData2 = os2->GetOutput(vtkStatisticsAlgorithm::OUTPUT_DATA);
-  vtkMultiBlockDataSet* outputModelDS2 = vtkMultiBlockDataSet::SafeDownCast(
-    os2->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
-  nbq = outputModelDS2->GetNumberOfBlocks() - 1;
-  vtkTable* outputCard2 = vtkTable::SafeDownCast(outputModelDS2->GetBlock(nbq - 1));
-  vtkTable* outputQuantiles2 = vtkTable::SafeDownCast(outputModelDS2->GetBlock(nbq));
+  auto* outputModelDS2 = os2->GetOutputModel();
+  vtkTable* outputCard2 =
+    outputModelDS2->FindTableByName(vtkStatisticalModel::Derived, "Cardinalities");
+  vtkTable* outputQuantiles2 =
+    outputModelDS2->FindTableByName(vtkStatisticalModel::Derived, "Quantiles");
 
-  cout << "\n## Input text (punctuation omitted):\n   " << text << "\n";
+  std::cout << "\n## Input text (punctuation omitted):\n   " << text << "\n";
 
-  cout << "\n## Calculated the following histogram:\n";
-  for (unsigned b = 0; b < outputModelDS2->GetNumberOfBlocks() - 2; ++b)
+  std::cout << "\n## Calculated the following histogram:\n";
+  for (int b = 0; b < outputModelDS2->GetNumberOfTables(vtkStatisticalModel::Learned); ++b)
   {
-    std::string varName = outputModelDS2->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
-    cout << "   Variable=" << varName << "\n";
+    std::string varName = outputModelDS2->GetTableName(vtkStatisticalModel::Learned, b);
+    std::cout << "   Variable=" << varName << "\n";
 
-    vtkTable* histoTab = vtkTable::SafeDownCast(outputModelDS2->GetBlock(b));
+    vtkTable* histoTab = outputModelDS2->GetTable(vtkStatisticalModel::Learned, b);
     histoTab->Dump();
 
     // Check whether total cardinality is correct
@@ -504,8 +510,8 @@ int TestOrderStatistics(int, char*[])
   }
 
   int sum12 = 0;
-  cout << "\n## Calculated the following quantization from " << os2->GetNumberOfIntervals()
-       << "-quantiles:\n";
+  std::cout << "\n## Calculated the following quantization from " << os2->GetNumberOfIntervals()
+            << "-quantiles:\n";
 
   // Calculate representatives
   std::map<int, char> histo12Repr;
@@ -521,8 +527,9 @@ int TestOrderStatistics(int, char*[])
     char midVal = (lowerVal[0] + upperVal[0] + 1) / 2;
     histo12Repr[quantIdx] = midVal;
 
-    cout << "   interval " << quantIdx << (quantIdx > 1 ? ": ]" : ": [") << lowerVal[0] << " - "
-         << upperVal[0] << "] represented by " << midVal << " with frequency " << frequVal << "\n";
+    std::cout << "   interval " << quantIdx << (quantIdx > 1 ? ": ]" : ": [") << lowerVal[0]
+              << " - " << upperVal[0] << "] represented by " << midVal << " with frequency "
+              << frequVal << "\n";
   }
 
   // Verify that we retrieve the total count
@@ -534,13 +541,13 @@ int TestOrderStatistics(int, char*[])
   }
 
   // Quantize text and print it
-  cout << "\n## Quantized text with " << histo12Text.size() << " quantizers based on "
-       << os2->GetNumberOfIntervals() << "-quantiles :\n   ";
+  std::cout << "\n## Quantized text with " << histo12Text.size() << " quantizers based on "
+            << os2->GetNumberOfIntervals() << "-quantiles :\n   ";
   for (vtkIdType r = 0; r < outputData2->GetNumberOfRows(); ++r)
   {
-    cout << histo12Repr[outputData2->GetValueByName(r, "Quantile(Text)").ToInt()];
+    std::cout << histo12Repr[outputData2->GetValueByName(r, "Quantile(Text)").ToInt()];
   }
-  cout << "\n";
+  std::cout << "\n";
 
   // Learn, Derive, Assess, and Test again but with with 100 intervals this time
   os2->SetParameter("QuantileDefinition", 0,
@@ -553,12 +560,10 @@ int TestOrderStatistics(int, char*[])
   os2->Update();
 
   // Get calculated model
-  outputModelDS2 = vtkMultiBlockDataSet::SafeDownCast(
-    os2->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
-  nbq = outputModelDS2->GetNumberOfBlocks() - 1;
-  outputQuantiles2 = vtkTable::SafeDownCast(outputModelDS2->GetBlock(nbq));
+  outputModelDS2 = os2->GetOutputModel();
+  outputQuantiles2 = outputModelDS2->FindTableByName(vtkStatisticalModel::Derived, "Quantiles");
 
-  cout << "\n## Input text (punctuation omitted):\n   " << text << "\n";
+  std::cout << "\n## Input text (punctuation omitted):\n   " << text << "\n";
 
   // Calculate quantile-based histogram
   std::map<int, int> histo100Text;
@@ -568,8 +573,8 @@ int TestOrderStatistics(int, char*[])
   }
 
   int sum100 = 0;
-  cout << "\n## Calculated the following quantization with " << os2->GetNumberOfIntervals()
-       << "-quantiles:\n";
+  std::cout << "\n## Calculated the following quantization with " << os2->GetNumberOfIntervals()
+            << "-quantiles:\n";
 
   // Calculate representatives
   std::map<int, char> histo100Repr;
@@ -585,8 +590,9 @@ int TestOrderStatistics(int, char*[])
     char midVal = (lowerVal[0] + upperVal[0] + 1) / 2;
     histo100Repr[quantIdx] = midVal;
 
-    cout << "   interval " << quantIdx << (quantIdx > 1 ? ": ]" : ": [") << lowerVal[0] << " - "
-         << upperVal[0] << "] represented by " << midVal << " with frequency " << frequVal << "\n";
+    std::cout << "   interval " << quantIdx << (quantIdx > 1 ? ": ]" : ": [") << lowerVal[0]
+              << " - " << upperVal[0] << "] represented by " << midVal << " with frequency "
+              << frequVal << "\n";
   }
 
   // Verify that we retrieve the total count
@@ -598,13 +604,13 @@ int TestOrderStatistics(int, char*[])
   }
 
   // Quantize text and print it
-  cout << "\n## Quantized text with " << histo100Text.size() << " quantizers based on "
-       << os2->GetNumberOfIntervals() << "-quantiles :\n   ";
+  std::cout << "\n## Quantized text with " << histo100Text.size() << " quantizers based on "
+            << os2->GetNumberOfIntervals() << "-quantiles :\n   ";
   for (vtkIdType r = 0; r < outputData2->GetNumberOfRows(); ++r)
   {
-    cout << histo100Repr[outputData2->GetValueByName(r, "Quantile(Text)").ToInt()];
+    std::cout << histo100Repr[outputData2->GetValueByName(r, "Quantile(Text)").ToInt()];
   }
-  cout << "\n";
+  std::cout << "\n";
 
   // Clean up
   os2->Delete();

@@ -20,6 +20,8 @@
 #include <type_traits>
 #include <vector>
 
+#include <iostream>
+
 namespace
 {
 
@@ -191,7 +193,8 @@ vtkSmartPointer<vtkDataArray> GenerateRandomVtkDataArray(
 
   array->SetNumberOfComponents(numberOfComponents);
   array->SetNumberOfTuples(numberOfTuples);
-  std::vector<T> tuple(numberOfComponents); // pre-allocate to avoid clang-tidy warning
+  std::vector<T> tuple;
+  tuple.reserve(numberOfComponents);
   for (int i = 0; i < numberOfTuples; ++i)
   {
     tuple.clear();

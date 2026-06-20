@@ -23,6 +23,9 @@
 // #define vtkSurfaceLICMapperTIME
 #if !defined(vtkSurfaceLICMapperTIME)
 #include "vtkTimerLog.h"
+
+#include <iostream>
+
 #endif
 #define vtkSurfaceLICMapperDEBUG 0
 
@@ -43,7 +46,7 @@ vtkSurfaceLICMapper::vtkSurfaceLICMapper()
 vtkSurfaceLICMapper::~vtkSurfaceLICMapper()
 {
 #if vtkSurfaceLICMapperDEBUG >= 1
-  cerr << "=====vtkSurfaceLICMapper::~vtkSurfaceLICMapper" << endl;
+  std::cerr << "=====vtkSurfaceLICMapper::~vtkSurfaceLICMapper" << endl;
 #endif
 
   this->LICInterface->Delete();
@@ -84,9 +87,12 @@ void vtkSurfaceLICMapper::ReplaceShaderValues(
   // add some code to handle the LIC vectors and mask
   vtkShaderProgram::Substitute(VSSource, "//VTK::TCoord::Dec",
     "in vec3 vecsMC;\n"
-    "out vec3 tcoordVCVSOutput;\n");
+    "out vec3 tcoordVCVSOutput;\n"
+    "//VTK::TCoord::Dec");
 
-  vtkShaderProgram::Substitute(VSSource, "//VTK::TCoord::Impl", "tcoordVCVSOutput = vecsMC;");
+  vtkShaderProgram::Substitute(VSSource, "//VTK::TCoord::Impl",
+    "tcoordVCVSOutput = vecsMC;\n"
+    "//VTK::TCoord::Impl");
 
   vtkShaderProgram::Substitute(FSSource, "//VTK::TCoord::Dec",
     // 0/1, when 1 V is projected to surface for |V| computation.

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
 // SPDX-License-Identifier: BSD-3-Clause
 #include "FEDataStructures.h"
+#include <iostream>
 #include <mpi.h>
 #include <vector>
 
@@ -10,6 +11,9 @@
 #include <vtkCPPythonPipeline.h>
 #include <vtkLogger.h>
 #include <vtkNew.h>
+#include <vtkStringScanner.h>
+
+#include <iostream>
 
 // Sample C++ simulation code that provides different levels of ghost cells
 // for either a vtkUnstructuredGrid of vtkImageData. This example is
@@ -54,14 +58,10 @@ int main(int argc, char* argv[])
     }
     else if (strcmp("-l", argv[i]) == 0 && i < argc - 1)
     {
-      int tmp = atoi(argv[i + 1]);
-      if (tmp > 0)
+      VTK_FROM_CHARS_IF_ERROR_RETURN(argv[i + 1], numGhostLevels, EXIT_FAILURE);
+      if (numGhostLevels <= 0)
       {
-        numGhostLevels = tmp;
-      }
-      else
-      {
-        cerr << "Bad ghost level of " << tmp << endl;
+        std::cerr << "Bad ghost level of " << numGhostLevels << endl;
         PrintUsage();
         MPI_Finalize();
         return 1;
@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-      cerr << "Unknown option " << argv[i] << endl;
+      std::cerr << "Unknown option " << argv[i] << endl;
       PrintUsage();
       MPI_Finalize();
       return 1;
@@ -88,7 +88,7 @@ int main(int argc, char* argv[])
   }
   if (scripts.empty())
   {
-    cerr << "No Catalysts script to process\n";
+    std::cerr << "No Catalysts script to process\n";
     PrintUsage();
     MPI_Finalize();
     return 1;

@@ -16,6 +16,8 @@
 #include "vtkTypeFloat32Array.h"
 #include "vtkTypeInt32Array.h"
 
+#include <iostream>
+
 namespace
 {
 
@@ -25,6 +27,7 @@ int numberOfSidesOfDimension(int dimension);
 template <>
 int numberOfSidesOfDimension<vtkDGEdge>(int dimension)
 {
+  // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
   return (dimension < 0 ? 1 : (dimension == 0 ? 2 : -1));
 }
 
@@ -32,6 +35,7 @@ template <>
 int numberOfSidesOfDimension<vtkDGHex>(int dimension)
 {
   return (
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     dimension < 0 ? 1 : (dimension == 0 ? 8 : (dimension == 1 ? 12 : (dimension == 2 ? 6 : -1))));
 }
 
@@ -39,12 +43,14 @@ template <>
 int numberOfSidesOfDimension<vtkDGPyr>(int dimension)
 {
   return (
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     dimension < 0 ? 1 : (dimension == 0 ? 5 : (dimension == 1 ? 8 : (dimension == 2 ? 5 : -1))));
 }
 
 template <>
 int numberOfSidesOfDimension<vtkDGQuad>(int dimension)
 {
+  // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
   return (dimension < 0 ? 1 : (dimension == 0 ? 4 : (dimension == 1 ? 4 : -1)));
 }
 
@@ -52,12 +58,14 @@ template <>
 int numberOfSidesOfDimension<vtkDGTet>(int dimension)
 {
   return (
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     dimension < 0 ? 1 : (dimension == 0 ? 4 : (dimension == 1 ? 6 : (dimension == 2 ? 4 : -1))));
 }
 
 template <>
 int numberOfSidesOfDimension<vtkDGTri>(int dimension)
 {
+  // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
   return (dimension < 0 ? 1 : (dimension == 0 ? 3 : (dimension == 1 ? 3 : -1)));
 }
 
@@ -71,6 +79,7 @@ template <>
 int numberOfSidesOfDimension<vtkDGWdg>(int dimension)
 {
   return (
+    // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
     dimension < 0 ? 1 : (dimension == 0 ? 6 : (dimension == 1 ? 9 : (dimension == 2 ? 5 : -1))));
 }
 

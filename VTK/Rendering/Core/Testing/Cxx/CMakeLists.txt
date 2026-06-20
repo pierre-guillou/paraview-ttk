@@ -40,6 +40,7 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestCompositeDataDisplayAttributes.cxx,NO_VALID
   TestCompositePolyDataMapper.cxx,NO_DATA
   TestCompositePolyDataMapperBlockOpacities.cxx,NO_DATA
+  TestCompositePolyDataMapperBlockTextures.cxx,NO_DATA
   TestCompositePolyDataMapperCameraShiftScale.cxx,NO_DATA
   TestCompositePolyDataMapperCellScalars.cxx,NO_DATA
   TestCompositePolyDataMapperCustomShader.cxx,NO_DATA
@@ -69,6 +70,7 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestEdgeThickness.cxx
   TestFollowerPicking.cxx
   TestGlyph3DMapper.cxx
+  TestGlyph3DMapperPointSize.cxx
   TestGlyph3DMapper2.cxx,NO_VALID,NO_RT,NO_DATA
   TestGlyph3DMapperArrow.cxx
   TestGlyph3DMapperBackfaceColor.cxx
@@ -152,5 +154,12 @@ if (VTK_USE_X)
   set_tests_properties(VTK::RenderingCoreCxx-TestInteractorTimers
      PROPERTIES RUN_SERIAL ON)
 endif ()
+
+# Extend the timeout because this test can take much longer on slow machines.
+if (NOT VTK_TEST_TIMEOUT_TestManyRenderWindows)
+  set(VTK_TEST_TIMEOUT_TestManyRenderWindows 300)
+endif()
+set_tests_properties(VTK::RenderingCoreCxx-TestManyRenderWindows
+  PROPERTIES TIMEOUT ${VTK_TEST_TIMEOUT_TestManyRenderWindows})
 
 vtk_test_cxx_executable(vtkRenderingCoreCxxTests tests)

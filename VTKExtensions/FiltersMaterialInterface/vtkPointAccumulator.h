@@ -18,7 +18,10 @@
 #define vtkPointAccumulator_h
 
 #include "vtkPoints.h" // for vtkPoints
-#include <exception>   // for std::bad_alloc
+#ifdef NDEBUG
+#include <exception> // for std::bad_alloc
+#endif
+#include <iostream> // for std::cerr
 
 template <typename T_CPP, class T_VTK>
 class vtkPointAccumulator
@@ -134,18 +137,12 @@ public:
       pt[0] = static_cast<double>(this->PtStore[ptIdx]);
       pt[1] = static_cast<double>(this->PtStore[ptIdx + 1]);
       pt[2] = static_cast<double>(this->PtStore[ptIdx + 2]);
-      if (pt[0] < bounds[0])
-        bounds[0] = pt[0];
-      if (pt[0] > bounds[1])
-        bounds[1] = pt[0];
-      if (pt[1] < bounds[2])
-        bounds[2] = pt[1];
-      if (pt[1] > bounds[3])
-        bounds[3] = pt[1];
-      if (pt[2] < bounds[4])
-        bounds[4] = pt[2];
-      if (pt[2] > bounds[5])
-        bounds[5] = pt[2];
+      bounds[0] = std::min(bounds[0], pt[0]);
+      bounds[1] = std::max(bounds[1], pt[0]);
+      bounds[2] = std::min(bounds[2], pt[1]);
+      bounds[3] = std::max(bounds[3], pt[1]);
+      bounds[4] = std::min(bounds[4], pt[2]);
+      bounds[5] = std::max(bounds[5], pt[2]);
     }
   }
   ///@}
@@ -162,12 +159,12 @@ public:
     T_CPP* pBuf = this->PtStore;
     for (int i = 0; i < this->NPts; ++i)
     {
-      cerr << i << " (" << pBuf[0];
+      std::cerr << i << " (" << pBuf[0];
       for (int q = 1; q < 3; ++q)
       {
-        cerr << ", " << pBuf[q];
+        std::cerr << ", " << pBuf[q];
       }
-      cerr << ")" << endl;
+      std::cerr << ")" << endl;
       pBuf += 3;
     }
   }

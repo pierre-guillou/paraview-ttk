@@ -8,6 +8,7 @@
 #include "pqActiveObjects.h"
 #include "pqPropertyLinks.h"
 #include "pqRenderView.h"
+#include "pqWidgetUtilities.h"
 
 #include "vtkCamera.h"
 #include "vtkMath.h"
@@ -24,7 +25,7 @@ namespace
 
 //-----------------------------------------------------------------------------
 // Scale the bounds by the given factor
-static void pqAdjustBounds(vtkBoundingBox& bbox, double scaleFactor)
+void pqAdjustBounds(vtkBoundingBox& bbox, double scaleFactor)
 {
   vtkVector3d minPoint, maxPoint;
   bbox.GetMinPoint(minPoint.GetData());
@@ -51,6 +52,7 @@ pqConePropertyWidget::pqConePropertyWidget(
 {
   Ui::ConePropertyWidget ui;
   ui.setupUi(this);
+  pqWidgetUtilities::formatChildTooltips(this);
 
   if (vtkSMProperty* origin = smgroup->GetProperty("Origin"))
   {

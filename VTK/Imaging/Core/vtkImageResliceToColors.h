@@ -21,11 +21,12 @@
 
 #include "vtkImageReslice.h"
 #include "vtkImagingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkScalarsToColors;
 
-class VTKIMAGINGCORE_EXPORT vtkImageResliceToColors : public vtkImageReslice
+class VTKIMAGINGCORE_EXPORT VTK_MARSHALAUTO vtkImageResliceToColors : public vtkImageReslice
 {
 public:
   static vtkImageResliceToColors* New();
@@ -39,7 +40,8 @@ public:
    * VectorMode, and VectorComponents of the table to control
    * the mapping of the input data to colors.  If any output
    * voxel is transformed to a point outside the input volume,
-   * then that voxel will be set to the BackgroundColor.
+   * then that voxel will be set to the BackgroundColor
+   * (a property from the superclass).
    */
   virtual void SetLookupTable(vtkScalarsToColors* table);
   vtkGetObjectMacro(LookupTable, vtkScalarsToColors);
@@ -62,7 +64,7 @@ public:
    * values directly.  The output values will be float, rather
    * than the input data type.
    */
-  void SetBypass(int bypass);
+  void SetBypass(vtkTypeBool bypass);
   void BypassOn() { this->SetBypass(1); }
   void BypassOff() { this->SetBypass(0); }
   int GetBypass() { return this->Bypass; }
@@ -80,7 +82,7 @@ protected:
   vtkScalarsToColors* LookupTable;
   vtkScalarsToColors* DefaultLookupTable;
   int OutputFormat;
-  int Bypass;
+  vtkTypeBool Bypass;
 
   int ConvertScalarInfo(int& scalarType, int& numComponents) override;
 

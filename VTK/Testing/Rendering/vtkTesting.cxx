@@ -31,21 +31,19 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
-#include "vtkTimerLog.h"
-#include "vtkWindowToImageFilter.h"
-
-#include "vtkImageRGBToHSI.h"
-
-#include <sstream>
-#include <vtksys/SystemTools.hxx>
-
-#include <array>
-#include <numeric>
-
+#include "vtkStringFormatter.h"
+#include "vtkStringScanner.h"
 #ifdef __EMSCRIPTEN__
 #include "vtkTestUtilities.h"
 #endif
+#include "vtkTimerLog.h"
+#include "vtkWindowToImageFilter.h"
 #include "vtkXMLImageDataWriter.h"
+
+#include <vtksys/SystemTools.hxx>
+
+#include <iostream>
+#include <sstream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTesting);
@@ -131,7 +129,6 @@ vtkIdType AccumulateScaledL2Norm(T* pA, // pointer to first data array
 //=============================================================================
 vtkTesting::vtkTesting()
 {
-  this->FrontBuffer = 0;
   this->RenderWindow = nullptr;
   this->ValidImageFileName = nullptr;
   this->ImageDifference = 0;
@@ -293,7 +290,7 @@ bool vtkTesting::GetMesaVersion(vtkRenderWindow* renderWindow, int version[3])
     const auto versionNumbers = vtksys::SystemTools::SplitString(versionString, '.');
     for (int i = 0; i < 3; ++i)
     {
-      version[i] = std::stoi(versionNumbers[i]);
+      VTK_FROM_CHARS_IF_ERROR_RETURN(versionNumbers[i], version[i], false);
     }
   }
   return true;
@@ -338,26 +335,18 @@ int vtkTesting::IsValidImageSpecified()
 //------------------------------------------------------------------------------
 char* vtkTesting::IncrementFileName(const char* fname, int count)
 {
-  char counts[256];
-  snprintf(counts, sizeof(counts), "%d", count);
-
-  int orgLen = static_cast<int>(strlen(fname));
+  const int orgLen = static_cast<int>(strlen(fname));
   if (orgLen < 5)
   {
     return nullptr;
   }
-  int extLen = static_cast<int>(strlen(counts));
-  char* newFileName = new char[orgLen + extLen + 2];
-  strcpy(newFileName, fname);
 
-  newFileName[orgLen - 4] = '_';
-  int i, marker;
-  for (marker = orgLen - 3, i = 0; marker < orgLen - 3 + extLen; marker++, i++)
-  {
-    newFileName[marker] = counts[i];
-  }
-  strcpy(newFileName + marker, ".png");
-
+  const int extLen = (count > 0) ? static_cast<int>(std::log10(count)) + 1 : 1;
+  const size_t newLen = orgLen + extLen + 2;
+  char* newFileName = new char[newLen];
+  const auto fileNameWithoutExt = std::string_view(fname, orgLen - 4);
+  auto result = vtk::format_to_n(newFileName, newLen, "{:s}_{:d}.png", fileNameWithoutExt, count);
+  *result.out = '\0';
   return newFileName;
 }
 //------------------------------------------------------------------------------
@@ -379,37 +368,15 @@ int vtkTesting::LookForFile(const char* newFileName)
 }
 
 //------------------------------------------------------------------------------
-void vtkTesting::SetFrontBuffer(vtkTypeBool frontBuffer)
-{
-  vtkWarningMacro("SetFrontBuffer method is deprecated and has no effect anymore.");
-  this->FrontBuffer = frontBuffer;
-}
-
-//------------------------------------------------------------------------------
-int vtkTesting::RegressionTestAndCaptureOutput(double thresh, ostream& os)
-{
-  const int result = this->RegressionTest(thresh, os);
-
-  os << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
-  os << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
-  os << "</DartMeasurement>\n";
-  os << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
-  os << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
-  os << "</DartMeasurement>\n";
-
-  return result;
-}
-
-//------------------------------------------------------------------------------
 int vtkTesting::RegressionTest(double thresh)
 {
-  const int result = this->RegressionTest(thresh, cout);
-  cout << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
-  cout << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
-  cout << "</DartMeasurement>\n";
-  cout << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
-  cout << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
-  cout << "</DartMeasurement>\n";
+  const int result = this->RegressionTest(thresh, std::cout);
+  std::cout << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
+  std::cout << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
+  std::cout << "</DartMeasurement>\n";
+  std::cout << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
+  std::cout << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
+  std::cout << "</DartMeasurement>\n";
   return result;
 }
 
@@ -430,12 +397,7 @@ int vtkTesting::RegressionTest(double thresh, ostream& os)
 
   for (unsigned int i = 0; i < this->Args.size(); ++i)
   {
-    if ("-FrontBuffer" == this->Args[i])
-    {
-      vtkWarningMacro("-FrontBuffer option is deprecated and has no effet anymore.");
-      this->FrontBufferOn();
-    }
-    else if ("-NoRerender" == this->Args[i])
+    if ("-NoRerender" == this->Args[i])
     {
       rtW2if->ShouldRerenderOff();
     }
@@ -491,13 +453,13 @@ int vtkTesting::RegressionTest(double thresh, ostream& os)
 //------------------------------------------------------------------------------
 int vtkTesting::RegressionTest(const string& pngFileName, double thresh)
 {
-  const int result = this->RegressionTest(pngFileName, thresh, cout);
-  cout << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
-  cout << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
-  cout << "</DartMeasurement>\n";
-  cout << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
-  cout << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
-  cout << "</DartMeasurement>\n";
+  const int result = this->RegressionTest(pngFileName, thresh, std::cout);
+  std::cout << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
+  std::cout << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
+  std::cout << "</DartMeasurement>\n";
+  std::cout << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
+  std::cout << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
+  std::cout << "</DartMeasurement>\n";
   return result;
 }
 
@@ -542,13 +504,13 @@ int vtkTesting::RegressionTest(const string& pngFileName, double thresh, ostream
 //------------------------------------------------------------------------------
 int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh)
 {
-  const int result = this->RegressionTest(imageSource, thresh, cout);
-  cout << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
-  cout << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
-  cout << "</DartMeasurement>\n";
-  cout << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
-  cout << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
-  cout << "</DartMeasurement>\n";
+  const int result = this->RegressionTest(imageSource, thresh, std::cout);
+  std::cout << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
+  std::cout << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
+  std::cout << "</DartMeasurement>\n";
+  std::cout << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
+  std::cout << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
+  std::cout << "</DartMeasurement>\n";
 
   return result;
 }
@@ -610,7 +572,7 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
     vtkEmscriptenTestUtilities::DumpFile(
       vImage, result->GetPointer(0), result->GetDataTypeSize() * result->GetDataSize());
     os << "<DartMeasurement name=\"ImageNotFound\" type=\"text/string\">"
-       << this->ValidImageFileName << "</DartMeasurement>" << endl;
+       << this->ValidImageFileName << "</DartMeasurement>" << std::endl;
     // Write out the image upload tag for the test image.
     os << "<DartMeasurementFile name=\"TestImage\" type=\"image/png\">";
     os << vImage;
@@ -625,7 +587,7 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
       rtPngw->SetInputConnection(imageSource->GetOutputPort());
       rtPngw->Write();
       os << "<DartMeasurement name=\"ImageNotFound\" type=\"text/string\">"
-         << this->ValidImageFileName << "</DartMeasurement>" << endl;
+         << this->ValidImageFileName << "</DartMeasurement>" << std::endl;
       // Write out the image upload tag for the test image.
       os << "<DartMeasurementFile name=\"TestImage\" type=\"image/png\">";
       os << vImage;
@@ -973,7 +935,7 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
   }
 #endif
 
-  os << "Failed Image Test ( " << validName << " ) : " << minError << endl;
+  os << "Failed Image Test ( " << validName << " ) : " << minError << std::endl;
   if (errIndex >= 0)
   {
     newFileName = IncrementFileName(this->ValidImageFileName, errIndex);
@@ -1003,18 +965,18 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
   bool hasDiff = minError > 0;
   if (!hasDiff)
   {
-    os << "Image differencing failed to produce an image." << endl;
+    os << "Image differencing failed to produce an image." << std::endl;
   }
   if (!((ext2[1] - ext2[0]) == (ext1[1] - ext1[0]) && (ext2[3] - ext2[2]) == (ext1[3] - ext1[2]) &&
         (ext2[5] - ext2[4]) == (ext1[5] - ext1[4])))
   {
     os << "Image differencing failed to produce an image because images are "
           "different size:"
-       << endl;
+       << std::endl;
     os << "Valid image: " << (ext2[1] - ext2[0] + 1) << ", " << (ext2[3] - ext2[2] + 1) << ", "
-       << (ext2[5] - ext2[4] + 1) << endl;
+       << (ext2[5] - ext2[4] + 1) << std::endl;
     os << "Test image: " << (ext1[1] - ext1[0] + 1) << ", " << (ext1[3] - ext1[2] + 1) << ", "
-       << (ext1[5] - ext1[4] + 1) << endl;
+       << (ext1[5] - ext1[4] + 1) << std::endl;
     return FAILED;
   }
 
@@ -1135,7 +1097,7 @@ int vtkTesting::Test(int argc, char* argv[], vtkRenderWindow* rw, double thresh)
   {
     testing->SetRenderWindow(rw);
 
-    return testing->RegressionTest(thresh, cout);
+    return testing->RegressionTest(thresh, std::cout);
   }
   return NOT_RUN;
 }
@@ -1189,7 +1151,7 @@ int vtkTesting::CompareAverageOfL2Norm(vtkDataArray* daA, vtkDataArray* daB, dou
     default:
       if (this->Verbose)
       {
-        cout << "Skipping:" << daA->GetName() << endl;
+        std::cout << "Skipping:" << daA->GetName() << std::endl;
       }
       return true;
   }
@@ -1201,8 +1163,8 @@ int vtkTesting::CompareAverageOfL2Norm(vtkDataArray* daA, vtkDataArray* daB, dou
   //
   if (this->Verbose)
   {
-    cout << "Sum(L2)/N of " << daA->GetName() << " < " << tol << "? = " << L2 << "/" << N << "."
-         << endl;
+    std::cout << "Sum(L2)/N of " << daA->GetName() << " < " << tol << "? = " << L2 << "/" << N
+              << "." << std::endl;
   }
   //
   double avgL2 = L2 / static_cast<double>(N);
@@ -1229,7 +1191,7 @@ int vtkTesting::CompareAverageOfL2Norm(vtkDataSet* dsA, vtkDataSet* dsB, double 
   {
     if (this->Verbose)
     {
-      cout << "Comparing points:" << endl;
+      std::cout << "Comparing points:" << std::endl;
     }
     daA = ptSetA->GetPoints()->GetData();
     daB = ptSetB->GetPoints()->GetData();
@@ -1244,7 +1206,7 @@ int vtkTesting::CompareAverageOfL2Norm(vtkDataSet* dsA, vtkDataSet* dsB, double 
   // Compare point data arrays.
   if (this->Verbose)
   {
-    cout << "Comparing data arrays:" << endl;
+    std::cout << "Comparing data arrays:" << std::endl;
   }
   int nDaA = dsA->GetPointData()->GetNumberOfArrays();
   int nDaB = dsB->GetPointData()->GetNumberOfArrays();
@@ -1338,15 +1300,14 @@ int vtkTesting::InteractorEventLoop(
 void vtkTesting::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
-  os << indent << "RenderWindow: " << this->RenderWindow << endl;
+  os << indent << "RenderWindow: " << this->RenderWindow << std::endl;
   os << indent
      << "ValidImageFileName: " << (this->ValidImageFileName ? this->ValidImageFileName : "(none)")
-     << endl;
-  os << indent << "FrontBuffer: " << (this->FrontBuffer ? "On" : "Off") << endl;
-  os << indent << "ImageDifference: " << this->ImageDifference << endl;
-  os << indent << "DataRoot: " << this->GetDataRoot() << endl;
-  os << indent << "Temp Directory: " << this->GetTempDirectory() << endl;
-  os << indent << "BorderOffset: " << this->GetBorderOffset() << endl;
-  os << indent << "Verbose: " << this->GetVerbose() << endl;
+     << std::endl;
+  os << indent << "ImageDifference: " << this->ImageDifference << std::endl;
+  os << indent << "DataRoot: " << this->GetDataRoot() << std::endl;
+  os << indent << "Temp Directory: " << this->GetTempDirectory() << std::endl;
+  os << indent << "BorderOffset: " << this->GetBorderOffset() << std::endl;
+  os << indent << "Verbose: " << this->GetVerbose() << std::endl;
 }
 VTK_ABI_NAMESPACE_END

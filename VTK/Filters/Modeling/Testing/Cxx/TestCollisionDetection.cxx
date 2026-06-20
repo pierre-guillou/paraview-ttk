@@ -14,11 +14,13 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
 #include "vtkSphereSource.h"
+#include "vtkStringScanner.h"
 #include "vtkTextActor.h"
 #include "vtkTransform.h"
+
 #include <chrono>
+#include <iostream>
 #include <sstream>
-#include <string>
 #include <thread>
 
 int TestCollisionDetection(int argc, char* argv[])
@@ -26,7 +28,7 @@ int TestCollisionDetection(int argc, char* argv[])
   int contactMode = 0;
   if (argc > 1)
   {
-    contactMode = std::stoi(std::string(argv[1]));
+    VTK_FROM_CHARS_IF_ERROR_RETURN(argv[1], contactMode, EXIT_FAILURE);
   }
   vtkSmartPointer<vtkSphereSource> sphere0 = vtkSmartPointer<vtkSphereSource>::New();
   sphere0->SetRadius(.29);

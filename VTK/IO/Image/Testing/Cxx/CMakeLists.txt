@@ -19,11 +19,23 @@ vtk_add_test_cxx(vtkIOImageCxxTests tests
     "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/beach.jpg}")
 
 vtk_add_test_cxx(vtkIOImageCxxTests tests
+  TestJPEGReaderReadFromStream.cxx,NO_OUTPUT
+    "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/beach.jpg}")
+
+vtk_add_test_cxx(vtkIOImageCxxTests tests
   TestDICOMImageReader.cxx,NO_OUTPUT
     "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/dicom/prostate.IMG}")
 
 vtk_add_test_cxx(vtkIOImageCxxTests tests
+  TestDICOMImageReaderStream.cxx,NO_OUTPUT
+    "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/dicom/prostate.IMG}")
+
+vtk_add_test_cxx(vtkIOImageCxxTests tests
   TestBMPReader.cxx,NO_OUTPUT
+    "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/masonry.bmp}")
+
+vtk_add_test_cxx(vtkIOImageCxxTests tests
+  TestBMPReaderStream.cxx,NO_OUTPUT
     "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/masonry.bmp}")
 
 vtk_add_test_cxx(vtkIOImageCxxTests tests
@@ -36,6 +48,14 @@ vtk_add_test_cxx(vtkIOImageCxxTests tests
 
 vtk_add_test_cxx(vtkIOImageCxxTests tests
   TestHDRReaderXYZ,TestHDRReader.cxx,NO_OUTPUT
+    "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/gradient_xyz.hdr}")
+
+vtk_add_test_cxx(vtkIOImageCxxTests tests
+  TestHDRReaderRGBEStream,TestHDRReaderStream.cxx,NO_OUTPUT
+    "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/spiaggia_di_mondello_1k.hdr}")
+
+vtk_add_test_cxx(vtkIOImageCxxTests tests
+  TestHDRReaderXYZStream,TestHDRReaderStream.cxx,NO_OUTPUT
     "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/gradient_xyz.hdr}")
 
 vtk_add_test_cxx(vtkIOImageCxxTests tests
@@ -90,7 +110,15 @@ vtk_add_test_cxx(vtkIOImageCxxTests tests
     "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/vtk.tga}")
 
 vtk_add_test_cxx(vtkIOImageCxxTests tests
+  TestTGAReaderReadFromStream.cxx,NO_OUTPUT
+    "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/vtk.tga}")
+
+vtk_add_test_cxx(vtkIOImageCxxTests tests
   TestPNGReaderReadFromMemory.cxx,NO_OUTPUT
+    "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/vtk.png}")
+
+vtk_add_test_cxx(vtkIOImageCxxTests tests
+  TestPNGReaderReadFromStream.cxx,NO_OUTPUT
     "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/vtk.png}")
 
 vtk_add_test_cxx(vtkIOImageCxxTests tests

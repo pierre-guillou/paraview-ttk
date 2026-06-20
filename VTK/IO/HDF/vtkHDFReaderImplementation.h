@@ -18,10 +18,12 @@
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
-class vtkDataArray;
-class vtkStringArray;
-class vtkDataAssembly;
 class vtkBitArray;
+class vtkDataArray;
+class vtkDataAssembly;
+class vtkMemoryResourceStream;
+class vtkResourceStream;
+class vtkStringArray;
 
 /**
  * Implementation for the vtkHDFReader. Opens, closes and
@@ -32,19 +34,36 @@ class vtkHDFReader::Implementation
 public:
   Implementation(vtkHDFReader* reader);
   virtual ~Implementation();
+
   /**
    * Opens this VTK HDF file and checks if it is valid.
    */
   bool Open(VTK_FILEPATH const char* fileName);
+
+  /**
+   * Opens this VTK HDF stream and checks if it is valid.
+   */
+  bool Open(vtkResourceStream* stream);
+
   /**
    * Closes the VTK HDF file and releases any allocated resources.
    */
   void Close();
+
+  /**
+   * Close HDF5 groups stored as class members.
+   */
+  void CloseMemberGroups();
+
   /**
    * Type of vtkDataSet stored by the HDF file, such as VTK_IMAGE_DATA or
    * VTK_UNSTRUCTURED_GRID, from vtkTypes.h
    */
   int GetDataSetType() { return this->DataSetType; }
+  /**
+   * Return the reader this impl is associated to
+   */
+  vtkHDFReader* GetReader() { return this->Reader; }
   /**
    * Returns the version of the VTK HDF implementation.
    */
@@ -58,6 +77,10 @@ public:
    * Return true if the attribute exists in the specified group
    */
   bool HasAttribute(const char* groupName, const char* attributeName);
+  /**
+   * Return true if the dataset exists in the specified group root group
+   */
+  bool HasDataset(const char* datasetName);
   /**
    * Returns the number of partitions for this dataset at the time step
    * `step` if applicable.
@@ -237,6 +260,8 @@ public:
 
 private:
   std::string FileName;
+  vtkResourceStream* Stream = nullptr;
+  vtkNew<vtkMemoryResourceStream> LocalMemStream;
   hid_t File;
   hid_t VTKGroup;
   // in the same order as vtkDataObject::AttributeTypes: POINT, CELL, FIELD

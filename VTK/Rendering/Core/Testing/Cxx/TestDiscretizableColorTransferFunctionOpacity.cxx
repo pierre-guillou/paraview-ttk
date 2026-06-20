@@ -13,7 +13,7 @@
 int TestDiscretizableColorTransferFunctionOpacity(int, char*[])
 {
   // Discretizable color transfer function
-  const double controlPoints[] = { 0.0, 1.0, 0.0, 0.0, 255.0, 0.0, 0.0, 1.0 };
+  constexpr double controlPoints[] = { 0.0, 1.0, 0.0, 0.0, 255.0, 0.0, 0.0, 1.0 };
 
   vtkSmartPointer<vtkDiscretizableColorTransferFunction> dctf =
     vtkSmartPointer<vtkDiscretizableColorTransferFunction>::New();
@@ -24,7 +24,7 @@ int TestDiscretizableColorTransferFunctionOpacity(int, char*[])
   }
 
   // Scalar opacity transfer function
-  const double opacityControlPoints[] = { 0.0, 0.0, 255.0, 0.5 };
+  constexpr double opacityControlPoints[] = { 0.0, 0.0, 255.0, 0.5 };
 
   vtkSmartPointer<vtkPiecewiseFunction> pf = vtkSmartPointer<vtkPiecewiseFunction>::New();
   for (int i = 0; i < 2; ++i)
@@ -59,8 +59,7 @@ int TestDiscretizableColorTransferFunctionOpacity(int, char*[])
   // Map data array to opacity using second entry point
   mapScalarsOutput.TakeReference(dctf->MapScalars(da, VTK_COLOR_MODE_DEFAULT, -1));
 
-  unsigned char* mapScalarsOutputPtr =
-    reinterpret_cast<unsigned char*>(mapScalarsOutput->GetVoidPointer(0));
+  unsigned char* mapScalarsOutputPtr = mapScalarsOutput->GetPointer(0);
   for (int i = 0; i < 3; ++i)
   {
     for (int k = 0; k < 3; ++k)
@@ -81,7 +80,7 @@ int TestDiscretizableColorTransferFunctionOpacity(int, char*[])
   // Map data array to opacity using second entry point
   mapScalarsOutput.TakeReference(dctf->MapScalars(da, VTK_COLOR_MODE_MAP_SCALARS, -1));
 
-  if (std::memcmp(mapScalarsThroughTableOutput, mapScalarsOutput->GetVoidPointer(0),
+  if (std::memcmp(mapScalarsThroughTableOutput, mapScalarsOutput->GetPointer(0),
         3 * 4 * sizeof(unsigned char)) != 0)
   {
     return EXIT_FAILURE;

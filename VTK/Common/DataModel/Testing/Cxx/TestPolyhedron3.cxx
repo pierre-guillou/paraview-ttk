@@ -13,7 +13,9 @@
 #include "vtkUnstructuredGridReader.h"
 #include "vtkXMLUnstructuredGridWriter.h"
 
-const char inputDataStream[] =
+#include <iostream>
+
+constexpr char inputDataStream[] =
   "# vtk DataFile Version 3.0\n"
   "vtk output\n"
   "ASCII\n"

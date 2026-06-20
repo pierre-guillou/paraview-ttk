@@ -67,6 +67,13 @@ const std::string& DICOMParser::GetFileName()
   return this->FileName;
 }
 
+bool DICOMParser::OpenStream(std::istream* stream)
+{
+  delete this->DataFile;
+  this->DataFile = new DICOMFile();
+  return this->DataFile->SetStream(stream);
+}
+
 bool DICOMParser::OpenFile(const std::string& filename)
 {
   // Deleting the DataFile closes any previously opened file
@@ -461,7 +468,7 @@ void DICOMParser::DumpTag(std::ostream& out, doublebyte group, doublebyte elemen
   unsigned char* tempdata, quadbyte length)
 {
 
-  int t2 = int((0x0000FF00 & vrtype) >> 8);
+  int t2 = (0x0000FF00 & vrtype) >> 8;
   int t1 = int((0x000000FF & vrtype));
 
   if (t1 == 0 && t2 == 0)

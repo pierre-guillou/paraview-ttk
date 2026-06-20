@@ -5,6 +5,7 @@
 
 #include "vtk3DLinearGridInternal.h"
 #include "vtkArrayDispatch.h"
+#include "vtkArrayDispatchDataSetArrayList.h"
 #include "vtkArrayListTemplate.h" // For processing attribute data
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
@@ -27,8 +28,6 @@
 #include "vtkSpanSpace.h"
 #include "vtkStaticCellLinksTemplate.h"
 #include "vtkStaticEdgeLocatorTemplate.h"
-#include "vtkStaticPointLocator.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkTriangle.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
@@ -194,28 +193,22 @@ struct ContourCellsBase
   // so is ignored in the fast path.
   struct ProduceTriangles
   {
-    struct Impl
+    struct Impl : public vtkCellArray::DispatchUtilities
     {
-      template <typename CellStateT>
-      void operator()(CellStateT& state, const vtkIdType triBegin, const vtkIdType triEnd,
-        const vtkIdType totalTris)
+      template <class OffsetsT, class ConnectivityT>
+      void operator()(OffsetsT* vtkNotUsed(offsets), ConnectivityT* conn, const vtkIdType triBegin,
+        const vtkIdType triEnd, const vtkIdType totalTris)
       {
-        using ValueType = typename CellStateT::ValueType;
-        auto* offsets = state.GetOffsets();
-        auto* connectivity = state.GetConnectivity();
+        using ValueType = GetAPIType<OffsetsT>;
 
         const vtkIdType offsetsBegin = totalTris + triBegin;
         const vtkIdType offsetsEnd = totalTris + triEnd + 1;
-        ValueType offset = static_cast<ValueType>(3 * (totalTris + triBegin - 1));
-        auto offsetsRange = vtk::DataArrayValueRange<1>(offsets, offsetsBegin, offsetsEnd);
-        std::generate(
-          offsetsRange.begin(), offsetsRange.end(), [&]() -> ValueType { return offset += 3; });
 
         const vtkIdType connBegin = 3 * offsetsBegin;
         const vtkIdType connEnd = 3 * (offsetsEnd - 1);
-        const ValueType startPtId = static_cast<ValueType>(3 * (totalTris + triBegin));
+        const auto startPtId = static_cast<ValueType>(3 * (totalTris + triBegin));
 
-        auto connRange = vtk::DataArrayValueRange<1>(connectivity, connBegin, connEnd);
+        auto connRange = GetRange(conn).GetSubRange(connBegin, connEnd);
         std::iota(connRange.begin(), connRange.end(), startPtId);
       }
     };
@@ -229,7 +222,7 @@ struct ContourCellsBase
     }
     void operator()(vtkIdType triId, vtkIdType endTriId)
     {
-      this->Tris->Visit(Impl{}, triId, endTriId, this->TotalTris);
+      this->Tris->Dispatch(Impl{}, triId, endTriId, this->TotalTris);
     }
   };
 
@@ -655,7 +648,8 @@ struct ExtractEdges : public ExtractEdgesBase<IDType, TScalarsArray>
     auto& lOriginalCellIds = localData.OriginalCellIds;
     CellIter* cellIter = &localData.LocalCellIter;
     const vtkIdType* c = cellIter->Initialize(cellId); // connectivity array
-    unsigned short isoCase, numEdges, i;
+    unsigned short isoCase, numEdges;
+    unsigned char isoIdx;
     const unsigned short* edges;
     double s[MAX_CELL_VERTS], value = this->Value, deltaScalar;
     float t;
@@ -678,10 +672,10 @@ struct ExtractEdges : public ExtractEdgesBase<IDType, TScalarsArray>
         }
       }
       // Compute case by repeated masking of scalar value
-      for (isoCase = 0, i = 0; i < cellIter->NumVerts; ++i)
+      for (isoCase = 0, isoIdx = 0; isoIdx < cellIter->NumVerts; ++isoIdx)
       {
-        s[i] = static_cast<double>(scalars[c[i]]);
-        isoCase |= (s[i] >= value ? BaseCell::Mask[i] : 0);
+        s[isoIdx] = static_cast<double>(scalars[c[isoIdx]]);
+        isoCase |= (s[isoIdx] >= value ? BaseCell::Mask[isoIdx] : 0);
       }
       edges = cellIter->GetCase(isoCase);
 
@@ -689,11 +683,11 @@ struct ExtractEdges : public ExtractEdgesBase<IDType, TScalarsArray>
       {
         numEdges = *edges++;
         const int numberOfProducedTriangles = numEdges / 3;
-        for (i = 0; i < numberOfProducedTriangles; ++i)
+        for (int i = 0; i < numberOfProducedTriangles; ++i)
         {
           lOriginalCellIds.push_back(static_cast<IDType>(cellId));
         }
-        for (i = 0; i < numEdges; ++i, edges += 2)
+        for (unsigned short i = 0; i < numEdges; ++i, edges += 2)
         {
           v0 = edges[0];
           v1 = edges[1];
@@ -742,7 +736,8 @@ struct ExtractEdgesST : public ExtractEdgesBase<IDType, TScalarsArray>
     auto& lOriginalCellIds = localData.OriginalCellIds;
     CellIter* cellIter = &localData.LocalCellIter;
     const vtkIdType* c;
-    unsigned short isoCase, numEdges, i;
+    unsigned short isoCase, numEdges;
+    unsigned char isoIdx;
     const unsigned short* edges;
     double s[MAX_CELL_VERTS], value = this->Value, deltaScalar;
     float t;
@@ -773,10 +768,10 @@ struct ExtractEdgesST : public ExtractEdgesBase<IDType, TScalarsArray>
         cellId = cellIds[idx];
         c = cellIter->GetCellIds(cellId);
         // Compute case by repeated masking of scalar value
-        for (isoCase = 0, i = 0; i < cellIter->NumVerts; ++i)
+        for (isoCase = 0, isoIdx = 0; isoIdx < cellIter->NumVerts; ++isoIdx)
         {
-          s[i] = static_cast<double>(scalars[c[i]]);
-          isoCase |= (s[i] >= value ? BaseCell::Mask[i] : 0);
+          s[isoIdx] = static_cast<double>(scalars[c[isoIdx]]);
+          isoCase |= (s[isoIdx] >= value ? BaseCell::Mask[isoIdx] : 0);
         }
         edges = cellIter->GetCase(isoCase);
 
@@ -784,11 +779,11 @@ struct ExtractEdgesST : public ExtractEdgesBase<IDType, TScalarsArray>
         {
           numEdges = *edges++;
           const int numberOfProducedTriangles = numEdges / 3;
-          for (i = 0; i < numberOfProducedTriangles; ++i)
+          for (int i = 0; i < numberOfProducedTriangles; ++i)
           {
             lOriginalCellIds.push_back(static_cast<IDType>(cellId));
           }
-          for (i = 0; i < numEdges; ++i, edges += 2)
+          for (unsigned short i = 0; i < numEdges; ++i, edges += 2)
           {
             v0 = edges[0];
             v1 = edges[1];
@@ -867,20 +862,15 @@ struct ProduceMergedTriangles
   {
   }
 
-  void Initialize()
+  struct Impl : public vtkCellArray::DispatchUtilities
   {
-    // without this method Reduce() is not called
-  }
-
-  struct Impl
-  {
-    template <typename CellStateT>
-    void operator()(CellStateT& state, vtkIdType ptId, const vtkIdType endPtId,
-      const vtkIdType ptOffset, const vtkIdType connOffset, const IDType* offsets,
-      const MergeTupleType* mergeArray, vtkContour3DLinearGrid* filter)
+    template <class OffsetsT, class ConnectivityT>
+    void operator()(OffsetsT* vtkNotUsed(offsets), ConnectivityT* conn, vtkIdType ptId,
+      const vtkIdType endPtId, const vtkIdType ptOffset, const vtkIdType connOffset,
+      const IDType* offsets, const MergeTupleType* mergeArray, vtkContour3DLinearGrid* filter)
     {
-      using ValueType = typename CellStateT::ValueType;
-      auto* conn = state.GetConnectivity();
+      using ValueType = GetAPIType<OffsetsT>;
+      auto connRange = GetRange(conn);
       bool isFirst = vtkSMPTools::GetSingleThread();
       vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
@@ -901,7 +891,7 @@ struct ProduceMergedTriangles
         for (IDType i = 0; i < numPtsInGroup; ++i)
         {
           const IDType connIdx = mergeArray[offsets[ptId] + i].Data.EId + connOffset;
-          conn->SetValue(connIdx, static_cast<ValueType>(ptId + ptOffset));
+          connRange[connIdx] = static_cast<ValueType>(ptId + ptOffset);
         } // for this group of coincident edges
       }   // for all merged points
     }
@@ -912,27 +902,9 @@ struct ProduceMergedTriangles
   // all edges in the group are updated to the current merged point id.
   void operator()(vtkIdType ptId, vtkIdType endPtId)
   {
-    this->Tris->Visit(Impl{}, ptId, endPtId, this->TotalPts, 3 * this->TotalTris, this->Offsets,
+    this->Tris->Dispatch(Impl{}, ptId, endPtId, this->TotalPts, 3 * this->TotalTris, this->Offsets,
       this->MergeArray, this->Filter);
   }
-
-  struct ReduceImpl
-  {
-    template <typename CellStateT>
-    void operator()(CellStateT& state, const vtkIdType totalTris, const vtkIdType nTris)
-    {
-      using ValueType = typename CellStateT::ValueType;
-
-      auto offsets =
-        vtk::DataArrayValueRange<1>(state.GetOffsets(), totalTris, totalTris + nTris + 1);
-      ValueType offset = 3 * (totalTris - 1); // +=3 on first access
-      std::generate(offsets.begin(), offsets.end(), [&]() -> ValueType { return offset += 3; });
-    }
-  };
-
-  // Update the triangle connectivity (numPts for each triangle. This could
-  // be done in parallel but it's probably not faster.
-  void Reduce() { this->Tris->Visit(ReduceImpl{}, this->TotalTris, this->NumTris); }
 };
 
 // This method generates the output isosurface points. One point per
@@ -1149,15 +1121,15 @@ int ProcessMerged(vtkContour3DLinearGrid* filter, vtkPoints* inPts, vtkPoints* o
   // Generate triangles.
   ProduceMergedTriangles<TIds> produceTris(
     mergeEdges, offsets, numTris, newPolys, totalPts, totalTris, filter);
-  EXECUTE_REDUCED_SMPFOR(filter->GetSequentialProcessing(), numPts, produceTris, numThreads);
+  EXECUTE_SMPFOR(filter->GetSequentialProcessing(), numPts, produceTris);
   numThreads = nt;
 
   // Generate points (one per unique edge)
   outPts->GetData()->WriteVoidPointer(0, 3 * (numPts + totalPts));
   ProduceMergedPointsWorker<TIds> produceMergedPointsWorker;
 
-  using DispatcherProducePoints =
-    vtkArrayDispatch::Dispatch2ByValueType<vtkArrayDispatch::Reals, vtkArrayDispatch::Reals>;
+  using DispatcherProducePoints = vtkArrayDispatch::Dispatch2ByArray<vtkArrayDispatch::PointArrays,
+    vtkArrayDispatch::AOSPointArrays>;
   if (!DispatcherProducePoints::Execute(inPts->GetData(), outPts->GetData(),
         produceMergedPointsWorker, filter, mergeEdges, offsets, totalPts, numPts))
   {
@@ -1520,14 +1492,14 @@ void vtkContour3DLinearGrid::ProcessPiece(
 
   // Output triangles go here.
   vtkNew<vtkCellArray> newPolys;
+  newPolys->UseFixedSizeDefaultStorage(3);
 
   // Process all contour values
   vtkIdType totalPts = 0;
   vtkIdType totalTris = 0;
 
   // Set up the cells for processing. A specialized iterator is used to traverse the cells.
-  auto cellTypes = vtkUnsignedCharArray::SafeDownCast(input->GetCellTypesArray())->GetPointer(0);
-  CellIter* cellIter = new CellIter(numCells, cellTypes, input->GetCells());
+  CellIter* cellIter = new CellIter(numCells, input->GetCellTypes(), input->GetCells());
 
   // Now produce the output: fast path or general path
   bool mergePoints = this->MergePoints || this->ComputeNormals || this->InterpolateAttributes;
@@ -1538,9 +1510,10 @@ void vtkContour3DLinearGrid::ProcessPiece(
     {
       value = values[vidx];
       // process these scalar types, others could easily be added
-      using ScalarsList = vtkTypeList::Create<unsigned int, int, float, double>;
-      using Dispatcher = vtkArrayDispatch::Dispatch3ByValueType<vtkArrayDispatch::Reals,
-        vtkArrayDispatch::Reals, ScalarsList>;
+      using ScalarsList = vtkArrayDispatch::FilterArraysByValueType<vtkArrayDispatch::Arrays,
+        vtkTypeList::Create<unsigned int, int, float, double>>::Result;
+      using Dispatcher = vtkArrayDispatch::Dispatch3ByArray<vtkArrayDispatch::PointArrays,
+        vtkArrayDispatch::AOSPointArrays, ScalarsList>;
 
       ProcessFastPathWorker worker;
       if (!Dispatcher::Execute(inPts->GetData(), outPts->GetData(), inScalars, worker, this,

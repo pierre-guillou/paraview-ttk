@@ -7,24 +7,22 @@
 #include <catalyst_conduit_blueprint.hpp>
 #include <catalyst_stub.h>
 
-#include "vtkCallbackCommand.h"
 #include "vtkCatalystBlueprint.h"
-#include "vtkCommand.h"
 #include "vtkConduitSource.h"
+#include "vtkConvertToPartitionedDataSetCollection.h"
 #include "vtkDataObjectToConduit.h"
+#include "vtkDataObjectTree.h"
 #include "vtkInSituInitializationHelper.h"
 #include "vtkInSituPipelineIO.h"
 #include "vtkInSituPipelinePython.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkPVLogger.h"
 #include "vtkPartitionedDataSet.h"
+#include "vtkPartitionedDataSetCollection.h"
 #include "vtkSMPluginManager.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxyManager.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
-#include "vtksys/SystemTools.hxx"
 
 #if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkMPI.h"
@@ -36,6 +34,10 @@
 
 #if VTK_MODULE_ENABLE_VTK_IOFides
 #include "vtkFidesReader.h"
+#endif
+
+#if VTK_MODULE_ENABLE_VTK_vtkviskores
+#include <viskores/cont/Initialize.h>
 #endif
 
 #if defined(_WIN32) && !defined(__MINGW32__)
@@ -175,6 +177,7 @@ static bool process_script_args(vtkInSituPipelinePython* pipeline, const conduit
 {
   std::vector<std::string> args;
   conduit_index_t nchildren = node.number_of_children();
+  args.reserve(nchildren);
   for (conduit_index_t i = 0; i < nchildren; ++i)
   {
     args.push_back(node.child(i).as_string());
@@ -209,21 +212,25 @@ static bool convert_to_blueprint_mesh(
     return true;
   }
 
-  conduit_cpp::Node channel = node[name];
-  if (auto multi_block = vtkMultiBlockDataSet::SafeDownCast(outputDataObject))
+  if (auto object_tree = vtkDataObjectTree::SafeDownCast(outputDataObject))
   {
-    if (auto data_object = multi_block->GetBlock(0))
-    {
-      return vtkDataObjectToConduit::FillConduitNode(data_object, channel);
-    }
-  }
-  else if (auto partitioned = vtkPartitionedDataSet::SafeDownCast(outputDataObject))
-  {
-    return vtkDataObjectToConduit::FillConduitNode(
-      partitioned->GetPartitionAsDataObject(0), channel);
+    conduit_cpp::Node channel = node[name];
+    channel["type"] = "multimesh";
+
+    vtkNew<vtkConvertToPartitionedDataSetCollection> convertToPDC;
+    convertToPDC->SetInputDataObject(object_tree);
+    convertToPDC->Update();
+
+    vtkPartitionedDataSetCollection* pdc = convertToPDC->GetOutput();
+    conduit_cpp::Node channel_data = node[name]["data"];
+    bool res = vtkDataObjectToConduit::FillConduitNode(pdc, channel_data);
+    vtkDataObjectToConduit::FillConduitNodeAssembly(pdc, channel);
+    return res;
   }
 
-  return vtkDataObjectToConduit::FillConduitNode(outputDataObject, channel);
+  node[name]["type"] = "mesh";
+  conduit_cpp::Node channel_data = node[name]["data"];
+  return vtkDataObjectToConduit::FillConduitNode(outputDataObject, channel_data);
 }
 
 enum paraview_catalyst_status
@@ -352,6 +359,49 @@ enum catalyst_status catalyst_initialize_paraview(const conduit_node* params)
       "No Catalyst Python scripts or pre-compiled pipelines specified. No "
       "analysis pipelines will be executed.");
   }
+
+#if VTK_MODULE_ENABLE_VTK_vtkviskores
+  {
+    static bool viskoresInitialized = false;
+
+    if (!viskoresInitialized)
+    {
+      if (cpp_params.has_path("catalyst/viskores/args"))
+      {
+        const auto& argsNode = cpp_params["catalyst/viskores/args"];
+
+        std::vector<std::string> args;
+
+        // argv[0] must exist (dummy program name)
+        args.emplace_back("catalyst");
+
+        for (conduit_index_t i = 0; i < argsNode.number_of_children(); ++i)
+        {
+          args.emplace_back(argsNode.child(i).as_string());
+        }
+
+        std::vector<char*> argv;
+        argv.reserve(args.size() + 1);
+
+        for (auto& s : args)
+        {
+          argv.push_back(const_cast<char*>(s.c_str()));
+        }
+
+        argv.push_back(nullptr);
+
+        int argc = static_cast<int>(args.size());
+
+        vtkVLogF(
+          PARAVIEW_LOG_CATALYST_VERBOSITY(), "Initializing viskores with %d arguments", argc);
+
+        viskores::cont::Initialize(argc, argv.data());
+
+        viskoresInitialized = true;
+      }
+    }
+  }
+#endif
 
   return catalyst_status_ok;
 }

@@ -53,7 +53,7 @@ std::vector<std::string> GetWindowsSystemDirectories()
 //----------------------------------------------------------------------------
 std::string GetUnixUserSettingsDirectory()
 {
-  std::string organizationName(vtkInitializationHelper::GetOrganizationName());
+  const std::string& organizationName(vtkInitializationHelper::GetOrganizationName());
   std::string directoryPath;
   std::string separator("/");
 
@@ -97,15 +97,15 @@ std::vector<std::string> GetUnixSystemDirectories()
   if (vtksys::SystemTools::GetEnv("XDG_DATA_DIRS", dataDirs))
   {
     vtkVLog(PARAVIEW_LOG_APPLICATION_VERBOSITY(), << "found XDG_DATA_DIRS env: " << dataDirs);
-    std::string envDir(dataDirs);
+    const std::string& envDir(dataDirs);
     std::vector<std::string> dirs = vtksys::SystemTools::SplitString(envDir, ':');
     for (const std::string& directory : dirs)
     {
       paths.push_back(directory);
     }
   }
-  paths.push_back("/usr/local/share");
-  paths.push_back("/usr/share");
+  paths.emplace_back("/usr/local/share");
+  paths.emplace_back("/usr/share");
   return paths;
 }
 #endif
@@ -146,7 +146,7 @@ std::vector<std::string> GetInstallDirectories()
   // If the application path ends with lib/<app_name>-X.X, shared
   // forwarding of the executable was used. Remove that part of the
   // path to get back to the installation root.
-  auto appPathEnds = app_dir.find("/lib/" + app_name + "-" PARAVIEW_VERSION);
+  auto appPathEnds = app_dir.find("/lib/" + app_name + "-" PARAVIEW_VERSION_SHORT);
   std::string rootDirectory = app_dir;
   if (appPathEnds != std::string::npos)
   {
@@ -164,6 +164,7 @@ std::vector<std::string> GetInstallDirectories()
   }
 
   installDirectories.push_back(rootDirectory + "/share/" + app_name + "-" PARAVIEW_VERSION);
+  installDirectories.push_back(rootDirectory + "/share/" + app_name + "-" PARAVIEW_VERSION_SHORT);
   installDirectories.push_back(rootDirectory + "/lib");
 #if defined(__APPLE__)
   // paths for app
@@ -172,6 +173,7 @@ std::vector<std::string> GetInstallDirectories()
 
   // path when doing a unix style install.
   installDirectories.push_back(rootDirectory + "/../lib/" + app_name + "-" PARAVIEW_VERSION);
+  installDirectories.push_back(rootDirectory + "/../lib/" + app_name + "-" PARAVIEW_VERSION_SHORT);
 
   installDirectories.push_back(rootDirectory + "/../Support");
   installDirectories.push_back(rootDirectory + "/../../../Support");

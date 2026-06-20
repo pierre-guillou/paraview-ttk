@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <cctype> // for isprint().
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>
@@ -165,7 +166,7 @@ int vtkFileSeriesReaderTimeRanges::GetAggregateTimeInfo(vtkInformation* outInfo)
 
   if (!timeSteps.empty())
   {
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &timeSteps[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), timeSteps.data(),
       static_cast<int>(timeSteps.size()));
   }
   else
@@ -324,12 +325,12 @@ public:
   {
     if (this->Object && this->Object->GetMTime() != this->MTime)
     {
-      cerr << this->Object->GetClassName()
-           << "'s MTime was changed unexpectedly.\n"
-              "This can imply serious problem in the reader logic and cause\n"
-              "unexpected issues when running in parallel. \n"
-              "Please address the issues."
-           << endl;
+      std::cerr << this->Object->GetClassName()
+                << "'s MTime was changed unexpectedly.\n"
+                   "This can imply serious problem in the reader logic and cause\n"
+                   "unexpected issues when running in parallel. \n"
+                   "Please address the issues."
+                << endl;
       abort();
     }
   }
@@ -416,7 +417,7 @@ void vtkFileSeriesReader::RemoveAllFileNamesInternal()
 //----------------------------------------------------------------------------
 void vtkFileSeriesReader::AddFileNameInternal(const char* name)
 {
-  this->Internal->FileNames.push_back(name);
+  this->Internal->FileNames.emplace_back(name);
 }
 
 //----------------------------------------------------------------------------

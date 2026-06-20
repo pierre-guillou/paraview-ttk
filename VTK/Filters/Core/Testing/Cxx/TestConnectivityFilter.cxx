@@ -11,6 +11,8 @@
 #include <vtkTestUtilities.h>
 #include <vtkUnstructuredGrid.h>
 
+#include <iostream>
+
 namespace
 {
 //------------------------------------------------------------------------------
@@ -61,9 +63,20 @@ bool CheckOutputPointsType(vtkUnstructuredGrid* output, int inputType, int expec
   vtkPoints* points = output->GetPoints();
   int outputDataType = points->GetDataType();
 
-  int expectedType = expectedPrecision == vtkAlgorithm::DEFAULT_PRECISION ? inputType
-    : expectedPrecision == vtkAlgorithm::SINGLE_PRECISION                 ? VTK_FLOAT
-                                                                          : VTK_DOUBLE;
+  int expectedType;
+  switch (expectedPrecision)
+  {
+    case vtkAlgorithm::SINGLE_PRECISION:
+      expectedType = VTK_FLOAT;
+      break;
+    case vtkAlgorithm::DOUBLE_PRECISION:
+      expectedType = VTK_DOUBLE;
+      break;
+    case vtkAlgorithm::DEFAULT_PRECISION:
+    default:
+      expectedType = inputType;
+      break;
+  }
 
   if (expectedType != outputDataType)
   {
@@ -129,7 +142,7 @@ bool CheckScalarsArray(vtkDataSetAttributes* fieldData, long long nbOfRegions)
   // we do not test with more regions because it take too much time.
   unsigned int elementSize = vtkDataArray::GetDataTypeSize(expectedDataType);
 
-  unsigned int expectedSize = scalars->GetSize() * elementSize;
+  unsigned int expectedSize = scalars->GetDataSize() * elementSize;
   unsigned int expectedKiBSize =
     static_cast<unsigned int>(std::ceil(static_cast<double>(expectedSize) / 1024.0));
   unsigned int actualSize = scalars->GetActualMemorySize();

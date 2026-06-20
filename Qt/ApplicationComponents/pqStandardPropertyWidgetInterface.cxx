@@ -27,11 +27,13 @@
 #include "pqDisplayRepresentationWidget.h"
 #include "pqDisplaySizedImplicitPlanePropertyWidget.h"
 #include "pqDoubleRangeSliderPropertyWidget.h"
+#include "pqDynamicPropertiesWidget.h"
 #include "pqEnableWidgetDecorator.h"
 #include "pqEqualizerPropertyWidget.h"
 #include "pqFileListPropertyWidget.h"
 #include "pqFileNamePropertyWidget.h"
 #include "pqFontPropertyWidget.h"
+#include "pqFourLinesPropertyWidget.h"
 #include "pqFrustumPropertyWidget.h"
 #include "pqGenericPropertyWidgetDecorator.h"
 #include "pqGlyphScaleFactorPropertyWidget.h"
@@ -158,6 +160,10 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForProperty(
   else if (name == "index_selection")
   {
     return new pqIndexSelectionWidget(smProxy, smProperty, parentWidget);
+  }
+  else if (name == "dynamic_properties_widget")
+  {
+    return new pqDynamicPropertiesWidget(smProxy, smProperty, parentWidget);
   }
   else if (name == "input_selector")
   {
@@ -306,6 +312,10 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForPropertyGrou
   else if (panelWidget == "InteractiveLine")
   {
     return new pqLinePropertyWidget(proxy, group, parentWidget);
+  }
+  else if (panelWidget == "InteractiveFourLines")
+  {
+    return new pqFourLinesPropertyWidget(proxy, group, parentWidget);
   }
   else if (panelWidget == "InteractiveSpline")
   {

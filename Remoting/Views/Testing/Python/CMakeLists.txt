@@ -20,20 +20,8 @@ ExternalData_Expand_Arguments(ParaViewData _
 
   # baselines
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SurfaceLIC-OfficeContour.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SurfaceLIC-OfficeContour_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SurfaceLIC-OfficeHSlice.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SurfaceLIC-OfficeVSlice.png}")
-
-# Add python script names here.
-set(PY_TESTS
-  LockScalarRangeBackwardsCompatibility.py,NO_VALID
-  SpreadSheetViewBlockNames.py,NO_VALID
-  SpreadSheetViewPartialArrays.py,NO_VALID
-  SpreadSheetViewSortByList.py,NO_VALID
-  TransferFunctionPresets.py,NO_VALID
-  TestSurfaceLIC.py,NO_VALID
-  RenderViewOSPRayParameters.py,NO_VALID
-  )
 
 if (PARAVIEW_USE_MPI)
   # run the tests in parallel
@@ -76,11 +64,25 @@ else()
 endif()
 
 paraview_add_test_python(
-  JUST_VALID
-  ${PY_TESTS}
+  JUST_VALID NO_VALID
+  LockScalarRangeBackwardsCompatibility.py
+  SpreadSheetViewBlockNames.py
+  SpreadSheetViewPartialArrays.py
+  SpreadSheetViewSortByList.py
+  TransferFunctionPresets.py
+  TestSurfaceLIC.py
+  RenderViewOSPRayParameters.py
   )
 
 paraview_add_test_python(
-  NO_RT
-  PolarAxesAutoPoleOffTranslation.py
+  JUST_VALID LOOSE_VALID
+  TestPolarAxesAutopole.py
+  TestPolarAxesAutopoleTranslate.py
+  TestPolarAxesCustombounds.py
+  TestPolarAxesCustomboundsAutopole.py
+  TestPolarAxesCustomboundsTranslate.py
+  TestPolarAxesDefault.py
+  TestPolarAxesPosition.py
+  TestPolarAxesRotate.py
+  TestPolarAxesTranslate.py
 )

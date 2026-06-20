@@ -48,6 +48,12 @@ The CMake API can be separated into several categories:
 
   APIs for wrapping modules for Java.
 
+.. _module-wrapping-javascript:
+
+* **JavaScript Wrapping APIs** |module-wrapping-javascript|
+
+  APIs for wrapping modules for JavaScript.
+
 .. _module-serialization:
 
 * **Serialization APIs** |module-serialization|
@@ -72,5 +78,6 @@ The CMake API can be separated into several categories:
    ./vtkModuleTesting.rst
    ./vtkModuleWrapPython.rst
    ./vtkModuleWrapJava.rst
+   ./vtkModuleWrapJavaScript.rst
    ./vtkModuleJSON.rst
    ./vtkModuleGraphviz.rst

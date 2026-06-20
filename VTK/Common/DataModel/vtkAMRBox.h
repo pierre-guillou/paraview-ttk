@@ -8,7 +8,7 @@
  * vtkAMRBox stores information for an AMR block
  *
  * @sa
- * vtkAMRInformation
+ * vtkOverlappingAMRMetaData
  */
 
 #ifndef vtkAMRBox_h
@@ -16,9 +16,10 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
-#include "vtkStructuredData.h" // For VTK_XYZ_GRID definition
+#include "vtkStructuredData.h" // For vtkStructuredData::VTK_STRUCTURED_XYZ_GRID definition
 
 VTK_ABI_NAMESPACE_BEGIN
+class vtkUniformGrid;
 class VTKCOMMONDATAMODEL_EXPORT vtkAMRBox
 {
 public:
@@ -42,7 +43,7 @@ public:
    * Note that the dimensions specify the node dimensions, rather than the cell dimensions
    */
   vtkAMRBox(const double* origin, const int* dimensions, const double* spacing,
-    const double* globalOrigin, int gridDescription = VTK_XYZ_GRID);
+    const double* globalOrigin, int gridDescription = vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
 
   /**
    * Construct a specific box. (ilo,jlo,klo,)(ihi,jhi,khi)
@@ -70,24 +71,26 @@ public:
   ///@}
 
   /**
-   * Whether dimension i is empty, e.g. if the data set is type VTK_XY_PLANE
+   * Whether dimension i is empty, e.g. if the data set is type VTK_STRUCTURED_XY_PLANE
    */
   bool EmptyDimension(int i) const { return HiCorner[i] <= LoCorner[i] - 1; }
 
   /**
    * Set the dimensions of the box. ilo,jlo,klo,ihi,jhi,khi
    */
-  void SetDimensions(int ilo, int jlo, int klo, int ihi, int jhi, int khi, int desc = VTK_XYZ_GRID);
+  void SetDimensions(int ilo, int jlo, int klo, int ihi, int jhi, int khi,
+    int desc = vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
 
   /**
    * Set the dimensions of the box. (ilo,jlo,klo),(ihi,jhi,khi)
    */
-  void SetDimensions(const int lo[3], const int hi[3], int desc = VTK_XYZ_GRID);
+  void SetDimensions(
+    const int lo[3], const int hi[3], int desc = vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
 
   /**
    * Set the dimensions of the box. (ilo,ihi,jlo,jhi,klo,khi)
    */
-  void SetDimensions(const int dims[6], int desc = VTK_XYZ_GRID);
+  void SetDimensions(const int dims[6], int desc = vtkStructuredData::VTK_STRUCTURED_XYZ_GRID);
 
   /**
    * Get the dimensions of this box. (ilo,jlo,jhi),(ihi,jhi,khi)
@@ -296,6 +299,44 @@ public:
    */
   static int ComputeStructuredCoordinates(const vtkAMRBox& box, const double dataOrigin[3],
     const double h[3], const double x[3], int ijk[3], double pcoords[3]);
+
+  /**
+   * Initialize the provided grid with no ghost cell arrays, from the definition in
+   * this box. This box is expected to be 3D, if you have 2D
+   * data set the third dimension to 0. eg. (X,X,0)(X,X,0)
+   * Returns 1 if the initialization succeeded, 0 otherwise
+   */
+  int InitializeGrid(vtkUniformGrid* grid, double* origin, double* spacing) const;
+
+  /**
+   * Initialize the provided grid from the definition in this box, with ghost cell
+   * arrays nGhosts cells thick in all directions. This box is expected
+   * to be 3D, if you have 2D data set the third dimension to 0.
+   * eg. (X,X,0)(X,X,0)
+   * Returns 1 if the initialization succeeded, 0 otherwise
+   */
+  int InitializeGrid(vtkUniformGrid* grid, double* origin, double* spacing, int nGhosts) const;
+
+  /**
+   * Initialize the provided grid from the definition in this box, with ghost cell
+   * arrays of the thickness given in each direction by "nGhosts" array.
+   * This box and ghost array are expected to be 3D, if you have 2D data
+   * set the third dimension to 0. eg. (X,X,0)(X,X,0)
+   * Returns 1 if the initialization succeeded, 0 otherwise
+   */
+  int InitializeGrid(
+    vtkUniformGrid* grid, double* origin, double* spacing, const int nGhosts[3]) const;
+
+  /**
+   * Initialize the provided grid, from the definition in this box,
+   * with ghost cell arrays of the thickness given in each
+   * direction by "nGhosts*". This box and ghost array are expected
+   * to be 3D, if you have 2D data set the third dimension to 0. eg.
+   * (X,X,0)(X,X,0)
+   * Returns 1 if the initialization succeeded, 0 otherwise
+   */
+  int InitializeGrid(vtkUniformGrid* grid, double* origin, double* spacing, int nGhostsI,
+    int nGhostsJ, int nGhostsK) const;
 
 protected:
   /**

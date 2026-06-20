@@ -22,7 +22,7 @@
 #include "vtkInformation.h"
 #include "vtkMPIController.h"
 #include "vtkMath.h"
-#include "vtkMultiBlockDataSet.h"
+#include "vtkStatisticalModel.h"
 #include "vtkTable.h"
 #include "vtkTimerLog.h"
 #include "vtkVariantArray.h"
@@ -30,6 +30,8 @@
 #include "vtksys/CommandLineArguments.hxx"
 
 #include <sstream>
+
+#include <iostream>
 
 namespace
 {
@@ -147,9 +149,8 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
     ds->Update();
 
     // Get output data and meta tables
-    vtkMultiBlockDataSet* outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
-      ds->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
-    vtkTable* outputPrimary = vtkTable::SafeDownCast(outputMetaDS->GetBlock(0));
+    auto* outputMetaDS = ds->GetOutputModel();
+    vtkTable* outputPrimary = outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0);
 
     // Collect and aggregate serial cardinalities, extrema, and means
     int nRows = outputPrimary->GetNumberOfRows();
@@ -203,23 +204,23 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
 
     if (myRank == args->ioRank)
     {
-      cout << "\n## Completed serial calculations of descriptive statistics:\n"
-           << "   With partial aggregation calculated on process " << args->ioRank << "\n"
-           << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
+      std::cout << "\n## Completed serial calculations of descriptive statistics:\n"
+                << "   With partial aggregation calculated on process " << args->ioRank << "\n"
+                << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
 
-      cout << "   Calculated the following primary statistics:\n";
+      std::cout << "   Calculated the following primary statistics:\n";
       for (vtkIdType r = 0; r < nRows; ++r)
       {
-        cout << "   " << outputPrimary->GetColumnName(0) << "="
-             << outputPrimary->GetValue(r, 0).ToString() << "  "
-             << "Cardinality"
-             << "=" << cardsAndMeans_agg[2 * r] << "  "
-             << "Minimum"
-             << "=" << extrema_agg[2 * r] << "  "
-             << "Maximum"
-             << "=" << -extrema_agg[2 * r + 1] << "  "
-             << "Mean"
-             << "=" << cardsAndMeans_agg[2 * r + 1] / cardsAndMeans_agg[2 * r] << "\n";
+        std::cout << "   " << outputPrimary->GetColumnName(0) << "="
+                  << outputPrimary->GetValue(r, 0).ToString() << "  "
+                  << "Cardinality"
+                  << "=" << cardsAndMeans_agg[2 * r] << "  "
+                  << "Minimum"
+                  << "=" << extrema_agg[2 * r] << "  "
+                  << "Maximum"
+                  << "=" << -extrema_agg[2 * r + 1] << "  "
+                  << "Mean"
+                  << "=" << cardsAndMeans_agg[2 * r + 1] / cardsAndMeans_agg[2 * r] << "\n";
       }
     }
 
@@ -230,7 +231,7 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
   } // if ( ! args->skipDescriptive )
   else if (myRank == args->ioRank)
   {
-    cout << "\n## Skipped serial calculations of descriptive statistics.\n";
+    std::cout << "\n## Skipped serial calculations of descriptive statistics.\n";
   }
 
   // ************************** Parallel Descriptive Statistics **************************
@@ -276,29 +277,30 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
     timer->StopTimer();
 
     // Get output data and meta tables
-    vtkMultiBlockDataSet* outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
+    auto* outputMetaDS = vtkStatisticalModel::SafeDownCast(
       pds->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
-    vtkTable* outputPrimary = vtkTable::SafeDownCast(outputMetaDS->GetBlock(0));
-    vtkTable* outputDerived = vtkTable::SafeDownCast(outputMetaDS->GetBlock(1));
+    vtkTable* outputPrimary = outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0);
+    vtkTable* outputDerived = outputMetaDS->GetTable(vtkStatisticalModel::Derived, 0);
     vtkTable* outputData = pds->GetOutput(vtkStatisticsAlgorithm::OUTPUT_DATA);
 
     if (myRank == args->ioRank)
     {
-      cout << "\n## Completed parallel calculation of descriptive statistics (with assessment):\n"
-           << "   Total sample size: " << outputPrimary->GetValueByName(0, "Cardinality").ToInt()
-           << " \n"
-           << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
+      std::cout
+        << "\n## Completed parallel calculation of descriptive statistics (with assessment):\n"
+        << "   Total sample size: " << outputPrimary->GetValueByName(0, "Cardinality").ToInt()
+        << " \n"
+        << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
 
-      cout << "   Calculated the following primary statistics:\n";
+      std::cout << "   Calculated the following primary statistics:\n";
       for (vtkIdType r = 0; r < outputPrimary->GetNumberOfRows(); ++r)
       {
-        cout << "   ";
+        std::cout << "   ";
         for (int i = 0; i < outputPrimary->GetNumberOfColumns(); ++i)
         {
-          cout << outputPrimary->GetColumnName(i) << "=" << outputPrimary->GetValue(r, i).ToString()
-               << "  ";
+          std::cout << outputPrimary->GetColumnName(i) << "="
+                    << outputPrimary->GetValue(r, i).ToString() << "  ";
         }
-        cout << "\n";
+        std::cout << "\n";
 
         // Store cardinalities, extremal and means for cross-verification
         double dn = outputPrimary->GetValueByName(r, "Cardinality").ToDouble();
@@ -310,24 +312,24 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
         extrema_par[2 * r + 1] = -outputPrimary->GetValueByName(r, "Maximum").ToDouble();
       }
 
-      cout << "   Calculated the following derived statistics:\n";
+      std::cout << "   Calculated the following derived statistics:\n";
       for (vtkIdType r = 0; r < outputDerived->GetNumberOfRows(); ++r)
       {
-        cout << "   ";
+        std::cout << "   ";
         for (int i = 0; i < outputDerived->GetNumberOfColumns(); ++i)
         {
-          cout << outputDerived->GetColumnName(i) << "=" << outputDerived->GetValue(r, i).ToString()
-               << "  ";
+          std::cout << outputDerived->GetColumnName(i) << "="
+                    << outputDerived->GetValue(r, i).ToString() << "  ";
         }
-        cout << "\n";
+        std::cout << "\n";
       }
     }
 
     // Verify that the DISTRIBUTED standard normal samples indeed satisfy the 68-95-99.7 rule
     if (myRank == args->ioRank)
     {
-      cout << "\n## Verifying whether the distributed standard normal samples satisfy the "
-              "68-95-99.7 rule:\n";
+      std::cout << "\n## Verifying whether the distributed standard normal samples satisfy the "
+                   "68-95-99.7 rule:\n";
     }
 
     // For each normal variable, count deviations of more than 1, ..., numRuleVal standard
@@ -378,7 +380,7 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
           // from the mean.
           if (myRank == args->ioRank)
           {
-            cout << "   " << outputData->GetColumnName(nUniform + c) << ":\n";
+            std::cout << "   " << outputData->GetColumnName(nUniform + c) << ":\n";
             for (int d = 0; d < numRuleVal; ++d)
             {
               double testVal =
@@ -387,8 +389,8 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
                     static_cast<double>(outputPrimary->GetValueByName(0, "Cardinality").ToInt())) *
                 100.;
 
-              cout << "      " << testVal << "% within " << d + 1
-                   << " standard deviation(s) from the mean.\n";
+              std::cout << "      " << testVal << "% within " << d + 1
+                        << " standard deviation(s) from the mean.\n";
 
               // Test some statistics
               if (fabs(testVal - sigmaRuleVal[d]) > sigmaRuleTol[d])
@@ -424,7 +426,7 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
   } // if ( ! args->skipPDescriptive )
   else if (myRank == args->ioRank)
   {
-    cout << "\n## Skipped calculation of parallel descriptive statistics.\n";
+    std::cout << "\n## Skipped calculation of parallel descriptive statistics.\n";
   }
 
   // Cross-verify aggregated serial vs. parallel results only if both were calculated
@@ -432,8 +434,9 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
   {
     if (myRank == args->ioRank)
     {
-      cout << "\n## Cross-verifying aggregated serial vs. parallel descriptive statistics (within "
-           << args->absTol << " absolute tolerance).\n";
+      std::cout
+        << "\n## Cross-verifying aggregated serial vs. parallel descriptive statistics (within "
+        << args->absTol << " absolute tolerance).\n";
       for (int i = 0; i < n2Rows; ++i)
       {
         if (fabs(cardsAndMeans_agg[i] - cardsAndMeans_par[i]) > args->absTol)
@@ -453,8 +456,8 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
   }     // if ( ! args->skipPDescriptive && ! args->skipPDescriptive )
   else if (myRank == args->ioRank)
   {
-    cout << "\n## Skipped cross-verification of aggregated serial vs. parallel descriptive "
-            "statistics.\n";
+    std::cout << "\n## Skipped cross-verification of aggregated serial vs. parallel descriptive "
+                 "statistics.\n";
   }
 
   // Clean up
@@ -506,7 +509,7 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
     pas->Update();
 
     // Get output data and meta tables
-    vtkMultiBlockDataSet* outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
+    auto* outputMetaDS = vtkStatisticalModel::SafeDownCast(
       pas->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
 
     // Synchronize and stop clock
@@ -515,36 +518,36 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
 
     if (myRank == args->ioRank)
     {
-      cout << "\n## Completed parallel calculation of auto-correlative statistics (without "
-              "assessment):\n"
-           << "   Total sample size: "
-           << vtkTable::SafeDownCast(outputMetaDS->GetBlock(0))
-                ->GetValueByName(0, "Cardinality")
-                .ToInt()
-           << " \n"
-           << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
+      std::cout << "\n## Completed parallel calculation of auto-correlative statistics (without "
+                   "assessment):\n"
+                << "   Total sample size: "
+                << outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0)
+                     ->GetValueByName(0, "Cardinality")
+                     .ToInt()
+                << " \n"
+                << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
 
-      cout << "   Calculated the following statistics:\n";
-      unsigned int nbm1 = outputMetaDS->GetNumberOfBlocks() - 1;
-      for (unsigned int b = 0; b < nbm1; ++b)
+      std::cout << "   Calculated the following statistics:\n";
+      int nb = outputMetaDS->GetNumberOfTables(vtkStatisticalModel::Learned);
+      for (int b = 0; b < nb; ++b)
       {
-        const char* tabName = outputMetaDS->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
-        cerr << "   " << tabName << "\n";
-        vtkTable* outputMeta = vtkTable::SafeDownCast(outputMetaDS->GetBlock(b));
+        auto tabName = outputMetaDS->GetTableName(vtkStatisticalModel::Learned, b);
+        std::cerr << "   " << tabName << "\n";
+        vtkTable* outputMeta = outputMetaDS->GetTable(vtkStatisticalModel::Learned, b);
         for (vtkIdType r = 0; r < outputMeta->GetNumberOfRows(); ++r)
         {
-          cout << "   ";
+          std::cout << "   ";
           for (int i = 0; i < outputMeta->GetNumberOfColumns(); ++i)
           {
-            cout << outputMeta->GetColumnName(i) << "=" << outputMeta->GetValue(r, i).ToString()
-                 << "  ";
+            std::cout << outputMeta->GetColumnName(i) << "="
+                      << outputMeta->GetValue(r, i).ToString() << "  ";
           }
-          cout << "\n";
+          std::cout << "\n";
         }
       }
-      const char* tabName = outputMetaDS->GetMetaData(nbm1)->Get(vtkCompositeDataSet::NAME());
-      cerr << "   " << tabName << "\n";
-      vtkTable* outputMeta = vtkTable::SafeDownCast(outputMetaDS->GetBlock(nbm1));
+      auto tabName = outputMetaDS->GetTableName(vtkStatisticalModel::Derived, 0);
+      std::cerr << "   " << tabName << "\n";
+      vtkTable* outputMeta = outputMetaDS->GetTable(vtkStatisticalModel::Derived, 0);
       outputMeta->Dump();
     }
 
@@ -553,7 +556,7 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
   } // if ( ! args->skipPAutoCorrelative )
   else if (myRank == args->ioRank)
   {
-    cout << "\n## Skipped calculation of parallel auto-correlative statistics.\n";
+    std::cout << "\n## Skipped calculation of parallel auto-correlative statistics.\n";
   }
 
   // ************************** Parallel Correlative Statistics **************************
@@ -581,10 +584,9 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
     pcs->Update();
 
     // Get output data and meta tables
-    vtkMultiBlockDataSet* outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
-      pcs->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
-    vtkTable* outputPrimary = vtkTable::SafeDownCast(outputMetaDS->GetBlock(0));
-    vtkTable* outputDerived = vtkTable::SafeDownCast(outputMetaDS->GetBlock(1));
+    auto* outputMetaDS = pcs->GetOutputModel();
+    vtkTable* outputPrimary = outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0);
+    vtkTable* outputDerived = outputMetaDS->GetTable(vtkStatisticalModel::Derived, 0);
 
     // Synchronize and stop clock
     com->Barrier();
@@ -592,33 +594,34 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
 
     if (myRank == args->ioRank)
     {
-      cout << "\n## Completed parallel calculation of correlative statistics (with assessment):\n"
-           << "   Total sample size: " << outputPrimary->GetValueByName(0, "Cardinality").ToInt()
-           << " \n"
-           << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
+      std::cout
+        << "\n## Completed parallel calculation of correlative statistics (with assessment):\n"
+        << "   Total sample size: " << outputPrimary->GetValueByName(0, "Cardinality").ToInt()
+        << " \n"
+        << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
 
-      cout << "   Calculated the following primary statistics:\n";
+      std::cout << "   Calculated the following primary statistics:\n";
       for (vtkIdType r = 0; r < outputPrimary->GetNumberOfRows(); ++r)
       {
-        cout << "   ";
+        std::cout << "   ";
         for (int i = 0; i < outputPrimary->GetNumberOfColumns(); ++i)
         {
-          cout << outputPrimary->GetColumnName(i) << "=" << outputPrimary->GetValue(r, i).ToString()
-               << "  ";
+          std::cout << outputPrimary->GetColumnName(i) << "="
+                    << outputPrimary->GetValue(r, i).ToString() << "  ";
         }
-        cout << "\n";
+        std::cout << "\n";
       }
 
-      cout << "   Calculated the following derived statistics:\n";
+      std::cout << "   Calculated the following derived statistics:\n";
       for (vtkIdType r = 0; r < outputDerived->GetNumberOfRows(); ++r)
       {
-        cout << "   ";
+        std::cout << "   ";
         for (int i = 0; i < outputDerived->GetNumberOfColumns(); ++i)
         {
-          cout << outputDerived->GetColumnName(i) << "=" << outputDerived->GetValue(r, i).ToString()
-               << "  ";
+          std::cout << outputDerived->GetColumnName(i) << "="
+                    << outputDerived->GetValue(r, i).ToString() << "  ";
         }
-        cout << "\n";
+        std::cout << "\n";
       }
     }
 
@@ -627,7 +630,7 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
   } // if ( ! args->skipPCorrelative )
   else if (myRank == args->ioRank)
   {
-    cout << "\n## Skipped calculation of parallel correlative statistics.\n";
+    std::cout << "\n## Skipped calculation of parallel correlative statistics.\n";
   }
 
   // ************************** Parallel Multi-Correlative Statistics **************************
@@ -669,8 +672,7 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
     pmcs->Update();
 
     // Get output meta tables
-    vtkMultiBlockDataSet* outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
-      pmcs->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
+    auto* outputMetaDS = pmcs->GetOutputModel();
 
     // Synchronize and stop clock
     com->Barrier();
@@ -678,18 +680,19 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
 
     if (myRank == args->ioRank)
     {
-      cout
-        << "\n## Completed parallel calculation of multi-correlative statistics (with "
-           "assessment):\n"
-        << "   Total sample size: "
-        << vtkTable::SafeDownCast(outputMetaDS->GetBlock(0))->GetValueByName(0, "Entries").ToInt()
-        << " \n"
-        << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
+      std::cout << "\n## Completed parallel calculation of multi-correlative statistics (with "
+                   "assessment):\n"
+                << "   Total sample size: "
+                << outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0)
+                     ->GetValueByName(0, "Entries")
+                     .ToInt()
+                << " \n"
+                << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
 
       vtkTable* outputMeta;
-      for (unsigned int b = 1; b < outputMetaDS->GetNumberOfBlocks(); ++b)
+      for (int b = 0; b < outputMetaDS->GetNumberOfTables(vtkStatisticalModel::Derived); ++b)
       {
-        outputMeta = vtkTable::SafeDownCast(outputMetaDS->GetBlock(b));
+        outputMeta = outputMetaDS->GetTable(vtkStatisticalModel::Derived, b);
         outputMeta->Dump();
       }
     }
@@ -699,7 +702,7 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
   } // if ( ! args->skipPMultiCorrelative )
   else if (myRank == args->ioRank)
   {
-    cout << "\n## Skipped calculation of parallel multi-correlative statistics.\n";
+    std::cout << "\n## Skipped calculation of parallel multi-correlative statistics.\n";
   }
 
   // ************************** Parallel PCA Statistics **************************
@@ -740,8 +743,7 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
     pcas->Update();
 
     // Get output meta tables
-    vtkMultiBlockDataSet* outputMetaDS = vtkMultiBlockDataSet::SafeDownCast(
-      pcas->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
+    auto* outputMetaDS = pcas->GetOutputModel();
 
     // Synchronize and stop clock
     com->Barrier();
@@ -749,17 +751,19 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
 
     if (myRank == args->ioRank)
     {
-      cout
-        << "\n## Completed parallel calculation of pca statistics (with assessment):\n"
-        << "   Total sample size: "
-        << vtkTable::SafeDownCast(outputMetaDS->GetBlock(0))->GetValueByName(0, "Entries").ToInt()
-        << " \n"
-        << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
+      std::cout << "\n## Completed parallel calculation of pca statistics (with assessment):\n"
+                << "   Total sample size: "
+                << outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0)
+                     ->GetValueByName(0, "Entries")
+                     .ToInt()
+                << " \n"
+                << "   Wall time: " << timer->GetElapsedTime() << " sec.\n";
 
+      outputMetaDS->GetTable(vtkStatisticalModel::Learned, 0)->Dump();
       vtkTable* outputMeta;
-      for (unsigned int b = 1; b < outputMetaDS->GetNumberOfBlocks(); ++b)
+      for (int b = 0; b < outputMetaDS->GetNumberOfTables(vtkStatisticalModel::Derived); ++b)
       {
-        outputMeta = vtkTable::SafeDownCast(outputMetaDS->GetBlock(b));
+        outputMeta = outputMetaDS->GetTable(vtkStatisticalModel::Derived, b);
         outputMeta->Dump();
       }
     }
@@ -769,7 +773,7 @@ void RandomSampleStatistics(vtkMultiProcessController* controller, void* arg)
   } // if ( ! args->skipPPCA )
   else if (myRank == args->ioRank)
   {
-    cout << "\n## Skipped calculation of parallel PCA statistics.\n";
+    std::cout << "\n## Skipped calculation of parallel PCA statistics.\n";
   }
 
   // Clean up
@@ -801,6 +805,7 @@ int TestRandomPMomentStatisticsMPI(int argc, char* argv[])
   int ioRank;
   int flag;
 
+  // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
   MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_IO, &ioPtr, &flag);
 
   if ((!flag) || (*ioPtr == MPI_PROC_NULL))
@@ -834,14 +839,14 @@ int TestRandomPMomentStatisticsMPI(int argc, char* argv[])
   int myRank = com->GetLocalProcessId();
   if (myRank == ioRank)
   {
-    cout << "\n# Process " << ioRank << " will be the I/O node.\n";
+    std::cout << "\n# Process " << ioRank << " will be the I/O node.\n";
   }
 
   // Check how many processes have been made available
   int numProcs = controller->GetNumberOfProcesses();
   if (myRank == ioRank)
   {
-    cout << "\n# Running test with " << numProcs << " processes...\n";
+    std::cout << "\n# Running test with " << numProcs << " processes...\n";
   }
 
   // **************************** Parse command line ***************************
@@ -897,7 +902,7 @@ int TestRandomPMomentStatisticsMPI(int argc, char* argv[])
   {
     if (myRank == ioRank)
     {
-      cerr << "Usage: " << clArgs.GetHelp() << "\n";
+      std::cerr << "Usage: " << clArgs.GetHelp() << "\n";
     }
 
     controller->Finalize();
@@ -928,7 +933,7 @@ int TestRandomPMomentStatisticsMPI(int argc, char* argv[])
   // Clean up and exit
   if (com->GetLocalProcessId() == ioRank)
   {
-    cout << "\n# Test completed.\n\n";
+    std::cout << "\n# Test completed.\n\n";
   }
 
   controller->Finalize();

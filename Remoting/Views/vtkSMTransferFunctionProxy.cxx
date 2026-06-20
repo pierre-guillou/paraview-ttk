@@ -3,14 +3,17 @@
 #include "vtkSMTransferFunctionProxy.h"
 
 #include "vtkAlgorithm.h"
+#include "vtkCommunicator.h"
 #include "vtkDoubleArray.h"
 #include "vtkIntArray.h"
+#include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVArrayInformation.h"
 #include "vtkPVProminentValuesInformation.h"
 #include "vtkPVXMLElement.h"
 #include "vtkPVXMLParser.h"
+#include "vtkProcessModule.h"
 #include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMCoreUtilities.h"
 #include "vtkSMNamedPropertyIterator.h"
@@ -320,6 +323,18 @@ bool vtkSMTransferFunctionProxy::RescaleTransferFunction(
   {
     rangeMin = std::min(rangeMin, preNormalizationRange[0]);
     rangeMax = std::max(rangeMax, preNormalizationRange[1]);
+  }
+
+  if (vtkProcessModule::GetProcessModule()->GetSymmetricMPIMode())
+  {
+    double globalRangeMin, globalRangeMax;
+    // In symmetric mode, we need to get the global range
+    vtkMultiProcessController::GetGlobalController()->AllReduce(
+      &rangeMin, &globalRangeMin, 1, vtkCommunicator::MIN_OP);
+    vtkMultiProcessController::GetGlobalController()->AllReduce(
+      &rangeMax, &globalRangeMax, 1, vtkCommunicator::MAX_OP);
+    rangeMin = globalRangeMin;
+    rangeMax = globalRangeMax;
   }
 
   // Setting the "LastRange" here because, it should match the current range of the control points.
@@ -1217,7 +1232,7 @@ Json::Value vtkSMTransferFunctionProxy::ConvertLegacyColorMapXMLToJSON(vtkPVXMLE
       if (!indexedLookup && pointElement->GetScalarAttribute("x", &xrgb[0]))
       {
         // "x" attribute is only needed for non-categorical color maps.
-        new_points.push_back(vtkTuple<double, 4>(xrgb));
+        new_points.emplace_back(xrgb);
       }
       else if (indexedLookup)
       {
@@ -1225,7 +1240,7 @@ Json::Value vtkSMTransferFunctionProxy::ConvertLegacyColorMapXMLToJSON(vtkPVXMLE
         // make up one. This will be ignored when setting the "IndexedColors"
         // property.
         xrgb[0] = cc;
-        new_points.push_back(vtkTuple<double, 4>(xrgb));
+        new_points.emplace_back(xrgb);
       }
     }
     else if (pointElement && pointElement->GetName() &&
@@ -1233,7 +1248,7 @@ Json::Value vtkSMTransferFunctionProxy::ConvertLegacyColorMapXMLToJSON(vtkPVXMLE
       pointElement->GetAttribute("t"))
     {
       const char* value[2] = { pointElement->GetAttribute("v"), pointElement->GetAttribute("t") };
-      new_annotations.push_back(vtkTuple<const char*, 2>(value));
+      new_annotations.emplace_back(value);
     }
   }
 
@@ -1433,7 +1448,7 @@ Json::Value vtkSMTransferFunctionProxy::ConvertVisItColorMapXMLToJSON(vtkPVXMLEl
           fieldElement->GetCharacterDataAsVector(1, &xrgb[0]);
         }
       }
-      new_points.push_back(vtkTuple<double, 4>(xrgb));
+      new_points.emplace_back(xrgb);
     }
     else if (std::string(pointElement->GetName()) == "Field" &&
       std::string(pointElement->GetAttribute("name")) == "tags")

@@ -21,14 +21,14 @@ vtkStandardExtendedNewMacro(vtkStructuredGrid);
 //------------------------------------------------------------------------------
 vtkStructuredGrid::vtkStructuredGrid()
 {
-  this->DataDescription = VTK_EMPTY;
+  this->DataDescription = vtkStructuredData::VTK_STRUCTURED_EMPTY;
 
   for (int idx = 0; idx < 3; ++idx)
   {
     this->Dimensions[idx] = 0;
   }
 
-  const int extent[6] = { 0, -1, 0, -1, 0, -1 };
+  constexpr int extent[6] = { 0, -1, 0, -1, 0, -1 };
   memcpy(this->Extent, extent, sizeof(extent));
 
   this->Information->Set(vtkDataObject::DATA_EXTENT_TYPE(), VTK_3D_EXTENT);
@@ -80,7 +80,7 @@ void vtkStructuredGrid::BuildCells()
 //------------------------------------------------------------------------------
 void vtkStructuredGrid::BuildCellTypes()
 {
-  this->StructuredCellTypes = vtkStructuredData::GetCellTypesArray(this->Extent, false);
+  this->StructuredCellTypes = vtkStructuredData::GetCellTypes(this->Extent, false);
 }
 
 //------------------------------------------------------------------------------
@@ -141,7 +141,8 @@ void vtkStructuredGrid::GetCellBounds(vtkIdType cellId, double bounds[6])
 int vtkStructuredGrid::GetCellType(vtkIdType cellId)
 {
   // see whether the cell is blanked
-  return this->IsCellVisible(cellId) ? this->StructuredCellTypes->GetValue(cellId) : VTK_EMPTY_CELL;
+  return this->IsCellVisible(cellId) ? static_cast<int>(this->StructuredCellTypes->GetValue(cellId))
+                                     : VTK_EMPTY_CELL;
 }
 
 //------------------------------------------------------------------------------
@@ -252,9 +253,24 @@ vtkStructuredCellArray* vtkStructuredGrid::GetCells()
 }
 
 //------------------------------------------------------------------------------
-vtkConstantArray<int>* vtkStructuredGrid::GetCellTypesArray()
+vtkConstantArray<unsigned char>* vtkStructuredGrid::GetCellTypes()
 {
   return this->StructuredCellTypes;
+}
+
+//------------------------------------------------------------------------------
+vtkConstantArray<int>* vtkStructuredGrid::GetCellTypesArray()
+{
+  if (!this->LegacyStructuredCellTypes)
+  {
+    this->LegacyStructuredCellTypes = vtkSmartPointer<vtkConstantArray<int>>::New();
+    this->LegacyStructuredCellTypes->ConstructBackend(
+      static_cast<int>(this->StructuredCellTypes->GetBackend()->Value));
+    this->LegacyStructuredCellTypes->SetNumberOfComponents(1);
+    this->LegacyStructuredCellTypes->SetNumberOfTuples(
+      this->StructuredCellTypes->GetNumberOfTuples());
+  }
+  return this->LegacyStructuredCellTypes;
 }
 
 //------------------------------------------------------------------------------
@@ -366,7 +382,7 @@ void vtkStructuredGrid::SetExtent(VTK_FUTURE_CONST int extent[6])
     vtkErrorMacro(<< "Bad Extent, retaining previous values");
   }
 
-  if (description == VTK_UNCHANGED)
+  if (description == vtkStructuredData::VTK_STRUCTURED_UNCHANGED)
   {
     return;
   }
@@ -462,14 +478,8 @@ void vtkStructuredGrid::ComputeScalarRange()
         if (this->IsPointVisible(id))
         {
           s = ptScalars->GetComponent(id, 0);
-          if (s < ptRange[0])
-          {
-            ptRange[0] = s;
-          }
-          if (s > ptRange[1])
-          {
-            ptRange[1] = s;
-          }
+          ptRange[0] = std::min(s, ptRange[0]);
+          ptRange[1] = std::max(s, ptRange[1]);
         }
       }
     }
@@ -484,14 +494,8 @@ void vtkStructuredGrid::ComputeScalarRange()
         if (this->IsCellVisible(id))
         {
           s = cellScalars->GetComponent(id, 0);
-          if (s < cellRange[0])
-          {
-            cellRange[0] = s;
-          }
-          if (s > cellRange[1])
-          {
-            cellRange[1] = s;
-          }
+          cellRange[0] = std::min(s, cellRange[0]);
+          cellRange[1] = std::max(s, cellRange[1]);
         }
       }
     }
@@ -525,15 +529,9 @@ void vtkStructuredGrid::Crop(const int* updateExtent)
   for (i = 0; i < 3; ++i)
   {
     uExt[i * 2] = updateExtent[i * 2];
-    if (uExt[i * 2] < extent[i * 2])
-    {
-      uExt[i * 2] = extent[i * 2];
-    }
+    uExt[i * 2] = std::max(uExt[i * 2], extent[i * 2]);
     uExt[i * 2 + 1] = updateExtent[i * 2 + 1];
-    if (uExt[i * 2 + 1] > extent[i * 2 + 1])
-    {
-      uExt[i * 2 + 1] = extent[i * 2 + 1];
-    }
+    uExt[i * 2 + 1] = std::min(uExt[i * 2 + 1], extent[i * 2 + 1]);
   }
 
   // If extents already match, then we need to do nothing.

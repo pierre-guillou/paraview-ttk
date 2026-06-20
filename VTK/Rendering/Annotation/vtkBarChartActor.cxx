@@ -8,11 +8,11 @@
 #include "vtkFieldData.h"
 #include "vtkGlyphSource2D.h"
 #include "vtkLegendBoxActor.h"
-#include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper2D.h"
 #include "vtkProperty2D.h"
+#include "vtkStringFormatter.h"
 #include "vtkTextMapper.h"
 #include "vtkTextProperty.h"
 #include "vtkUnsignedCharArray.h"
@@ -70,7 +70,6 @@ vtkBarChartActor::vtkBarChartActor()
 
   this->LegendVisibility = 1;
 
-  this->LegendActor = vtkLegendBoxActor::New();
   this->LegendActor->GetPositionCoordinate()->SetCoordinateSystemToViewport();
   this->LegendActor->GetPosition2Coordinate()->SetCoordinateSystemToViewport();
   this->LegendActor->GetPosition2Coordinate()->SetReferenceCoordinate(nullptr);
@@ -90,7 +89,8 @@ vtkBarChartActor::vtkBarChartActor()
   this->YAxis->SetProperty(this->GetProperty());
   this->YAxis->SizeFontRelativeToAxisOn();
   this->YTitle = new char[1];
-  snprintf(this->YTitle, 1, "%s", "");
+  auto result = vtk::format_to_n(this->YTitle, 1, "{:s}", "");
+  *result.out = '\0';
 
   this->PlotData = vtkPolyData::New();
   this->PlotMapper = vtkPolyDataMapper2D::New();
@@ -132,7 +132,6 @@ vtkBarChartActor::~vtkBarChartActor()
   this->SetLabelTextProperty(nullptr);
   this->SetTitleTextProperty(nullptr);
 
-  this->LegendActor->Delete();
   this->GlyphSource->Delete();
 
   this->Initialize();
@@ -490,7 +489,8 @@ int vtkBarChartActor::PlaceAxes(vtkViewport* viewport, const int* vtkNotUsed(siz
     }
     else
     {
-      snprintf(label, sizeof(label), "%d", static_cast<int>(i));
+      auto result = vtk::format_to_n(label, sizeof(label), "{:d}", i);
+      *result.out = '\0';
       this->LegendActor->SetEntryString(i, label);
     }
   }
@@ -510,7 +510,8 @@ int vtkBarChartActor::PlaceAxes(vtkViewport* viewport, const int* vtkNotUsed(siz
       }
       else
       {
-        snprintf(label, sizeof(label), "%d", static_cast<int>(i));
+        auto result = vtk::format_to_n(label, sizeof(label), "{:d}", i);
+        *result.out = '\0';
         this->BarMappers[i]->SetInput(label);
       }
       this->BarMappers[i]->GetTextProperty()->ShallowCopy(this->LabelTextProperty);
@@ -613,6 +614,12 @@ const char* vtkBarChartActor::GetBarLabel(int i)
   }
 
   return this->Labels->at(i).c_str();
+}
+
+//------------------------------------------------------------------------------
+int vtkBarChartActor::GetNumberOfBarLabels()
+{
+  return static_cast<int>(this->Labels->size());
 }
 
 //------------------------------------------------------------------------------

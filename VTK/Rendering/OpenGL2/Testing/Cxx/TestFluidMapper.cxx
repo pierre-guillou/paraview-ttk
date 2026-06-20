@@ -35,6 +35,7 @@
 #include "vtkOpenGLFluidMapper.h"
 
 #include <array>
+#include <iostream>
 
 // Define this to render blue color water, otherwise will render red (blood)
 // color
@@ -167,7 +168,7 @@ int TestFluidMapper(int argc, char* argv[])
   setupInteractiveDemo(renderWindow, renderer, iren, pointData, dragon, fluidMapper);
 #else
   renderWindow->SetSize(400, 400);
-  const float spacing = 0.1f;
+  constexpr float spacing = 0.1f;
   for (int z = 0; z < 50; ++z)
   {
     for (int y = 0; y < 15; ++y)
@@ -267,7 +268,7 @@ int TestFluidMapper(int argc, char* argv[])
     renderWindow->Render();
   }
   timer->StopTimer();
-  cerr << "Render time: " << timer->GetElapsedTime() << endl;
+  std::cerr << "Render time: " << timer->GetElapsedTime() << std::endl;
 
   int retVal = vtkRegressionTestImage(renderWindow);
   if (retVal == vtkRegressionTester::DO_INTERACTOR)

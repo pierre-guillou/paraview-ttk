@@ -46,6 +46,7 @@
 
 #include <cassert>
 #include <exception>
+#include <iostream>
 #include <sstream>
 
 #include "vtkVRMLImporter_Yacc.h"
@@ -86,7 +87,6 @@ vtkVRMLImporter::vtkVRMLImporter()
   this->CurrentMapper = nullptr;
   this->CurrentLut = nullptr;
   this->CurrentTransform = nullptr;
-  this->FileName = nullptr;
   this->FileFD = nullptr;
   this->Parser = new vtkVRMLYaccData;
   this->ShapeResolution = 12;
@@ -100,9 +100,6 @@ vtkVRMLImporter::~vtkVRMLImporter()
     this->CurrentTransform->Delete();
     this->CurrentTransform = nullptr;
   }
-
-  delete[] this->FileName;
-  this->FileName = nullptr;
 
   while (this->Internal->Heap.Count() > 0)
   {
@@ -134,15 +131,14 @@ vtkVRMLImporter::~vtkVRMLImporter()
 void vtkVRMLImporter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
-  os << indent << "File Name: " << (this->FileName ? this->FileName : "(none)") << "\n";
 
-  os << "Defined names in File:" << endl;
+  os << "Defined names in File:" << std::endl;
   if (this->Parser->useList)
   {
     for (int i = 0; i < this->Parser->useList->Count(); i++)
     {
       os << "\tName: " << (*this->Parser->useList)[i]->defName << " is a "
-         << (*this->Parser->useList)[i]->defObject->GetClassName() << endl;
+         << (*this->Parser->useList)[i]->defObject->GetClassName() << std::endl;
     }
   }
 }
@@ -153,15 +149,16 @@ int vtkVRMLImporter::OpenImportFile()
 {
   vtkDebugMacro(<< "Opening import file");
 
-  if (!this->FileName)
+  const char* filename = this->GetFileName();
+  if (!filename)
   {
     vtkErrorMacro(<< "No file specified!");
     return 0;
   }
-  this->FileFD = vtksys::SystemTools::Fopen(this->FileName, "r");
+  this->FileFD = vtksys::SystemTools::Fopen(filename, "r");
   if (this->FileFD == nullptr)
   {
-    vtkErrorMacro(<< "Unable to open file: " << this->FileName);
+    vtkErrorMacro(<< "Unable to open file: " << filename);
     return 0;
   }
   return 1;
@@ -255,7 +252,7 @@ int vtkVRMLImporter::ImportBegin()
     // Not sure why I have to do this but its not working when
     // When I use the FileFD file pointer...
     // File existence already checked.
-    this->Parser->yyin = vtksys::SystemTools::Fopen(this->FileName, "r");
+    this->Parser->yyin = vtksys::SystemTools::Fopen(this->GetFileName(), "r");
     if (!this->Parser->yyin)
     {
       throw std::exception();

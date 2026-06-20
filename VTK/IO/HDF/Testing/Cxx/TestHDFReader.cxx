@@ -2,24 +2,19 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAppendDataSets.h"
-#include "vtkFloatArray.h"
+#include "vtkFileResourceStream.h"
 #include "vtkHDFReader.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkHyperTreeGridSource.h"
 #include "vtkImageData.h"
-#include "vtkLogger.h"
-#include "vtkMathUtilities.h"
-#include "vtkMergeBlocks.h"
 #include "vtkNew.h"
 #include "vtkOverlappingAMR.h"
 #include "vtkPartitionedDataSet.h"
 #include "vtkPartitionedDataSetCollection.h"
-#include "vtkPointData.h"
 #include "vtkPolyData.h"
 #include "vtkRandomHyperTreeGridSource.h"
 #include "vtkTestUtilities.h"
 #include "vtkTesting.h"
-#include "vtkUniformGrid.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkXMLHyperTreeGridReader.h"
 #include "vtkXMLImageDataReader.h"
@@ -30,7 +25,7 @@
 #include "vtkXMLUnstructuredGridReader.h"
 
 #include <cstdlib>
-#include <iterator>
+#include <iostream>
 #include <string>
 
 //----------------------------------------------------------------------------
@@ -266,6 +261,35 @@ int TestPolyData(const std::string& dataRoot)
 }
 
 //----------------------------------------------------------------------------
+int TestPolyDataStream(const std::string& dataRoot)
+{
+  const std::string expectedName = dataRoot + "/Data/hdf_poly_data_twin.vtp";
+  vtkNew<vtkXMLPolyDataReader> expectedReader;
+  expectedReader->SetFileName(expectedName.c_str());
+  expectedReader->Update();
+  auto expectedData = vtkPolyData::SafeDownCast(expectedReader->GetOutput());
+
+  const std::string fileName = dataRoot + "/Data/test_poly_data.hdf";
+  vtkNew<vtkFileResourceStream> fileStream;
+  fileStream->Open(fileName.c_str());
+
+  vtkNew<vtkHDFReader> reader;
+  reader->SetStream(fileStream);
+  reader->Update();
+
+  vtkPartitionedDataSet* pds = vtkPartitionedDataSet::SafeDownCast(reader->GetOutputDataObject(0));
+  if (pds->GetNumberOfPartitions() != 2)
+  {
+    std::cerr << "Error: expected 2 partitions in polydata but got " << pds->GetNumberOfPartitions()
+              << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  return !vtkTestUtilities::CompareDataObjects(
+    GetMergedBlocks(reader, VTK_POLY_DATA), expectedData);
+}
+
+//----------------------------------------------------------------------------
 int TestNullTerminatedString(const std::string& dataRoot)
 {
   // File contains a 'Type' attributed that ends with a '\0' character.
@@ -364,19 +388,19 @@ int TestOverlappingAMR(const std::string& dataRoot)
 
   for (unsigned int levelIndex = 0; levelIndex < expectedData->GetNumberOfLevels(); ++levelIndex)
   {
-    if (data->GetNumberOfDataSets(levelIndex) != expectedData->GetNumberOfDataSets(levelIndex))
+    if (data->GetNumberOfBlocks(levelIndex) != expectedData->GetNumberOfBlocks(levelIndex))
     {
-      std::cerr << "Number of datasets does not match for level " << levelIndex
-                << ". Expected: " << expectedData->GetNumberOfDataSets(0)
-                << " got: " << data->GetNumberOfDataSets(0) << std::endl;
+      std::cerr << "Number of blocks does not match for level " << levelIndex
+                << ". Expected: " << expectedData->GetNumberOfBlocks(0)
+                << " got: " << data->GetNumberOfBlocks(0) << std::endl;
       return EXIT_FAILURE;
     }
 
-    for (unsigned int datasetIndex = 0;
-         datasetIndex < expectedData->GetNumberOfDataSets(levelIndex); ++datasetIndex)
+    for (unsigned int datasetIndex = 0; datasetIndex < expectedData->GetNumberOfBlocks(levelIndex);
+         ++datasetIndex)
     {
-      auto dataset = data->GetDataSet(levelIndex, datasetIndex);
-      auto expectedDataset = expectedData->GetDataSet(levelIndex, datasetIndex);
+      vtkImageData* dataset = data->GetDataSetAsImageData(levelIndex, datasetIndex);
+      vtkImageData* expectedDataset = expectedData->GetDataSetAsImageData(levelIndex, datasetIndex);
       if (!vtkTestUtilities::CompareDataObjects(dataset, expectedDataset))
       {
         std::cerr << "Datasets does not match for level " << levelIndex << " dataset "
@@ -527,6 +551,38 @@ int TestHyperTreeGridWithInterfaces(const std::string& dataRoot)
 }
 
 //------------------------------------------------------------------------------
+int TestUnstructuredGridPolyhedron(const std::string& dataRoot)
+{
+  const std::vector<std::string> testFiles = { "hexahedron", "polyhedron" };
+  for (const auto& file : testFiles)
+  {
+
+    std::string hdfFile = dataRoot + "/Data/vtkHDF/" + file + ".vtkhdf";
+    std::string vtuFile = dataRoot + "/Data/vtkHDF/" + file + ".vtu";
+    std::cout << "Testing: " << hdfFile << std::endl;
+
+    vtkNew<vtkHDFReader> reader;
+    reader->SetFileName(hdfFile.c_str());
+    reader->SetStep(1);
+    reader->Update();
+    vtkUnstructuredGrid* readData = vtkUnstructuredGrid::SafeDownCast(reader->GetOutput());
+
+    vtkNew<vtkXMLUnstructuredGridReader> readerXML;
+    readerXML->SetFileName(vtuFile.c_str());
+    readerXML->Update();
+    vtkUnstructuredGrid* readDataXML = vtkUnstructuredGrid::SafeDownCast(readerXML->GetOutput());
+
+    if (!vtkTestUtilities::CompareDataObjects(readData, readDataXML))
+    {
+      std::cerr << "Unstructured grids with polyhedrons are not the same" << std::endl;
+      return EXIT_FAILURE;
+    }
+  }
+
+  return EXIT_SUCCESS;
+}
+
+//------------------------------------------------------------------------------
 int TestHDFReader(int argc, char* argv[])
 {
   vtkNew<vtkTesting> testHelper;
@@ -552,12 +608,21 @@ int TestHDFReader(int argc, char* argv[])
   {
     return EXIT_FAILURE;
   }
+  if (TestUnstructuredGridPolyhedron(dataRoot))
+  {
+    return EXIT_FAILURE;
+  }
   if (TestUnstructuredGrid(dataRoot, true))
   {
     return EXIT_FAILURE;
   }
 
   if (TestPolyData(dataRoot))
+  {
+    return EXIT_FAILURE;
+  }
+
+  if (TestPolyDataStream(dataRoot))
   {
     return EXIT_FAILURE;
   }

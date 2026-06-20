@@ -10,7 +10,7 @@
 #include "vtkArrayDispatch.h"
 #include "vtkCellArray.h"
 #include "vtkCellType.h"
-#include "vtkCellTypes.h"
+#include "vtkCellTypeUtilities.h"
 #include "vtkDataSet.h"
 #include "vtkGenericCell.h"
 #include "vtkHigherOrderCurve.h"
@@ -19,11 +19,10 @@
 #include "vtkHigherOrderTetra.h"
 #include "vtkHigherOrderTriangle.h"
 #include "vtkHigherOrderWedge.h"
-#include "vtkIdTypeArray.h"
 #include "vtkLogger.h"
-#include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkPoints.h"
+#include "vtkStringFormatter.h"
 
 #include <vtksys/RegularExpression.hxx>
 #include <vtksys/SystemTools.hxx>
@@ -33,7 +32,6 @@
 // clang-format off
 #include VTK_IOSS(Ioss_ElementTopology.h)
 #include VTK_IOSS(Ioss_Field.h)
-#include VTK_IOSS(Ioss_NodeBlock.h)
 #include VTK_IOSS(Ioss_SideBlock.h)
 #include VTK_IOSS(Ioss_SideSet.h)
 #include VTK_IOSS(Ioss_TransformFactory.h)
@@ -217,7 +215,7 @@ Ioss::EntityType GetIOSSEntityType(vtkIOSSReader::EntityType vtk_type)
     case vtkIOSSReader::SIDESET:
       return Ioss::EntityType::SIDESET;
     default:
-      throw std::runtime_error("Invalid entity type " + std::to_string(vtk_type));
+      throw std::runtime_error("Invalid entity type " + vtk::to_string(static_cast<int>(vtk_type)));
   }
 }
 
@@ -239,7 +237,8 @@ vtkSmartPointer<vtkDataArray> CreateArray(const Ioss::Field& field)
       array.TakeReference(vtkTypeInt64Array::New());
       break;
     default:
-      throw std::runtime_error("Unsupported field type " + std::to_string(field.get_type()));
+      throw std::runtime_error(
+        "Unsupported field type " + vtk::to_string(static_cast<int>(field.get_type())));
   }
   array->SetName(field.get_name().c_str());
   array->SetNumberOfComponents(field.raw_storage()->component_count());
@@ -275,7 +274,8 @@ vtkSmartPointer<vtkDataArray> GetData(const Ioss::GroupingEntity* entity,
   // vtkLogF(TRACE, "%s: size: %d * %d", fieldname.c_str(), (int)field.raw_count(),
   //  (int)field.raw_storage()->component_count());
   auto array = vtkIOSSUtilities::CreateArray(field);
-  auto count = -1;
+  assert(array->HasStandardMemoryLayout() && "Array must have standard memory layout");
+  int64_t count;
   if (field.zero_copy_enabled())
   {
     void* data;
@@ -285,7 +285,7 @@ vtkSmartPointer<vtkDataArray> GetData(const Ioss::GroupingEntity* entity,
   }
   else
   {
-    count = entity->get_field_data(
+    count = entity->get_field_data( // NOLINTNEXTLINE(bugprone-unsafe-functions)
       fieldname, array->GetVoidPointer(0), array->GetDataSize() * array->GetDataTypeSize());
   }
 
@@ -295,8 +295,8 @@ vtkSmartPointer<vtkDataArray> GetData(const Ioss::GroupingEntity* entity,
   }
   if (transform)
   {
-    field.add_transform(transform);
-    field.transform(array->GetVoidPointer(0));
+    field.add_transform(transform); // The raw pointer is stored as a shared pointer internally
+    field.transform(array->GetVoidPointer(0)); // NOLINT(bugprone-unsafe-functions)
   }
 
   // Check for Transient 2D data that should be 3D for WarpByVector/Glyphs
@@ -538,7 +538,7 @@ const Ioss::ElementTopology* GetElementTopology(int vtk_cell_type)
     return element;
   }
 
-  const std::string cellName = vtkCellTypes::GetClassNameFromTypeId(vtk_cell_type);
+  const std::string cellName = vtkCellTypeUtilities::GetClassNameFromTypeId(vtk_cell_type);
   vtkLogF(ERROR, "%s cannot be mapped to an Ioss element type!", cellName.c_str());
   throw std::runtime_error("Unsupported cell type " + cellName);
 }
@@ -703,9 +703,9 @@ vtkSmartPointer<vtkCellArray> GetConnectivity(
     // for nodesets, we create a cell array with single cells.
 
     // ioss ids_raw is 1-indexed, let's make it 0-indexed for VTK.
-    auto transform = std::unique_ptr<Ioss::Transform>(Ioss::TransformFactory::create("offset"));
+    auto transform = Ioss::TransformFactory::create("offset");
     transform->set_property("offset", -1);
-    auto ids_raw = vtkIOSSUtilities::GetData(group_entity, "ids_raw", transform.get());
+    auto ids_raw = vtkIOSSUtilities::GetData(group_entity, "ids_raw", transform);
     ids_raw->SetNumberOfComponents(1);
 
     vtkSmartPointer<vtkCellArray> cellArray = vtkSmartPointer<vtkCellArray>::New();
@@ -723,11 +723,10 @@ vtkSmartPointer<vtkCellArray> GetConnectivity(
   vtkSmartPointer<vtkCellArray> cellArray = vtkSmartPointer<vtkCellArray>::New();
 
   // ioss connectivity_raw is 1-indexed, let's make it 0-indexed for VTK.
-  auto transform = std::unique_ptr<Ioss::Transform>(Ioss::TransformFactory::create("offset"));
+  auto transform = Ioss::TransformFactory::create("offset");
   transform->set_property("offset", -1);
 
-  auto connectivity_raw =
-    vtkIOSSUtilities::GetData(group_entity, "connectivity_raw", transform.get());
+  auto connectivity_raw = vtkIOSSUtilities::GetData(group_entity, "connectivity_raw", transform);
 
   auto vtk_cell_points =
     vtkIOSSUtilities::GetNumberOfPointsInCellType(vtk_topology_type, ioss_cell_points);
@@ -1163,6 +1162,29 @@ void GetEntityAndFieldNames<Ioss::SideSet>(const Ioss::Region* region,
     entity->field_describe(Ioss::Field::ATTRIBUTE, &attributeNames);
     std::copy(
       attributeNames.begin(), attributeNames.end(), std::inserter(field_names, field_names.end()));
+  }
+}
+
+//----------------------------------------------------------------------------
+void GetGlobalFieldNames(const Ioss::Region* region, std::set<std::string>& field_names)
+{
+  if (!region)
+  {
+    return;
+  }
+  Ioss::NameList fieldNames;
+  region->field_describe(&fieldNames);
+  for (const auto& name : fieldNames)
+  {
+    switch (region->get_fieldref(name).get_role())
+    {
+      case Ioss::Field::ATTRIBUTE:
+      case Ioss::Field::REDUCTION:
+        field_names.insert(name);
+        break;
+      default:
+        break;
+    }
   }
 }
 

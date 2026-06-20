@@ -27,10 +27,7 @@ int TestContourTriangulatorHoles(int argc, char* argv[])
   vtkNew<vtkTesting> testHelper;
   testHelper->AddArguments(argc, argv);
 
-  std::string tempDir = testHelper->GetTempDirectory();
-  std::string tempBaseline = tempDir + "/TestContourTriangulatorHoles.png";
-
-  const double polys[6][4][3] = {
+  constexpr double polys[6][4][3] = {
     {
       { -100.0, -100.0, 0.0 },
       { +100.0, -100.0, 0.0 },

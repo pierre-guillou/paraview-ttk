@@ -4,7 +4,7 @@
 #include "vtkImageSincInterpolator.h"
 #include "vtkDataArray.h"
 #include "vtkImageData.h"
-#include "vtkImageInterpolatorInternals.h"
+#include "vtkInterpolationMath.h"
 #include "vtkObjectFactory.h"
 
 #include "vtkTemplateAliasMacro.h"
@@ -140,11 +140,14 @@ void vtkImageSincInterpolator::ComputeSupportSize(const double matrix[16], int s
   {
     int integerRow = 1;
     double rowscale = 0.0;
-    for (int j = 0; j < 3; j++)
+    for (int j = 0; j < 4; j++)
     {
       // compute the scale from a row of the matrix
       double x = matrix[4 * i + j];
-      rowscale += x * x;
+      if (j < 3)
+      {
+        rowscale += x * x;
+      }
 
       // verify that the element is an integer:
       // check fraction that remains after floor operation
@@ -387,7 +390,7 @@ void vtkImageSincInterpolator::InternalUpdate()
   }
 
   this->InterpolationInfo->InterpolationMode = mode;
-  this->InterpolationInfo->ExtraInfo = this->KernelLookupTable;
+  this->InterpolationInfo->ExtraInfo = reinterpret_cast<void*>(this->KernelLookupTable);
 }
 
 //------------------------------------------------------------------------------
@@ -1290,10 +1293,7 @@ void vtkImageSincInterpolator::BuildKernelLookupTable()
     }
 
     // blur factor must be restricted to half the max kernel size
-    if (b > 0.5 * VTK_SINC_KERNEL_SIZE_MAX)
-    {
-      b = 0.5 * VTK_SINC_KERNEL_SIZE_MAX;
-    }
+    b = std::min(b, 0.5 * VTK_SINC_KERNEL_SIZE_MAX);
 
     // compute lookup table size and step size
     int size = m / 2 * VTK_SINC_KERNEL_TABLE_DIVISIONS;

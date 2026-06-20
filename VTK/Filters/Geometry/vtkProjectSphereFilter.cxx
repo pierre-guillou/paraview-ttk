@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkProjectSphereFilter.h"
 
+#include "vtkArrayDispatch.h"
 #include "vtkCell.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
+#include "vtkDataArrayRange.h"
 #include "vtkDoubleArray.h"
 #include "vtkGenericCell.h"
 #include "vtkIdList.h"
@@ -34,19 +36,24 @@ void ConvertXYZToLatLonDepth(double xyz[3], double lonLatDepth[3], double center
   lonLatDepth[1] = 90. - acos((xyz[2] - center[2]) / lonLatDepth[2]) * 180. / vtkMath::Pi();
 }
 
-template <class data_type>
-void TransformVector(double* transformMatrix, data_type* data)
+struct vtkTransformVectorFunctor
 {
-  double d0 = static_cast<double>(data[0]);
-  double d1 = static_cast<double>(data[1]);
-  double d2 = static_cast<double>(data[2]);
-  data[0] = static_cast<data_type>(
-    transformMatrix[0] * d0 + transformMatrix[1] * d1 + transformMatrix[2] * d2);
-  data[1] = static_cast<data_type>(
-    transformMatrix[3] * d0 + transformMatrix[4] * d1 + transformMatrix[5] * d2);
-  data[2] = static_cast<data_type>(
-    transformMatrix[6] * d0 + transformMatrix[7] * d1 + transformMatrix[8] * d2);
-}
+  template <class TArray>
+  void operator()(TArray* array, vtkIdType index, double* transformMatrix)
+  {
+    using T = vtk::GetAPIType<TArray>;
+    auto data = vtk::DataArrayTupleRange<3>(array)[index];
+    double d0 = static_cast<double>(data[0]);
+    double d1 = static_cast<double>(data[1]);
+    double d2 = static_cast<double>(data[2]);
+    data[0] =
+      static_cast<T>(transformMatrix[0] * d0 + transformMatrix[1] * d1 + transformMatrix[2] * d2);
+    data[1] =
+      static_cast<T>(transformMatrix[3] * d0 + transformMatrix[4] * d1 + transformMatrix[5] * d2);
+    data[2] =
+      static_cast<T>(transformMatrix[6] * d0 + transformMatrix[7] * d1 + transformMatrix[8] * d2);
+  }
+};
 } // end anonymous namespace
 
 vtkStandardNewMacro(vtkProjectSphereFilter);
@@ -195,16 +202,19 @@ void vtkProjectSphereFilter::TransformCellInformation(
   std::map<vtkIdType, vtkIdType> boundaryMap;
 
   double TOLERANCE = .0001;
+  vtkNew<vtkPoints> tmpPoints;
+  tmpPoints->DeepCopy(output->GetPoints());
+  output->GetPoints()->Reset();
   vtkNew<vtkMergePoints> locator;
   locator->InitPointInsertion(
-    output->GetPoints(), output->GetBounds(), output->GetNumberOfPoints());
+    output->GetPoints(), output->GetBounds(), tmpPoints->GetNumberOfPoints());
   double coord[3];
-  for (vtkIdType i = 0; i < output->GetNumberOfPoints(); i++)
+  for (vtkIdType i = 0; i < tmpPoints->GetNumberOfPoints(); i++)
   {
-    // this is a bit annoying but required for building up the locator properly
-    // otherwise it won't either know these points exist or will start
-    // counting new points at index 0.
-    output->GetPoint(i, coord);
+    // creating a duplicate of the input point and inserting them in the locator
+    // is a bit annoying but required for building up the locator properly
+    // otherwise it won't know these points exist
+    tmpPoints->GetPoint(i, coord);
     locator->InsertNextPoint(coord);
   }
 
@@ -410,10 +420,10 @@ void vtkProjectSphereFilter::TransformTensors(
     vtkDataArray* array = dataArrays->GetArray(i);
     if (array->GetNumberOfComponents() == 3)
     {
-      switch (array->GetDataType())
+      vtkTransformVectorFunctor functor;
+      if (!vtkArrayDispatch::Dispatch::Execute(array, functor, pointId, transformMatrix))
       {
-        vtkTemplateMacro(TransformVector(transformMatrix,
-          static_cast<VTK_TT*>(array->GetVoidPointer(pointId * array->GetNumberOfComponents()))));
+        functor(array, pointId, transformMatrix);
       }
     }
   }
@@ -428,10 +438,7 @@ double vtkProjectSphereFilter::GetZTranslation(vtkPointSet* input)
   {
     input->GetPoint(i, coord);
     double dist2 = vtkMath::Distance2BetweenPoints(coord, this->Center);
-    if (dist2 > maxRadius2)
-    {
-      maxRadius2 = dist2;
-    }
+    maxRadius2 = std::max(dist2, maxRadius2);
   }
   return sqrt(maxRadius2);
 }
@@ -477,6 +484,7 @@ void vtkProjectSphereFilter::SplitCell(vtkPointSet* input, vtkPointSet* output,
 void vtkProjectSphereFilter::SetCellInformation(
   vtkUnstructuredGrid* output, vtkCell* cell, vtkIdType numberOfNewCells)
 {
+  auto cellTypes = vtkUnsignedCharArray::FastDownCast(output->GetCellTypes());
   for (vtkIdType i = 0; i < numberOfNewCells; i++)
   {
     vtkIdType prevCellId = output->GetNumberOfCells() + i - numberOfNewCells - 1;
@@ -488,7 +496,7 @@ void vtkProjectSphereFilter::SetCellInformation(
     {
       if (numPts > 2)
       {
-        output->GetCellTypesArray()->InsertValue(newCellId, VTK_POLY_VERTEX);
+        cellTypes->InsertValue(newCellId, VTK_POLY_VERTEX);
       }
       else
       {
@@ -499,11 +507,11 @@ void vtkProjectSphereFilter::SetCellInformation(
     {
       if (numPts == 2)
       {
-        output->GetCellTypesArray()->InsertValue(newCellId, VTK_LINE);
+        cellTypes->InsertValue(newCellId, VTK_LINE);
       }
       else if (numPts > 2)
       {
-        output->GetCellTypesArray()->InsertValue(newCellId, VTK_POLY_LINE);
+        cellTypes->InsertValue(newCellId, VTK_POLY_LINE);
       }
       else
       {
@@ -514,15 +522,15 @@ void vtkProjectSphereFilter::SetCellInformation(
     {
       if (numPts == 3)
       {
-        output->GetCellTypesArray()->InsertValue(newCellId, VTK_TRIANGLE);
+        cellTypes->InsertValue(newCellId, VTK_TRIANGLE);
       }
       else if (numPts > 3 && cell->GetCellType() == VTK_TRIANGLE_STRIP)
       {
-        output->GetCellTypesArray()->InsertValue(newCellId, VTK_TRIANGLE_STRIP);
+        cellTypes->InsertValue(newCellId, VTK_TRIANGLE_STRIP);
       }
       else if (numPts == 4)
       {
-        output->GetCellTypesArray()->InsertValue(newCellId, VTK_QUAD);
+        cellTypes->InsertValue(newCellId, VTK_QUAD);
       }
       else
       {
@@ -533,19 +541,19 @@ void vtkProjectSphereFilter::SetCellInformation(
     {
       if (numPts == 4)
       {
-        output->GetCellTypesArray()->InsertValue(newCellId, VTK_TETRA);
+        cellTypes->InsertValue(newCellId, VTK_TETRA);
       }
       else if (numPts == 5)
       {
-        output->GetCellTypesArray()->InsertValue(newCellId, VTK_PYRAMID);
+        cellTypes->InsertValue(newCellId, VTK_PYRAMID);
       }
       else if (numPts == 6)
       {
-        output->GetCellTypesArray()->InsertValue(newCellId, VTK_WEDGE);
+        cellTypes->InsertValue(newCellId, VTK_WEDGE);
       }
       else if (numPts == 8)
       {
-        output->GetCellTypesArray()->InsertValue(newCellId, VTK_HEXAHEDRON);
+        cellTypes->InsertValue(newCellId, VTK_HEXAHEDRON);
       }
       else
       {
